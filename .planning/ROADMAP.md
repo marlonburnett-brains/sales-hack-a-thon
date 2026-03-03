@@ -74,7 +74,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Domain constants consolidation, zodToGeminiSchema() helper, all 13 Zod schema definitions (10 LLM + 2 app + 1 consolidated from Phase 2), barrel exports, and classify-metadata.ts import migration
+- [x] 03-01-PLAN.md — Domain constants consolidation, zodToGeminiSchema() helper, all 13 Zod schema definitions (10 LLM + 2 app + 1 consolidated from Phase 2), barrel exports, and classify-metadata.ts import migration
 - [ ] 03-02-PLAN.md — Gemini round-trip validation script for all 10 LLM schemas with realistic domain prompts, runnable via pnpm validate-schemas
 
 ### Phase 4: Touch 1-3 Asset Generation & Interaction Tracking
@@ -223,7 +223,7 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 |-------|----------------|--------|-----------|
 | 1. Monorepo Foundation | 3/3 | Complete | 2026-03-03 |
 | 2. Content Library Ingestion | 1/3 | In progress | - |
-| 3. Zod Schema Layer and Gemini Validation | 0/2 | Not started | - |
+| 3. Zod Schema Layer and Gemini Validation | 1/2 | In progress | - |
 | 4. Touch 1-3 Asset Generation | 0/3 | Not started | - |
 | 5. Transcript Processing and Brief Generation | 0/3 | Not started | - |
 | 6. HITL Checkpoint 1 — Brief Approval | 0/2 | Not started | - |

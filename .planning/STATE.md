@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 02-03-PLAN.md: ImageAsset Prisma registry and brand guidelines ingestion"
-last_updated: "2026-03-03T21:50:52.000Z"
-last_activity: 2026-03-03 — Plan 02-03 complete (ImageAsset Prisma model, image registry build script, brand guidelines extraction)
+stopped_at: "Completed 03-01-PLAN.md: Zod schema definitions, domain constants, zodToGeminiSchema helper"
+last_updated: "2026-03-03T23:14:56Z"
+last_activity: 2026-03-03 — Plan 03-01 complete (13 Zod schemas, 6 domain constants, zodToGeminiSchema helper, barrel exports)
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 12
+  completed_plans: 5
+  percent: 15
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 2 — Content Library Ingestion
+**Current focus:** Phase 3 — Zod Schema Layer and Gemini Validation
 
 ## Current Position
 
-Phase: 2 of 11 (Content Library Ingestion) — IN PROGRESS
-Plan: 3 of 3 in current phase (02-03 complete)
-Status: Plan 02-03 complete (ImageAsset registry + brand guidelines). Phase 2 plans 01-02 may still be in progress (wave 1 parallel).
-Last activity: 2026-03-03 — Plan 02-03 complete (ImageAsset Prisma model, image registry build script, brand guidelines extraction)
+Phase: 3 of 11 (Zod Schema Layer and Gemini Validation) — IN PROGRESS
+Plan: 1 of 2 in current phase (03-01 complete)
+Status: Plan 03-01 complete (13 Zod schemas defined, domain constants consolidated, zodToGeminiSchema helper, barrel exports). Plan 03-02 (Gemini round-trip validation) is next.
+Last activity: 2026-03-03 — Plan 03-01 complete (13 Zod schemas, 6 domain constants, zodToGeminiSchema helper, barrel exports)
 
-Progress: [█░░░░░░░░░] 12%
+Progress: [██░░░░░░░░] 15%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [█░░░░░░░░░] 12%
 *Updated after each plan completion*
 | Phase 01-monorepo-foundation P02 | 2 | 2 tasks | 6 files |
 | Phase 02-content-library-ingestion P03 | 6 min | 2 tasks | 5 files |
+| Phase 03-zod-schema-layer P01 | 4 min | 2 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,10 @@ Recent decisions affecting current work:
 - [Phase 02-content-library-ingestion]: Image registry uses Prisma table (not JSON file) for structured queries by category/name
 - [Phase 02-content-library-ingestion]: AtlusAI brand guide ingestion deferred — Google Docs API not enabled for service account GCP project; re-run script after enabling
 - [Phase 02-content-library-ingestion]: No curated image folders in accessible Drive scope — script handles gracefully; will populate when image folders become accessible
+- [Phase 03-zod-schema-layer]: zodToGeminiSchema is a thin z.toJSONSchema() wrapper, not a schema introspection engine — Zod v4 native JSON Schema support makes deep introspection unnecessary
+- [Phase 03-zod-schema-layer]: All LLM schema fields use .meta({ description }) for Gemini extraction quality; priority uses string type (not enum) for Gemini safety
+- [Phase 03-zod-schema-layer]: classify-metadata.ts keeps hand-crafted GEMINI_RESPONSE_SCHEMA with Type enum (Phase 2 Gemini call pattern preserved; only constants and Zod schema consolidated)
+- [Phase 03-zod-schema-layer]: zod-to-json-schema removed from dependencies (does not support Zod v4); z.toJSONSchema() used exclusively
 
 ### Pending Todos
 
@@ -94,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03T21:50:52.000Z
-Stopped at: Completed 02-03-PLAN.md: ImageAsset Prisma registry and brand guidelines ingestion
+Last session: 2026-03-03T23:14:56Z
+Stopped at: Completed 03-01-PLAN.md: Zod schema definitions, domain constants, zodToGeminiSchema helper
 Resume file: None
