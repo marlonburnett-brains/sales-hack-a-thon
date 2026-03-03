@@ -1,0 +1,132 @@
+# Requirements: Lumenalta Agentic Sales Orchestration
+
+**Defined:** 2026-03-03
+**Core Value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
+
+## v1 Requirements
+
+### Pre-Call Briefing
+
+- [ ] **BRIEF-01**: Seller can input company name, buyer role, and meeting context into a web form to initiate a briefing
+- [ ] **BRIEF-02**: System generates a company snapshot (key initiatives, recent news, financial highlights) from public sources and AtlusAI
+- [ ] **BRIEF-03**: System generates role-specific hypotheses tailored to the buyer's persona (e.g., CIO, CFO, VP Eng, VP Data)
+- [ ] **BRIEF-04**: System generates 5–10 prioritized discovery questions mapped to relevant Lumenalta solution areas
+- [ ] **BRIEF-05**: Completed briefing is displayed in the web app and saved as a document in shared Lumenalta Google Drive
+
+### Transcript Processing
+
+- [ ] **TRANS-01**: Seller can paste a raw meeting transcript into a web UI form
+- [ ] **TRANS-02**: Seller can select the relevant industry (from 11) and subsector (from 62) before processing
+- [ ] **TRANS-03**: System extracts structured fields from transcript: Customer Context, Business Outcomes, Constraints, Stakeholders, Timeline, Budget
+- [ ] **TRANS-04**: System flags specific missing critical fields (e.g., "Budget not mentioned") and prevents pipeline from advancing until seller acknowledges each gap
+- [ ] **TRANS-05**: System maps transcript content to primary and secondary Lumenalta solution pillars
+
+### Brief Generation
+
+- [ ] **GEN-01**: System generates a structured Multi-Pillar Sales Brief identifying primary and secondary solution pillars with supporting evidence from the transcript
+- [ ] **GEN-02**: System generates 2–3 ROI outcome statements and 1 value hypothesis per identified use case
+- [ ] **GEN-03**: Seller and SME can review the complete structured brief in the web app before any assets are generated
+- [ ] **GEN-04**: No asset generation begins until brief is explicitly approved via a hard-stop HITL checkpoint in the web app
+
+### Content Library
+
+- [ ] **CONT-01**: All existing Lumenalta deck templates are ingested into AtlusAI at slide level — one retrievable unit per slide with metadata tags (industry, solution pillar, persona, funnel stage)
+- [ ] **CONT-02**: All case studies are indexed in AtlusAI tagged by industry, subsector, solution pillar, and buyer persona
+- [ ] **CONT-03**: Brand guidelines and approved image/icon library are indexed in AtlusAI for retrieval during asset assembly
+- [ ] **CONT-04**: All 11 industries are represented in AtlusAI with at least one complete deck template and one case study each
+- [ ] **CONT-05**: System retrieves relevant slide blocks from AtlusAI using industry + solution pillar + funnel stage as filter parameters
+- [ ] **CONT-06**: System enforces brand compliance by restricting asset generation to pre-approved AtlusAI building blocks — no AI-generated layouts or hallucinated capabilities
+
+### Asset Generation
+
+- [ ] **ASSET-01**: System assembles a custom slide order as structured JSON (slide title, bullets, speaker notes, source block reference) using the approved brief and retrieved content blocks
+- [ ] **ASSET-02**: System generates bespoke copy for each slide block, grounded in the approved brief and constrained to Lumenalta's voice and positioning
+- [ ] **ASSET-03**: System creates a formatted Google Slides deck in shared Lumenalta Drive via Google Slides API using service account credentials
+- [ ] **ASSET-04**: System generates a slide-by-slide talk track as a Google Doc in shared Lumenalta Drive
+- [ ] **ASSET-05**: System generates a buyer FAQ Google Doc with anticipated objections and recommended responses based on stakeholder roles and business context
+
+### Review & Delivery
+
+- [ ] **REVW-01**: Seller, SME, Marketing, and Solutions can review all generated assets (deck, talk track, FAQ) in the web app before final delivery
+- [ ] **REVW-02**: Web app provides direct links to all Google Drive artifacts after generation is complete
+- [ ] **REVW-03**: All generated Google Slides output uses only Lumenalta-approved layouts, colors, and typography from the building block library
+
+## v2 Requirements
+
+### Feedback Loop
+
+- **FDBK-01**: Human edits made to generated assets post-HITL-2 are captured and stored in a structured log
+- **FDBK-02**: Edit patterns are analyzed to surface recurring AI mistakes for prompt refinement
+- **FDBK-03**: RAG retrieval accuracy is improved using edit history to identify content gaps in the building block library
+
+### CRM Integration
+
+- **CRM-01**: System reads deal context (company, stage, contacts) from Salesforce to pre-populate transcript form fields
+- **CRM-02**: Generated assets are linked to the relevant Salesforce opportunity record
+
+### Transcript API Integration
+
+- **INT-01**: System connects directly to Granola API to ingest transcripts without copy-paste
+- **INT-02**: System connects to Zoom AI / Firefly API as alternative transcript sources
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Salesforce integration (v1) | Data hygiene at Lumenalta not ready; inconsistent field completeness would make AI outputs unreliable; establishing data hygiene standards is a prerequisite |
+| Real-time / in-call AI coaching | Fundamentally different architecture (low-latency audio pipeline); pre-call briefing serves the same seller-preparation goal |
+| Per-seller Google OAuth / personal Drive | Multiple OAuth tokens, per-user credential management, and data ownership ambiguity are unnecessary overhead; service account to shared Drive covers the use case |
+| AI-generated slide layouts | Produces off-brand output; violates brand guidelines; pre-approved building blocks are a non-negotiable constraint |
+| Fine-tuning / custom model training | Requires labeled training data that doesn't exist yet; prompt engineering achieves 90% of the benefit at a fraction of the cost |
+| Feedback loop refinement automation (v1) | Significant complexity; requires edit volume before patterns emerge; capturing edits deferred entirely to v2 |
+| Custom analytics dashboard | Google Drive metadata provides basic tracking; formal analytics is premature before consistent adoption |
+| Mobile-optimized UI | Web-first; pre/post-call work happens at a desk |
+| Competitive intelligence module | High hallucination risk; requires curated, maintained competitive content not yet available |
+| Real-time collaborative brief editing | Async HITL is adequate; operational transform/CRDT complexity not justified |
+| Email / follow-up outreach generation | Different workflow and compliance considerations; out of scope for proposal collateral system |
+| Video upload / meeting recording processing | Recording-consent complexity, storage costs, and integration surface not justified; manual paste works with any meeting tool |
+| User authentication / access control | Out of scope for hackathon demo; service account provides drive access; auth layer is a production hardening concern |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| BRIEF-01 | — | Pending |
+| BRIEF-02 | — | Pending |
+| BRIEF-03 | — | Pending |
+| BRIEF-04 | — | Pending |
+| BRIEF-05 | — | Pending |
+| TRANS-01 | — | Pending |
+| TRANS-02 | — | Pending |
+| TRANS-03 | — | Pending |
+| TRANS-04 | — | Pending |
+| TRANS-05 | — | Pending |
+| GEN-01 | — | Pending |
+| GEN-02 | — | Pending |
+| GEN-03 | — | Pending |
+| GEN-04 | — | Pending |
+| CONT-01 | — | Pending |
+| CONT-02 | — | Pending |
+| CONT-03 | — | Pending |
+| CONT-04 | — | Pending |
+| CONT-05 | — | Pending |
+| CONT-06 | — | Pending |
+| ASSET-01 | — | Pending |
+| ASSET-02 | — | Pending |
+| ASSET-03 | — | Pending |
+| ASSET-04 | — | Pending |
+| ASSET-05 | — | Pending |
+| REVW-01 | — | Pending |
+| REVW-02 | — | Pending |
+| REVW-03 | — | Pending |
+
+**Coverage:**
+- v1 requirements: 28 total
+- Mapped to phases: 0
+- Unmapped: 28 ⚠️
+
+---
+*Requirements defined: 2026-03-03*
+*Last updated: 2026-03-03 after initial definition*
