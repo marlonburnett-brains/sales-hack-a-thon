@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "atlus-ai": {
+      "type": "sse",
+      "url": "https://knowledge-base-api.lumenalta.com/sse"
+    }
+  }
+}

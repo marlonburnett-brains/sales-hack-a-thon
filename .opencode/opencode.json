@@ -1,0 +1,10 @@
+{
+  "permission": {
+    "read": {
+      "/Users/marlonburnett/source/lumenalta-hackathon/.opencode/get-shit-done/*": "allow"
+    },
+    "external_directory": {
+      "/Users/marlonburnett/source/lumenalta-hackathon/.opencode/get-shit-done/*": "allow"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__atlus-ai__knowledge_base_search_semantic",
+      "mcp__atlus-ai__knowledge_base_search_structured"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "atlus-ai"
+  ]
+}
