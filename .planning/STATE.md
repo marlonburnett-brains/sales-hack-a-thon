@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in-progress
-stopped_at: "Completed 01-01-PLAN.md: monorepo scaffold, apps/web, apps/agent"
-last_updated: "2026-03-03T17:54:46.902Z"
-last_activity: 2026-03-03 — Plan 01-01 complete (monorepo scaffold)
+status: executing
+stopped_at: "Completed 01-02-PLAN.md: Mastra persistence layers, Prisma WorkflowJob schema, Google auth factory"
+last_updated: "2026-03-03T17:59:46.150Z"
+last_activity: 2026-03-03 — Plan 01-01 complete (monorepo scaffold, apps/web, apps/agent)
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 3
 ---
 
@@ -50,6 +50,7 @@ Progress: [█░░░░░░░░░] 3%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01-monorepo-foundation P02 | 2 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - [Phase 01-monorepo-foundation]: @mastra/libsql corrected to 1.6.2 (plan specified 0.2.0 which never existed on npm)
 - [Phase 01-monorepo-foundation]: @typescript-eslint updated to 8.x for eslint 9 compatibility
 - [Phase 01-monorepo-foundation]: Tailwind v3.4 confirmed (not v4); Next.js pinned to 15.x range as specified
+- [Phase 01-monorepo-foundation]: Used @t3-oss/env-core (not env-nextjs) for apps/agent — Node.js Mastra server, not Next.js app
+- [Phase 01-monorepo-foundation]: Two-database pattern: mastra.db (Mastra internal state) separate from dev.db (Prisma app records)
+- [Phase 01-monorepo-foundation]: Drive API v3 used for all new Google Drive code (not v2)
 
 ### Pending Todos
 
@@ -81,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03T17:54:46.899Z
-Stopped at: Completed 01-01-PLAN.md: monorepo scaffold, apps/web, apps/agent
-Resume file: .planning/phases/01-monorepo-foundation/01-01-SUMMARY.md
+Last session: 2026-03-03T17:59:46.141Z
+Stopped at: Completed 01-02-PLAN.md: Mastra persistence layers, Prisma WorkflowJob schema, Google auth factory
+Resume file: None
