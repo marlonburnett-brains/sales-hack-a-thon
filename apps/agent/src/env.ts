@@ -20,6 +20,11 @@ export const env = createEnv({
       .enum(['development', 'production', 'test'])
       .default('development'),
 
+    // Google Gemini API key for AI-powered metadata classification
+    // Get from: https://aistudio.google.com/apikey
+    // Optional at startup — required only for classification scripts
+    GEMINI_API_KEY: z.string().min(1).optional(),
+
     // Port for the Mastra HTTP server (default 4111)
     MASTRA_PORT: z.string().default('4111'),
   },
