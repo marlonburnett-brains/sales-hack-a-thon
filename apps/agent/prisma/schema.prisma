@@ -18,3 +18,21 @@ model WorkflowJob {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Brand asset registry — curated subset of headshots, logos, icons from Google Drive
+// Phase 2 Plan 03: Image registry for slide assembly (Phase 4+)
+model ImageAsset {
+  id          String   @id @default(cuid())
+  category    String   // "headshot" | "logo" | "icon" | "brand_element"
+  name        String   // Person name or asset name (e.g., "John Smith", "Lumenalta Logo Primary")
+  description String?  // Optional description for search
+  driveFileId String   @unique // Google Drive file ID — prevents duplicate entries
+  driveUrl    String   // Direct Google Drive URL: https://drive.google.com/file/d/{id}/view
+  mimeType    String   // "image/png", "image/jpeg", etc.
+  tags        String   // JSON array of tags: ["leadership", "executive"]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([name])
+}
