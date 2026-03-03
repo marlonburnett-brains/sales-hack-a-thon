@@ -16,90 +16,17 @@
  */
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { z } from "zod";
 import type { ExtractedSlide } from "../lib/slide-extractor";
-
-// ────────────────────────────────────────────────────────────
-// Zod Schema (for TypeScript type generation + validation)
-// ────────────────────────────────────────────────────────────
-
-export const INDUSTRIES = [
-  "Consumer Products",
-  "Education",
-  "Financial Services & Insurance",
-  "Health Care",
-  "Industrial Goods",
-  "Private Equity",
-  "Public Sector",
-  "Technology, Media & Telecommunications",
-  "Transportation & Logistics",
-  "Travel & Tourism",
-  "Professional Services",
-] as const;
-
-export const FUNNEL_STAGES = [
-  "First Contact",
-  "Intro Conversation",
-  "Capability Alignment",
-  "Solution Proposal",
-] as const;
-
-export const CONTENT_TYPES = [
-  "template",
-  "example",
-  "case_study",
-  "brand_guide",
-  "resource",
-] as const;
-
-export const SLIDE_CATEGORIES = [
-  "title",
-  "divider",
-  "industry_overview",
-  "capability_description",
-  "case_study_problem",
-  "case_study_solution",
-  "case_study_outcome",
-  "team_intro",
-  "methodology",
-  "timeline",
-  "pricing",
-  "next_steps",
-  "appendix",
-  "other",
-] as const;
-
-export const BUYER_PERSONAS = [
-  "CIO",
-  "CTO",
-  "CFO",
-  "VP Engineering",
-  "VP Data",
-  "VP Product",
-  "VP Operations",
-  "CEO",
-  "General",
-] as const;
-
-export const TOUCH_TYPES = [
-  "touch_1",
-  "touch_2",
-  "touch_3",
-  "touch_4",
-] as const;
-
-export const SlideMetadataSchema = z.object({
-  industries: z.array(z.enum(INDUSTRIES)),
-  subsectors: z.array(z.string()),
-  solutionPillars: z.array(z.string()),
-  funnelStages: z.array(z.enum(FUNNEL_STAGES)),
-  contentType: z.enum(CONTENT_TYPES),
-  slideCategory: z.enum(SLIDE_CATEGORIES),
-  buyerPersonas: z.array(z.enum(BUYER_PERSONAS)),
-  touchType: z.array(z.enum(TOUCH_TYPES)),
-});
-
-export type SlideMetadata = z.infer<typeof SlideMetadataSchema>;
+import {
+  INDUSTRIES,
+  FUNNEL_STAGES,
+  CONTENT_TYPES,
+  SLIDE_CATEGORIES,
+  BUYER_PERSONAS,
+  TOUCH_TYPES,
+  SlideMetadataSchema,
+  type SlideMetadata,
+} from "@lumenalta/schemas";
 
 export interface ClassifiedSlide extends ExtractedSlide {
   metadata: SlideMetadata;
