@@ -28,6 +28,11 @@ apps/agent/.env
 # SQLite databases
 apps/agent/prisma/dev.db
 apps/agent/prisma/mastra.db
+apps/agent/prisma/prisma/dev.db
+apps/agent/prisma/prisma/mastra.db
+*.db
+*.db-shm
+*.db-wal
 
 # Sensitive credentials
 service-account-key.json

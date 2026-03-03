@@ -1,0 +1,20 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Application-level job records — Phase 1 only needs WorkflowJob
+// Phases 4/5 will add BriefingRequest, TranscriptJob, ApprovalState
+model WorkflowJob {
+  id        String   @id @default(cuid())
+  type      String   // "briefing" | "transcript" | "asset_gen"
+  status    String   @default("pending")  // "pending" | "running" | "done" | "failed"
+  payload   String   // JSON blob
+  result    String?  // JSON blob
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
