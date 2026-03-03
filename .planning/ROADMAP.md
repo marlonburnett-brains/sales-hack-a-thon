@@ -54,12 +54,12 @@ Plans:
   4. Brand guideline assets (approved image URLs hosted on public GCS) are retrievable from AtlusAI for use during slide assembly
   5. An idempotent ingestion script can re-run without creating duplicate entries
   6. Meet Lumenalta intro deck slides, L2 capability deck slides, and 1-2 pager templates are ingested and retrievable with appropriate touch-type metadata tags
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Content inventory manifest and slide-block chunking schema definition (validate with 2-3 sample decks before bulk ingestion)
-- [ ] 02-02: AtlusAI ingestion script for deck templates at slide-block level with metadata tagging (including touch-type tags for intro deck, capability decks, and pager templates)
-- [ ] 02-03: AtlusAI ingestion for case studies, brand guidelines, and image/icon library with GCS public URL configuration
+- [ ] 02-01-PLAN.md — AtlusAI MCP tool discovery, Drive content discovery, slide extraction library, Gemini classification, pilot ingestion of 2-3 decks with pillar taxonomy extraction (checkpoint: manifest + pillar list approval)
+- [ ] 02-02-PLAN.md — Full bulk ingestion of all deck templates, example proposals, and case studies with content manifest and industry coverage report (checkpoint: manifest review before ingestion)
+- [ ] 02-03-PLAN.md — ImageAsset Prisma model, curated image registry build from Drive, and Branded Basics brand guidelines ingestion into AtlusAI
 
 ### Phase 3: Zod Schema Layer and Gemini Validation
 **Goal**: Every Zod v4 schema used in the pipeline is defined, tested against the live Gemini API, and available as a shared package so that schema rejection cannot surface as a runtime surprise during agent development
