@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 01-03-PLAN.md: Google Slides API spike — template copy, live objectId extraction, batchUpdate verified"
-last_updated: "2026-03-03T18:45:00.000Z"
-last_activity: 2026-03-03 — Plan 01-03 complete (Google Slides API spike, service account auth, batchUpdate verified)
+stopped_at: "Completed 02-03-PLAN.md: ImageAsset Prisma registry and brand guidelines ingestion"
+last_updated: "2026-03-03T21:50:52.000Z"
+last_activity: 2026-03-03 — Plan 02-03 complete (ImageAsset Prisma model, image registry build script, brand guidelines extraction)
 progress:
   total_phases: 11
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 9
+  total_plans: 6
+  completed_plans: 4
+  percent: 12
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 1 — Monorepo Foundation
+**Current focus:** Phase 2 — Content Library Ingestion
 
 ## Current Position
 
-Phase: 1 of 11 (Monorepo Foundation) — COMPLETE
-Plan: 3 of 3 in current phase — COMPLETE
-Status: Phase 1 complete — ready to begin Phase 2 (Content Library Ingestion)
-Last activity: 2026-03-03 — Plan 01-03 complete (Google Slides API spike, service account auth, batchUpdate verified)
+Phase: 2 of 11 (Content Library Ingestion) — IN PROGRESS
+Plan: 3 of 3 in current phase (02-03 complete)
+Status: Plan 02-03 complete (ImageAsset registry + brand guidelines). Phase 2 plans 01-02 may still be in progress (wave 1 parallel).
+Last activity: 2026-03-03 — Plan 02-03 complete (ImageAsset Prisma model, image registry build script, brand guidelines extraction)
 
-Progress: [█░░░░░░░░░] 9%
+Progress: [█░░░░░░░░░] 12%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [█░░░░░░░░░] 9%
 
 *Updated after each plan completion*
 | Phase 01-monorepo-foundation P02 | 2 | 2 tasks | 6 files |
+| Phase 02-content-library-ingestion P03 | 6 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,10 @@ Recent decisions affecting current work:
 - [Phase 01-monorepo-foundation]: Lumenalta template uses generic shapes (placeholder.type = none) — select elements by position/content, not by TITLE/BODY placeholder type
 - [Phase 01-monorepo-foundation]: supportsAllDrives: true is mandatory on all Drive API calls targeting Shared Drive folders
 - [Phase 01-monorepo-foundation]: Phase 1 complete — all 5 success criteria verified (monorepo scaffold, Google auth, Slides API spike, Prisma migrations, env var validation)
+- [Phase 02-content-library-ingestion]: Brand guidelines (Branded Basics) kept as whole reference document in AtlusAI — not extracted into structured rules
+- [Phase 02-content-library-ingestion]: Image registry uses Prisma table (not JSON file) for structured queries by category/name
+- [Phase 02-content-library-ingestion]: AtlusAI brand guide ingestion deferred — Google Docs API not enabled for service account GCP project; re-run script after enabling
+- [Phase 02-content-library-ingestion]: No curated image folders in accessible Drive scope — script handles gracefully; will populate when image folders become accessible
 
 ### Pending Todos
 
@@ -89,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-03T18:45:00.000Z
-Stopped at: Completed 01-03-PLAN.md: Google Slides API spike — template copy, live objectId extraction, batchUpdate verified. Phase 1 complete.
+Last session: 2026-03-03T21:50:52.000Z
+Stopped at: Completed 02-03-PLAN.md: ImageAsset Prisma registry and brand guidelines ingestion
 Resume file: None

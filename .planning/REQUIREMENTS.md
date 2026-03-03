@@ -32,7 +32,7 @@
 
 - [ ] **CONT-01**: All existing Lumenalta deck templates are ingested into AtlusAI at slide level — one retrievable unit per slide with metadata tags (industry, solution pillar, persona, funnel stage)
 - [ ] **CONT-02**: All case studies are indexed in AtlusAI tagged by industry, subsector, solution pillar, and buyer persona
-- [ ] **CONT-03**: Brand guidelines and approved image/icon library are indexed in AtlusAI for retrieval during asset assembly
+- [x] **CONT-03**: Brand guidelines and approved image/icon library are indexed in AtlusAI for retrieval during asset assembly
 - [ ] **CONT-04**: All 11 industries are represented in AtlusAI with at least one complete deck template and one case study each
 - [ ] **CONT-05**: System retrieves relevant slide blocks from AtlusAI using industry + solution pillar + funnel stage as filter parameters
 - [ ] **CONT-06**: System enforces brand compliance by restricting asset generation to pre-approved AtlusAI building blocks — no AI-generated layouts or hallucinated capabilities
@@ -139,7 +139,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GEN-04 | Phase 6 | Pending |
 | CONT-01 | Phase 2 | Pending |
 | CONT-02 | Phase 2 | Pending |
-| CONT-03 | Phase 2 | Pending |
+| CONT-03 | Phase 2 | Complete |
 | CONT-04 | Phase 2 | Pending |
 | CONT-05 | Phase 7 | Pending |
 | CONT-06 | Phase 7 | Pending |
