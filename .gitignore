@@ -1,5 +1,5 @@
 # Dependencies
-node_modules
+node_modules/
 .pnp
 .pnp.js
 
@@ -21,6 +21,16 @@ next-env.d.ts
 .env.development.local
 .env.test.local
 .env.production.local
+*.env.local
+apps/web/.env
+apps/agent/.env
+
+# SQLite databases
+apps/agent/prisma/dev.db
+apps/agent/prisma/mastra.db
+
+# Sensitive credentials
+service-account-key.json
 
 # Logs
 npm-debug.log*
