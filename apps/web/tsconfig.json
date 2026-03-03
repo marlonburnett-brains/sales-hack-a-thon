@@ -1,0 +1,5 @@
+{
+  "extends": "@lumenalta/tsconfig/nextjs.json",
+  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
