@@ -71,11 +71,11 @@ Plans:
   3. Interaction tracking schemas (InteractionRecordSchema, FeedbackSignalSchema) are defined for the data capture layer
   4. LLM schemas (flat, no transforms, no unions) are clearly separated from application schemas (post-processing transforms) in the packages/schemas directory
   5. Any schema that fails Gemini structured output mode is fixed in isolation before being used in any workflow step
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Core schema definitions in packages/schemas (TranscriptFieldsSchema, SalesBriefSchema, SlideAssemblySchema, ROIFramingSchema)
-- [ ] 03-02: Touch 1-3 selection schemas (PagerContentSchema, IntroDeckSelectionSchema, CapabilityDeckSelectionSchema), interaction tracking schemas (InteractionRecordSchema, FeedbackSignalSchema), pre-call schemas (CompanyResearchSchema, HypothesesSchema, DiscoveryQuestionsSchema), and Gemini validation suite for all schemas
+- [ ] 03-01-PLAN.md — Domain constants consolidation, zodToGeminiSchema() helper, all 13 Zod schema definitions (10 LLM + 2 app + 1 consolidated from Phase 2), barrel exports, and classify-metadata.ts import migration
+- [ ] 03-02-PLAN.md — Gemini round-trip validation script for all 10 LLM schemas with realistic domain prompts, runnable via pnpm validate-schemas
 
 ### Phase 4: Touch 1-3 Asset Generation & Interaction Tracking
 **Goal**: Sellers can generate the three simpler GTM asset types through dedicated web flows — a first-contact 1-2 pager with approve/override feedback (Touch 1), a Meet Lumenalta intro deck (Touch 2), and a capability alignment deck (Touch 3). Every interaction is tracked, and the knowledge base grows with each use: approved outputs become positive examples, overrides are ingested into AtlusAI for future retrieval, and company interaction history carries forward across touch points.
