@@ -35,12 +35,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A Slides API integration spike successfully duplicates a template slide and inserts text using live placeholder IDs read from the API response (not hardcoded)
   4. Prisma migrations run cleanly and the SQLite database is accessible from the Mastra service
   5. Environment variable validation rejects startup with a clear error message if any required variable is missing
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Monorepo scaffold (apps/web, apps/agent, packages/schemas) with TypeScript, ESLint, and shared tsconfig
-- [ ] 01-02: Mastra framework setup with Prisma + SQLite storage adapter and durable workflow state configuration
-- [ ] 01-03: Google service account auth configuration, Drive folder targeting, and Slides API integration spike
+- [ ] 01-01-PLAN.md — pnpm + Turborepo monorepo root scaffold with shared tsconfig, ESLint, schemas packages and both app skeletons
+- [ ] 01-02-PLAN.md — Mastra instance (LibSQL storage), Prisma schema + migration, T3 Env validation, Google auth factory
+- [ ] 01-03-PLAN.md — Google service account credential setup (checkpoint) + Slides API spike (copy template, read live objectIds, batchUpdate)
 
 ### Phase 2: Content Library Ingestion
 **Goal**: AtlusAI is populated with all Lumenalta content at slide-block granularity across all 11 industries so that RAG retrieval is functional for every downstream pipeline test
