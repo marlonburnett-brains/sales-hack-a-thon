@@ -34,6 +34,9 @@ apps/agent/prisma/prisma/mastra.db
 *.db-shm
 *.db-wal
 
+# Generated manifest files (ingestion pipeline output)
+apps/agent/src/ingestion/manifest/
+
 # Sensitive credentials
 service-account-key.json
 

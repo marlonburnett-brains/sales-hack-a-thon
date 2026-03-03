@@ -8,6 +8,7 @@ function getGoogleAuth() {
     scopes: [
       'https://www.googleapis.com/auth/presentations',
       'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/documents',
     ],
   })
 }
@@ -19,6 +20,10 @@ export function getSlidesClient() {
 export function getDriveClient() {
   // Use Drive API v3 — NOT v2 (some Google examples show v2 but use v3 for new code)
   return google.drive({ version: 'v3', auth: getGoogleAuth() })
+}
+
+export function getDocsClient() {
+  return google.docs({ version: 'v1', auth: getGoogleAuth() })
 }
 
 // Lightweight auth verification — call this to confirm credentials before running the spike

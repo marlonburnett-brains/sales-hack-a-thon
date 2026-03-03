@@ -33,7 +33,7 @@
  * ingested into AtlusAI.
  */
 
-import { google } from "googleapis";
+import { Readable } from "node:stream";
 import { getDriveClient } from "./google-auth";
 
 // ────────────────────────────────────────────────────────────
@@ -208,6 +208,9 @@ async function getOrCreateIngestionFolder(
  * Ingest a slide document by creating a Google Doc in the connected
  * Drive folder. AtlusAI will automatically re-index new documents.
  *
+ * Uses Drive API media upload with mimeType conversion to create a
+ * Google Doc with content in a single API call (no Docs API needed).
+ *
  * Idempotency: The document title includes the deterministic documentId.
  * Before creating, we check if a Doc with that title already exists.
  * On re-run, existing documents are skipped (no duplicates).
@@ -239,10 +242,9 @@ export async function ingestDocument(
   // Build document content
   const content = buildDocumentContent(doc);
 
-  // Create a Google Doc with the structured content
-  // We use the Docs API to create a document with content, but since we
-  // only have Drive API configured, we create it as a plain text file
-  // that AtlusAI can index.
+  // Create a Google Doc with content using Drive API media upload.
+  // Upload as text/plain and convert to Google Docs format in one call.
+  // This avoids needing the separate Google Docs API.
   const created = await drive.files.create({
     requestBody: {
       name: docTitle,
@@ -257,36 +259,15 @@ export async function ingestDocument(
         ...doc.metadata,
       }),
     },
+    media: {
+      mimeType: "text/plain",
+      body: Readable.from(Buffer.from(content, "utf-8")),
+    },
     fields: "id",
     supportsAllDrives: true,
   });
 
-  const docId = created.data.id!;
-
-  // Now use Docs API to set the document content
-  const docs = google.docs({
-    version: "v1",
-    auth: new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || "{}"),
-      scopes: ["https://www.googleapis.com/auth/documents"],
-    }),
-  });
-
-  await docs.documents.batchUpdate({
-    documentId: docId,
-    requestBody: {
-      requests: [
-        {
-          insertText: {
-            location: { index: 1 },
-            text: content,
-          },
-        },
-      ],
-    },
-  });
-
-  return { created: true, docId };
+  return { created: true, docId: created.data.id! };
 }
 
 /**
