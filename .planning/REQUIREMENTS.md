@@ -51,11 +51,41 @@
 - [ ] **REVW-02**: Web app provides direct links to all Google Drive artifacts after generation is complete
 - [ ] **REVW-03**: All generated Google Slides output uses only Lumenalta-approved layouts, colors, and typography from the building block library
 
+### Touch 1: First Contact Assets
+
+- [ ] **TOUCH1-01**: Seller can select a first-contact flow, input company name, industry, and key context to generate a 1-2 pager
+- [ ] **TOUCH1-02**: System suggests a generated 1-2 slide Google Slides pager from a branded template, customized with client-specific positioning; seller can approve the suggestion or override it with a custom version
+- [ ] **TOUCH1-03**: Generated or overridden pager is saved to a per-deal folder in shared Lumenalta Google Drive
+- [ ] **TOUCH1-04**: Approved pagers are recorded as successful outputs (positive signal); overridden pagers are recorded as learning signals (negative signal) and the seller's override is ingested into AtlusAI for future retrieval
+- [ ] **TOUCH1-05**: Seller can upload a custom Google Slides pager as an override when the AI-generated suggestion doesn't meet needs
+
+### Touch 2: Intro Conversation Assets
+
+- [ ] **TOUCH2-01**: Seller can select an intro deck flow, input company name, industry, salesperson name/photo, and optionally a customer logo
+- [ ] **TOUCH2-02**: System AI-selects relevant "Meet Lumenalta" slides based on industry and client context from the content library
+- [ ] **TOUCH2-03**: System assembles selected slides into a Google Slides deck with salesperson name/photo and customer name/logo customizations applied
+- [ ] **TOUCH2-04**: Generated intro deck is saved to a per-deal folder in shared Lumenalta Google Drive
+
+### Touch 3: Capability & Use Case Alignment Assets
+
+- [ ] **TOUCH3-01**: Seller can select a capability alignment flow, input company name, industry, and 1-2 relevant capability areas
+- [ ] **TOUCH3-02**: System AI-selects relevant slides from AtlusAI deck and L2 capability decks based on industry and selected capability areas
+- [ ] **TOUCH3-03**: System assembles selected slides into a Google Slides deck with salesperson and customer customizations
+- [ ] **TOUCH3-04**: Generated capability deck is saved to a per-deal folder in shared Lumenalta Google Drive
+
+### Data Capture & Knowledge Growth
+
+- [ ] **DATA-01**: Every interaction across all touch points persists a complete interaction record: inputs (company, industry, context), decisions (approve/override/edit), output artifact references (Drive links), and timestamps
+- [ ] **DATA-02**: All meeting transcripts, notes, and conversation context submitted through any flow are stored and indexed for future retrieval and pattern learning
+- [ ] **DATA-03**: Approved outputs are flagged as positive examples in the knowledge base; overrides and significant edits are flagged as improvement signals
+- [ ] **DATA-04**: Override pagers (Touch 1), edited decks, and approved outputs are ingested into AtlusAI to improve future generation quality — the knowledge base grows with each interaction
+- [ ] **DATA-05**: Interaction history for a given company/deal is retrievable so that later touch points can build on context from earlier touches (e.g., Touch 2 can reference what was generated in Touch 1 for the same company)
+
 ## v2 Requirements
 
-### Feedback Loop
+### Feedback Loop (Automated Refinement)
 
-- **FDBK-01**: Human edits made to generated assets post-HITL-2 are captured and stored in a structured log
+- **FDBK-01**: Human edits made to generated assets post-HITL-2 are captured and stored in a structured log (v1 captures the raw interaction data via DATA-01 through DATA-04; v2 automates the analysis)
 - **FDBK-02**: Edit patterns are analyzed to surface recurring AI mistakes for prompt refinement
 - **FDBK-03**: RAG retrieval accuracy is improved using edit history to identify content gaps in the building block library
 
@@ -78,7 +108,7 @@
 | Per-seller Google OAuth / personal Drive | Multiple OAuth tokens, per-user credential management, and data ownership ambiguity are unnecessary overhead; service account to shared Drive covers the use case |
 | AI-generated slide layouts | Produces off-brand output; violates brand guidelines; pre-approved building blocks are a non-negotiable constraint |
 | Fine-tuning / custom model training | Requires labeled training data that doesn't exist yet; prompt engineering achieves 90% of the benefit at a fraction of the cost |
-| Feedback loop refinement automation (v1) | Significant complexity; requires edit volume before patterns emerge; capturing edits deferred entirely to v2 |
+| Automated feedback loop analysis | v1 captures all interaction data and ingests overrides into AtlusAI; automated pattern analysis and prompt refinement from edit history is v2 |
 | Custom analytics dashboard | Google Drive metadata provides basic tracking; formal analytics is premature before consistent adoption |
 | Mobile-optimized UI | Web-first; pre/post-call work happens at a desk |
 | Competitive intelligence module | High hallucination risk; requires curated, maintained competitive content not yet available |
@@ -93,40 +123,58 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BRIEF-01 | Phase 9 | Pending |
-| BRIEF-02 | Phase 9 | Pending |
-| BRIEF-03 | Phase 9 | Pending |
-| BRIEF-04 | Phase 9 | Pending |
-| BRIEF-05 | Phase 9 | Pending |
-| TRANS-01 | Phase 4 | Pending |
-| TRANS-02 | Phase 4 | Pending |
-| TRANS-03 | Phase 4 | Pending |
-| TRANS-04 | Phase 4 | Pending |
-| TRANS-05 | Phase 4 | Pending |
-| GEN-01 | Phase 4 | Pending |
-| GEN-02 | Phase 4 | Pending |
-| GEN-03 | Phase 5 | Pending |
-| GEN-04 | Phase 5 | Pending |
+| BRIEF-01 | Phase 10 | Pending |
+| BRIEF-02 | Phase 10 | Pending |
+| BRIEF-03 | Phase 10 | Pending |
+| BRIEF-04 | Phase 10 | Pending |
+| BRIEF-05 | Phase 10 | Pending |
+| TRANS-01 | Phase 5 | Pending |
+| TRANS-02 | Phase 5 | Pending |
+| TRANS-03 | Phase 5 | Pending |
+| TRANS-04 | Phase 5 | Pending |
+| TRANS-05 | Phase 5 | Pending |
+| GEN-01 | Phase 5 | Pending |
+| GEN-02 | Phase 5 | Pending |
+| GEN-03 | Phase 6 | Pending |
+| GEN-04 | Phase 6 | Pending |
 | CONT-01 | Phase 2 | Pending |
 | CONT-02 | Phase 2 | Pending |
 | CONT-03 | Phase 2 | Pending |
 | CONT-04 | Phase 2 | Pending |
-| CONT-05 | Phase 6 | Pending |
-| CONT-06 | Phase 6 | Pending |
-| ASSET-01 | Phase 6 | Pending |
-| ASSET-02 | Phase 6 | Pending |
-| ASSET-03 | Phase 7 | Pending |
-| ASSET-04 | Phase 7 | Pending |
-| ASSET-05 | Phase 7 | Pending |
-| REVW-01 | Phase 8 | Pending |
-| REVW-02 | Phase 8 | Pending |
-| REVW-03 | Phase 8 | Pending |
+| CONT-05 | Phase 7 | Pending |
+| CONT-06 | Phase 7 | Pending |
+| ASSET-01 | Phase 7 | Pending |
+| ASSET-02 | Phase 7 | Pending |
+| ASSET-03 | Phase 8 | Pending |
+| ASSET-04 | Phase 8 | Pending |
+| ASSET-05 | Phase 8 | Pending |
+| REVW-01 | Phase 9 | Pending |
+| REVW-02 | Phase 9 | Pending |
+| REVW-03 | Phase 9 | Pending |
+| TOUCH1-01 | Phase 4 | Pending |
+| TOUCH1-02 | Phase 4 | Pending |
+| TOUCH1-03 | Phase 4 | Pending |
+| TOUCH1-04 | Phase 4 | Pending |
+| TOUCH1-05 | Phase 4 | Pending |
+| TOUCH2-01 | Phase 4 | Pending |
+| TOUCH2-02 | Phase 4 | Pending |
+| TOUCH2-03 | Phase 4 | Pending |
+| TOUCH2-04 | Phase 4 | Pending |
+| TOUCH3-01 | Phase 4 | Pending |
+| TOUCH3-02 | Phase 4 | Pending |
+| TOUCH3-03 | Phase 4 | Pending |
+| TOUCH3-04 | Phase 4 | Pending |
+| DATA-01 | Phase 4 | Pending |
+| DATA-02 | Phase 5 | Pending |
+| DATA-03 | Phase 4 | Pending |
+| DATA-04 | Phase 4 | Pending |
+| DATA-05 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 28 total
-- Mapped to phases: 28
+- v1 requirements: 46 total
+- Mapped to phases: 46
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-03*
-*Last updated: 2026-03-03 — traceability populated after roadmap creation*
+*Last updated: 2026-03-03 — Touch 1 approve/override feedback loop added, data capture & knowledge growth requirements added*
