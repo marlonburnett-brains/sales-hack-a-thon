@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 9 context gathered
-last_updated: "2026-03-04T15:48:29.028Z"
-last_activity: 2026-03-04 — Plan 08-01 complete (deck-assembly.ts + Step 12 wired)
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-03-04T15:49:07.062Z"
+last_activity: 2026-03-04 — Plan 08-02 complete (talk track + buyer FAQ + outputRefs persistence)
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 17
   completed_plans: 20
-  percent: 64
+  percent: 70
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 7 complete. Both plans (07-01 RAG retrieval pipeline, 07-02 workflow integration) done. Phase 8 (Google Slides generation) next.
+**Current focus:** Phase 8 complete. Both plans (08-01 deck assembly, 08-02 talk track + buyer FAQ) done. Phase 9 (HITL-2 review UI) next.
 
 ## Current Position
 
-Phase: 8 of 11 (Google Workspace Output Generation)
-Plan: 1 of 2 complete in current phase
-Status: Plan 08-01 complete. Deck assembly engine + Step 12 createSlidesDeck wired into 14-step workflow.
-Last activity: 2026-03-04 — Plan 08-01 complete (deck-assembly.ts + Step 12 wired)
+Phase: 8 of 11 (Google Workspace Output Generation) -- COMPLETE
+Plan: 2 of 2 complete in current phase
+Status: Phase 8 complete. 14-step Touch 4 workflow with deck, talk track, and buyer FAQ Google Workspace artifacts.
+Last activity: 2026-03-04 — Plan 08-02 complete (talk track + buyer FAQ + outputRefs persistence)
 
-Progress: [██████▓░░░] 64%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
@@ -64,6 +64,8 @@ Progress: [██████▓░░░] 64%
 | Phase 06-hitl-approval P02 | 6 min | 2 tasks | 12 files |
 | Phase 07-rag-retrieval P01 | 5 min | 3 tasks | 7 files |
 | Phase 07-rag-retrieval P02 | 5 min | 2 tasks | 1 file |
+| Phase 08 P01 | 4min | 2 tasks | 5 files |
+| Phase 08 P02 | 5min | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -143,6 +145,12 @@ Recent decisions affecting current work:
 - [Phase 07-rag-retrieval]: Brand voice guidelines hardcoded as constant (not AtlusAI-retrieved) for simplicity
 - [Phase 07-rag-retrieval]: Sequential per-slide copy generation (for...of, not Promise.all) for quality and rate limit safety
 - [Phase 07-rag-retrieval]: Workflow outputSchema updated from Phase 6 decision fields to Phase 7 slideJSON/slideCount/retrievalSummary
+- [Phase 08]: Generic template slide fallback: all section types map to first template slide if no section-specific templates discovered
+- [Phase 08]: Per-slide error handling: individual slide failures logged and skipped, deck generation continues
+- [Phase 08]: Steps 13-14 (createTalkTrack, createBuyerFAQ) pre-wired in workflow from context gathering to maintain compilable state
+- [Phase 08]: Talk track uses speakerNotes from Phase 7 -- no additional Gemini call needed
+- [Phase 08]: Buyer FAQ groups 2-3 objections per stakeholder role; all 3 artifact URLs persisted to InteractionRecord.outputRefs
+- [Phase 08]: 14-step Touch 4 workflow is the final pipeline shape for Phase 8 with outputSchema: deckUrl, talkTrackUrl, faqUrl, slideCount, dealFolderId
 
 ### Pending Todos
 
@@ -157,6 +165,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T15:48:29.025Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-hitl-checkpoint-2-and-review-delivery-ui/09-CONTEXT.md
+Last session: 2026-03-04T15:49:07.059Z
+Stopped at: Completed 08-02-PLAN.md
+Resume file: None
