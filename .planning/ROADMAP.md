@@ -210,8 +210,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 11-01: End-to-end pipeline wiring for all four touch types, step-by-step progress indicator UI, and error handling hardening across all workflow steps
-- [ ] 11-02: Demo scenario preparation (Financial Services transcript, full run validation across all touch types) and final smoke test across all 11 industries
+- [ ] 11-01-PLAN.md — PipelineStepper component, sonner toast integration, friendly error mapper, step-by-step progress indicators wired into all 5 form components
+- [ ] 11-02-PLAN.md — Demo seed script (Meridian Capital Group), Financial Services transcript fixture, end-to-end validation checkpoint
 
 ## Progress
 
