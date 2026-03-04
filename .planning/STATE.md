@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-03-04T19:43:13.664Z"
-last_activity: 2026-03-04 — Plan 13-01 complete (Touch 4 poll loop and integration fixes)
+status: in_progress
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-04T23:11:34.468Z"
+last_activity: 2026-03-04 — Plan 12-01 complete (access setup and discovery validation with ContentSource tracking)
 progress:
   total_phases: 13
   completed_phases: 11
   total_plans: 27
-  completed_plans: 28
+  completed_plans: 29
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 13 complete. Touch 4 poll loop wired, pre-call timeline and form data extraction fixed.
+**Current focus:** Phase 12 in progress. Access setup done, discovery validated, ContentSource tracking added. Plan 02 (full ingestion) next.
 
 ## Current Position
 
-Phase: 13 of 13 (Touch 4 Poll Loop and Integration Fixes)
-Plan: 1 of 1 complete in current phase
-Status: Phase 13 complete. Asset generation poll loop wired in touch-4-form, pre-call timeline display and data extraction fixed.
-Last activity: 2026-03-04 — Plan 13-01 complete (Touch 4 poll loop and integration fixes)
+Phase: 12 of 13 (Content Library Re-ingestion)
+Plan: 1 of 2 complete in current phase
+Status: Plan 12-01 complete. Google Docs API enabled, ContentSource tracking added, discovery validated (5 presentations, 38 slides, 14/17 sources still inaccessible).
+Last activity: 2026-03-04 — Plan 12-01 complete (access setup and discovery validation)
 
 Progress: [██████████] 100%
 
@@ -74,6 +74,7 @@ Progress: [██████████] 100%
 | Phase 11 P01 | 8min | 2 tasks | 11 files |
 | Phase 11 P02 | 5min | 2 tasks | 3 files |
 | Phase 13 P01 | 4min | 2 tasks | 3 files |
+| Phase 12 P01 | 27min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -181,6 +182,9 @@ Recent decisions affecting current work:
 - [Phase 13]: Separate pollAssetPipeline function for asset generation phase (not extending existing pollStatus useCallback)
 - [Phase 13]: Functional updater form for setCompletedSteps in asset polling avoids stale closure issues
 - [Phase 13]: typeof check for Record<string, unknown> values used in JSX for TypeScript strict mode
+- [Phase 12]: ContentSource Prisma model tracks 17 known Drive sources with accessibility status (upserted on each discovery run)
+- [Phase 12]: Accept limited 5-presentation discovery; 14/17 sources need Viewer access on target Shared Drives (not just shortcut container)
+- [Phase 12]: Baseline Prisma migration captures all pre-existing models (Company, Deal, InteractionRecord, etc.) created via db push; forward migrations only from here
 
 ### Pending Todos
 
@@ -195,6 +199,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T19:38:22Z
-Stopped at: Completed 13-01-PLAN.md
-Resume file: .planning/phases/13-touch-4-poll-loop-and-integration-fixes/13-01-SUMMARY.md
+Last session: 2026-03-04T23:11:34.463Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: None

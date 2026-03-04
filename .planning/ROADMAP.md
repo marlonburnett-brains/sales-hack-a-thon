@@ -269,5 +269,5 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 9. HITL Checkpoint 2 and Review Delivery UI | 2/2 | Complete   | 2026-03-04 |
 | 10. Pre-Call Briefing Flow | 2/2 | Complete    | 2026-03-04 |
 | 11. End-to-End Integration and Demo Polish | 2/2 | Complete    | 2026-03-04 |
-| 12. Content Library Re-ingestion | 0/2 | Not started | - |
+| 12. Content Library Re-ingestion | 1/2 | In Progress|  |
 | 13. Touch 4 Poll Loop & Integration Fixes | 1/1 | Complete    | 2026-03-04 |
