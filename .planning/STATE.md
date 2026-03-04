@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-03-04T02:00:19Z"
-last_activity: 2026-03-04 — Plan 05-02 complete (Touch 4 workflow + field review UI)
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-04T02:11:16Z"
+last_activity: 2026-03-04 — Plan 05-03 complete (Brief generation + ROI framing + brief display)
 progress:
   total_phases: 11
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 10
-  percent: 36
+  completed_plans: 11
+  percent: 45
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 5 in progress. Plans 05-01 and 05-02 complete (data layer, workflow, field review). Plan 05-03 (brief generation + display) next.
+**Current focus:** Phase 5 COMPLETE. All 3 plans delivered (data layer, workflow + field review, brief generation + display). Ready for Phase 6.
 
 ## Current Position
 
-Phase: 5 of 11 (Transcript Processing & Brief Generation) — IN PROGRESS
-Plan: 2 of 3 complete in current phase
-Status: Plan 05-02 complete. Touch-4-workflow with Gemini extraction, tiered severity, and field review suspend/resume. FieldReview UI component integrated. Ready for Plan 05-03 (brief generation + display).
-Last activity: 2026-03-04 — Plan 05-02 complete (Touch 4 workflow + field review UI)
+Phase: 5 of 11 (Transcript Processing & Brief Generation) — COMPLETE
+Plan: 3 of 3 complete in current phase
+Status: Phase 5 complete. Full Touch 4 pipeline: transcript -> field extraction -> seller review -> pillar mapping -> brief generation -> ROI framing -> persistence -> brief display. Ready for Phase 6.
+Last activity: 2026-03-04 — Plan 05-03 complete (Brief generation + ROI framing + brief display)
 
-Progress: [████░░░░░░] 36%
+Progress: [█████░░░░░] 45%
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [████░░░░░░] 36%
 | Phase 04-touch-1-3 P03 | 8 min | 3 tasks | 10 files |
 | Phase 05-transcript P01 | 4 min | 2 tasks | 8 files |
 | Phase 05-transcript P02 | 4 min | 2 tasks | 4 files |
+| Phase 05-transcript P03 | 6 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,10 @@ Recent decisions affecting current work:
 - [Phase 05-transcript-processing]: FieldReview computes live severity from edited values for real-time UX feedback (no server round-trip)
 - [Phase 05-transcript-processing]: Workflow exports with .commit() for first 3 steps; Plan 03 replaces file to add remaining steps
 - [Phase 05-transcript-processing]: hasErrors and fieldSeverity passed through workflow suspend payload for immediate UI rendering
+- [Phase 05-transcript-processing]: Combined mapPillars and generateBrief into single Gemini call -- SalesBriefLlmSchema already includes pillar fields
+- [Phase 05-transcript-processing]: ROI framing kept as separate enrichment step to preserve pillar mapping quality
+- [Phase 05-transcript-processing]: Workflow outputs briefData and roiFramingData for immediate UI rendering (no extra API call)
+- [Phase 05-transcript-processing]: BriefDisplay merges roiFramingData into use case cards by matching useCaseName with fallback to brief's roiOutcome
 
 ### Pending Todos
 
@@ -129,6 +134,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T02:00:19Z
-Stopped at: Completed 05-02-PLAN.md
-Resume file: .planning/phases/05-transcript-processing-and-brief-generation/05-03-PLAN.md
+Last session: 2026-03-04T02:11:16Z
+Stopped at: Completed 05-03-PLAN.md
+Resume file: Phase 6 planning needed

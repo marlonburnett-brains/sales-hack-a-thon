@@ -19,12 +19,12 @@
 - [x] **TRANS-02**: Seller can select the relevant industry (from 11) and subsector (from 62) before processing
 - [x] **TRANS-03**: System extracts structured fields from transcript: Customer Context, Business Outcomes, Constraints, Stakeholders, Timeline, Budget
 - [x] **TRANS-04**: System flags specific missing critical fields (e.g., "Budget not mentioned") and prevents pipeline from advancing until seller acknowledges each gap
-- [ ] **TRANS-05**: System maps transcript content to primary and secondary Lumenalta solution pillars
+- [x] **TRANS-05**: System maps transcript content to primary and secondary Lumenalta solution pillars
 
 ### Brief Generation
 
-- [ ] **GEN-01**: System generates a structured Multi-Pillar Sales Brief identifying primary and secondary solution pillars with supporting evidence from the transcript
-- [ ] **GEN-02**: System generates 2–3 ROI outcome statements and 1 value hypothesis per identified use case
+- [x] **GEN-01**: System generates a structured Multi-Pillar Sales Brief identifying primary and secondary solution pillars with supporting evidence from the transcript
+- [x] **GEN-02**: System generates 2–3 ROI outcome statements and 1 value hypothesis per identified use case
 - [ ] **GEN-03**: Seller and SME can review the complete structured brief in the web app before any assets are generated
 - [ ] **GEN-04**: No asset generation begins until brief is explicitly approved via a hard-stop HITL checkpoint in the web app
 
@@ -132,9 +132,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRANS-02 | Phase 5 | Complete |
 | TRANS-03 | Phase 5 | Complete |
 | TRANS-04 | Phase 5 | Complete |
-| TRANS-05 | Phase 5 | Pending |
-| GEN-01 | Phase 5 | Pending |
-| GEN-02 | Phase 5 | Pending |
+| TRANS-05 | Phase 5 | Complete |
+| GEN-01 | Phase 5 | Complete |
+| GEN-02 | Phase 5 | Complete |
 | GEN-03 | Phase 6 | Pending |
 | GEN-04 | Phase 6 | Pending |
 | CONT-01 | Phase 2 | Pending |
