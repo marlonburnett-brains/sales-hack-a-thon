@@ -157,11 +157,12 @@ Plans:
   3. A talk track Google Doc is created in the same per-deal Drive folder with speaker notes for each slide
   4. A buyer FAQ Google Doc is created with anticipated objections and recommended responses derived from the stakeholder roles and business context in the approved brief
   5. All three artifacts are accessible from the shared Lumenalta Drive folder without requiring per-seller OAuth
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 08-01: Google Slides creation step (Drive template copy -> sequential batchUpdate, getPlaceholderIdByType utility, per-deal folder creation) — extending Phase 4 slide assembly pipeline
-- [ ] 08-02: Talk track Google Doc generation step and buyer FAQ Google Doc generation step with objection handling
+- [x] 08-01-PLAN.md — Google Slides deck assembly engine (createSlidesDeckFromJSON), doc-builder.ts, Step 12 wired into workflow
+- [x] 08-02-PLAN.md — Talk track Google Doc (Step 13) and buyer FAQ Google Doc (Step 14) with objection handling, outputRefs persistence
+- [ ] 08-03-PLAN.md — Gap closure: sourceType branching for retrieved slides (drive.files.copy attempt with branded template fallback)
 
 ### Phase 9: HITL Checkpoint 2 and Review Delivery UI
 **Goal**: Seller, SME, Marketing, and Solutions can review all generated assets in the web app before final delivery, with direct links to the Drive artifacts and verified brand compliance on all output
@@ -228,7 +229,7 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 5. Transcript Processing and Brief Generation | 0/3 | Not started | - |
 | 6. HITL Checkpoint 1 — Brief Approval | 2/2 | Complete | 2026-03-04 |
 | 7. RAG Retrieval and Slide Block Assembly | 0/2 | Not started | - |
-| 8. Google Workspace Output Generation | 0/2 | Not started | - |
+| 8. Google Workspace Output Generation | 2/3 | Gap closure | - |
 | 9. HITL Checkpoint 2 and Review Delivery UI | 0/2 | Not started | - |
 | 10. Pre-Call Briefing Flow | 0/2 | Not started | - |
 | 11. End-to-End Integration and Demo Polish | 0/2 | Not started | - |
