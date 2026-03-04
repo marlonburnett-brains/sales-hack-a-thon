@@ -243,10 +243,10 @@ Plans:
   3. Pre-call form primary data extraction reads the correct field from record-interaction step output (not relying on fallback)
   4. Timeline entry displays "Pre-Call Briefing" label with appropriate color for pre_call touch type (not raw DB value)
   5. Touch 4 inline E2E flow completes from transcript to asset-review without manual intervention
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 13-01-PLAN.md — TBD (created by /gsd:plan-phase 13)
+- [ ] 13-01-PLAN.md — Wire asset generation poll loop in touch-4-form.tsx (handleApprove -> assetGenerating -> awaitingAssetReview), add pre_call label/color to timeline entry, fix pre-call form data extraction
 
 ## Progress
 
@@ -269,4 +269,4 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 10. Pre-Call Briefing Flow | 2/2 | Complete    | 2026-03-04 |
 | 11. End-to-End Integration and Demo Polish | 2/2 | Complete    | 2026-03-04 |
 | 12. Content Library Re-ingestion | 0/? | Not started | - |
-| 13. Touch 4 Poll Loop & Integration Fixes | 0/? | Not started | - |
+| 13. Touch 4 Poll Loop & Integration Fixes | 0/1 | Not started | - |
