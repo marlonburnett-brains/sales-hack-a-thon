@@ -197,6 +197,81 @@ export async function getWorkflowStatus(
 }
 
 // ────────────────────────────────────────────────────────────
+// Touch 2 Workflow
+// ────────────────────────────────────────────────────────────
+
+export async function startTouch2Workflow(
+  dealId: string,
+  formData: {
+    companyName: string;
+    industry: string;
+    salespersonName?: string;
+    salespersonPhotoUrl?: string;
+    customerName?: string;
+    customerLogoUrl?: string;
+    context?: string;
+    priorTouchOutputs?: string[];
+  }
+): Promise<WorkflowStartResult> {
+  return fetchJSON<WorkflowStartResult>(
+    "/api/workflows/touch-2-workflow/start",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        inputData: {
+          dealId,
+          ...formData,
+        },
+      }),
+    }
+  );
+}
+
+export async function getTouch2WorkflowStatus(
+  runId: string
+): Promise<WorkflowRunResult> {
+  return fetchJSON<WorkflowRunResult>(
+    `/api/workflows/touch-2-workflow/${runId}`
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Touch 3 Workflow
+// ────────────────────────────────────────────────────────────
+
+export async function startTouch3Workflow(
+  dealId: string,
+  formData: {
+    companyName: string;
+    industry: string;
+    capabilityAreas: string[];
+    context?: string;
+    priorTouchOutputs?: string[];
+  }
+): Promise<WorkflowStartResult> {
+  return fetchJSON<WorkflowStartResult>(
+    "/api/workflows/touch-3-workflow/start",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        inputData: {
+          dealId,
+          ...formData,
+        },
+      }),
+    }
+  );
+}
+
+export async function getTouch3WorkflowStatus(
+  runId: string
+): Promise<WorkflowRunResult> {
+  return fetchJSON<WorkflowRunResult>(
+    `/api/workflows/touch-3-workflow/${runId}`
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // Touch 1 Override Upload
 // ────────────────────────────────────────────────────────────
 

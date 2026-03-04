@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Lock } from "lucide-react";
 import { Touch1Form } from "./touch-1-form";
+import { Touch2Form } from "./touch-2-form";
+import { Touch3Form } from "./touch-3-form";
 import type { InteractionRecord } from "@/lib/api-client";
 
 interface TouchFlowCardProps {
@@ -97,6 +99,25 @@ export function TouchFlowCard({
             companyName={companyName}
             industry={industry}
             salespersonName={salespersonName}
+            onClose={() => setShowForm(false)}
+          />
+        )}
+
+        {showForm && touchNumber === 2 && (
+          <Touch2Form
+            dealId={dealId}
+            companyName={companyName}
+            industry={industry}
+            salespersonName={salespersonName}
+            onClose={() => setShowForm(false)}
+          />
+        )}
+
+        {showForm && touchNumber === 3 && (
+          <Touch3Form
+            dealId={dealId}
+            companyName={companyName}
+            industry={industry}
             onClose={() => setShowForm(false)}
           />
         )}

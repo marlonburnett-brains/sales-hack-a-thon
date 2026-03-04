@@ -60,9 +60,10 @@ export default async function DealPage({ params }: DealPageProps) {
           touchNumber={2}
           touchName="Meet Lumenalta Deck"
           description="AI-selected introduction slides customized with salesperson info and company branding."
-          available={false}
+          available={true}
           companyName={company?.name ?? ""}
           industry={company?.industry ?? ""}
+          salespersonName={deal.salespersonName ?? undefined}
           interactions={interactions.filter((i) => i.touchType === "touch_2")}
         />
         <TouchFlowCard
@@ -70,7 +71,7 @@ export default async function DealPage({ params }: DealPageProps) {
           touchNumber={3}
           touchName="Capability Alignment Deck"
           description="Capability-focused slides selected based on the prospect's industry and needs."
-          available={false}
+          available={true}
           companyName={company?.name ?? ""}
           industry={company?.industry ?? ""}
           interactions={interactions.filter((i) => i.touchType === "touch_3")}
