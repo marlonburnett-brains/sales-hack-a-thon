@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 6 context gathered
-last_updated: "2026-03-04T02:23:33.851Z"
-last_activity: 2026-03-04 — Plan 05-03 complete (Brief generation + ROI framing + brief display)
+status: in_progress
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-04T02:57:38.860Z"
+last_activity: 2026-03-04 — Plan 06-01 complete (HITL-1 brief approval backend foundation)
 progress:
   total_phases: 11
   completed_phases: 4
-  total_plans: 11
-  completed_plans: 14
-  percent: 45
+  total_plans: 13
+  completed_plans: 15
+  percent: 50
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 5 COMPLETE. All 3 plans delivered (data layer, workflow + field review, brief generation + display). Ready for Phase 6.
+**Current focus:** Phase 6 in progress. Plan 06-01 complete (HITL-1 backend foundation). Plan 06-02 next (approval UI).
 
 ## Current Position
 
-Phase: 5 of 11 (Transcript Processing & Brief Generation) — COMPLETE
-Plan: 3 of 3 complete in current phase
-Status: Phase 5 complete. Full Touch 4 pipeline: transcript -> field extraction -> seller review -> pillar mapping -> brief generation -> ROI framing -> persistence -> brief display. Ready for Phase 6.
-Last activity: 2026-03-04 — Plan 05-03 complete (Brief generation + ROI framing + brief display)
+Phase: 6 of 11 (HITL Checkpoint 1 -- Brief Approval)
+Plan: 1 of 2 complete in current phase
+Status: Plan 06-01 complete. 8-step workflow with second suspend point, 5 API endpoints, typed api-client + server actions. Plan 06-02 next (approval UI).
+Last activity: 2026-03-04 — Plan 06-01 complete (HITL-1 brief approval backend foundation)
 
-Progress: [█████░░░░░] 45%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [█████░░░░░] 45%
 | Phase 05-transcript P01 | 4 min | 2 tasks | 8 files |
 | Phase 05-transcript P02 | 4 min | 2 tasks | 4 files |
 | Phase 05-transcript P03 | 6 min | 2 tasks | 3 files |
+| Phase 06-hitl-approval P01 | 2 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,11 @@ Recent decisions affecting current work:
 - [Phase 05-transcript-processing]: ROI framing kept as separate enrichment step to preserve pillar mapping quality
 - [Phase 05-transcript-processing]: Workflow outputs briefData and roiFramingData for immediate UI rendering (no extra API call)
 - [Phase 05-transcript-processing]: BriefDisplay merges roiFramingData into use case cards by matching useCaseName with fallback to brief's roiOutcome
+- [Phase 06-hitl-approval]: Approval tracking fields on Brief model (not separate model) -- 1:1 relationship, avoids extra join
+- [Phase 06-hitl-approval]: recordInteraction reordered BEFORE awaitBriefApproval so Brief exists in DB before approval checkpoint
+- [Phase 06-hitl-approval]: Rejection/edit use custom API endpoints (not workflow resume) for unlimited rejection/resubmit cycles
+- [Phase 06-hitl-approval]: workflowRunId left null at Brief creation, set by approve endpoint (Mastra steps cannot access runId)
+- [Phase 06-hitl-approval]: FeedbackSignal creation moved from recordInteraction to finalizeApproval (only after explicit approval)
 
 ### Pending Todos
 
@@ -134,6 +140,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T02:23:33.841Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-hitl-checkpoint-1-brief-approval/06-CONTEXT.md
+Last session: 2026-03-04T02:57:00Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: .planning/phases/06-hitl-checkpoint-1-brief-approval/06-02-PLAN.md
