@@ -53,6 +53,10 @@ export {
   SlideMetadataSchema,
   type SlideMetadata,
 } from "./llm/slide-metadata";
+export {
+  ProposalCopyLlmSchema,
+  type ProposalCopy,
+} from "./llm/proposal-copy";
 
 // App schemas (internal, may use transforms/optionals)
 export {

@@ -29,6 +29,14 @@ export const SlideAssemblyLlmSchema = z.object({
           description:
             "AtlusAI content block ID that sourced this slide's content.",
         }),
+        sectionType: z.string().meta({
+          description:
+            "Deck section: title_context, problem_restatement, primary_capability, secondary_capability, case_study, roi_outcomes, next_steps.",
+        }),
+        sourceType: z.string().meta({
+          description:
+            "Source origin: retrieved (from AtlusAI) or synthesized (generated from brief data).",
+        }),
       })
     )
     .meta({
