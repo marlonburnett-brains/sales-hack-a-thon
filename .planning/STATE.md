@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 Phase: 12 of 13 (Content Library Re-ingestion)
 Plan: 2 of 2 complete in current phase
 Status: Phase 12 complete. All 38 slides ingested into AtlusAI, brand guidelines ingested, image registry gracefully empty, coverage verified across all 11 industries.
-Last activity: 2026-03-04 — Plan 12-02 complete (full ingestion, brand guidelines, coverage verification)
+Last activity: 2026-03-04 - Completed quick task 1: Switch LLM from Gemini to GPT-OSS 120b on Vertex AI
 
 Progress: [██████████] 100%
 
@@ -194,6 +194,12 @@ Recent decisions affecting current work:
 ### Pending Todos
 
 None yet.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Switch LLM from Gemini to GPT-OSS 120b on Vertex AI | 2026-03-04 | 23b0328 | [1-switch-llm-from-gemini-to-gpt-oss-120b-o](./quick/1-switch-llm-from-gemini-to-gpt-oss-120b-o/) |
 
 ### Blockers/Concerns
 
