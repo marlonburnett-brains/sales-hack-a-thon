@@ -227,10 +227,11 @@ Plans:
   4. All 11 industries have at least one complete deck template and at least one case study in AtlusAI
   5. Brand guidelines are ingested as whole-reference 'brand_guide' entries (not slide-level 'template')
   6. Image registry is populated with brand-approved assets from Drive
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — TBD (created by /gsd:plan-phase 12)
+- [ ] 12-01-PLAN.md — Access setup (GCP API enablement + Drive sharing) and discovery validation (manifest-only run)
+- [ ] 12-02-PLAN.md — Full ingestion pipeline re-run, brand guidelines ingestion, image registry population, and coverage verification
 
 ### Phase 13: Touch 4 Poll Loop & Integration Fixes
 **Goal**: Touch 4 inline form shows real-time asset generation progress after brief approval, and minor integration display issues are resolved
@@ -268,5 +269,5 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 9. HITL Checkpoint 2 and Review Delivery UI | 2/2 | Complete   | 2026-03-04 |
 | 10. Pre-Call Briefing Flow | 2/2 | Complete    | 2026-03-04 |
 | 11. End-to-End Integration and Demo Polish | 2/2 | Complete    | 2026-03-04 |
-| 12. Content Library Re-ingestion | 0/? | Not started | - |
+| 12. Content Library Re-ingestion | 0/2 | Not started | - |
 | 13. Touch 4 Poll Loop & Integration Fixes | 0/1 | Not started | - |
