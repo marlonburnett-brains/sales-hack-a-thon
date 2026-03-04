@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Loader2, CheckCircle } from "lucide-react";
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "@/components/ui/alert";
+import { X, Loader2, CheckCircle, RotateCcw, Pencil } from "lucide-react";
 import { GenerationProgress } from "./generation-progress";
 import { FieldReview } from "./field-review";
 import { BriefDisplay } from "./brief-display";
@@ -21,6 +27,9 @@ import {
   generateTouch4BriefAction,
   checkTouch4StatusAction,
   resumeTouch4FieldReviewAction,
+  approveBriefAction,
+  rejectBriefAction,
+  editBriefAction,
 } from "@/lib/actions/touch-actions";
 import { INDUSTRIES, SUBSECTORS } from "@lumenalta/schemas";
 import type { SalesBrief, ROIFraming } from "@lumenalta/schemas";
@@ -37,7 +46,11 @@ type FormState =
   | "extracting"
   | "fieldReview"
   | "generating"
-  | "briefResult";
+  | "awaitingApproval"
+  | "rejected"
+  | "editing"
+  | "resubmitting"
+  | "approved";
 
 interface TranscriptFields {
   customerContext: string;
@@ -74,6 +87,10 @@ export function Touch4Form({
   const [briefData, setBriefData] = useState<SalesBrief | null>(null);
   const [roiFramingData, setRoiFramingData] = useState<ROIFraming | null>(null);
   const [interactionId, setInteractionId] = useState<string | null>(null);
+  const [briefId, setBriefId] = useState<string | null>(null);
+  const [rejectionFeedback, setRejectionFeedback] = useState<string | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,25 +108,48 @@ export function Touch4Form({
     async (
       currentRunId: string,
       targetStatuses: string[],
-      pollMessage: string
+      pollMessage: string,
+      interval: number = 2000
     ) => {
       setProgressMessage(pollMessage);
       const maxAttempts = 120;
       let attempts = 0;
 
       while (attempts < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((r) => setTimeout(r, interval));
         attempts++;
 
         try {
           const status = await checkTouch4StatusAction(currentRunId);
 
-          // Check if workflow is suspended (awaiting field review)
+          // Check if workflow is suspended
           if (
             status.status === "suspended" &&
             targetStatuses.includes("suspended")
           ) {
             const steps = status.steps ?? {};
+
+            // Check for brief approval suspend (second suspend point)
+            const approvalStep = steps["await-brief-approval"];
+            if (approvalStep?.payload) {
+              const payload = approvalStep.payload as Record<string, unknown>;
+              // Grab brief data from record-interaction output
+              const recordStep = steps["record-interaction"];
+              const recordOutput = recordStep?.output as
+                | Record<string, unknown>
+                | undefined;
+              return {
+                status: "awaiting_approval" as const,
+                briefId: payload.briefId as string,
+                interactionId: payload.interactionId as string,
+                briefData: recordOutput?.briefData as SalesBrief | undefined,
+                roiFramingData: recordOutput?.roiFramingData as
+                  | ROIFraming
+                  | undefined,
+              };
+            }
+
+            // Check for field review suspend (first suspend point)
             const reviewStep = steps["await-field-review"];
             if (reviewStep?.payload) {
               const payload = reviewStep.payload as Record<string, unknown>;
@@ -224,7 +264,7 @@ export function Touch4Form({
     }
   };
 
-  // Step 2: Continue from field review -> generate brief
+  // Step 2: Continue from field review -> generate brief -> await approval
   const handleContinueFromReview = async (reviewedFields: TranscriptFields) => {
     if (!runId) return;
     setError(null);
@@ -232,38 +272,46 @@ export function Touch4Form({
 
     try {
       // Resume workflow with seller-reviewed fields
-      const result = await resumeTouch4FieldReviewAction(
+      await resumeTouch4FieldReviewAction(
         runId,
         "await-field-review",
         reviewedFields
       );
 
-      // If already completed (unlikely but handle gracefully)
-      if (result.status === "completed") {
-        // Extract brief data from the result if available
-        const res = result as unknown as Record<string, unknown>;
-        if (res.briefData) setBriefData(res.briefData as SalesBrief);
-        if (res.roiFramingData) setRoiFramingData(res.roiFramingData as ROIFraming);
-        if (res.interactionId) setInteractionId(res.interactionId as string);
-        setState("briefResult");
-        router.refresh();
-        return;
-      }
-
-      // Poll for completion with step-by-step messages
+      // Poll until workflow suspends at brief approval (second suspend point)
+      // Use 3-second interval for the approval phase polling
       setProgressMessage("Mapping solution pillars...");
       const pollResult = await pollStatus(
         runId,
-        ["completed"],
-        "Generating brief..."
+        ["suspended", "completed"],
+        "Generating brief...",
+        3000
       );
 
-      if (pollResult.status === "completed" && pollResult.result) {
+      if (
+        pollResult.status === "awaiting_approval" &&
+        pollResult.briefId
+      ) {
+        setBriefId(pollResult.briefId);
+        if (pollResult.interactionId)
+          setInteractionId(pollResult.interactionId);
+        if (pollResult.briefData)
+          setBriefData(pollResult.briefData);
+        if (pollResult.roiFramingData)
+          setRoiFramingData(pollResult.roiFramingData);
+        setState("awaitingApproval");
+        router.refresh();
+      } else if (pollResult.status === "completed" && pollResult.result) {
+        // Workflow completed without second suspend (shouldn't happen in normal flow)
         const resultData = pollResult.result as Record<string, unknown>;
-        if (resultData.briefData) setBriefData(resultData.briefData as SalesBrief);
-        if (resultData.roiFramingData) setRoiFramingData(resultData.roiFramingData as ROIFraming);
-        if (resultData.interactionId) setInteractionId(resultData.interactionId as string);
-        setState("briefResult");
+        if (resultData.briefData)
+          setBriefData(resultData.briefData as SalesBrief);
+        if (resultData.roiFramingData)
+          setRoiFramingData(resultData.roiFramingData as ROIFraming);
+        if (resultData.interactionId)
+          setInteractionId(resultData.interactionId as string);
+        if (resultData.briefId) setBriefId(resultData.briefId as string);
+        setState("approved");
         router.refresh();
       }
     } catch (err) {
@@ -272,6 +320,64 @@ export function Touch4Form({
       );
       setState("fieldReview");
     }
+  };
+
+  // Approval handlers
+  const handleApprove = async (reviewerName: string) => {
+    if (!briefId || !runId) return;
+    try {
+      await approveBriefAction(briefId, { reviewerName, runId });
+      setState("approved");
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Approval failed"
+      );
+    }
+  };
+
+  const handleReject = async (reviewerName: string, feedback: string) => {
+    if (!briefId) return;
+    try {
+      await rejectBriefAction(briefId, { reviewerName, feedback });
+      setRejectionFeedback(feedback);
+      setState("rejected");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Rejection failed"
+      );
+    }
+  };
+
+  const handleEditBrief = async (editedBrief: SalesBrief) => {
+    if (!briefId) return;
+    try {
+      await editBriefAction(briefId, {
+        editedBrief: editedBrief as unknown as Record<string, unknown>,
+        reviewerName: "Seller",
+      });
+      setBriefData(editedBrief);
+      setState("awaitingApproval");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Edit failed"
+      );
+    }
+  };
+
+  // Rejection resubmit: Edit extracted fields and regenerate
+  const handleResubmitFromFields = () => {
+    // Reset to fieldReview with original extracted fields, start a fresh workflow
+    setRunId(null);
+    setBriefId(null);
+    setRejectionFeedback(null);
+    setState("fieldReview");
+  };
+
+  // Rejection resubmit: Edit brief directly
+  const handleResubmitFromBrief = () => {
+    setState("awaitingApproval");
+    // The BriefDisplay will allow inline editing
   };
 
   // ────────────────────────────────────────────────────────────
@@ -426,7 +532,72 @@ export function Touch4Form({
           extractedFields={extractedFields}
           fieldSeverity={fieldSeverity}
           hasErrors={hasErrors}
-          onContinue={handleContinueFromReview}
+          onContinue={async (reviewedFields: TranscriptFields) => {
+            if (!runId) {
+              // Fresh workflow needed (e.g., after rejection -> edit fields -> regenerate)
+              setIsSubmitting(true);
+              setState("generating");
+              try {
+                const result = await generateTouch4BriefAction(dealId, {
+                  companyName,
+                  industry: selectedIndustry,
+                  subsector: selectedSubsector,
+                  transcript,
+                  additionalNotes: additionalNotes || undefined,
+                });
+                setRunId(result.runId);
+                // Poll for first suspend
+                const pollResult = await pollStatus(
+                  result.runId,
+                  ["suspended"],
+                  "Extracting fields from transcript..."
+                );
+                if (
+                  pollResult.status === "suspended" &&
+                  pollResult.extractedFields
+                ) {
+                  // Immediately resume with reviewed fields
+                  await resumeTouch4FieldReviewAction(
+                    result.runId,
+                    "await-field-review",
+                    reviewedFields
+                  );
+                  // Poll for second suspend
+                  const secondPoll = await pollStatus(
+                    result.runId,
+                    ["suspended", "completed"],
+                    "Generating brief...",
+                    3000
+                  );
+                  if (
+                    secondPoll.status === "awaiting_approval" &&
+                    secondPoll.briefId
+                  ) {
+                    setBriefId(secondPoll.briefId);
+                    if (secondPoll.interactionId)
+                      setInteractionId(secondPoll.interactionId);
+                    if (secondPoll.briefData)
+                      setBriefData(secondPoll.briefData);
+                    if (secondPoll.roiFramingData)
+                      setRoiFramingData(secondPoll.roiFramingData);
+                    setState("awaitingApproval");
+                    router.refresh();
+                  }
+                }
+              } catch (err) {
+                setError(
+                  err instanceof Error
+                    ? err.message
+                    : "Brief generation failed"
+                );
+                setState("fieldReview");
+              } finally {
+                setIsSubmitting(false);
+              }
+            } else {
+              handleContinueFromReview(reviewedFields);
+            }
+          }}
         />
       </div>
     );
@@ -442,8 +613,88 @@ export function Touch4Form({
     );
   }
 
-  // Brief Result state -- display generated brief with pillar cards, use cases, ROI
-  if (state === "briefResult") {
+  // Resubmitting state
+  if (state === "resubmitting") {
+    return (
+      <div className="pt-2">
+        <Separator className="mb-4" />
+        <GenerationProgress message="Regenerating brief..." />
+      </div>
+    );
+  }
+
+  // Awaiting Approval state -- brief generated, waiting for reviewer action
+  if (state === "awaitingApproval" && briefData && roiFramingData) {
+    return (
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-slate-700">
+            Brief Approval
+          </h3>
+          <Badge className="bg-amber-100 text-amber-800">
+            Awaiting Approval
+          </Badge>
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <BriefDisplay
+          briefData={briefData}
+          roiFramingData={roiFramingData}
+          interactionId={interactionId ?? ""}
+          approvalMode={true}
+          briefId={briefId ?? undefined}
+          runId={runId ?? undefined}
+          approvalStatus="pending_approval"
+          rejectionFeedback={rejectionFeedback}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onEdit={handleEditBrief}
+        />
+      </div>
+    );
+  }
+
+  // Rejected state -- show feedback and two resubmit paths
+  if (state === "rejected") {
+    return (
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <Alert variant="destructive">
+          <AlertTitle>Changes Requested</AlertTitle>
+          <AlertDescription>
+            {rejectionFeedback}
+          </AlertDescription>
+        </Alert>
+
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            Choose how to address the feedback:
+          </p>
+          <Button
+            onClick={handleResubmitFromFields}
+            className="w-full cursor-pointer gap-2"
+            variant="default"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Edit Extracted Fields & Regenerate Brief
+          </Button>
+          <Button
+            onClick={handleResubmitFromBrief}
+            variant="outline"
+            className="w-full cursor-pointer gap-2"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit Brief Directly & Resubmit
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Approved state -- show brief with success indicator
+  if (state === "approved") {
     return (
       <div className="space-y-4 pt-2">
         <Separator />
@@ -453,9 +704,7 @@ export function Touch4Form({
           </h3>
           <div className="flex items-center gap-1.5 text-green-600">
             <CheckCircle className="h-4 w-4" />
-            <span className="text-xs font-medium">
-              Sales brief generated successfully
-            </span>
+            <span className="text-xs font-medium">Brief Approved</span>
           </div>
         </div>
 
@@ -464,12 +713,14 @@ export function Touch4Form({
             briefData={briefData}
             roiFramingData={roiFramingData}
             interactionId={interactionId ?? ""}
+            approvalMode={true}
+            approvalStatus="approved"
           />
         ) : (
           <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-slate-700">
-            <p className="font-medium">Brief generated successfully</p>
+            <p className="font-medium">Brief approved successfully</p>
             <p className="mt-1 text-xs text-slate-500">
-              Refresh the page to see the brief in the interaction timeline.
+              Refresh the page to see the updated status.
             </p>
           </div>
         )}
