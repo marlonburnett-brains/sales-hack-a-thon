@@ -36,3 +36,66 @@ model ImageAsset {
   @@index([category])
   @@index([name])
 }
+
+// ────────────────────────────────────────────────────────────
+// Phase 4: Touch 1-3 Asset Generation & Interaction Tracking
+// ────────────────────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  industry  String
+  logoUrl   String?  // Drive URL or public URL for customer logo
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deals     Deal[]
+
+  @@unique([name])
+}
+
+model Deal {
+  id               String              @id @default(cuid())
+  companyId        String
+  company          Company             @relation(fields: [companyId], references: [id])
+  name             String              // e.g., "Q1 2026 Enterprise Pitch"
+  salespersonName  String?
+  salespersonPhoto String?             // Drive file ID or URL
+  driveFolderId    String?             // Per-deal folder in shared Drive
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  interactions     InteractionRecord[]
+
+  @@index([companyId])
+}
+
+model InteractionRecord {
+  id               String            @id @default(cuid())
+  dealId           String
+  deal             Deal              @relation(fields: [dealId], references: [id])
+  touchType        String            // "touch_1" | "touch_2" | "touch_3" | "touch_4"
+  status           String            @default("pending") // "pending" | "generating" | "pending_review" | "approved" | "overridden" | "edited"
+  inputs           String            // JSON: company, industry, context, etc.
+  decision         String?           // "approved" | "overridden" | "edited" | null (if pending)
+  generatedContent String?           // JSON: AI-generated content for review
+  outputRefs       String?           // JSON array: Drive URLs of generated assets
+  driveFileId      String?           // Primary generated presentation ID
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  feedbackSignals  FeedbackSignal[]
+
+  @@index([dealId])
+  @@index([touchType])
+}
+
+model FeedbackSignal {
+  id              String            @id @default(cuid())
+  interactionId   String
+  interaction     InteractionRecord @relation(fields: [interactionId], references: [id])
+  signalType      String            // "positive" | "negative" | "override"
+  source          String            // "touch_1_approve" | "touch_1_edit" | "touch_1_upload" etc.
+  content         String            // JSON: diff data, original vs edited fields, etc.
+  createdAt       DateTime          @default(now())
+
+  @@index([interactionId])
+  @@index([signalType])
+}
