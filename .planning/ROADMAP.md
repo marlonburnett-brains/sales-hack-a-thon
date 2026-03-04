@@ -23,6 +23,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: HITL Checkpoint 2 and Review Delivery UI** - Wire the second HITL checkpoint for final asset review, build the review panel with Drive artifact links, and enforce brand compliance verification before final delivery (completed 2026-03-04)
 - [x] **Phase 10: Pre-Call Briefing Flow** - Build the independent pre-call input form, company research pipeline, role-specific hypothesis and discovery question generation, and Drive output (completed 2026-03-04)
 - [x] **Phase 11: End-to-End Integration and Demo Polish** - Connect all pipeline steps across all four touch points, validate full runs for each touch type, add step-by-step progress indicators, harden error handling, and produce a demo-ready scenario (completed 2026-03-04)
+- [ ] **Phase 12: Content Library Re-ingestion** - Grant Drive service account access to shortcut targets, enable Google Docs API, re-run ingestion pipeline for all deck templates, case studies, brand guidelines, and image library, and verify coverage across all 11 industries (gap closure)
+- [ ] **Phase 13: Touch 4 Poll Loop & Integration Fixes** - Wire the asset generation poll loop in touch-4-form.tsx after brief approval, fix pre-call form primary data extraction path, add pre_call label/color to timeline entry, and verify Touch 4 inline E2E flow (gap closure)
 
 ## Phase Details
 
@@ -213,6 +215,39 @@ Plans:
 - [x] 11-01-PLAN.md — PipelineStepper component, sonner toast integration, friendly error mapper, step-by-step progress indicators wired into all 5 form components
 - [x] 11-02-PLAN.md — Demo seed script (Meridian Capital Group), Financial Services transcript fixture, end-to-end validation checkpoint
 
+### Phase 12: Content Library Re-ingestion
+**Goal**: AtlusAI is populated with all Lumenalta content — including all deck templates, case studies, brand guidelines as whole-reference documents, and image/icon library — so that RAG retrieval has complete coverage across all 11 industries
+**Depends on**: Phase 2 (ingestion infrastructure), Phase 1 (service account)
+**Requirements**: CONT-01, CONT-02, CONT-03, CONT-04
+**Gap Closure:** Closes requirement gaps from v1.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. Google Drive service account can access all shortcut target files (Meet Lumenalta, L2 capability decks, 1-2 pager templates, case study decks)
+  2. Google Docs API is enabled on GCP project 749490525472
+  3. Full ingestion pipeline re-run completes with all deck templates, case studies, and brand assets ingested
+  4. All 11 industries have at least one complete deck template and at least one case study in AtlusAI
+  5. Brand guidelines are ingested as whole-reference 'brand_guide' entries (not slide-level 'template')
+  6. Image registry is populated with brand-approved assets from Drive
+**Plans**: TBD
+
+Plans:
+- [ ] 12-01-PLAN.md — TBD (created by /gsd:plan-phase 12)
+
+### Phase 13: Touch 4 Poll Loop & Integration Fixes
+**Goal**: Touch 4 inline form shows real-time asset generation progress after brief approval, and minor integration display issues are resolved
+**Depends on**: Phase 11 (E2E integration), Phase 9 (asset review UI)
+**Requirements**: None (integration/UX fix phase — all affected requirements already satisfied at server level)
+**Gap Closure:** Closes integration and flow gaps from v1.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. After brief approval in touch-4-form.tsx, the poll loop starts and `TOUCH_4_ASSET_PIPELINE_STEPS` progress is displayed to the user in real time
+  2. User does not need to navigate away and return to see asset-review banner — it appears automatically when pipeline completes
+  3. Pre-call form primary data extraction reads the correct field from record-interaction step output (not relying on fallback)
+  4. Timeline entry displays "Pre-Call Briefing" label with appropriate color for pre_call touch type (not raw DB value)
+  5. Touch 4 inline E2E flow completes from transcript to asset-review without manual intervention
+**Plans**: TBD
+
+Plans:
+- [ ] 13-01-PLAN.md — TBD (created by /gsd:plan-phase 13)
+
 ## Progress
 
 **Execution Order:**
@@ -233,3 +268,5 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 9. HITL Checkpoint 2 and Review Delivery UI | 2/2 | Complete   | 2026-03-04 |
 | 10. Pre-Call Briefing Flow | 2/2 | Complete    | 2026-03-04 |
 | 11. End-to-End Integration and Demo Polish | 2/2 | Complete    | 2026-03-04 |
+| 12. Content Library Re-ingestion | 0/? | Not started | - |
+| 13. Touch 4 Poll Loop & Integration Fixes | 0/? | Not started | - |
