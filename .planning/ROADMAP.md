@@ -192,8 +192,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01: Pre-call input form (Next.js), ResearchAgent (AtlusAI + public source research), ResearchCompany and GenerateHypotheses workflow steps
-- [ ] 10-02: Discovery question generation step (mapped to Lumenalta solutions), BuildBriefingDoc step, SaveToDrive step, and pre-call results UI
+- [ ] 10-01-PLAN.md -- Pre-call Mastra workflow (researchCompany, queryCaseStudies, generateHypotheses, generateDiscoveryQuestions, buildBriefingDoc, recordInteraction), TOUCH_TYPES constant update, workflow registration, API client + server actions
+- [ ] 10-02-PLAN.md -- Pre-call form (buyer role dropdown, meeting context textarea), briefing results display (company snapshot, hypotheses, discovery questions, case studies), Prep section on deal page above touch flow cards
 
 ### Phase 11: End-to-End Integration and Demo Polish
 **Goal**: All four touch-point flows run end-to-end without manual intervention, the UI communicates pipeline progress at every step, error handling is hardened, and a complete demo scenario validates the core value claim across all touch types
@@ -230,6 +230,6 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 6. HITL Checkpoint 1 — Brief Approval | 2/2 | Complete | 2026-03-04 |
 | 7. RAG Retrieval and Slide Block Assembly | 0/2 | Not started | - |
 | 8. Google Workspace Output Generation | 2/3 | Gap closure | - |
-| 9. HITL Checkpoint 2 and Review Delivery UI | 1/2 | In Progress|  |
+| 9. HITL Checkpoint 2 and Review Delivery UI | 1/2 | In Progress | - |
 | 10. Pre-Call Briefing Flow | 0/2 | Not started | - |
 | 11. End-to-End Integration and Demo Polish | 0/2 | Not started | - |
