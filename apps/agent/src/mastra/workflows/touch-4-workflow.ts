@@ -28,6 +28,8 @@ import {
   zodToGeminiSchema,
   SOLUTION_PILLARS,
 } from "@lumenalta/schemas";
+import { searchForProposal } from "../../lib/atlusai-search";
+import { filterByMetadata, buildSlideJSON } from "../../lib/proposal-assembly";
 import { env } from "../../env";
 
 // ────────────────────────────────────────────────────────────
@@ -692,6 +694,205 @@ const finalizeApproval = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
+// Step 9: RAG Retrieval from AtlusAI (multi-pass: primary, secondary, case studies)
+// ────────────────────────────────────────────────────────────
+
+const ragRetrieval = createStep({
+  id: "rag-retrieval",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    transcriptId: z.string(),
+    briefId: z.string(),
+    briefData: SalesBriefLlmSchema,
+    roiFramingData: ROIFramingLlmSchema,
+    decision: z.enum(["approved"]),
+    reviewerName: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    briefData: SalesBriefLlmSchema,
+    roiFramingData: ROIFramingLlmSchema,
+    candidateSlides: z.string(),
+    retrievalSummary: z.string(),
+  }),
+  execute: async ({ inputData }) => {
+    // a. Fetch Brief from DB for industry context
+    const brief = await prisma.brief.findUniqueOrThrow({
+      where: { id: inputData.briefId },
+      include: {
+        interaction: {
+          include: { deal: { include: { company: true } } },
+        },
+      },
+    });
+
+    const industry = brief.interaction.deal.company.industry;
+
+    // b. Get subsector from Transcript record
+    const transcript = await prisma.transcript.findFirst({
+      where: { interactionId: brief.interactionId },
+    });
+    const subsector = transcript?.subsector ?? "";
+
+    // c. Multi-pass retrieval: primary pillar, secondary pillars, case studies
+    const result = await searchForProposal({
+      industry,
+      subsector,
+      primaryPillar: inputData.briefData.primaryPillar,
+      secondaryPillars: inputData.briefData.secondaryPillars,
+      useCases: inputData.briefData.useCases,
+    });
+
+    // d. Post-retrieval metadata filtering
+    const filtered = filterByMetadata(
+      result.candidates,
+      industry,
+      inputData.briefData.primaryPillar
+    );
+
+    // e. Build retrieval summary
+    const retrievalSummary = `Retrieved ${result.candidates.length} candidates (${result.primaryCount} primary, ${result.secondaryCount} secondary, ${result.caseStudyCount} case studies). Post-filter: ${filtered.length} slides.`;
+
+    console.log(`[rag-retrieval] ${retrievalSummary}`);
+
+    // f. Serialize filtered candidates as JSON string for workflow passthrough
+    return {
+      interactionId: inputData.interactionId,
+      briefId: inputData.briefId,
+      briefData: inputData.briefData,
+      roiFramingData: inputData.roiFramingData,
+      candidateSlides: JSON.stringify(filtered),
+      retrievalSummary,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Step 10: Assemble SlideJSON with Gemini-powered weighted slide selection
+// ────────────────────────────────────────────────────────────
+
+const assembleSlideJSON = createStep({
+  id: "assemble-slide-json",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    briefData: SalesBriefLlmSchema,
+    roiFramingData: ROIFramingLlmSchema,
+    candidateSlides: z.string(),
+    retrievalSummary: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    briefData: SalesBriefLlmSchema,
+    roiFramingData: ROIFramingLlmSchema,
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    retrievalSummary: z.string(),
+  }),
+  execute: async ({ inputData }) => {
+    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+
+    // a. Deserialize candidate slides from JSON string
+    const candidates = JSON.parse(inputData.candidateSlides) as Array<{
+      slideId: string;
+      documentTitle: string;
+      textContent: string;
+      speakerNotes: string;
+      metadata: Record<string, unknown>;
+      presentationId?: string;
+      slideObjectId?: string;
+    }>;
+
+    // b. Use Gemini 2.5 Flash to select best 8-12 slides from candidates
+    const candidateList = candidates
+      .map(
+        (c, i) =>
+          `${i + 1}. ID: "${c.slideId}" | Title: "${c.documentTitle}" | Content: "${(c.textContent || "").substring(0, 300)}" | Metadata: ${JSON.stringify(c.metadata).substring(0, 200)}`
+      )
+      .join("\n");
+
+    const useCaseNames = inputData.briefData.useCases
+      .map((uc) => uc.name)
+      .join(", ");
+
+    const selectionPrompt = `You are selecting slides for a solution proposal deck.
+
+BRIEF CONTEXT:
+- Industry: ${inputData.briefData.industry}
+- Primary Pillar: ${inputData.briefData.primaryPillar}
+- Secondary Pillars: ${inputData.briefData.secondaryPillars.join(", ")}
+- Use Cases: ${useCaseNames}
+
+CANDIDATE SLIDES (${candidates.length} total):
+${candidateList}
+
+INSTRUCTIONS:
+Select 8-12 slides for a solution proposal deck. Follow this allocation:
+- ~70% of slides for primary pillar (${inputData.briefData.primaryPillar})
+- ~15% each for secondary pillars
+- Include 1-2 case study slides if available
+- ONLY return slide IDs from the provided candidate list above
+- Do NOT invent or create new slide IDs
+
+Provide the selected slide IDs and brief reasoning for your selection.`;
+
+    const selectionSchema = z.object({
+      selectedSlideIds: z.array(z.string()).meta({
+        description: "Array of slideId values selected from the candidate list.",
+      }),
+      reasoning: z.string().meta({
+        description: "Brief explanation of the selection rationale.",
+      }),
+    });
+
+    const selectionResponse = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: selectionPrompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: zodToGeminiSchema(selectionSchema) as Record<
+          string,
+          unknown
+        >,
+      },
+    });
+
+    const selectionText = selectionResponse.text ?? "{}";
+    const selection = selectionSchema.parse(JSON.parse(selectionText));
+
+    console.log(
+      `[assemble-slide-json] Selected ${selection.selectedSlideIds.length} slides: ${selection.reasoning}`
+    );
+
+    // c. Filter candidates to only selected slides
+    const selectedIdSet = new Set(selection.selectedSlideIds);
+    const selectedSlides = candidates.filter((c) =>
+      selectedIdSet.has(c.slideId)
+    );
+
+    // d. Build SlideJSON using the assembly function
+    const slideAssembly = buildSlideJSON({
+      brief: inputData.briefData,
+      roiFraming: inputData.roiFramingData,
+      selectedSlides: selectedSlides as any, // SlideSearchResult compatible shape
+    });
+
+    // e. Serialize and return
+    return {
+      interactionId: inputData.interactionId,
+      briefId: inputData.briefId,
+      briefData: inputData.briefData,
+      roiFramingData: inputData.roiFramingData,
+      slideJSON: JSON.stringify(slideAssembly),
+      slideCount: slideAssembly.slides.length,
+      retrievalSummary: inputData.retrievalSummary,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
 // Workflow: Touch 4 Transcript Processing (8-Step Pipeline)
 // ────────────────────────────────────────────────────────────
 
@@ -723,4 +924,5 @@ export const touch4Workflow = createWorkflow({
   .then(recordInteraction)
   .then(awaitBriefApproval)
   .then(finalizeApproval)
-  .commit();
+  .then(ragRetrieval)
+  .then(assembleSlideJSON);
