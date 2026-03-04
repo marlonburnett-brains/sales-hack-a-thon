@@ -16,12 +16,14 @@ import {
 import { X, Loader2, CheckCircle } from "lucide-react";
 import { GenerationProgress } from "./generation-progress";
 import { FieldReview } from "./field-review";
+import { BriefDisplay } from "./brief-display";
 import {
   generateTouch4BriefAction,
   checkTouch4StatusAction,
   resumeTouch4FieldReviewAction,
 } from "@/lib/actions/touch-actions";
 import { INDUSTRIES, SUBSECTORS } from "@lumenalta/schemas";
+import type { SalesBrief, ROIFraming } from "@lumenalta/schemas";
 
 interface Touch4FormProps {
   dealId: string;
@@ -69,6 +71,9 @@ export function Touch4Form({
   const [progressMessage, setProgressMessage] = useState(
     "Extracting fields from transcript..."
   );
+  const [briefData, setBriefData] = useState<SalesBrief | null>(null);
+  const [roiFramingData, setRoiFramingData] = useState<ROIFraming | null>(null);
+  const [interactionId, setInteractionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -134,13 +139,22 @@ export function Touch4Form({
                   interactionId: output.interactionId as string,
                   briefId: output.briefId as string,
                   transcriptId: output.transcriptId as string,
+                  briefData: output.briefData as SalesBrief,
+                  roiFramingData: output.roiFramingData as ROIFraming,
                 },
               };
             }
             if (status.result) {
+              const result = status.result as Record<string, unknown>;
               return {
                 status: "completed" as const,
-                result: status.result as Record<string, unknown>,
+                result: {
+                  interactionId: (result.interactionId as string) ?? "",
+                  briefId: (result.briefId as string) ?? "",
+                  transcriptId: (result.transcriptId as string) ?? "",
+                  briefData: result.briefData as SalesBrief | undefined,
+                  roiFramingData: result.roiFramingData as ROIFraming | undefined,
+                },
               };
             }
             return { status: status.status };
@@ -224,8 +238,13 @@ export function Touch4Form({
         reviewedFields
       );
 
-      // If already completed
+      // If already completed (unlikely but handle gracefully)
       if (result.status === "completed") {
+        // Extract brief data from the result if available
+        const res = result as unknown as Record<string, unknown>;
+        if (res.briefData) setBriefData(res.briefData as SalesBrief);
+        if (res.roiFramingData) setRoiFramingData(res.roiFramingData as ROIFraming);
+        if (res.interactionId) setInteractionId(res.interactionId as string);
         setState("briefResult");
         router.refresh();
         return;
@@ -239,7 +258,11 @@ export function Touch4Form({
         "Generating brief..."
       );
 
-      if (pollResult.status === "completed") {
+      if (pollResult.status === "completed" && pollResult.result) {
+        const resultData = pollResult.result as Record<string, unknown>;
+        if (resultData.briefData) setBriefData(resultData.briefData as SalesBrief);
+        if (resultData.roiFramingData) setRoiFramingData(resultData.roiFramingData as ROIFraming);
+        if (resultData.interactionId) setInteractionId(resultData.interactionId as string);
         setState("briefResult");
         router.refresh();
       }
@@ -419,27 +442,37 @@ export function Touch4Form({
     );
   }
 
-  // Brief Result state (PLACEHOLDER - Plan 03 will build the full brief-display component)
+  // Brief Result state -- display generated brief with pillar cards, use cases, ROI
   if (state === "briefResult") {
     return (
       <div className="space-y-4 pt-2">
         <Separator />
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-slate-700">
-            Brief Generated
+            Sales Brief
           </h3>
-          <CheckCircle className="h-5 w-5 text-green-600" />
+          <div className="flex items-center gap-1.5 text-green-600">
+            <CheckCircle className="h-4 w-4" />
+            <span className="text-xs font-medium">
+              Sales brief generated successfully
+            </span>
+          </div>
         </div>
 
-        <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-slate-700">
-          <p className="mb-2 font-medium">
-            Brief generated successfully
-          </p>
-          <p className="text-xs text-slate-500">
-            Plan 03 will build the full brief-display component with
-            pillar cards, use cases, and ROI framing.
-          </p>
-        </div>
+        {briefData && roiFramingData ? (
+          <BriefDisplay
+            briefData={briefData}
+            roiFramingData={roiFramingData}
+            interactionId={interactionId ?? ""}
+          />
+        ) : (
+          <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-slate-700">
+            <p className="font-medium">Brief generated successfully</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Refresh the page to see the brief in the interaction timeline.
+            </p>
+          </div>
+        )}
 
         <Button
           onClick={onClose}
