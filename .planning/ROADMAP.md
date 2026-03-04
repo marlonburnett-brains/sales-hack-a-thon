@@ -90,12 +90,12 @@ Plans:
   6. Every interaction across all three flows persists a complete interaction record (inputs, decisions, output references, timestamps) in the database
   7. Interaction history for a company/deal is retrievable so later touch points can reference earlier context
   8. The slide assembly and customization pipeline is built as a reusable module that Phase 8 can extend for Touch 4+ output
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: Interaction tracking Prisma models (InteractionRecord, FeedbackSignal, CompanyDealContext), flow selector landing page in Next.js, and Touch 1 pager generation with approve/override mechanism (template copy, AI content fill, override upload, feedback signal recording, Drive output)
-- [ ] 04-02: Shared slide selection and assembly engine — AI-driven content retrieval from AtlusAI, slide ordering, deck assembly pipeline, salesperson/customer customization injection (name, photo, logo), and AtlusAI re-ingestion pipeline for override content
-- [ ] 04-03: Touch 2 intro deck flow and Touch 3 capability deck flow using shared assembly engine, with industry/capability-specific slide selection, interaction capture for each flow, and Drive output
+- [ ] 04-01-PLAN.md -- Prisma models (Company, Deal, InteractionRecord, FeedbackSignal), shadcn/ui init, deals dashboard, unified deal page, Touch 1 pager generation with approve/edit/override, slide assembly engine, Drive folder management, interaction tracking timeline
+- [ ] 04-02-PLAN.md -- Shared slide selection and assembly engine (AtlusAI search, Gemini slide selection, deck assembly pipeline, salesperson/customer customization injection, AtlusAI re-ingestion pipeline)
+- [ ] 04-03-PLAN.md -- Touch 2 intro deck flow and Touch 3 capability deck flow using shared assembly engine, with interaction capture and Drive output
 
 ### Phase 5: Transcript Processing and Brief Generation
 **Goal**: A seller can paste a raw transcript, select industry and subsector, receive structured field extraction with specific missing-field warnings, and see a complete Multi-Pillar Sales Brief with ROI outcome statements — all before any HITL checkpoint is encountered. All submitted transcripts and conversation context are stored and indexed for future retrieval.

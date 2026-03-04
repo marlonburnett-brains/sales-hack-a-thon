@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "mcp__atlus-ai__knowledge_base_search_semantic",
-      "mcp__atlus-ai__knowledge_base_search_structured"
+      "mcp__atlus-ai__knowledge_base_search_structured",
+      "mcp__atlus-ai__discover_documents",
+      "Bash(npx tsx --env-file=.env src/ingestion/pilot-ingestion.ts)",
+      "Bash(npx tsx --env-file=.env src/ingestion/run-ingestion.ts --manifest-only)",
+      "Bash(npx tsx --env-file=.env src/ingestion/run-ingestion.ts --ingest-only)",
+      "Bash(node \"/Users/marlonburnett/source/lumenalta-hackathon/.claude/get-shit-done/bin/gsd-tools.cjs\" init plan-phase 04)",
+      "Bash(git checkout .planning/ROADMAP.md)"
     ]
   },
   "enableAllProjectMcpServers": true,
