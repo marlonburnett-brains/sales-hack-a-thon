@@ -546,6 +546,178 @@ export const mastra = new Mastra({
           }
         },
       }),
+
+      // ────────────────────────────────────────────────────────────
+      // Asset Review API (Phase 9 -- HITL Checkpoint 2)
+      // ────────────────────────────────────────────────────────────
+
+      // GET /interactions/:id/asset-review -- Fetch asset review data for standalone review page
+      registerApiRoute("/interactions/:id/asset-review", {
+        method: "GET",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const interaction = await prisma.interactionRecord.findUniqueOrThrow({
+              where: { id },
+              include: {
+                deal: { include: { company: true } },
+                brief: true,
+                feedbackSignals: true,
+              },
+            });
+
+            // Parse outputRefs JSON (format: { deckUrl, talkTrackUrl, faqUrl, dealFolderId })
+            let outputRefs: {
+              deckUrl: string;
+              talkTrackUrl: string;
+              faqUrl: string;
+              dealFolderId: string;
+            } | null = null;
+            if (interaction.outputRefs) {
+              try {
+                outputRefs = JSON.parse(interaction.outputRefs);
+              } catch {
+                console.warn("[asset-review] Failed to parse outputRefs:", interaction.outputRefs);
+              }
+            }
+
+            // Try to get complianceResult from workflow step output
+            let complianceResult: {
+              passed: boolean;
+              warnings: Array<{ check: string; message: string; severity: string }>;
+            } | null = null;
+
+            if (interaction.brief?.workflowRunId) {
+              try {
+                const wf = mastra.getWorkflow("touch-4-workflow");
+                const run = wf.createRun({ runId: interaction.brief.workflowRunId });
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const status = await (run as any).get();
+                const stepOutput = (status as Record<string, unknown>)?.steps as
+                  | Record<string, { status: string; output?: Record<string, unknown> }>
+                  | undefined;
+                if (stepOutput?.["check-brand-compliance"]?.output?.complianceResult) {
+                  complianceResult = stepOutput["check-brand-compliance"].output
+                    .complianceResult as unknown as typeof complianceResult;
+                }
+              } catch (err) {
+                console.warn("[asset-review] Could not fetch compliance result from workflow:", err);
+              }
+            }
+
+            return c.json({
+              interaction: {
+                id: interaction.id,
+                status: interaction.status,
+                outputRefs: outputRefs ?? {
+                  deckUrl: "",
+                  talkTrackUrl: "",
+                  faqUrl: "",
+                  dealFolderId: "",
+                },
+              },
+              deal: {
+                companyName: interaction.deal.company.name,
+                industry: interaction.deal.company.industry,
+                dealName: interaction.deal.name,
+              },
+              brief: interaction.brief
+                ? {
+                    id: interaction.brief.id,
+                    primaryPillar: interaction.brief.primaryPillar,
+                    workflowRunId: interaction.brief.workflowRunId,
+                    approvalStatus: interaction.brief.approvalStatus,
+                  }
+                : null,
+              complianceResult,
+            });
+          } catch (err) {
+            console.error("[asset-review] Error:", err);
+            return c.json(
+              { error: "Asset review data not found", details: String(err) },
+              404
+            );
+          }
+        },
+      }),
+
+      // POST /interactions/:id/approve-assets -- Resume workflow with asset approval
+      registerApiRoute("/interactions/:id/approve-assets", {
+        method: "POST",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                reviewerName: z.string().min(1),
+                reviewerRole: z.enum(["Seller", "SME", "Marketing", "Solutions"]),
+                runId: z.string().min(1),
+              })
+              .parse(body);
+
+            // Resume the workflow at the await-asset-review step
+            const wf = mastra.getWorkflow("touch-4-workflow");
+            const run = wf.createRun({ runId: data.runId });
+            await run.resume({
+              stepId: "await-asset-review",
+              resumeData: {
+                decision: "approved" as const,
+                reviewerName: data.reviewerName,
+                reviewerRole: data.reviewerRole,
+              },
+            });
+
+            return c.json({ success: true });
+          } catch (err) {
+            console.error("[approve-assets] Error:", err);
+            return c.json(
+              { error: "Asset approval failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
+      // POST /interactions/:id/reject-assets -- Record rejection without resuming workflow
+      registerApiRoute("/interactions/:id/reject-assets", {
+        method: "POST",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                reviewerName: z.string().min(1),
+                reviewerRole: z.enum(["Seller", "SME", "Marketing", "Solutions"]),
+                feedback: z.string().min(1),
+              })
+              .parse(body);
+
+            // Create FeedbackSignal for rejection (do NOT resume workflow)
+            await prisma.feedbackSignal.create({
+              data: {
+                interactionId: id,
+                signalType: "negative",
+                source: "asset_review_rejection",
+                content: JSON.stringify({
+                  reviewerName: data.reviewerName,
+                  reviewerRole: data.reviewerRole,
+                  feedback: data.feedback,
+                }),
+              },
+            });
+
+            return c.json({ success: true });
+          } catch (err) {
+            console.error("[reject-assets] Error:", err);
+            return c.json(
+              { error: "Asset rejection failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
     ],
   },
 });

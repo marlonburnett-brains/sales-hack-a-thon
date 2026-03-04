@@ -17,12 +17,16 @@ import {
   approveBrief,
   rejectBrief,
   editBrief,
+  getAssetReview,
+  approveAssets,
+  rejectAssets,
 } from "@/lib/api-client";
 import type {
   WorkflowStartResult,
   WorkflowRunResult,
   BriefRecord,
   BriefReviewData,
+  AssetReviewData,
 } from "@/lib/api-client";
 
 export async function generateTouch1PagerAction(
@@ -193,6 +197,34 @@ export async function editBriefAction(
   data: { editedBrief: Record<string, unknown>; reviewerName: string }
 ): Promise<{ success: boolean }> {
   const result = await editBrief(briefId, data);
+  revalidatePath("/deals");
+  return result;
+}
+
+// ────────────────────────────────────────────────────────────
+// Asset Review Actions (Phase 9 -- HITL Checkpoint 2)
+// ────────────────────────────────────────────────────────────
+
+export async function getAssetReviewAction(
+  interactionId: string
+): Promise<AssetReviewData> {
+  return getAssetReview(interactionId);
+}
+
+export async function approveAssetsAction(
+  interactionId: string,
+  data: { reviewerName: string; reviewerRole: string; runId: string }
+): Promise<{ success: boolean }> {
+  const result = await approveAssets(interactionId, data);
+  revalidatePath("/deals");
+  return result;
+}
+
+export async function rejectAssetsAction(
+  interactionId: string,
+  data: { reviewerName: string; reviewerRole: string; feedback: string }
+): Promise<{ success: boolean }> {
+  const result = await rejectAssets(interactionId, data);
   revalidatePath("/deals");
   return result;
 }

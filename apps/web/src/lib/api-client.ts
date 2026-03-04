@@ -442,3 +442,65 @@ export async function editBrief(
     body: JSON.stringify(data),
   });
 }
+
+// ────────────────────────────────────────────────────────────
+// Asset Review API (Phase 9 -- HITL Checkpoint 2)
+// ────────────────────────────────────────────────────────────
+
+export interface AssetReviewData {
+  interaction: {
+    id: string;
+    status: string;
+    outputRefs: {
+      deckUrl: string;
+      talkTrackUrl: string;
+      faqUrl: string;
+      dealFolderId: string;
+    };
+  };
+  deal: { companyName: string; industry: string; dealName: string };
+  brief: {
+    id: string;
+    primaryPillar: string;
+    workflowRunId: string | null;
+    approvalStatus: string;
+  } | null;
+  complianceResult: {
+    passed: boolean;
+    warnings: Array<{ check: string; message: string; severity: string }>;
+  } | null;
+}
+
+export async function getAssetReview(
+  interactionId: string
+): Promise<AssetReviewData> {
+  return fetchJSON<AssetReviewData>(
+    `/interactions/${interactionId}/asset-review`
+  );
+}
+
+export async function approveAssets(
+  interactionId: string,
+  data: { reviewerName: string; reviewerRole: string; runId: string }
+): Promise<{ success: boolean }> {
+  return fetchJSON<{ success: boolean }>(
+    `/interactions/${interactionId}/approve-assets`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function rejectAssets(
+  interactionId: string,
+  data: { reviewerName: string; reviewerRole: string; feedback: string }
+): Promise<{ success: boolean }> {
+  return fetchJSON<{ success: boolean }>(
+    `/interactions/${interactionId}/reject-assets`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
