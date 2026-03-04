@@ -253,7 +253,7 @@ async function selectForTouch2(
   const responseSchema = zodToGeminiSchema(IntroDeckSelectionLlmSchema);
 
   const response = await ai.models.generateContent({
-    model: "gpt-oss-120b",
+    model: "openai/gpt-oss-120b-maas",
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -286,7 +286,7 @@ async function selectForTouch3(
   const responseSchema = zodToGeminiSchema(CapabilityDeckSelectionLlmSchema);
 
   const response = await ai.models.generateContent({
-    model: "gpt-oss-120b",
+    model: "openai/gpt-oss-120b-maas",
     contents: prompt,
     config: {
       responseMimeType: "application/json",

@@ -322,7 +322,7 @@ export async function generateSlideCopy(params: {
   const responseSchema = zodToGeminiSchema(ProposalCopyLlmSchema);
 
   const response = await ai.models.generateContent({
-    model: "gpt-oss-120b",
+    model: "openai/gpt-oss-120b-maas",
     contents: prompt,
     config: {
       responseMimeType: "application/json",

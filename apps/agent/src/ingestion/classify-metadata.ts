@@ -187,7 +187,7 @@ export async function classifySlide(
   );
 
   const response = await ai.models.generateContent({
-    model: "gpt-oss-120b",
+    model: "openai/gpt-oss-120b-maas",
     contents: prompt,
     config: {
       responseMimeType: "application/json",

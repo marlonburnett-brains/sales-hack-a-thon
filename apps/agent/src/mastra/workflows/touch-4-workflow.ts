@@ -125,7 +125,7 @@ Extract the following 6 fields:
 - budget: Budget information, investment range, or financial constraints`;
 
     const response = await ai.models.generateContent({
-      model: "gpt-oss-120b",
+      model: "openai/gpt-oss-120b-maas",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -347,7 +347,7 @@ INSTRUCTIONS:
 OUTPUT: A complete sales brief with pillar mapping, evidence, and use cases.`;
 
     const response = await ai.models.generateContent({
-      model: "gpt-oss-120b",
+      model: "openai/gpt-oss-120b-maas",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -442,7 +442,7 @@ INSTRUCTIONS:
 OUTPUT: ROI framing for each use case with useCaseName matching the brief's use case names exactly.`;
 
     const response = await ai.models.generateContent({
-      model: "gpt-oss-120b",
+      model: "openai/gpt-oss-120b-maas",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -870,7 +870,7 @@ Provide the selected slide IDs and brief reasoning for your selection.`;
     });
 
     const selectionResponse = await ai.models.generateContent({
-      model: "gpt-oss-120b",
+      model: "openai/gpt-oss-120b-maas",
       contents: selectionPrompt,
       config: {
         responseMimeType: "application/json",
@@ -1245,7 +1245,7 @@ EXAMPLES of role-specific objections:
 - VP Engineering: "Do we have internal capacity to maintain this?"`;
 
     const response = await ai.models.generateContent({
-      model: "gpt-oss-120b",
+      model: "openai/gpt-oss-120b-maas",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

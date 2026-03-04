@@ -75,7 +75,7 @@ async function extractSolutionPillars(
   const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
   const response = await ai.models.generateContent({
-    model: "gpt-oss-120b",
+    model: "openai/gpt-oss-120b-maas",
     contents: `You are analyzing Lumenalta's Master Solutions and GTM Solutions decks to extract the complete list of solution pillar names.
 
 A "solution pillar" is a major capability area or service offering that Lumenalta provides to clients. Examples might include "Digital Transformation", "Data Engineering", "Cloud Migration", etc.

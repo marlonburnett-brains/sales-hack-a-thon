@@ -68,7 +68,7 @@ Generate a personalized one-pager with:
 Keep the tone professional but engaging. Focus on the company's likely challenges based on their industry.`;
 
     const response = await ai.models.generateContent({
-      model: "gpt-oss-120b",
+      model: "openai/gpt-oss-120b-maas",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

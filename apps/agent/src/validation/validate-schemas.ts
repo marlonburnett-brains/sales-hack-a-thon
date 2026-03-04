@@ -189,7 +189,7 @@ Focus on uncovering technical requirements, architecture preferences, and decisi
 
 async function main(): Promise<void> {
   console.log("=== Gemini Round-Trip Schema Validation ===\n");
-  console.log(`Model: gpt-oss-120b`);
+  console.log(`Model: openai/gpt-oss-120b-maas`);
   console.log(`Schemas to validate: ${tests.length}\n`);
 
   let failures = 0;
@@ -202,7 +202,7 @@ async function main(): Promise<void> {
 
       // Call Gemini with responseJsonSchema
       const response = await ai.models.generateContent({
-        model: "gpt-oss-120b",
+        model: "openai/gpt-oss-120b-maas",
         contents: test.prompt,
         config: {
           responseMimeType: "application/json",
