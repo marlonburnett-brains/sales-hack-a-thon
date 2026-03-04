@@ -7,6 +7,7 @@ import { touch1Workflow } from "./workflows/touch-1-workflow";
 import { touch2Workflow } from "./workflows/touch-2-workflow";
 import { touch3Workflow } from "./workflows/touch-3-workflow";
 import { touch4Workflow } from "./workflows/touch-4-workflow";
+import { preCallWorkflow } from "./workflows/pre-call-workflow";
 import { getOrCreateDealFolder, makePubliclyViewable } from "../lib/drive-folders";
 import { getDriveClient } from "../lib/google-auth";
 import { ingestDocument } from "../lib/atlusai-client";
@@ -40,6 +41,7 @@ export const mastra = new Mastra({
     "touch-2-workflow": touch2Workflow,
     "touch-3-workflow": touch3Workflow,
     "touch-4-workflow": touch4Workflow,
+    "pre-call-workflow": preCallWorkflow,
   },
   server: {
     port: parseInt(env.MASTRA_PORT, 10),

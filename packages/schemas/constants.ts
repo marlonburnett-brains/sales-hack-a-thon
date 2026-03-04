@@ -71,6 +71,7 @@ export const TOUCH_TYPES = [
   "touch_2",
   "touch_3",
   "touch_4",
+  "pre_call",
 ] as const;
 
 /**
