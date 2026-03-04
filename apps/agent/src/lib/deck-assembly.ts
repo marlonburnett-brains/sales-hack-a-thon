@@ -17,7 +17,7 @@
  * - Per-slide error handling (one slide failure does not crash the entire deck)
  */
 
-import type { slides_v1 } from "googleapis";
+import type { slides_v1, drive_v3 } from "googleapis";
 import type { SlideAssembly } from "@lumenalta/schemas";
 import { getDriveClient, getSlidesClient } from "./google-auth";
 import { makePubliclyViewable } from "./drive-folders";
@@ -55,6 +55,43 @@ export interface DeckFromJSONResult {
 const PLACEHOLDER_TITLE = "{{slide-title}}";
 const PLACEHOLDER_BULLETS = "{{bullet-content}}";
 const PLACEHOLDER_NOTES = "{{speaker-notes}}";
+
+// ────────────────────────────────────────────────────────────
+// Extended slide type for deserialized slides with source metadata
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Deserialized slide shape that may carry source presentation metadata
+ * from proposal-assembly's toAssemblySlide. These extra fields survive
+ * JSON serialization even though the Zod LLM schema does not declare them.
+ */
+interface SlideWithSourceMeta {
+  slideTitle: string;
+  bullets: string[];
+  speakerNotes: string;
+  sourceBlockRef: string;
+  sectionType: string;
+  sourceType: string;
+  presentationId?: string;
+  slideObjectId?: string;
+}
+
+/**
+ * Attempt to validate source presentation accessibility via drive.files.copy().
+ * Returns the temp copy file ID on success, or null if the copy data lacks an ID.
+ * Caller is responsible for deleting the temp copy in a finally block.
+ */
+async function tryAccessSourcePresentation(
+  drive: drive_v3.Drive,
+  sourcePresentationId: string
+): Promise<string | null> {
+  const tempCopy = await drive.files.copy({
+    fileId: sourcePresentationId,
+    requestBody: { name: `_temp_source_check_${Date.now()}` },
+    supportsAllDrives: true,
+  });
+  return tempCopy.data.id ?? null;
+}
 
 // ────────────────────────────────────────────────────────────
 // Main export
@@ -115,6 +152,44 @@ export async function createSlidesDeckFromJSON(
     const slide = slideJSON.slides[i];
 
     try {
+      // Cast to extended type that may include source metadata from proposal-assembly
+      const slideExt = slide as unknown as SlideWithSourceMeta;
+
+      // Retrieved slides: attempt source presentation copy with fallback to branded template
+      if (slideExt.sourceType === "retrieved" && slideExt.presentationId) {
+        let tempCopyId: string | null = null;
+        try {
+          tempCopyId = await tryAccessSourcePresentation(
+            drive,
+            slideExt.presentationId
+          );
+          if (tempCopyId) {
+            console.log(
+              `[deck-assembly] Source presentation ${slideExt.presentationId} accessible for slide ${i + 1}`
+            );
+          }
+        } catch (err) {
+          console.warn(
+            `[deck-assembly] Source unavailable for ${slide.sourceBlockRef}, using branded template fallback`
+          );
+        } finally {
+          // Clean up temp copy if created
+          if (tempCopyId) {
+            try {
+              await drive.files.delete({
+                fileId: tempCopyId,
+                supportsAllDrives: true,
+              });
+            } catch {
+              // Ignore cleanup errors
+            }
+          }
+        }
+      }
+
+      // Continue with branded template duplication for ALL slides
+      // (retrieved slides use same visual template; bespoke copy provides differentiation)
+
       // Determine which template slide to duplicate
       const templateObjectId = resolveTemplateSlide(
         templateSlideMap,

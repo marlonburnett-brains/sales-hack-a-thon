@@ -212,11 +212,19 @@ export function buildSlideJSON(params: {
 
 /**
  * Convert a retrieved SlideSearchResult to a SlideAssembly slide entry.
+ *
+ * Returns an extended type that includes presentationId and slideObjectId
+ * for source presentation lookup in deck-assembly. These extra fields are
+ * NOT part of the SlideAssembly Zod type but survive JSON serialization
+ * through the workflow pipeline (JSON.stringify/JSON.parse with `as` casts).
  */
 function toAssemblySlide(
   slide: SlideSearchResult,
   sectionType: string
-): SlideAssembly["slides"][number] {
+): SlideAssembly["slides"][number] & {
+  presentationId?: string;
+  slideObjectId?: string;
+} {
   // Split textContent by newline for bullets; filter empty lines
   const bullets = slide.textContent
     ? slide.textContent
@@ -232,6 +240,8 @@ function toAssemblySlide(
     sourceBlockRef: slide.slideId,
     sectionType,
     sourceType: "retrieved",
+    presentationId: slide.presentationId,
+    slideObjectId: slide.slideObjectId,
   };
 }
 
