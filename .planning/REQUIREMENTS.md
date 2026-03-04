@@ -62,15 +62,15 @@
 ### Touch 2: Intro Conversation Assets
 
 - [ ] **TOUCH2-01**: Seller can select an intro deck flow, input company name, industry, salesperson name/photo, and optionally a customer logo
-- [ ] **TOUCH2-02**: System AI-selects relevant "Meet Lumenalta" slides based on industry and client context from the content library
-- [ ] **TOUCH2-03**: System assembles selected slides into a Google Slides deck with salesperson name/photo and customer name/logo customizations applied
+- [x] **TOUCH2-02**: System AI-selects relevant "Meet Lumenalta" slides based on industry and client context from the content library
+- [x] **TOUCH2-03**: System assembles selected slides into a Google Slides deck with salesperson name/photo and customer name/logo customizations applied
 - [ ] **TOUCH2-04**: Generated intro deck is saved to a per-deal folder in shared Lumenalta Google Drive
 
 ### Touch 3: Capability & Use Case Alignment Assets
 
 - [ ] **TOUCH3-01**: Seller can select a capability alignment flow, input company name, industry, and 1-2 relevant capability areas
-- [ ] **TOUCH3-02**: System AI-selects relevant slides from AtlusAI deck and L2 capability decks based on industry and selected capability areas
-- [ ] **TOUCH3-03**: System assembles selected slides into a Google Slides deck with salesperson and customer customizations
+- [x] **TOUCH3-02**: System AI-selects relevant slides from AtlusAI deck and L2 capability decks based on industry and selected capability areas
+- [x] **TOUCH3-03**: System assembles selected slides into a Google Slides deck with salesperson and customer customizations
 - [ ] **TOUCH3-04**: Generated capability deck is saved to a per-deal folder in shared Lumenalta Google Drive
 
 ### Data Capture & Knowledge Growth
@@ -78,7 +78,7 @@
 - [ ] **DATA-01**: Every interaction across all touch points persists a complete interaction record: inputs (company, industry, context), decisions (approve/override/edit), output artifact references (Drive links), and timestamps
 - [ ] **DATA-02**: All meeting transcripts, notes, and conversation context submitted through any flow are stored and indexed for future retrieval and pattern learning
 - [ ] **DATA-03**: Approved outputs are flagged as positive examples in the knowledge base; overrides and significant edits are flagged as improvement signals
-- [ ] **DATA-04**: Override pagers (Touch 1), edited decks, and approved outputs are ingested into AtlusAI to improve future generation quality — the knowledge base grows with each interaction
+- [x] **DATA-04**: Override pagers (Touch 1), edited decks, and approved outputs are ingested into AtlusAI to improve future generation quality — the knowledge base grows with each interaction
 - [ ] **DATA-05**: Interaction history for a given company/deal is retrievable so that later touch points can build on context from earlier touches (e.g., Touch 2 can reference what was generated in Touch 1 for the same company)
 
 ## v2 Requirements
@@ -157,17 +157,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOUCH1-04 | Phase 4 | Pending |
 | TOUCH1-05 | Phase 4 | Pending |
 | TOUCH2-01 | Phase 4 | Pending |
-| TOUCH2-02 | Phase 4 | Pending |
-| TOUCH2-03 | Phase 4 | Pending |
+| TOUCH2-02 | Phase 4 | Complete |
+| TOUCH2-03 | Phase 4 | Complete |
 | TOUCH2-04 | Phase 4 | Pending |
 | TOUCH3-01 | Phase 4 | Pending |
-| TOUCH3-02 | Phase 4 | Pending |
-| TOUCH3-03 | Phase 4 | Pending |
+| TOUCH3-02 | Phase 4 | Complete |
+| TOUCH3-03 | Phase 4 | Complete |
 | TOUCH3-04 | Phase 4 | Pending |
 | DATA-01 | Phase 4 | Pending |
 | DATA-02 | Phase 5 | Pending |
 | DATA-03 | Phase 4 | Pending |
-| DATA-04 | Phase 4 | Pending |
+| DATA-04 | Phase 4 | Complete |
 | DATA-05 | Phase 4 | Pending |
 
 **Coverage:**
