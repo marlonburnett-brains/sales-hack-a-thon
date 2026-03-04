@@ -101,6 +101,10 @@ async function findBrandGuidelinesDocument(): Promise<FoundDocument | null> {
       })
 
       for (const file of response.data.files ?? []) {
+        // Skip ingested slide docs -- we want the ORIGINAL presentation, not
+        // a previously-created Google Doc from the _slide-level-ingestion folder.
+        if (file.name?.startsWith('[SLIDE]')) continue
+
         console.log(`  Found in subfolder: "${file.name}" (${file.mimeType})`)
         return {
           id: file.id!,
@@ -138,8 +142,9 @@ async function listSubfoldersRecursive(
     })
 
     for (const file of response.data.files ?? []) {
-      // Skip the massive 01 Resources folder
+      // Skip the massive 01 Resources folder and the ingestion output folder
       if (file.name?.includes('01 Resources')) continue
+      if (file.name === '_slide-level-ingestion') continue
 
       folderIds.push(file.id!)
       const nested = await listSubfoldersRecursive(file.id!, depth + 1)
