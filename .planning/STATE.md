@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: in_progress
 stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-04T02:57:38.860Z"
-last_activity: 2026-03-04 — Plan 06-01 complete (HITL-1 brief approval backend foundation)
+last_updated: "2026-03-04T03:06:09Z"
+last_activity: 2026-03-04 — Plan 06-02 complete (HITL-1 brief approval UI)
 progress:
   total_phases: 11
   completed_phases: 4
   total_plans: 13
-  completed_plans: 15
-  percent: 50
+  completed_plans: 16
+  percent: 55
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 6 in progress. Plan 06-01 complete (HITL-1 backend foundation). Plan 06-02 next (approval UI).
+**Current focus:** Phase 6 complete. Plan 06-01 (backend) + Plan 06-02 (UI) both done. Checkpoint verification pending.
 
 ## Current Position
 
 Phase: 6 of 11 (HITL Checkpoint 1 -- Brief Approval)
-Plan: 1 of 2 complete in current phase
-Status: Plan 06-01 complete. 8-step workflow with second suspend point, 5 API endpoints, typed api-client + server actions. Plan 06-02 next (approval UI).
-Last activity: 2026-03-04 — Plan 06-01 complete (HITL-1 brief approval backend foundation)
+Plan: 2 of 2 complete in current phase
+Status: Phase 6 complete. HITL-1 brief approval flow: backend (Plan 01) + UI (Plan 02). Checkpoint verification pending.
+Last activity: 2026-03-04 — Plan 06-02 complete (HITL-1 brief approval UI)
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 55%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [█████░░░░░] 50%
 | Phase 05-transcript P02 | 4 min | 2 tasks | 4 files |
 | Phase 05-transcript P03 | 6 min | 2 tasks | 3 files |
 | Phase 06-hitl-approval P01 | 2 min | 2 tasks | 5 files |
+| Phase 06-hitl-approval P02 | 6 min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,11 @@ Recent decisions affecting current work:
 - [Phase 06-hitl-approval]: Rejection/edit use custom API endpoints (not workflow resume) for unlimited rejection/resubmit cycles
 - [Phase 06-hitl-approval]: workflowRunId left null at Brief creation, set by approve endpoint (Mastra steps cannot access runId)
 - [Phase 06-hitl-approval]: FeedbackSignal creation moved from recordInteraction to finalizeApproval (only after explicit approval)
+- [Phase 06-hitl-approval]: BriefDisplay extended with approvalMode prop (not separate component) -- reuses existing card layout and ROI display
+- [Phase 06-hitl-approval]: Standalone review page split into server component (fetch) + client component (interactions) for Next.js 15 App Router
+- [Phase 06-hitl-approval]: Touch4Form 9-state machine with explicit rejected/editing/resubmitting/approved states for clear UX transitions
+- [Phase 06-hitl-approval]: Two rejection resubmit paths: field re-edit starts fresh workflow, direct brief edit resets approval status
+- [Phase 06-hitl-approval]: Deals list API returns all interactions (not take:1) for dashboard pending approval detection
 
 ### Pending Todos
 
@@ -140,6 +146,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T02:57:00Z
-Stopped at: Completed 06-01-PLAN.md
-Resume file: .planning/phases/06-hitl-checkpoint-1-brief-approval/06-02-PLAN.md
+Last session: 2026-03-04T03:06:00Z
+Stopped at: Completed 06-02-PLAN.md (checkpoint:human-verify pending for Task 3)
+Resume file: .planning/phases/06-hitl-checkpoint-1-brief-approval/06-02-PLAN.md (Task 3: human-verify checkpoint)

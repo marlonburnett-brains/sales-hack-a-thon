@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Zod Schema Layer and Gemini Validation** - Define and validate all Zod v4 schemas (including Touch 1-3 content selection schemas, interaction tracking schemas, and Touch 4 pipeline schemas) against the live Gemini API in isolation so that schema rejection errors are caught before any agent logic is built on top of them
 - [x] **Phase 4: Touch 1-3 Asset Generation & Interaction Tracking** - Build the three simpler GTM asset flows (Touch 1 with approve/override feedback loop, Touch 2 intro deck, Touch 3 capability deck), the interaction tracking infrastructure that captures all inputs/decisions/outputs across every touch point, and the knowledge base growth pipeline that ingests overrides and approved outputs back into AtlusAI
 - [ ] **Phase 5: Transcript Processing and Brief Generation** - Build the transcript ingestion form, structured extraction pipeline, missing-field validation, solution pillar mapping, and the Multi-Pillar Sales Brief with ROI framing
-- [ ] **Phase 6: HITL Checkpoint 1 — Brief Approval** - Wire the Mastra workflow suspend/resume at the brief approval checkpoint, build the brief review UI, and verify that durable state survives a server restart before any asset generation is wired up
+- [x] **Phase 6: HITL Checkpoint 1 — Brief Approval** - Wire the Mastra workflow suspend/resume at the brief approval checkpoint, build the brief review UI, and verify that durable state survives a server restart before any asset generation is wired up
 - [ ] **Phase 7: RAG Retrieval and Slide Block Assembly** - Build the RAG retrieval step against AtlusAI, assemble the structured SlideJSON intermediate representation, and generate bespoke copy for each block within brand compliance constraints
 - [ ] **Phase 8: Google Workspace Output Generation** - Create the Google Slides deck, talk track Google Doc, and buyer FAQ Google Doc in shared Lumenalta Drive via the Google Slides and Docs APIs, reusing the slide assembly infrastructure established in Phase 4
 - [ ] **Phase 9: HITL Checkpoint 2 and Review Delivery UI** - Wire the second HITL checkpoint for final asset review, build the review panel with Drive artifact links, and enforce brand compliance verification before final delivery
@@ -128,8 +128,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- Prisma Brief approval fields, Touch 4 workflow restructure (awaitBriefApproval suspend + finalizeApproval), API endpoints for approve/reject/edit/fetch, api-client + server actions
-- [ ] 06-02-PLAN.md -- BriefApprovalBar + BriefEditMode components, Touch4Form approval state machine, standalone review page, deal page alert banner, dashboard indicator, timeline lifecycle
+- [x] 06-01-PLAN.md -- Prisma Brief approval fields, Touch 4 workflow restructure (awaitBriefApproval suspend + finalizeApproval), API endpoints for approve/reject/edit/fetch, api-client + server actions
+- [x] 06-02-PLAN.md -- BriefApprovalBar + BriefEditMode components, Touch4Form approval state machine, standalone review page, deal page alert banner, dashboard indicator, timeline lifecycle
 
 ### Phase 7: RAG Retrieval and Slide Block Assembly
 **Goal**: Given an approved brief, the system retrieves relevant slide blocks from AtlusAI, assembles them into an ordered structured JSON representation, and generates bespoke copy for each block — all constrained to pre-approved building blocks
@@ -226,7 +226,7 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 3. Zod Schema Layer and Gemini Validation | 2/2 | Complete | 2026-03-03 |
 | 4. Touch 1-3 Asset Generation | 3/3 | Complete | 2026-03-04 |
 | 5. Transcript Processing and Brief Generation | 0/3 | Not started | - |
-| 6. HITL Checkpoint 1 — Brief Approval | 0/2 | Not started | - |
+| 6. HITL Checkpoint 1 — Brief Approval | 2/2 | Complete | 2026-03-04 |
 | 7. RAG Retrieval and Slide Block Assembly | 0/2 | Not started | - |
 | 8. Google Workspace Output Generation | 0/2 | Not started | - |
 | 9. HITL Checkpoint 2 and Review Delivery UI | 0/2 | Not started | - |
