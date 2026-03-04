@@ -20,6 +20,7 @@ const TOUCH_COLORS: Record<string, string> = {
   touch_2: "bg-green-100 text-green-800",
   touch_3: "bg-purple-100 text-purple-800",
   touch_4: "bg-orange-100 text-orange-800",
+  pre_call: "bg-teal-100 text-teal-800",
 };
 
 const TOUCH_LABELS: Record<string, string> = {
@@ -27,6 +28,7 @@ const TOUCH_LABELS: Record<string, string> = {
   touch_2: "Touch 2",
   touch_3: "Touch 3",
   touch_4: "Touch 4",
+  pre_call: "Pre-Call",
 };
 
 const DECISION_COLORS: Record<string, string> = {
@@ -103,7 +105,7 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
     : null;
 
   const objectOutputRefs = isObjectOutputRefs
-    ? (parsedOutputRefs as { deckUrl?: string; talkTrackUrl?: string; faqUrl?: string; dealFolderId?: string })
+    ? (parsedOutputRefs as { deckUrl?: string; talkTrackUrl?: string; faqUrl?: string; dealFolderId?: string; briefingDocUrl?: string })
     : null;
 
   const feedbackSignals = interaction.feedbackSignals ?? [];
@@ -112,7 +114,7 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
   const driveUrl =
     interaction.driveFileId
       ? `https://docs.google.com/presentation/d/${interaction.driveFileId}/edit`
-      : objectOutputRefs?.deckUrl ?? arrayOutputRefs?.[0] ?? null;
+      : objectOutputRefs?.deckUrl ?? objectOutputRefs?.briefingDocUrl ?? arrayOutputRefs?.[0] ?? null;
 
   // Show approval lifecycle status for touch_4 entries
   const isTouch4 = interaction.touchType === "touch_4";
@@ -286,6 +288,40 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
                     </a>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Pre-call expanded content */}
+            {interaction.touchType === "pre_call" && (
+              <div className="space-y-2">
+                {typeof inputs?.buyerRole === "string" && inputs.buyerRole && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-slate-500">Buyer Role</p>
+                    <p className="text-sm text-slate-700">{inputs.buyerRole}</p>
+                  </div>
+                )}
+                {generatedContent?.discoveryQuestions != null && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-slate-500">
+                      Discovery Questions
+                    </p>
+                    <p className="text-sm text-slate-700">
+                      {(() => {
+                        try {
+                          const dq = generatedContent.discoveryQuestions as { questions?: unknown[] };
+                          return `${dq?.questions?.length ?? 0} questions generated`;
+                        } catch { return "Questions generated"; }
+                      })()}
+                    </p>
+                  </div>
+                )}
+                {driveUrl && (
+                  <a href={driveUrl} target="_blank" rel="noopener noreferrer"
+                     className="flex items-center gap-1 text-sm font-medium text-teal-700 hover:underline">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    View Briefing Document
+                  </a>
+                )}
               </div>
             )}
 

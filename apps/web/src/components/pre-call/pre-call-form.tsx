@@ -146,36 +146,19 @@ export function PreCallForm({
       const recordStep = steps["record-interaction"];
       const buildDocStep = steps["build-briefing-doc"];
 
-      // Parse generatedContent from the recordInteraction step
+      // Extract briefing data from workflow step outputs
       let companyResearch = null;
       let hypotheses = null;
       let discoveryQuestions = null;
       let caseStudies: Array<{ title: string; content: string }> = [];
       let docUrl = "";
 
-      // Try to get structured data from step outputs
+      // Extract docUrl from record-interaction step output
+      // record-interaction output has: { interactionId, docUrl, documentId }
       if (recordStep?.output) {
         const output = recordStep.output as Record<string, unknown>;
-        const content = output.generatedContent as string | undefined;
-        if (content) {
-          try {
-            const parsed = JSON.parse(content) as Record<string, unknown>;
-            companyResearch = parsed.companyResearch as BriefingData["companyResearch"];
-            hypotheses = parsed.hypotheses as BriefingData["hypotheses"];
-            discoveryQuestions = parsed.discoveryQuestions as BriefingData["discoveryQuestions"];
-            caseStudies = (parsed.caseStudies as Array<{ title: string; content: string }>) ?? [];
-          } catch {
-            // Fall through to step-by-step extraction
-          }
-        }
-        const refs = output.outputRefs as string | undefined;
-        if (refs) {
-          try {
-            const parsedRefs = JSON.parse(refs) as Record<string, string>;
-            docUrl = parsedRefs.briefingDocUrl ?? "";
-          } catch {
-            // ignore
-          }
+        if (output.docUrl) {
+          docUrl = output.docUrl as string;
         }
       }
 
