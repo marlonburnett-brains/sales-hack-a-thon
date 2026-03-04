@@ -1,5 +1,5 @@
 /**
- * Touch 4 Transcript Processing Workflow (11-Step Pipeline with HITL-1 Approval + RAG Retrieval + Copy Generation)
+ * Touch 4 Transcript Processing Workflow (14-Step Pipeline with HITL-1 Approval + RAG Retrieval + Google Workspace Output)
  *
  * Workflow: parseTranscript -> validateFields -> awaitFieldReview (SUSPEND 1)
  *           -> mapPillarsAndGenerateBrief -> generateROIFraming
@@ -7,6 +7,7 @@
  *           -> awaitBriefApproval (SUSPEND 2)
  *           -> finalizeApproval (updates to "approved", creates FeedbackSignal)
  *           -> ragRetrieval -> assembleSlideJSON -> generateCustomCopy
+ *           -> createSlidesDeck -> createTalkTrack -> createBuyerFAQ
  *
  * Step 1: Gemini 2.5 Flash extracts 6 structured fields from the raw transcript
  * Step 2: Pure logic validates fields and assigns tiered severity
@@ -19,6 +20,9 @@
  * Step 9: RAG retrieval from AtlusAI (multi-pass: primary pillar, secondary pillars, case studies)
  * Step 10: Assembles SlideJSON with Gemini-powered weighted slide selection
  * Step 11: Generates bespoke copy per retrieved slide, grounded in approved brief
+ * Step 12: createSlidesDeck -- Google Slides deck from SlideJSON
+ * Step 13: createTalkTrack -- slide-by-slide talk track Google Doc
+ * Step 14: createBuyerFAQ -- role-specific buyer FAQ Google Doc + outputRefs persistence
  */
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
@@ -29,6 +33,7 @@ import {
   TranscriptFieldsLlmSchema,
   SalesBriefLlmSchema,
   ROIFramingLlmSchema,
+  BuyerFaqLlmSchema,
   zodToGeminiSchema,
   SOLUTION_PILLARS,
 } from "@lumenalta/schemas";
@@ -38,6 +43,10 @@ import {
   buildSlideJSON,
   generateSlideCopy,
 } from "../../lib/proposal-assembly";
+import { createSlidesDeckFromJSON } from "../../lib/deck-assembly";
+import { createGoogleDoc } from "../../lib/doc-builder";
+import type { DocSection } from "../../lib/doc-builder";
+import { getOrCreateDealFolder } from "../../lib/drive-folders";
 import { env } from "../../env";
 
 // ────────────────────────────────────────────────────────────
@@ -989,7 +998,322 @@ const generateCustomCopy = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Workflow: Touch 4 Transcript Processing (11-Step Pipeline)
+// Step 12: Create Google Slides Deck from SlideJSON
+// ────────────────────────────────────────────────────────────
+
+const createSlidesDeck = createStep({
+  id: "create-slides-deck",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    retrievalSummary: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    deckUrl: z.string(),
+    dealFolderId: z.string(),
+  }),
+  execute: async ({ inputData }) => {
+    // a. Fetch brief + deal + company for naming and folder
+    const brief = await prisma.brief.findUniqueOrThrow({
+      where: { id: inputData.briefId },
+      include: {
+        interaction: {
+          include: { deal: { include: { company: true } } },
+        },
+      },
+    });
+
+    const deal = brief.interaction.deal;
+    const company = deal.company;
+    const primaryPillar = brief.primaryPillar;
+
+    // b. Get or create per-deal Drive folder
+    const dealFolderId = await getOrCreateDealFolder({
+      companyName: company.name,
+      dealName: deal.name,
+      parentFolderId: env.GOOGLE_DRIVE_FOLDER_ID,
+    });
+
+    // Update deal's driveFolderId if not set
+    if (!deal.driveFolderId) {
+      await prisma.deal.update({
+        where: { id: deal.id },
+        data: { driveFolderId: dealFolderId },
+      });
+    }
+
+    // c. Deserialize SlideJSON
+    const slideAssembly = JSON.parse(inputData.slideJSON);
+
+    // d. Create the deck
+    const result = await createSlidesDeckFromJSON({
+      slideJSON: slideAssembly,
+      companyName: company.name,
+      primaryPillar,
+      dealFolderId,
+    });
+
+    console.log(
+      `[create-slides-deck] Created deck: ${result.deckUrl} (${result.slideCount} slides)`
+    );
+
+    return {
+      interactionId: inputData.interactionId,
+      briefId: inputData.briefId,
+      slideJSON: inputData.slideJSON,
+      slideCount: result.slideCount,
+      deckUrl: result.deckUrl,
+      dealFolderId,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Step 13: Create Talk Track Google Doc (speaker notes from Phase 7)
+// No additional Gemini call -- uses speakerNotes already in SlideJSON
+// ────────────────────────────────────────────────────────────
+
+const createTalkTrack = createStep({
+  id: "create-talk-track",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    deckUrl: z.string(),
+    dealFolderId: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    dealFolderId: z.string(),
+  }),
+  execute: async ({ inputData }) => {
+    // a. Fetch brief for naming
+    const brief = await prisma.brief.findUniqueOrThrow({
+      where: { id: inputData.briefId },
+      include: {
+        interaction: {
+          include: { deal: { include: { company: true } } },
+        },
+      },
+    });
+
+    const companyName = brief.interaction.deal.company.name;
+    const primaryPillar = brief.primaryPillar;
+    const dateStr = new Date().toISOString().split("T")[0];
+
+    // b. Deserialize SlideJSON to extract speaker notes
+    const slideAssembly = JSON.parse(inputData.slideJSON) as {
+      slides: Array<{
+        slideTitle: string;
+        bullets: string[];
+        speakerNotes: string;
+        sectionType: string;
+        sourceType: string;
+      }>;
+    };
+
+    // c. Build doc sections: H1 = deck title, H2 = each slide title, body = speaker notes
+    const deckTitle = `${companyName} - ${primaryPillar} Solution Proposal`;
+    const sections: DocSection[] = [
+      {
+        heading: deckTitle,
+        headingLevel: "HEADING_1",
+        body: `Talk track for ${slideAssembly.slides.length} slides. Prepared ${dateStr}.`,
+      },
+    ];
+
+    for (const slide of slideAssembly.slides) {
+      sections.push({
+        heading: slide.slideTitle,
+        headingLevel: "HEADING_2",
+        body: slide.speakerNotes || "No speaker notes for this slide.",
+      });
+    }
+
+    // d. Create the Google Doc
+    const docTitle = `${companyName} - ${primaryPillar} Talk Track - ${dateStr}`;
+    const result = await createGoogleDoc({
+      title: docTitle,
+      dealFolderId: inputData.dealFolderId,
+      sections,
+    });
+
+    console.log(`[create-talk-track] Created talk track: ${result.docUrl}`);
+
+    return {
+      interactionId: inputData.interactionId,
+      briefId: inputData.briefId,
+      slideJSON: inputData.slideJSON,
+      slideCount: inputData.slideCount,
+      deckUrl: inputData.deckUrl,
+      talkTrackUrl: result.docUrl,
+      dealFolderId: inputData.dealFolderId,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Step 14: Create Buyer FAQ Google Doc (Gemini-generated role-specific objections)
+// Persists all 3 artifact URLs to InteractionRecord.outputRefs
+// ────────────────────────────────────────────────────────────
+
+const createBuyerFAQ = createStep({
+  id: "create-buyer-faq",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    dealFolderId: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    faqUrl: z.string(),
+    slideCount: z.number(),
+    dealFolderId: z.string(),
+  }),
+  execute: async ({ inputData }) => {
+    // a. Fetch brief for naming and FAQ context
+    const brief = await prisma.brief.findUniqueOrThrow({
+      where: { id: inputData.briefId },
+      include: {
+        interaction: {
+          include: { deal: { include: { company: true } } },
+        },
+      },
+    });
+
+    const companyName = brief.interaction.deal.company.name;
+    const primaryPillar = brief.primaryPillar;
+    const dateStr = new Date().toISOString().split("T")[0];
+
+    // b. Generate FAQ via Gemini 2.5 Flash
+    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+
+    const useCaseSummary = JSON.parse(brief.useCases)
+      .map((uc: { name: string; description: string }) => `- ${uc.name}: ${uc.description}`)
+      .join("\n");
+
+    const prompt = `You are a sales strategist at Lumenalta preparing a buyer FAQ document.
+
+APPROVED BRIEF:
+- Company: ${companyName}
+- Industry: ${brief.interaction.deal.company.industry}
+- Primary Pillar: ${primaryPillar}
+- Secondary Pillars: ${JSON.parse(brief.secondaryPillars).join(", ")}
+- Customer Context: ${brief.customerContext}
+- Business Outcomes: ${brief.businessOutcomes}
+- Constraints: ${brief.constraints}
+- Stakeholders: ${brief.stakeholders}
+- Timeline: ${brief.timeline}
+- Budget: ${brief.budget}
+- Use Cases:
+${useCaseSummary}
+
+INSTRUCTIONS:
+1. For EACH stakeholder role identified in the brief, generate 2-3 anticipated objections.
+2. Each objection should be specific to that role's perspective and concerns.
+3. Each response should reference specific brief evidence, Lumenalta capabilities, or ROI outcomes.
+4. Frame responses constructively -- acknowledge the concern, then address it.
+
+EXAMPLES of role-specific objections:
+- CIO: "How does this integrate with our existing tech stack?"
+- CFO: "What's the expected payback period?"
+- VP Engineering: "Do we have internal capacity to maintain this?"`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: zodToGeminiSchema(BuyerFaqLlmSchema) as Record<string, unknown>,
+      },
+    });
+
+    const faq = BuyerFaqLlmSchema.parse(JSON.parse(response.text ?? "{}"));
+
+    console.log(
+      `[create-buyer-faq] Generated FAQ with ${faq.stakeholders.length} stakeholder groups`
+    );
+
+    // c. Build doc sections: H1 = title, H2 = stakeholder role, bold objection + body response
+    const docSections: DocSection[] = [
+      {
+        heading: `${companyName} - Buyer FAQ`,
+        headingLevel: "HEADING_1",
+        body: `Anticipated objections and recommended responses for the ${primaryPillar} proposal.`,
+      },
+    ];
+
+    for (const stakeholder of faq.stakeholders) {
+      for (const obj of stakeholder.objections) {
+        // Each objection as H2 with role prefix, bold objection text in body
+        const bodyText = `${obj.objection}\n\n${obj.response}`;
+        const boldEnd = obj.objection.length;
+
+        docSections.push({
+          heading: stakeholder.role,
+          headingLevel: "HEADING_2",
+          body: bodyText,
+          boldRanges: [{ start: 0, end: boldEnd }],
+        });
+      }
+    }
+
+    // d. Create the Google Doc
+    const docTitle = `${companyName} - ${primaryPillar} Buyer FAQ - ${dateStr}`;
+    const result = await createGoogleDoc({
+      title: docTitle,
+      dealFolderId: inputData.dealFolderId,
+      sections: docSections,
+    });
+
+    console.log(`[create-buyer-faq] Created FAQ doc: ${result.docUrl}`);
+
+    // e. Store all three artifact URLs in InteractionRecord.outputRefs
+    await prisma.interactionRecord.update({
+      where: { id: inputData.interactionId },
+      data: {
+        outputRefs: JSON.stringify({
+          deckUrl: inputData.deckUrl,
+          talkTrackUrl: inputData.talkTrackUrl,
+          faqUrl: result.docUrl,
+          dealFolderId: inputData.dealFolderId,
+        }),
+      },
+    });
+
+    return {
+      interactionId: inputData.interactionId,
+      briefId: inputData.briefId,
+      deckUrl: inputData.deckUrl,
+      talkTrackUrl: inputData.talkTrackUrl,
+      faqUrl: result.docUrl,
+      slideCount: inputData.slideCount,
+      dealFolderId: inputData.dealFolderId,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Workflow: Touch 4 Transcript Processing (14-Step Pipeline)
 // ────────────────────────────────────────────────────────────
 
 export const touch4Workflow = createWorkflow({
@@ -1005,9 +1329,11 @@ export const touch4Workflow = createWorkflow({
   outputSchema: z.object({
     interactionId: z.string(),
     briefId: z.string(),
-    slideJSON: z.string(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    faqUrl: z.string(),
     slideCount: z.number(),
-    retrievalSummary: z.string(),
+    dealFolderId: z.string(),
   }),
 })
   .then(parseTranscript)
@@ -1021,4 +1347,7 @@ export const touch4Workflow = createWorkflow({
   .then(ragRetrieval)
   .then(assembleSlideJSON)
   .then(generateCustomCopy)
+  .then(createSlidesDeck)
+  .then(createTalkTrack)
+  .then(createBuyerFAQ)
   .commit();

@@ -57,6 +57,10 @@ export {
   ProposalCopyLlmSchema,
   type ProposalCopy,
 } from "./llm/proposal-copy";
+export {
+  BuyerFaqLlmSchema,
+  type BuyerFaq,
+} from "./llm/buyer-faq";
 
 // App schemas (internal, may use transforms/optionals)
 export {
