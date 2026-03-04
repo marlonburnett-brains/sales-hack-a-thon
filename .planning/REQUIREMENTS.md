@@ -7,11 +7,11 @@
 
 ### Pre-Call Briefing
 
-- [ ] **BRIEF-01**: Seller can input company name, buyer role, and meeting context into a web form to initiate a briefing
-- [ ] **BRIEF-02**: System generates a company snapshot (key initiatives, recent news, financial highlights) from public sources and AtlusAI
-- [ ] **BRIEF-03**: System generates role-specific hypotheses tailored to the buyer's persona (e.g., CIO, CFO, VP Eng, VP Data)
-- [ ] **BRIEF-04**: System generates 5–10 prioritized discovery questions mapped to relevant Lumenalta solution areas
-- [ ] **BRIEF-05**: Completed briefing is displayed in the web app and saved as a document in shared Lumenalta Google Drive
+- [x] **BRIEF-01**: Seller can input company name, buyer role, and meeting context into a web form to initiate a briefing
+- [x] **BRIEF-02**: System generates a company snapshot (key initiatives, recent news, financial highlights) from public sources and AtlusAI
+- [x] **BRIEF-03**: System generates role-specific hypotheses tailored to the buyer's persona (e.g., CIO, CFO, VP Eng, VP Data)
+- [x] **BRIEF-04**: System generates 5–10 prioritized discovery questions mapped to relevant Lumenalta solution areas
+- [x] **BRIEF-05**: Completed briefing is displayed in the web app and saved as a document in shared Lumenalta Google Drive
 
 ### Transcript Processing
 
@@ -123,11 +123,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BRIEF-01 | Phase 10 | Pending |
-| BRIEF-02 | Phase 10 | Pending |
-| BRIEF-03 | Phase 10 | Pending |
-| BRIEF-04 | Phase 10 | Pending |
-| BRIEF-05 | Phase 10 | Pending |
+| BRIEF-01 | Phase 10 | Complete |
+| BRIEF-02 | Phase 10 | Complete |
+| BRIEF-03 | Phase 10 | Complete |
+| BRIEF-04 | Phase 10 | Complete |
+| BRIEF-05 | Phase 10 | Complete |
 | TRANS-01 | Phase 5 | Complete |
 | TRANS-02 | Phase 5 | Complete |
 | TRANS-03 | Phase 5 | Complete |
