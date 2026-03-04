@@ -15,8 +15,8 @@
 
 ### Transcript Processing
 
-- [ ] **TRANS-01**: Seller can paste a raw meeting transcript into a web UI form
-- [ ] **TRANS-02**: Seller can select the relevant industry (from 11) and subsector (from 62) before processing
+- [x] **TRANS-01**: Seller can paste a raw meeting transcript into a web UI form
+- [x] **TRANS-02**: Seller can select the relevant industry (from 11) and subsector (from 62) before processing
 - [ ] **TRANS-03**: System extracts structured fields from transcript: Customer Context, Business Outcomes, Constraints, Stakeholders, Timeline, Budget
 - [ ] **TRANS-04**: System flags specific missing critical fields (e.g., "Budget not mentioned") and prevents pipeline from advancing until seller acknowledges each gap
 - [ ] **TRANS-05**: System maps transcript content to primary and secondary Lumenalta solution pillars
@@ -76,7 +76,7 @@
 ### Data Capture & Knowledge Growth
 
 - [x] **DATA-01**: Every interaction across all touch points persists a complete interaction record: inputs (company, industry, context), decisions (approve/override/edit), output artifact references (Drive links), and timestamps
-- [ ] **DATA-02**: All meeting transcripts, notes, and conversation context submitted through any flow are stored and indexed for future retrieval and pattern learning
+- [x] **DATA-02**: All meeting transcripts, notes, and conversation context submitted through any flow are stored and indexed for future retrieval and pattern learning
 - [x] **DATA-03**: Approved outputs are flagged as positive examples in the knowledge base; overrides and significant edits are flagged as improvement signals
 - [x] **DATA-04**: Override pagers (Touch 1), edited decks, and approved outputs are ingested into AtlusAI to improve future generation quality — the knowledge base grows with each interaction
 - [x] **DATA-05**: Interaction history for a given company/deal is retrievable so that later touch points can build on context from earlier touches (e.g., Touch 2 can reference what was generated in Touch 1 for the same company)
@@ -128,8 +128,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BRIEF-03 | Phase 10 | Pending |
 | BRIEF-04 | Phase 10 | Pending |
 | BRIEF-05 | Phase 10 | Pending |
-| TRANS-01 | Phase 5 | Pending |
-| TRANS-02 | Phase 5 | Pending |
+| TRANS-01 | Phase 5 | Complete |
+| TRANS-02 | Phase 5 | Complete |
 | TRANS-03 | Phase 5 | Pending |
 | TRANS-04 | Phase 5 | Pending |
 | TRANS-05 | Phase 5 | Pending |
@@ -165,7 +165,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOUCH3-03 | Phase 4 | Complete |
 | TOUCH3-04 | Phase 4 | Complete |
 | DATA-01 | Phase 4 | Complete |
-| DATA-02 | Phase 5 | Pending |
+| DATA-02 | Phase 5 | Complete |
 | DATA-03 | Phase 4 | Complete |
 | DATA-04 | Phase 4 | Complete |
 | DATA-05 | Phase 4 | Complete |
