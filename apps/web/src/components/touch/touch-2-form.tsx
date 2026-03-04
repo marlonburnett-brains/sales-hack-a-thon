@@ -8,8 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, X, Loader2 } from "lucide-react";
-import { GenerationProgress } from "./generation-progress";
+import { ExternalLink, X, Loader2, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+import { PipelineStepper } from "./pipeline-stepper";
+import { TOUCH_2_PIPELINE_STEPS } from "./pipeline-steps";
+import { mapToFriendlyError } from "@/lib/error-messages";
 import { DeckPreview } from "./deck-preview";
 import {
   generateTouch2DeckAction,
@@ -26,7 +29,7 @@ interface Touch2FormProps {
   onClose: () => void;
 }
 
-type FormState = "input" | "generating" | "result";
+type FormState = "input" | "generating" | "error" | "result";
 
 export function Touch2Form({
   dealId,
@@ -50,6 +53,12 @@ export function Touch2Form({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Pipeline stepper state
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [activeStep, setActiveStep] = useState<string | null>(null);
+  const [errorStep, setErrorStep] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   // Poll workflow status until completion
   const pollStatus = useCallback(async (runId: string) => {
     const maxAttempts = 120;
@@ -61,6 +70,24 @@ export function Touch2Form({
 
       try {
         const status = await checkTouch2StatusAction(runId);
+
+        // Derive step progress
+        const steps = status.steps ?? {};
+        const newCompleted = new Set(completedSteps);
+        Object.entries(steps).forEach(([id, step]) => {
+          if ((step as Record<string, unknown>).status === "completed")
+            newCompleted.add(id);
+        });
+        setCompletedSteps(newCompleted);
+
+        const active = TOUCH_2_PIPELINE_STEPS.find(
+          (s) =>
+            !newCompleted.has(s.id) &&
+            steps[s.id] &&
+            ((steps[s.id] as Record<string, unknown>).status === "running" ||
+              (steps[s.id] as Record<string, unknown>).status === "waiting")
+        );
+        setActiveStep(active?.id ?? null);
 
         if (status.status === "completed") {
           // Extract result from record-interaction step
@@ -141,8 +168,12 @@ export function Touch2Form({
       setState("result");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
-      setState("input");
+      const raw = err instanceof Error ? err.message : "Generation failed";
+      const friendly = mapToFriendlyError(raw);
+      toast.error(friendly);
+      setErrorStep(activeStep);
+      setErrorMessage(friendly);
+      setState("error");
     } finally {
       setIsSubmitting(false);
     }
@@ -150,6 +181,11 @@ export function Touch2Form({
 
   const handleRegenerate = () => {
     setResultData(null);
+    setCompletedSteps(new Set());
+    setActiveStep(null);
+    setErrorStep(null);
+    setErrorMessage(null);
+    setError(null);
     setState("input");
   };
 
@@ -250,9 +286,44 @@ export function Touch2Form({
 
   if (state === "generating") {
     return (
-      <div className="pt-2">
-        <Separator className="mb-4" />
-        <GenerationProgress message="Selecting slides and assembling intro deck..." />
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <h3 className="text-sm font-medium text-slate-700">
+          Generating Intro Deck
+        </h3>
+        <PipelineStepper
+          steps={TOUCH_2_PIPELINE_STEPS}
+          completedStepIds={completedSteps}
+          activeStepId={activeStep}
+          errorStepId={errorStep}
+          errorMessage={errorMessage}
+        />
+      </div>
+    );
+  }
+
+  if (state === "error") {
+    return (
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <h3 className="text-sm font-medium text-slate-700">
+          Generating Intro Deck
+        </h3>
+        <PipelineStepper
+          steps={TOUCH_2_PIPELINE_STEPS}
+          completedStepIds={completedSteps}
+          activeStepId={activeStep}
+          errorStepId={errorStep}
+          errorMessage={errorMessage}
+        />
+        <Button
+          onClick={handleRegenerate}
+          variant="outline"
+          className="w-full cursor-pointer gap-2"
+        >
+          <RotateCcw className="h-4 w-4" />
+          Try Again
+        </Button>
       </div>
     );
   }

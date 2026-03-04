@@ -20,6 +20,13 @@ import {
   AlertDescription,
 } from "@/components/ui/alert";
 import { X, Loader2, CheckCircle, RotateCcw, Pencil, Info } from "lucide-react";
+import { toast } from "sonner";
+import { PipelineStepper } from "./pipeline-stepper";
+import {
+  TOUCH_4_EXTRACT_STEPS,
+  TOUCH_4_BRIEF_STEPS,
+} from "./pipeline-steps";
+import { mapToFriendlyError } from "@/lib/error-messages";
 import { GenerationProgress } from "./generation-progress";
 import { FieldReview } from "./field-review";
 import { BriefDisplay } from "./brief-display";
@@ -97,6 +104,12 @@ export function Touch4Form({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Pipeline stepper state
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [activeStep, setActiveStep] = useState<string | null>(null);
+  const [errorStep, setErrorStep] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const availableSubsectors = selectedIndustry
     ? SUBSECTORS[selectedIndustry] ?? []
     : [];
@@ -124,6 +137,26 @@ export function Touch4Form({
 
         try {
           const status = await checkTouch4StatusAction(currentRunId);
+
+          // Derive step progress from status.steps
+          const steps = status.steps ?? {};
+          const newCompleted = new Set(completedSteps);
+          Object.entries(steps).forEach(([id, step]) => {
+            if ((step as Record<string, unknown>).status === "completed")
+              newCompleted.add(id);
+          });
+          setCompletedSteps(newCompleted);
+
+          // Find active step using the currently visible pipeline steps
+          const visibleSteps = [...TOUCH_4_EXTRACT_STEPS, ...TOUCH_4_BRIEF_STEPS];
+          const active = visibleSteps.find(
+            (s) =>
+              !newCompleted.has(s.id) &&
+              steps[s.id] &&
+              ((steps[s.id] as Record<string, unknown>).status === "running" ||
+                (steps[s.id] as Record<string, unknown>).status === "waiting")
+          );
+          setActiveStep(active?.id ?? null);
 
           // Check if workflow is suspended
           if (
@@ -260,17 +293,45 @@ export function Touch4Form({
         );
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Processing failed");
-      setState("input");
+      const raw = err instanceof Error ? err.message : "Processing failed";
+      const friendly = mapToFriendlyError(raw);
+      toast.error(friendly);
+      setErrorStep(activeStep);
+      setErrorMessage(friendly);
+      // Stay in "extracting" state so stepper shows error
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Reset stepper and go back to input
+  const handleRetry = () => {
+    setCompletedSteps(new Set());
+    setActiveStep(null);
+    setErrorStep(null);
+    setErrorMessage(null);
+    setError(null);
+    setState("input");
+  };
+
+  // Reset stepper for brief generation phase
+  const handleRetryFromFieldReview = () => {
+    setCompletedSteps(new Set());
+    setActiveStep(null);
+    setErrorStep(null);
+    setErrorMessage(null);
+    setError(null);
+    setState("fieldReview");
   };
 
   // Step 2: Continue from field review -> generate brief -> await approval
   const handleContinueFromReview = async (reviewedFields: TranscriptFields) => {
     if (!runId) return;
     setError(null);
+    setCompletedSteps(new Set());
+    setActiveStep(null);
+    setErrorStep(null);
+    setErrorMessage(null);
     setState("generating");
 
     try {
@@ -318,10 +379,12 @@ export function Touch4Form({
         router.refresh();
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Brief generation failed"
-      );
-      setState("fieldReview");
+      const raw = err instanceof Error ? err.message : "Brief generation failed";
+      const friendly = mapToFriendlyError(raw);
+      toast.error(friendly);
+      setErrorStep(activeStep);
+      setErrorMessage(friendly);
+      // Stay in "generating" state so stepper shows error
     }
   };
 
@@ -503,9 +566,28 @@ export function Touch4Form({
   // Extracting state
   if (state === "extracting") {
     return (
-      <div className="pt-2">
-        <Separator className="mb-4" />
-        <GenerationProgress message={progressMessage} />
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <h3 className="text-sm font-medium text-slate-700">
+          Extracting from Transcript
+        </h3>
+        <PipelineStepper
+          steps={TOUCH_4_EXTRACT_STEPS}
+          completedStepIds={completedSteps}
+          activeStepId={activeStep}
+          errorStepId={errorStep}
+          errorMessage={errorMessage}
+        />
+        {errorStep && (
+          <Button
+            onClick={handleRetry}
+            variant="outline"
+            className="w-full cursor-pointer gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Try Again
+          </Button>
+        )}
       </div>
     );
   }
@@ -609,9 +691,28 @@ export function Touch4Form({
   // Generating state (brief generation in progress)
   if (state === "generating") {
     return (
-      <div className="pt-2">
-        <Separator className="mb-4" />
-        <GenerationProgress message="Generating sales brief..." />
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <h3 className="text-sm font-medium text-slate-700">
+          Generating Sales Brief
+        </h3>
+        <PipelineStepper
+          steps={TOUCH_4_BRIEF_STEPS}
+          completedStepIds={completedSteps}
+          activeStepId={activeStep}
+          errorStepId={errorStep}
+          errorMessage={errorMessage}
+        />
+        {errorStep && (
+          <Button
+            onClick={handleRetryFromFieldReview}
+            variant="outline"
+            className="w-full cursor-pointer gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Try Again
+          </Button>
+        )}
       </div>
     );
   }
@@ -619,9 +720,18 @@ export function Touch4Form({
   // Resubmitting state
   if (state === "resubmitting") {
     return (
-      <div className="pt-2">
-        <Separator className="mb-4" />
-        <GenerationProgress message="Regenerating brief..." />
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <h3 className="text-sm font-medium text-slate-700">
+          Regenerating Brief
+        </h3>
+        <PipelineStepper
+          steps={TOUCH_4_BRIEF_STEPS}
+          completedStepIds={completedSteps}
+          activeStepId={activeStep}
+          errorStepId={errorStep}
+          errorMessage={errorMessage}
+        />
       </div>
     );
   }

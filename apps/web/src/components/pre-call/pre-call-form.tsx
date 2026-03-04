@@ -14,6 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { PipelineStepper } from "../touch/pipeline-stepper";
+import { PRE_CALL_PIPELINE_STEPS } from "../touch/pipeline-steps";
+import { mapToFriendlyError } from "@/lib/error-messages";
 import { BUYER_PERSONAS } from "@lumenalta/schemas";
 import {
   generatePreCallBriefingAction,
@@ -70,6 +74,12 @@ export function PreCallForm({
   const [briefingData, setBriefingData] = useState<BriefingData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Pipeline stepper state
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [activeStep, setActiveStep] = useState<string | null>(null);
+  const [errorStep, setErrorStep] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const pollStatus = useCallback(async (runId: string) => {
     const maxAttempts = 60;
     let attempts = 0;
@@ -80,6 +90,24 @@ export function PreCallForm({
 
       try {
         const status = await checkPreCallStatusAction(runId);
+
+        // Derive step progress
+        const steps = status.steps ?? {};
+        const newCompleted = new Set(completedSteps);
+        Object.entries(steps).forEach(([id, step]) => {
+          if ((step as Record<string, unknown>).status === "completed")
+            newCompleted.add(id);
+        });
+        setCompletedSteps(newCompleted);
+
+        const active = PRE_CALL_PIPELINE_STEPS.find(
+          (s) =>
+            !newCompleted.has(s.id) &&
+            steps[s.id] &&
+            ((steps[s.id] as Record<string, unknown>).status === "running" ||
+              (steps[s.id] as Record<string, unknown>).status === "waiting")
+        );
+        setActiveStep(active?.id ?? null);
 
         if (status.status === "completed") {
           return status;
@@ -216,7 +244,12 @@ export function PreCallForm({
       setState("complete");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Briefing generation failed");
+      const raw = err instanceof Error ? err.message : "Briefing generation failed";
+      const friendly = mapToFriendlyError(raw);
+      toast.error(friendly);
+      setError(friendly);
+      setErrorStep(activeStep);
+      setErrorMessage(friendly);
       setState("error");
     }
   };
@@ -225,14 +258,17 @@ export function PreCallForm({
   if (state === "generating") {
     return (
       <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-          <p className="mt-3 text-sm text-slate-500">
-            Preparing briefing...
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            Researching company, generating hypotheses and discovery questions
-          </p>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Preparing Briefing</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PipelineStepper
+            steps={PRE_CALL_PIPELINE_STEPS}
+            completedStepIds={completedSteps}
+            activeStepId={activeStep}
+            errorStepId={errorStep}
+            errorMessage={errorMessage}
+          />
         </CardContent>
       </Card>
     );
@@ -268,17 +304,28 @@ export function PreCallForm({
   if (state === "error") {
     return (
       <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <AlertCircle className="h-8 w-8 text-red-400" />
-          <p className="mt-3 text-sm font-medium text-red-600">
-            Briefing generation failed
-          </p>
-          <p className="mt-1 text-xs text-slate-500">{error}</p>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Preparing Briefing</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <PipelineStepper
+            steps={PRE_CALL_PIPELINE_STEPS}
+            completedStepIds={completedSteps}
+            activeStepId={activeStep}
+            errorStepId={errorStep}
+            errorMessage={errorMessage}
+          />
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => setState("idle")}
-            className="mt-4 cursor-pointer"
+            onClick={() => {
+              setCompletedSteps(new Set());
+              setActiveStep(null);
+              setErrorStep(null);
+              setErrorMessage(null);
+              setError(null);
+              setState("idle");
+            }}
+            className="w-full cursor-pointer"
           >
             Try Again
           </Button>

@@ -16,8 +16,15 @@ import {
   ExternalLink,
   X,
   Loader2,
+  RotateCcw,
 } from "lucide-react";
-import { GenerationProgress } from "./generation-progress";
+import { toast } from "sonner";
+import { PipelineStepper } from "./pipeline-stepper";
+import {
+  TOUCH_1_PIPELINE_STEPS,
+  TOUCH_1_ASSEMBLING_STEPS,
+} from "./pipeline-steps";
+import { mapToFriendlyError } from "@/lib/error-messages";
 import { DeckPreview } from "./deck-preview";
 import {
   generateTouch1PagerAction,
@@ -71,6 +78,12 @@ export function Touch1Form({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Pipeline stepper state
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [activeStep, setActiveStep] = useState<string | null>(null);
+  const [errorStep, setErrorStep] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   // Poll workflow status until it reaches a target state
   const pollStatus = useCallback(
     async (
@@ -88,6 +101,26 @@ export function Touch1Form({
 
         try {
           const status = await checkTouch1StatusAction(currentRunId);
+
+          // Derive step progress from status.steps
+          const steps = status.steps ?? {};
+          const newCompleted = new Set(completedSteps);
+          Object.entries(steps).forEach(([id, step]) => {
+            if ((step as Record<string, unknown>).status === "completed")
+              newCompleted.add(id);
+          });
+          setCompletedSteps(newCompleted);
+
+          // Find active step
+          const pipelineSteps = TOUCH_1_PIPELINE_STEPS;
+          const active = pipelineSteps.find(
+            (s) =>
+              !newCompleted.has(s.id) &&
+              steps[s.id] &&
+              ((steps[s.id] as Record<string, unknown>).status === "running" ||
+                (steps[s.id] as Record<string, unknown>).status === "waiting")
+          );
+          setActiveStep(active?.id ?? null);
 
           // Check if workflow is suspended (awaiting seller approval)
           if (status.status === "suspended") {
@@ -183,15 +216,33 @@ export function Touch1Form({
         throw new Error("Expected content generation but got unexpected state");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
-      setState("input");
+      const raw = err instanceof Error ? err.message : "Generation failed";
+      const friendly = mapToFriendlyError(raw);
+      toast.error(friendly);
+      setErrorStep(activeStep);
+      setErrorMessage(friendly);
+      // Keep state as "generating" so stepper stays visible with error
     }
+  };
+
+  // Reset stepper state and go back to input
+  const handleRetry = () => {
+    setCompletedSteps(new Set());
+    setActiveStep(null);
+    setErrorStep(null);
+    setErrorMessage(null);
+    setError(null);
+    setState("input");
   };
 
   // Step 2a: Approve content as-is
   const handleApprove = async () => {
     if (!runId) return;
     setError(null);
+    setCompletedSteps(new Set());
+    setActiveStep(null);
+    setErrorStep(null);
+    setErrorMessage(null);
     setState("assembling");
     setProgressMessage("Assembling Google Slides deck...");
 
@@ -239,8 +290,12 @@ export function Touch1Form({
         router.refresh();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Approval failed");
-      setState("review");
+      const raw = err instanceof Error ? err.message : "Approval failed";
+      const friendly = mapToFriendlyError(raw);
+      toast.error(friendly);
+      setErrorStep(activeStep);
+      setErrorMessage(friendly);
+      // Keep assembling state so stepper stays visible with error
     }
   };
 
@@ -248,6 +303,10 @@ export function Touch1Form({
   const handleApproveEdited = async () => {
     if (!runId || !editedContent) return;
     setError(null);
+    setCompletedSteps(new Set());
+    setActiveStep(null);
+    setErrorStep(null);
+    setErrorMessage(null);
     setState("assembling");
     setProgressMessage("Assembling Google Slides deck with your edits...");
 
@@ -294,10 +353,12 @@ export function Touch1Form({
         router.refresh();
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Edit approval failed"
-      );
-      setState("review");
+      const raw = err instanceof Error ? err.message : "Edit approval failed";
+      const friendly = mapToFriendlyError(raw);
+      toast.error(friendly);
+      setErrorStep(activeStep);
+      setErrorMessage(friendly);
+      // Keep assembling state so stepper stays visible with error
     }
   };
 
@@ -387,12 +448,60 @@ export function Touch1Form({
     );
   }
 
-  // Generating / Assembling state
-  if (state === "generating" || state === "assembling") {
+  // Generating state
+  if (state === "generating") {
     return (
-      <div className="pt-2">
-        <Separator className="mb-4" />
-        <GenerationProgress message={progressMessage} />
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <h3 className="text-sm font-medium text-slate-700">
+          Generating Pager Content
+        </h3>
+        <PipelineStepper
+          steps={TOUCH_1_PIPELINE_STEPS}
+          completedStepIds={completedSteps}
+          activeStepId={activeStep}
+          errorStepId={errorStep}
+          errorMessage={errorMessage}
+        />
+        {errorStep && (
+          <Button
+            onClick={handleRetry}
+            variant="outline"
+            className="w-full cursor-pointer gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Try Again
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // Assembling state
+  if (state === "assembling") {
+    return (
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <h3 className="text-sm font-medium text-slate-700">
+          Assembling Deck
+        </h3>
+        <PipelineStepper
+          steps={TOUCH_1_ASSEMBLING_STEPS}
+          completedStepIds={completedSteps}
+          activeStepId={activeStep}
+          errorStepId={errorStep}
+          errorMessage={errorMessage}
+        />
+        {errorStep && (
+          <Button
+            onClick={handleRetry}
+            variant="outline"
+            className="w-full cursor-pointer gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Try Again
+          </Button>
+        )}
       </div>
     );
   }
