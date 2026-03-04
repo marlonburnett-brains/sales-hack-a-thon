@@ -257,6 +257,132 @@ export async function searchSlides(params: {
   return results;
 }
 
+// ────────────────────────────────────────────────────────────
+// Proposal-level multi-pass retrieval
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Result of a multi-pass proposal retrieval containing all candidate slides
+ * and counts per retrieval pass for diagnostics.
+ */
+export interface ProposalSearchResult {
+  /** All deduplicated candidate slides from all retrieval passes */
+  candidates: SlideSearchResult[];
+  /** Number of slides from the primary pillar pass */
+  primaryCount: number;
+  /** Number of new slides from secondary pillar passes */
+  secondaryCount: number;
+  /** Number of new slides from the case study pass */
+  caseStudyCount: number;
+}
+
+/**
+ * Multi-pass retrieval for proposal deck assembly.
+ *
+ * Executes three retrieval passes against AtlusAI content:
+ *   1. Primary pillar + industry (largest budget, ~20 slides)
+ *   2. Secondary pillars + industry (5 per pillar)
+ *   3. Case studies for industry + subsector (5 slides)
+ *
+ * Includes three-tier fallback for sparse results:
+ *   - If primary returns < 3: re-query without industry filter
+ *   - If still < 3 total: query cross-industry capabilities
+ *   - Never fails -- returns whatever candidates are found
+ *
+ * @param params.industry - Target industry
+ * @param params.subsector - Target subsector within industry
+ * @param params.primaryPillar - Primary Lumenalta solution pillar
+ * @param params.secondaryPillars - Additional solution pillars
+ * @param params.useCases - Use cases from the brief (for context)
+ * @param params.limit - Maximum slides for primary pass (default 20)
+ */
+export async function searchForProposal(params: {
+  industry: string;
+  subsector: string;
+  primaryPillar: string;
+  secondaryPillars: string[];
+  useCases: { name: string; description: string }[];
+  limit?: number;
+}): Promise<ProposalSearchResult> {
+  const primaryLimit = params.limit ?? 20;
+  const map = new Map<string, SlideSearchResult>();
+
+  // ── Pass 1: Primary pillar ──
+  const primaryResults = await searchSlides({
+    query: `${params.primaryPillar} ${params.industry} solution proposal capabilities`,
+    industry: params.industry,
+    limit: primaryLimit,
+  });
+
+  for (const slide of primaryResults) {
+    map.set(slide.slideId, slide);
+  }
+  const primaryCount = map.size;
+
+  // Fallback tier 1: If primary returns < 3, broaden without industry filter
+  if (primaryCount < 3) {
+    const broadResults = await searchSlides({
+      query: `${params.primaryPillar} solution proposal capabilities`,
+      limit: primaryLimit,
+    });
+    for (const slide of broadResults) {
+      if (!map.has(slide.slideId)) {
+        map.set(slide.slideId, slide);
+      }
+    }
+  }
+
+  // Fallback tier 2: If still < 3 total, cross-industry capabilities
+  if (map.size < 3) {
+    const crossResults = await searchSlides({
+      query: `${params.primaryPillar} capabilities solutions`,
+      limit: 10,
+    });
+    for (const slide of crossResults) {
+      if (!map.has(slide.slideId)) {
+        map.set(slide.slideId, slide);
+      }
+    }
+  }
+
+  // ── Pass 2: Secondary pillars ──
+  const beforeSecondary = map.size;
+  for (const pillar of params.secondaryPillars) {
+    const secondaryResults = await searchSlides({
+      query: `${pillar} ${params.industry}`,
+      industry: params.industry,
+      limit: 5,
+    });
+    for (const slide of secondaryResults) {
+      if (!map.has(slide.slideId)) {
+        map.set(slide.slideId, slide);
+      }
+    }
+  }
+  const secondaryCount = map.size - beforeSecondary;
+
+  // ── Pass 3: Case studies ──
+  const beforeCaseStudy = map.size;
+  const caseStudyResults = await searchSlides({
+    query: `case study ${params.industry} ${params.subsector} results outcomes`,
+    industry: params.industry,
+    limit: 5,
+  });
+  for (const slide of caseStudyResults) {
+    if (!map.has(slide.slideId)) {
+      map.set(slide.slideId, slide);
+    }
+  }
+  const caseStudyCount = map.size - beforeCaseStudy;
+
+  return {
+    candidates: Array.from(map.values()),
+    primaryCount,
+    secondaryCount,
+    caseStudyCount,
+  };
+}
+
 /**
  * Search for slides matching specific capability areas and industry.
  *
