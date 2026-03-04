@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-03-04T23:11:34.468Z"
-last_activity: 2026-03-04 — Plan 12-01 complete (access setup and discovery validation with ContentSource tracking)
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-03-04T23:55:00.000Z"
+last_activity: 2026-03-04 — Plan 12-02 complete (full ingestion, brand guidelines, coverage verification)
 progress:
   total_phases: 13
   completed_phases: 11
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 12 in progress. Access setup done, discovery validated, ContentSource tracking added. Plan 02 (full ingestion) next.
+**Current focus:** Phase 12 complete. All accessible content ingested into AtlusAI (38 slides, brand guidelines, coverage verified). All 13 phases complete.
 
 ## Current Position
 
 Phase: 12 of 13 (Content Library Re-ingestion)
-Plan: 1 of 2 complete in current phase
-Status: Plan 12-01 complete. Google Docs API enabled, ContentSource tracking added, discovery validated (5 presentations, 38 slides, 14/17 sources still inaccessible).
-Last activity: 2026-03-04 — Plan 12-01 complete (access setup and discovery validation)
+Plan: 2 of 2 complete in current phase
+Status: Phase 12 complete. All 38 slides ingested into AtlusAI, brand guidelines ingested, image registry gracefully empty, coverage verified across all 11 industries.
+Last activity: 2026-03-04 — Plan 12-02 complete (full ingestion, brand guidelines, coverage verification)
 
 Progress: [██████████] 100%
 
@@ -75,6 +75,7 @@ Progress: [██████████] 100%
 | Phase 11 P02 | 5min | 2 tasks | 3 files |
 | Phase 13 P01 | 4min | 2 tasks | 3 files |
 | Phase 12 P01 | 27min | 2 tasks | 8 files |
+| Phase 12 P02 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -185,6 +186,10 @@ Recent decisions affecting current work:
 - [Phase 12]: ContentSource Prisma model tracks 17 known Drive sources with accessibility status (upserted on each discovery run)
 - [Phase 12]: Accept limited 5-presentation discovery; 14/17 sources need Viewer access on target Shared Drives (not just shortcut container)
 - [Phase 12]: Baseline Prisma migration captures all pre-existing models (Company, Deal, InteractionRecord, etc.) created via db push; forward migrations only from here
+- [Phase 12]: Accept 38-slide ingestion with 0 case studies; case study sources are among the 14 inaccessible content sources
+- [Phase 12]: Brand guidelines search filter excludes ingested [SLIDE] docs and _slide-level-ingestion folder to find original Branded Basics presentation
+- [Phase 12]: Image registry gracefully empty (0 assets); no curated image folders in accessible Drive scope; do NOT catalog ~9000 files in 01 Resources
+- [Phase 12]: All 11 industries have templates via cross-industry Gemini classification; case study gaps accepted as content source access issue
 
 ### Pending Todos
 
@@ -199,6 +204,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T23:11:34.463Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-03-04T23:55:00.000Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None
