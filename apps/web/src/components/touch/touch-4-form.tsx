@@ -19,15 +19,16 @@ import {
   AlertTitle,
   AlertDescription,
 } from "@/components/ui/alert";
-import { X, Loader2, CheckCircle, RotateCcw, Pencil, Info } from "lucide-react";
+import Link from "next/link";
+import { X, Loader2, CheckCircle, RotateCcw, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { PipelineStepper } from "./pipeline-stepper";
 import {
   TOUCH_4_EXTRACT_STEPS,
   TOUCH_4_BRIEF_STEPS,
+  TOUCH_4_ASSET_PIPELINE_STEPS,
 } from "./pipeline-steps";
 import { mapToFriendlyError } from "@/lib/error-messages";
-import { GenerationProgress } from "./generation-progress";
 import { FieldReview } from "./field-review";
 import { BriefDisplay } from "./brief-display";
 import {
@@ -388,13 +389,127 @@ export function Touch4Form({
     }
   };
 
+  // Poll asset generation pipeline progress
+  const pollAssetPipeline = async (currentRunId: string) => {
+    const maxAttempts = 120;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      await new Promise((r) => setTimeout(r, 3000));
+      attempts++;
+
+      try {
+        const status = await checkTouch4StatusAction(currentRunId);
+        const steps = status.steps ?? {};
+
+        // Monotonic Set pattern: only add, never remove completed steps
+        setCompletedSteps((prev) => {
+          const next = new Set(prev);
+          Object.entries(steps).forEach(([id, step]) => {
+            if ((step as Record<string, unknown>).status === "completed")
+              next.add(id);
+          });
+          return next;
+        });
+
+        // Find active step from asset pipeline steps
+        setCompletedSteps((prev) => {
+          const active = TOUCH_4_ASSET_PIPELINE_STEPS.find(
+            (s) =>
+              !prev.has(s.id) &&
+              steps[s.id] &&
+              ((steps[s.id] as Record<string, unknown>).status === "running" ||
+                (steps[s.id] as Record<string, unknown>).status === "waiting")
+          );
+          setActiveStep(active?.id ?? null);
+          return prev;
+        });
+
+        // Defensively extract interactionId if not already set
+        if (!interactionId) {
+          const recordStep = steps["record-interaction"];
+          if (recordStep?.output) {
+            const output = recordStep.output as Record<string, unknown>;
+            if (output.interactionId) {
+              setInteractionId(output.interactionId as string);
+            }
+          }
+        }
+
+        // Detect completion: suspended at await-asset-review or completed
+        const awaitAssetReviewStep = steps["await-asset-review"];
+        if (
+          (status.status === "suspended" && awaitAssetReviewStep?.payload) ||
+          status.status === "completed"
+        ) {
+          // All asset steps finished
+          setActiveStep(null);
+          // Show all-green stepper for 1.5 seconds
+          await new Promise((r) => setTimeout(r, 1500));
+          setState("awaitingAssetReview");
+          router.refresh();
+          return;
+        }
+
+        // Handle failure
+        if (status.status === "failed") {
+          // Find last active asset step to show error on
+          const lastAssetStep = [...TOUCH_4_ASSET_PIPELINE_STEPS]
+            .reverse()
+            .find((s) => steps[s.id]);
+          const errorMsg = mapToFriendlyError("Asset generation failed");
+          setErrorStep(lastAssetStep?.id ?? null);
+          setErrorMessage(errorMsg);
+          toast.error(errorMsg);
+          return;
+        }
+      } catch (err) {
+        if (attempts >= maxAttempts) {
+          const errorMsg = mapToFriendlyError(
+            err instanceof Error ? err.message : "Asset generation failed"
+          );
+          setErrorStep(activeStep);
+          setErrorMessage(errorMsg);
+          toast.error(errorMsg);
+          return;
+        }
+        // Continue polling on transient errors
+      }
+    }
+
+    // Timeout
+    toast.error("Asset generation timed out");
+  };
+
+  // Retry asset pipeline polling
+  const handleRetryAssetPipeline = () => {
+    if (!runId) {
+      toast.error("No workflow run to retry");
+      return;
+    }
+    setErrorStep(null);
+    setErrorMessage(null);
+    setState("assetGenerating");
+    pollAssetPipeline(runId).catch(() => {
+      // Errors handled inside pollAssetPipeline
+    });
+  };
+
   // Approval handlers
   const handleApprove = async (reviewerName: string) => {
     if (!briefId || !runId) return;
     try {
       await approveBriefAction(briefId, { reviewerName, runId });
-      setState("approved");
-      router.refresh();
+      // Reset stepper state for asset generation phase
+      setCompletedSteps(new Set());
+      setActiveStep(null);
+      setErrorStep(null);
+      setErrorMessage(null);
+      setState("assetGenerating");
+      // Start asset pipeline polling (non-blocking)
+      pollAssetPipeline(runId).catch(() => {
+        // Errors handled inside pollAssetPipeline
+      });
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Approval failed"
@@ -838,18 +953,6 @@ export function Touch4Form({
           </div>
         )}
 
-        {/* Asset generation info note */}
-        <Alert className="border-blue-200 bg-blue-50">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertTitle className="text-blue-800">
-            Generating proposal assets
-          </AlertTitle>
-          <AlertDescription className="text-blue-700">
-            Generating proposal assets (deck, talk track, and FAQ). You will
-            find the review link on the deal page when they are ready.
-          </AlertDescription>
-        </Alert>
-
         <Button
           onClick={onClose}
           variant="outline"
@@ -864,9 +967,32 @@ export function Touch4Form({
   // Asset Generating state
   if (state === "assetGenerating") {
     return (
-      <div className="pt-2">
-        <Separator className="mb-4" />
-        <GenerationProgress message="Generating proposal assets..." />
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <div className="flex items-center gap-1.5 text-green-600">
+          <CheckCircle className="h-4 w-4" />
+          <span className="text-xs font-medium">Brief Approved</span>
+        </div>
+        <h3 className="text-sm font-medium text-slate-700">
+          Generating Proposal Assets
+        </h3>
+        <PipelineStepper
+          steps={TOUCH_4_ASSET_PIPELINE_STEPS}
+          completedStepIds={completedSteps}
+          activeStepId={activeStep}
+          errorStepId={errorStep}
+          errorMessage={errorMessage}
+        />
+        {errorStep && (
+          <Button
+            onClick={handleRetryAssetPipeline}
+            variant="outline"
+            className="w-full cursor-pointer gap-2"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Try Again
+          </Button>
+        )}
       </div>
     );
   }
@@ -876,22 +1002,23 @@ export function Touch4Form({
     return (
       <div className="space-y-4 pt-2">
         <Separator />
-        <Alert className="border-blue-200 bg-blue-50">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertTitle className="text-blue-800">
+        <div className="flex items-center gap-1.5 text-green-600">
+          <CheckCircle className="h-4 w-4" />
+          <span className="text-xs font-medium">Brief Approved</span>
+        </div>
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">
             Assets ready for review
           </AlertTitle>
-          <AlertDescription className="text-blue-700">
-            Generated assets are ready for review. Visit the deal page to access
-            the review link.
+          <AlertDescription className="text-green-700">
+            All proposal assets have been generated. Review them before delivery.
           </AlertDescription>
         </Alert>
-        <Button
-          onClick={onClose}
-          variant="outline"
-          className="w-full cursor-pointer"
-        >
-          Done
+        <Button asChild className="w-full cursor-pointer gap-2">
+          <Link href={`/deals/${dealId}/asset-review/${interactionId}`}>
+            Review Assets
+          </Link>
         </Button>
       </div>
     );
