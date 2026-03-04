@@ -16,6 +16,14 @@ export const env = createEnv({
     // Google Slides template presentation ID (Lumenalta branded template)
     GOOGLE_TEMPLATE_PRESENTATION_ID: z.string().min(1),
 
+    // Source presentation ID for Touch 2 "Meet Lumenalta" intro deck
+    // AI selects slides from this presentation for industry-relevant intro decks
+    MEET_LUMENALTA_PRESENTATION_ID: z.string().default(''),
+
+    // Source presentation ID for Touch 3 capability alignment deck
+    // Falls back to MEET_LUMENALTA_PRESENTATION_ID if not set
+    CAPABILITY_DECK_PRESENTATION_ID: z.string().default(''),
+
     NODE_ENV: z
       .enum(['development', 'production', 'test'])
       .default('development'),
