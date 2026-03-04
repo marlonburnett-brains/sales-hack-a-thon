@@ -175,8 +175,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: Mastra workflow suspend at HITL-2, asset review panel UI with Drive artifact links (shadcn/ui), brand compliance check step before HITL-2 trigger
-- [ ] 09-02: Final delivery state transition, workflow lifecycle status display, and end-to-end post-call flow smoke test
+- [ ] 09-01-PLAN.md -- Brand compliance checker, workflow extension to 17 steps (checkBrandCompliance + awaitAssetReview + finalizeDelivery), asset review API endpoints, typed api-client + server actions
+- [ ] 09-02-PLAN.md -- Standalone asset review page with iframe previews, brand compliance section, approval bar with role selection, 5-stage workflow stepper, deal page/dashboard lifecycle indicators
 
 ### Phase 10: Pre-Call Briefing Flow
 **Goal**: A seller can enter a company name, buyer role, and meeting context and receive a formatted one-pager with a company snapshot, role-specific hypotheses, and prioritized discovery questions — saved to Google Drive
