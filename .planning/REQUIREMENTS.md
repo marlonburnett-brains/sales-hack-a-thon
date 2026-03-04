@@ -61,17 +61,17 @@
 
 ### Touch 2: Intro Conversation Assets
 
-- [ ] **TOUCH2-01**: Seller can select an intro deck flow, input company name, industry, salesperson name/photo, and optionally a customer logo
+- [x] **TOUCH2-01**: Seller can select an intro deck flow, input company name, industry, salesperson name/photo, and optionally a customer logo
 - [x] **TOUCH2-02**: System AI-selects relevant "Meet Lumenalta" slides based on industry and client context from the content library
 - [x] **TOUCH2-03**: System assembles selected slides into a Google Slides deck with salesperson name/photo and customer name/logo customizations applied
-- [ ] **TOUCH2-04**: Generated intro deck is saved to a per-deal folder in shared Lumenalta Google Drive
+- [x] **TOUCH2-04**: Generated intro deck is saved to a per-deal folder in shared Lumenalta Google Drive
 
 ### Touch 3: Capability & Use Case Alignment Assets
 
-- [ ] **TOUCH3-01**: Seller can select a capability alignment flow, input company name, industry, and 1-2 relevant capability areas
+- [x] **TOUCH3-01**: Seller can select a capability alignment flow, input company name, industry, and 1-2 relevant capability areas
 - [x] **TOUCH3-02**: System AI-selects relevant slides from AtlusAI deck and L2 capability decks based on industry and selected capability areas
 - [x] **TOUCH3-03**: System assembles selected slides into a Google Slides deck with salesperson and customer customizations
-- [ ] **TOUCH3-04**: Generated capability deck is saved to a per-deal folder in shared Lumenalta Google Drive
+- [x] **TOUCH3-04**: Generated capability deck is saved to a per-deal folder in shared Lumenalta Google Drive
 
 ### Data Capture & Knowledge Growth
 
@@ -156,14 +156,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOUCH1-03 | Phase 4 | Complete |
 | TOUCH1-04 | Phase 4 | Complete |
 | TOUCH1-05 | Phase 4 | Complete |
-| TOUCH2-01 | Phase 4 | Pending |
+| TOUCH2-01 | Phase 4 | Complete |
 | TOUCH2-02 | Phase 4 | Complete |
 | TOUCH2-03 | Phase 4 | Complete |
-| TOUCH2-04 | Phase 4 | Pending |
-| TOUCH3-01 | Phase 4 | Pending |
+| TOUCH2-04 | Phase 4 | Complete |
+| TOUCH3-01 | Phase 4 | Complete |
 | TOUCH3-02 | Phase 4 | Complete |
 | TOUCH3-03 | Phase 4 | Complete |
-| TOUCH3-04 | Phase 4 | Pending |
+| TOUCH3-04 | Phase 4 | Complete |
 | DATA-01 | Phase 4 | Complete |
 | DATA-02 | Phase 5 | Pending |
 | DATA-03 | Phase 4 | Complete |
