@@ -8,7 +8,7 @@ import {
   AlertTitle,
   AlertDescription,
 } from "@/components/ui/alert";
-import { User, Clock } from "lucide-react";
+import { User, Clock, ClipboardCheck } from "lucide-react";
 import { TouchFlowCard } from "@/components/touch/touch-flow-card";
 import { InteractionTimeline } from "@/components/timeline/interaction-timeline";
 
@@ -37,6 +37,12 @@ export default async function DealPage({ params }: DealPageProps) {
   );
   const pendingBriefId = pendingTouch4?.brief?.id;
 
+  // Check for pending asset review
+  const pendingAssetReview = interactions.find(
+    (i) =>
+      i.touchType === "touch_4" && i.status === "pending_asset_review"
+  );
+
   return (
     <div className="space-y-8">
       {/* Pending approval alert banner */}
@@ -57,6 +63,26 @@ export default async function DealPage({ params }: DealPageProps) {
                 Review now
               </Link>
             )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Pending asset review alert banner */}
+      {pendingAssetReview && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <ClipboardCheck className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-800">
+            Assets ready for review
+          </AlertTitle>
+          <AlertDescription className="text-blue-700">
+            Generated assets (deck, talk track, FAQ) are ready for review before
+            final delivery.
+            <Link
+              href={`/deals/${dealId}/asset-review/${pendingAssetReview.id}`}
+              className="ml-2 font-medium underline"
+            >
+              Review now
+            </Link>
           </AlertDescription>
         </Alert>
       )}

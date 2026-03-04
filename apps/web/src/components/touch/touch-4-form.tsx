@@ -19,7 +19,7 @@ import {
   AlertTitle,
   AlertDescription,
 } from "@/components/ui/alert";
-import { X, Loader2, CheckCircle, RotateCcw, Pencil } from "lucide-react";
+import { X, Loader2, CheckCircle, RotateCcw, Pencil, Info } from "lucide-react";
 import { GenerationProgress } from "./generation-progress";
 import { FieldReview } from "./field-review";
 import { BriefDisplay } from "./brief-display";
@@ -50,7 +50,10 @@ type FormState =
   | "rejected"
   | "editing"
   | "resubmitting"
-  | "approved";
+  | "approved"
+  | "assetGenerating"
+  | "awaitingAssetReview"
+  | "delivered";
 
 interface TranscriptFields {
   customerContext: string;
@@ -725,6 +728,77 @@ export function Touch4Form({
           </div>
         )}
 
+        {/* Asset generation info note */}
+        <Alert className="border-blue-200 bg-blue-50">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-800">
+            Generating proposal assets
+          </AlertTitle>
+          <AlertDescription className="text-blue-700">
+            Generating proposal assets (deck, talk track, and FAQ). You will
+            find the review link on the deal page when they are ready.
+          </AlertDescription>
+        </Alert>
+
+        <Button
+          onClick={onClose}
+          variant="outline"
+          className="w-full cursor-pointer"
+        >
+          Done
+        </Button>
+      </div>
+    );
+  }
+
+  // Asset Generating state
+  if (state === "assetGenerating") {
+    return (
+      <div className="pt-2">
+        <Separator className="mb-4" />
+        <GenerationProgress message="Generating proposal assets..." />
+      </div>
+    );
+  }
+
+  // Awaiting Asset Review state
+  if (state === "awaitingAssetReview") {
+    return (
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <Alert className="border-blue-200 bg-blue-50">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-800">
+            Assets ready for review
+          </AlertTitle>
+          <AlertDescription className="text-blue-700">
+            Generated assets are ready for review. Visit the deal page to access
+            the review link.
+          </AlertDescription>
+        </Alert>
+        <Button
+          onClick={onClose}
+          variant="outline"
+          className="w-full cursor-pointer"
+        >
+          Done
+        </Button>
+      </div>
+    );
+  }
+
+  // Delivered state
+  if (state === "delivered") {
+    return (
+      <div className="space-y-4 pt-2">
+        <Separator />
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertTitle>Assets Delivered</AlertTitle>
+          <AlertDescription>
+            All assets have been approved and delivered successfully.
+          </AlertDescription>
+        </Alert>
         <Button
           onClick={onClose}
           variant="outline"

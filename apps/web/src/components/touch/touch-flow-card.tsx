@@ -10,6 +10,7 @@ import { Touch1Form } from "./touch-1-form";
 import { Touch2Form } from "./touch-2-form";
 import { Touch3Form } from "./touch-3-form";
 import { Touch4Form } from "./touch-4-form";
+import { WorkflowStepper } from "./workflow-stepper";
 import type { InteractionRecord } from "@/lib/api-client";
 
 interface TouchFlowCardProps {
@@ -56,6 +57,18 @@ export function TouchFlowCard({
       i.status === "pending_approval" || i.status === "pending_review"
   );
 
+  const hasPendingAssetReview = interactions.some(
+    (i) => i.status === "pending_asset_review"
+  );
+
+  const assetReviewInteraction = interactions.find(
+    (i) => i.status === "pending_asset_review"
+  );
+
+  const hasDelivered = interactions.some(
+    (i) => i.status === "delivered"
+  );
+
   // Extract brief ID from the pending interaction
   const pendingInteraction = interactions.find(
     (i) =>
@@ -63,8 +76,23 @@ export function TouchFlowCard({
   );
   const pendingBriefId = pendingInteraction?.brief?.id;
 
-  const statusBadge = hasPendingApproval ? (
+  // Determine Touch 4 workflow status for stepper
+  const touch4Status = hasPendingAssetReview
+    ? "pending_asset_review"
+    : hasDelivered
+      ? "delivered"
+      : hasPendingApproval
+        ? "pending_approval"
+        : hasCompleted
+          ? "approved"
+          : "pending";
+
+  const statusBadge = hasPendingAssetReview ? (
+    <Badge className="bg-blue-100 text-blue-800">Assets Ready</Badge>
+  ) : hasPendingApproval ? (
     <Badge className="bg-amber-100 text-amber-800">Awaiting Approval</Badge>
+  ) : hasDelivered ? (
+    <Badge className="bg-emerald-100 text-emerald-800">Delivered</Badge>
   ) : hasCompleted ? (
     <Badge variant="default" className="bg-green-600">
       Complete
@@ -91,6 +119,27 @@ export function TouchFlowCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-slate-600">{description}</p>
+
+        {/* Touch 4: Workflow stepper */}
+        {touchNumber === 4 && (
+          <div className="mt-2">
+            <WorkflowStepper status={touch4Status} />
+          </div>
+        )}
+
+        {/* Pending asset review: show Review Assets button */}
+        {available && hasPendingAssetReview && !showForm && assetReviewInteraction && (
+          <Button
+            asChild
+            className="w-full cursor-pointer gap-2 border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200"
+            variant="outline"
+          >
+            <Link href={`/deals/${dealId}/asset-review/${assetReviewInteraction.id}`}>
+              <ClipboardCheck className="h-4 w-4" />
+              Review Assets
+            </Link>
+          </Button>
+        )}
 
         {/* Pending approval: show Review Brief button */}
         {available && hasPendingApproval && !showForm && pendingBriefId && (

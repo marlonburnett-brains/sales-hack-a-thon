@@ -45,6 +45,8 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "Completed",
   edited: "Edited",
   overridden: "Overridden",
+  pending_asset_review: "Assets Ready",
+  delivered: "Delivered",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -55,6 +57,8 @@ const STATUS_COLORS: Record<string, string> = {
   changes_requested: "bg-red-500 text-white",
   approved: "bg-green-600",
   completed: "bg-green-600",
+  pending_asset_review: "bg-blue-500 text-white",
+  delivered: "bg-emerald-600 text-white",
 };
 
 function parseJSON(str: string | null): unknown {
@@ -83,14 +87,32 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
     string,
     unknown
   > | null;
-  const outputRefs = parseJSON(interaction.outputRefs) as string[] | null;
+  const parsedOutputRefs = parseJSON(interaction.outputRefs) as
+    | string[]
+    | { deckUrl?: string; talkTrackUrl?: string; faqUrl?: string; dealFolderId?: string }
+    | null;
+
+  // Determine if outputRefs is object format (Touch 4 Phase 8+) or array format (Touch 1-3)
+  const isObjectOutputRefs =
+    parsedOutputRefs !== null &&
+    !Array.isArray(parsedOutputRefs) &&
+    typeof parsedOutputRefs === "object";
+
+  const arrayOutputRefs = Array.isArray(parsedOutputRefs)
+    ? parsedOutputRefs
+    : null;
+
+  const objectOutputRefs = isObjectOutputRefs
+    ? (parsedOutputRefs as { deckUrl?: string; talkTrackUrl?: string; faqUrl?: string; dealFolderId?: string })
+    : null;
+
   const feedbackSignals = interaction.feedbackSignals ?? [];
   const brief = interaction.brief;
 
   const driveUrl =
     interaction.driveFileId
       ? `https://docs.google.com/presentation/d/${interaction.driveFileId}/edit`
-      : outputRefs?.[0] ?? null;
+      : objectOutputRefs?.deckUrl ?? arrayOutputRefs?.[0] ?? null;
 
   // Show approval lifecycle status for touch_4 entries
   const isTouch4 = interaction.touchType === "touch_4";
@@ -219,6 +241,50 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
                       <span className="text-slate-600">{String(value)}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Touch 4 artifact links (object outputRefs) */}
+            {isTouch4 && objectOutputRefs && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase text-slate-500">
+                  Generated Assets
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {objectOutputRefs.deckUrl && (
+                    <a
+                      href={objectOutputRefs.deckUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Deck
+                    </a>
+                  )}
+                  {objectOutputRefs.talkTrackUrl && (
+                    <a
+                      href={objectOutputRefs.talkTrackUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Talk Track
+                    </a>
+                  )}
+                  {objectOutputRefs.faqUrl && (
+                    <a
+                      href={objectOutputRefs.faqUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      FAQ
+                    </a>
+                  )}
                 </div>
               </div>
             )}
