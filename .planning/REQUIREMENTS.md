@@ -42,8 +42,8 @@
 - [x] **ASSET-01**: System assembles a custom slide order as structured JSON (slide title, bullets, speaker notes, source block reference) using the approved brief and retrieved content blocks
 - [x] **ASSET-02**: System generates bespoke copy for each slide block, grounded in the approved brief and constrained to Lumenalta's voice and positioning
 - [x] **ASSET-03**: System creates a formatted Google Slides deck in shared Lumenalta Drive via Google Slides API using service account credentials
-- [ ] **ASSET-04**: System generates a slide-by-slide talk track as a Google Doc in shared Lumenalta Drive
-- [ ] **ASSET-05**: System generates a buyer FAQ Google Doc with anticipated objections and recommended responses based on stakeholder roles and business context
+- [x] **ASSET-04**: System generates a slide-by-slide talk track as a Google Doc in shared Lumenalta Drive
+- [x] **ASSET-05**: System generates a buyer FAQ Google Doc with anticipated objections and recommended responses based on stakeholder roles and business context
 
 ### Review & Delivery
 
@@ -146,8 +146,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ASSET-01 | Phase 7 | Complete |
 | ASSET-02 | Phase 7 | Complete |
 | ASSET-03 | Phase 8 | Complete |
-| ASSET-04 | Phase 8 | Pending |
-| ASSET-05 | Phase 8 | Pending |
+| ASSET-04 | Phase 8 | Complete |
+| ASSET-05 | Phase 8 | Complete |
 | REVW-01 | Phase 9 | Pending |
 | REVW-02 | Phase 9 | Pending |
 | REVW-03 | Phase 9 | Pending |
