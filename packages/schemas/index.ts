@@ -13,6 +13,8 @@ export {
   SLIDE_CATEGORIES,
   BUYER_PERSONAS,
   TOUCH_TYPES,
+  SUBSECTORS,
+  SOLUTION_PILLARS,
 } from "./constants";
 
 // Helper

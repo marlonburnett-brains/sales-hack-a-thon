@@ -72,3 +72,115 @@ export const TOUCH_TYPES = [
   "touch_3",
   "touch_4",
 ] as const;
+
+/**
+ * SUBSECTORS — Industry-specific subsector taxonomy
+ *
+ * 62 subsectors across all 11 industries. Used for transcript processing
+ * (Touch 4) to refine Gemini extraction and pillar mapping with
+ * domain-specific context.
+ *
+ * Single source of truth: consumed by web form (cascading dropdown)
+ * and agent workflow (prompt context).
+ */
+export const SUBSECTORS: Record<string, string[]> = {
+  "Consumer Products": [
+    "Retail & E-Commerce",
+    "Consumer Electronics",
+    "Food & Beverage",
+    "Apparel & Fashion",
+    "Consumer Health & Wellness",
+    "Home & Personal Care",
+  ],
+  Education: [
+    "Higher Education",
+    "K-12",
+    "EdTech Platforms",
+    "Corporate Training",
+    "Online Learning",
+  ],
+  "Financial Services & Insurance": [
+    "Digital Banking",
+    "Capital Markets",
+    "Payments & Fintech",
+    "Insurance Tech",
+    "Wealth Management",
+    "Lending & Credit",
+    "Regulatory & Compliance",
+  ],
+  "Health Care": [
+    "Telehealth",
+    "Health Information Systems",
+    "Pharmaceuticals",
+    "Medical Devices",
+    "Clinical Research",
+    "Payer Solutions",
+    "Population Health",
+  ],
+  "Industrial Goods": [
+    "Manufacturing",
+    "Energy & Utilities",
+    "Mining & Resources",
+    "Construction & Engineering",
+    "Industrial Automation",
+  ],
+  "Private Equity": [
+    "Portfolio Operations",
+    "Due Diligence Tech",
+    "Fund Administration",
+    "Value Creation",
+    "Digital Transformation",
+  ],
+  "Public Sector": [
+    "Federal Government",
+    "State & Local Government",
+    "Defense & Intelligence",
+    "Civic Tech",
+    "Regulatory Agencies",
+  ],
+  "Technology, Media & Telecommunications": [
+    "Enterprise Software",
+    "Media & Entertainment",
+    "Telecommunications",
+    "Cybersecurity",
+    "Cloud & Infrastructure",
+    "Gaming",
+    "Streaming & Content",
+  ],
+  "Transportation & Logistics": [
+    "Supply Chain & Logistics",
+    "Fleet Management",
+    "Maritime & Shipping",
+    "Aviation",
+    "Last-Mile Delivery",
+    "Rail & Transit",
+  ],
+  "Travel & Tourism": [
+    "Hospitality",
+    "Airlines & Aviation",
+    "Online Travel",
+    "Destination Management",
+    "Travel Tech",
+  ],
+  "Professional Services": [
+    "Management Consulting",
+    "Legal Tech",
+    "Accounting & Audit",
+    "Staffing & Recruitment",
+  ],
+};
+
+/**
+ * SOLUTION_PILLARS — Lumenalta's 6 primary service categories
+ *
+ * Used in brief generation prompts so Gemini maps transcript content
+ * to Lumenalta-specific pillars rather than generic categories.
+ */
+export const SOLUTION_PILLARS = [
+  "AI, ML & LLM",
+  "Cloud & Infrastructure",
+  "Data Modernization",
+  "Platform & Application Development",
+  "Tech Strategy & Advisory",
+  "UX & UI Design",
+] as const;

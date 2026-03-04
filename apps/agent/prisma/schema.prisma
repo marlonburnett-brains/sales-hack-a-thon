@@ -82,6 +82,8 @@ model InteractionRecord {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   feedbackSignals  FeedbackSignal[]
+  transcript       Transcript?       // 1:1 optional (only for touch_4)
+  brief            Brief?            // 1:1 optional (only for touch_4)
 
   @@index([dealId])
   @@index([touchType])
@@ -98,4 +100,51 @@ model FeedbackSignal {
 
   @@index([interactionId])
   @@index([signalType])
+}
+
+// ────────────────────────────────────────────────────────────
+// Phase 5: Transcript Processing & Brief Generation (DATA-02)
+// ────────────────────────────────────────────────────────────
+
+model Transcript {
+  id              String            @id @default(cuid())
+  interactionId   String            @unique
+  interaction     InteractionRecord @relation(fields: [interactionId], references: [id])
+  rawText         String            // Full transcript text (SQLite TEXT, no practical limit)
+  additionalNotes String?           // Optional seller-provided meeting notes
+  subsector       String            // Selected subsector from SUBSECTORS constant
+  // Extracted/reviewed fields (post-seller-edit via field review step)
+  customerContext    String @default("")
+  businessOutcomes   String @default("")
+  constraints        String @default("")
+  stakeholders       String @default("")
+  timeline           String @default("")
+  budget             String @default("")
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([interactionId])
+  @@index([subsector])
+}
+
+model Brief {
+  id               String            @id @default(cuid())
+  interactionId    String            @unique
+  interaction      InteractionRecord @relation(fields: [interactionId], references: [id])
+  primaryPillar    String            // Primary Lumenalta solution pillar
+  secondaryPillars String            // JSON array of strings (SQLite has no array type)
+  evidence         String            // Supporting evidence for pillar mapping
+  customerContext  String            // Synthesized from all sources
+  businessOutcomes String
+  constraints      String
+  stakeholders     String
+  timeline         String
+  budget           String
+  useCases         String            // JSON: [{name, description, roiOutcomes[], valueHypothesis}]
+  roiFraming       String            // JSON: [{useCaseName, roiOutcomes[], valueHypothesis}]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([interactionId])
+  @@index([primaryPillar])
 }
