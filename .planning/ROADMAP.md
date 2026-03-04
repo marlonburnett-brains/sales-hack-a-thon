@@ -144,8 +144,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: ContentAgent with AtlusAI MCP tool, RAGRetrieval workflow step (semantic + structured filter search), and retrieval quality verification across 3 industries
-- [ ] 07-02: AssembleSlideJSON step (SlideAssemblySchema), CopywritingAgent with brand-constrained copy generation, and CONT-06 brand compliance enforcement
+- [ ] 07-01-PLAN.md -- Extended SlideAssemblyLlmSchema (sectionType/sourceType), searchForProposal multi-pass retrieval, proposal-assembly.ts (filterByMetadata, buildSlideJSON, generateSlideCopy), test brief fixtures, RAG quality verification script
+- [ ] 07-02-PLAN.md -- ragRetrieval + assembleSlideJSON + generateCustomCopy workflow steps appended to touch-4-workflow (steps 9-11), Gemini weighted slide selection, per-slide brand-constrained copy generation
 
 ### Phase 8: Google Workspace Output Generation
 **Goal**: Given a validated SlideJSON, the system creates a fully formatted Google Slides deck, a slide-by-slide talk track Google Doc, and a buyer FAQ Google Doc in a named per-deal folder in shared Lumenalta Drive — reusing the slide assembly infrastructure from Phase 4
