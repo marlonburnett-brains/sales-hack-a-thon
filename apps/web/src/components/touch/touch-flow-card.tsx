@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Lock } from "lucide-react";
+import { Sparkles, Lock, ClipboardCheck } from "lucide-react";
 import { Touch1Form } from "./touch-1-form";
 import { Touch2Form } from "./touch-2-form";
 import { Touch3Form } from "./touch-3-form";
@@ -50,7 +51,21 @@ export function TouchFlowCard({
       i.status === "overridden"
   );
 
-  const statusBadge = hasCompleted ? (
+  const hasPendingApproval = interactions.some(
+    (i) =>
+      i.status === "pending_approval" || i.status === "pending_review"
+  );
+
+  // Extract brief ID from the pending interaction
+  const pendingInteraction = interactions.find(
+    (i) =>
+      i.status === "pending_approval" || i.status === "pending_review"
+  );
+  const pendingBriefId = pendingInteraction?.brief?.id;
+
+  const statusBadge = hasPendingApproval ? (
+    <Badge className="bg-amber-100 text-amber-800">Awaiting Approval</Badge>
+  ) : hasCompleted ? (
     <Badge variant="default" className="bg-green-600">
       Complete
     </Badge>
@@ -77,14 +92,28 @@ export function TouchFlowCard({
       <CardContent className="space-y-3">
         <p className="text-sm text-slate-600">{description}</p>
 
+        {/* Pending approval: show Review Brief button */}
+        {available && hasPendingApproval && !showForm && pendingBriefId && (
+          <Button
+            asChild
+            className="w-full cursor-pointer gap-2 border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200"
+            variant="outline"
+          >
+            <Link href={`/deals/${dealId}/review/${pendingBriefId}`}>
+              <ClipboardCheck className="h-4 w-4" />
+              Review Brief
+            </Link>
+          </Button>
+        )}
+
         {available && !showForm && (
           <Button
             onClick={() => setShowForm(true)}
             className="w-full cursor-pointer gap-2"
-            variant={hasCompleted ? "outline" : "default"}
+            variant={hasCompleted || hasPendingApproval ? "outline" : "default"}
           >
             <Sparkles className="h-4 w-4" />
-            {hasCompleted ? "Generate Another" : "Generate"}
+            {hasCompleted ? "Generate Another" : hasPendingApproval ? "Start New" : "Generate"}
           </Button>
         )}
 

@@ -35,6 +35,28 @@ const DECISION_COLORS: Record<string, string> = {
   overridden: "bg-blue-600",
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  generating: "Generating",
+  pending_approval: "Awaiting Approval",
+  pending_review: "Awaiting Review",
+  changes_requested: "Changes Requested",
+  approved: "Approved",
+  completed: "Completed",
+  edited: "Edited",
+  overridden: "Overridden",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: "bg-slate-400",
+  generating: "bg-blue-400",
+  pending_approval: "bg-amber-500 text-white",
+  pending_review: "bg-amber-500 text-white",
+  changes_requested: "bg-red-500 text-white",
+  approved: "bg-green-600",
+  completed: "bg-green-600",
+};
+
 function parseJSON(str: string | null): unknown {
   if (!str) return null;
   try {
@@ -63,11 +85,17 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
   > | null;
   const outputRefs = parseJSON(interaction.outputRefs) as string[] | null;
   const feedbackSignals = interaction.feedbackSignals ?? [];
+  const brief = interaction.brief;
 
   const driveUrl =
     interaction.driveFileId
       ? `https://docs.google.com/presentation/d/${interaction.driveFileId}/edit`
       : outputRefs?.[0] ?? null;
+
+  // Show approval lifecycle status for touch_4 entries
+  const isTouch4 = interaction.touchType === "touch_4";
+  const statusLabel = STATUS_LABELS[interaction.status] ?? interaction.status;
+  const statusColor = STATUS_COLORS[interaction.status] ?? "bg-slate-400";
 
   return (
     <Accordion type="single" collapsible>
@@ -81,7 +109,15 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
               {touchLabel}
             </Badge>
 
-            {interaction.decision && (
+            {/* Approval lifecycle status for touch_4 */}
+            {isTouch4 && (
+              <Badge className={statusColor}>
+                {statusLabel}
+              </Badge>
+            )}
+
+            {/* Decision badge for non-touch-4 or when also showing decision */}
+            {interaction.decision && !isTouch4 && (
               <Badge className={decisionColor}>
                 {interaction.decision.charAt(0).toUpperCase() +
                   interaction.decision.slice(1)}
@@ -118,10 +154,34 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
         </AccordionTrigger>
         <AccordionContent className="pb-4">
           <div className="space-y-3 text-sm">
+            {/* Brief reviewer info (Touch 4) */}
+            {brief?.reviewerName && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase text-slate-500">
+                  Reviewed by
+                </p>
+                <p className="text-sm text-slate-700">
+                  {brief.reviewerName}
+                </p>
+              </div>
+            )}
+
+            {/* Brief rejection feedback (Touch 4) */}
+            {brief?.rejectionFeedback && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase text-slate-500">
+                  Rejection Feedback
+                </p>
+                <p className="text-sm text-red-600">
+                  {brief.rejectionFeedback}
+                </p>
+              </div>
+            )}
+
             {/* Generated Content Summary */}
             {generatedContent && (
               <div className="space-y-1">
-                <p className="text-xs font-medium text-slate-500 uppercase">
+                <p className="text-xs font-medium uppercase text-slate-500">
                   Generated Content
                 </p>
                 {typeof generatedContent.headline === "string" && (
@@ -149,7 +209,7 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
             {/* Input Parameters */}
             {inputs && (
               <div className="space-y-1">
-                <p className="text-xs font-medium text-slate-500 uppercase">
+                <p className="text-xs font-medium uppercase text-slate-500">
                   Input Parameters
                 </p>
                 <div className="grid grid-cols-2 gap-1 text-xs">
@@ -166,7 +226,7 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
             {/* Feedback Signals */}
             {feedbackSignals.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-medium text-slate-500 uppercase">
+                <p className="text-xs font-medium uppercase text-slate-500">
                   Feedback Signals
                 </p>
                 {feedbackSignals.map((signal) => (

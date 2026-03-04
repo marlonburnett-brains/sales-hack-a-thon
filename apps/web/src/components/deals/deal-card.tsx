@@ -11,18 +11,22 @@ interface DealCardProps {
 function TouchIndicator({
   touchNumber,
   completed,
+  pending,
 }: {
   touchNumber: number;
   completed: boolean;
+  pending?: boolean;
 }) {
   return (
     <div
       className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${
         completed
           ? "bg-blue-600 text-white"
-          : "border border-slate-300 text-slate-400"
+          : pending
+            ? "border-2 border-amber-400 bg-amber-50 text-amber-700"
+            : "border border-slate-300 text-slate-400"
       }`}
-      title={`Touch ${touchNumber}${completed ? " (complete)" : ""}`}
+      title={`Touch ${touchNumber}${completed ? " (complete)" : pending ? " (pending approval)" : ""}`}
     >
       {touchNumber}
     </div>
@@ -43,6 +47,13 @@ export function DealCard({ deal }: DealCardProps) {
       .map((i) => i.touchType)
   );
 
+  // Check for pending approval on Touch 4
+  const hasPendingApproval = interactions.some(
+    (i) =>
+      i.touchType === "touch_4" &&
+      (i.status === "pending_approval" || i.status === "pending_review")
+  );
+
   const lastActivity = interactions[0]?.createdAt;
 
   return (
@@ -53,9 +64,16 @@ export function DealCard({ deal }: DealCardProps) {
             <CardTitle className="text-base font-semibold text-slate-900">
               {deal.company?.name ?? "Unknown Company"}
             </CardTitle>
-            <Badge variant="secondary" className="text-xs">
-              {deal.company?.industry ?? ""}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {hasPendingApproval && (
+                <Badge className="bg-amber-100 text-xs text-amber-800">
+                  Approval Pending
+                </Badge>
+              )}
+              <Badge variant="secondary" className="text-xs">
+                {deal.company?.industry ?? ""}
+              </Badge>
+            </div>
           </div>
           <p className="text-sm text-slate-500">{deal.name}</p>
         </CardHeader>
@@ -73,6 +91,11 @@ export function DealCard({ deal }: DealCardProps) {
               <TouchIndicator
                 touchNumber={3}
                 completed={completedTouches.has("touch_3")}
+              />
+              <TouchIndicator
+                touchNumber={4}
+                completed={completedTouches.has("touch_4")}
+                pending={hasPendingApproval}
               />
             </div>
             {lastActivity && (

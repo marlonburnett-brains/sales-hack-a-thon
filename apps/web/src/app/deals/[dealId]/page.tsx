@@ -1,8 +1,14 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getDealAction } from "@/lib/actions/deal-actions";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { User } from "lucide-react";
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "@/components/ui/alert";
+import { User, Clock } from "lucide-react";
 import { TouchFlowCard } from "@/components/touch/touch-flow-card";
 import { InteractionTimeline } from "@/components/timeline/interaction-timeline";
 
@@ -23,8 +29,38 @@ export default async function DealPage({ params }: DealPageProps) {
   const company = deal.company;
   const interactions = deal.interactions ?? [];
 
+  // Check for pending brief approval
+  const pendingTouch4 = interactions.find(
+    (i) =>
+      i.touchType === "touch_4" &&
+      (i.status === "pending_approval" || i.status === "pending_review")
+  );
+  const pendingBriefId = pendingTouch4?.brief?.id;
+
   return (
     <div className="space-y-8">
+      {/* Pending approval alert banner */}
+      {pendingTouch4 && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <Clock className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800">
+            Brief awaiting approval
+          </AlertTitle>
+          <AlertDescription className="text-amber-700">
+            A sales brief is waiting for review and approval before asset
+            generation can begin.
+            {pendingBriefId && (
+              <Link
+                href={`/deals/${dealId}/review/${pendingBriefId}`}
+                className="ml-2 font-medium underline"
+              >
+                Review now
+              </Link>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">

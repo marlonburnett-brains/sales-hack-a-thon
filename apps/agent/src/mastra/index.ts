@@ -89,8 +89,8 @@ export const mastra = new Mastra({
             include: {
               company: true,
               interactions: {
+                include: { brief: true },
                 orderBy: { createdAt: "desc" },
-                take: 1,
               },
             },
             orderBy: { createdAt: "desc" },
