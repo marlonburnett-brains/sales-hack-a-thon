@@ -27,19 +27,19 @@ import {
   DiscoveryQuestionsLlmSchema,
 } from "@lumenalta/schemas";
 
-// --- Preflight: check for API key ---
+// --- Preflight: check for Vertex AI config ---
 
-if (!env.GEMINI_API_KEY) {
+if (!env.GOOGLE_CLOUD_PROJECT) {
   console.error(
-    "ERROR: GEMINI_API_KEY is not set. Set it in your .env file or environment.\n" +
-      "Get a key from: https://aistudio.google.com/apikey"
+    "ERROR: GOOGLE_CLOUD_PROJECT is not set. Set it in your .env file or environment.\n" +
+      "Required for Vertex AI authentication."
   );
   process.exitCode = 1;
   // eslint-disable-next-line unicorn/no-process-exit
   process.exit(1);
 }
 
-const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
 // --- Schema test definitions ---
 
@@ -189,7 +189,7 @@ Focus on uncovering technical requirements, architecture preferences, and decisi
 
 async function main(): Promise<void> {
   console.log("=== Gemini Round-Trip Schema Validation ===\n");
-  console.log(`Model: gemini-2.5-flash`);
+  console.log(`Model: gpt-oss-120b`);
   console.log(`Schemas to validate: ${tests.length}\n`);
 
   let failures = 0;
@@ -202,7 +202,7 @@ async function main(): Promise<void> {
 
       // Call Gemini with responseJsonSchema
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gpt-oss-120b",
         contents: test.prompt,
         config: {
           responseMimeType: "application/json",

@@ -251,10 +251,10 @@ async function phaseB(
   console.log("Phase B: Metadata Classification");
   console.log("========================================\n");
 
-  const geminiApiKey = env.GEMINI_API_KEY;
+  const geminiApiKey = env.GOOGLE_CLOUD_PROJECT;
   if (!geminiApiKey) {
-    console.error("ERROR: GEMINI_API_KEY is required for classification.");
-    console.error("Set it in apps/agent/.env or get one from https://aistudio.google.com/apikey");
+    console.error("ERROR: GOOGLE_CLOUD_PROJECT is required for classification.");
+    console.error("Set it in apps/agent/.env for Vertex AI authentication.");
     process.exit(1);
   }
 

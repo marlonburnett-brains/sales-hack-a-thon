@@ -85,12 +85,12 @@ const researchCompany = createStep({
   inputSchema,
   outputSchema: researchOutputSchema,
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
     const prompt = `You are a senior business analyst preparing a pre-call briefing for a sales meeting. Research ${inputData.companyName} in the ${inputData.industry} industry. The meeting is with a ${inputData.buyerRole}. Meeting context: ${inputData.meetingContext}. Provide a confident, professional analysis with no hedging or freshness disclaimers. Focus on aspects most relevant to a ${inputData.buyerRole}'s priorities. Reference these Lumenalta solution areas where relevant: ${SOLUTION_PILLARS.join(", ")}.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gpt-oss-120b",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -168,7 +168,7 @@ const generateHypotheses = createStep({
   inputSchema: caseStudiesOutputSchema,
   outputSchema: hypothesesOutputSchema,
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
     const companyResearch = JSON.parse(inputData.companyResearch);
 
     const researchSummary = [
@@ -180,7 +180,7 @@ const generateHypotheses = createStep({
     const prompt = `Generate 3-5 value hypotheses for a sales call with a ${inputData.buyerRole} at ${inputData.companyName}. Each hypothesis should connect a specific business need to a Lumenalta solution. Company context: ${researchSummary}. Meeting context: ${inputData.meetingContext}. Lumenalta solutions: ${SOLUTION_PILLARS.join(", ")}.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gpt-oss-120b",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -211,7 +211,7 @@ const generateDiscoveryQuestions = createStep({
   inputSchema: hypothesesOutputSchema,
   outputSchema: questionsOutputSchema,
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
     const companyResearch = JSON.parse(inputData.companyResearch);
     const hypotheses = JSON.parse(inputData.hypotheses);
 
@@ -230,7 +230,7 @@ const generateDiscoveryQuestions = createStep({
     const prompt = `Generate 5-10 prioritized discovery questions for a sales call with a ${inputData.buyerRole} at ${inputData.companyName}. Map each question to a Lumenalta solution area. Prioritize questions that validate the hypotheses: ${hypothesesSummary}. Company context: ${researchSummary}. Meeting context: ${inputData.meetingContext}.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gpt-oss-120b",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

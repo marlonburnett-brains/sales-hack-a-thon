@@ -51,7 +51,7 @@ const PILOT_DECK_PATTERNS = [
 
 async function extractSolutionPillars(
   taxonomyDecks: DrivePresentation[],
-  geminiApiKey: string
+  _geminiApiKey?: string
 ): Promise<string[]> {
   console.log("\n=== Step 2: Extracting Solution Pillar Taxonomy ===");
 
@@ -72,10 +72,10 @@ async function extractSolutionPillars(
     )
     .join("\n\n---\n\n");
 
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+  const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gpt-oss-120b",
     contents: `You are analyzing Lumenalta's Master Solutions and GTM Solutions decks to extract the complete list of solution pillar names.
 
 A "solution pillar" is a major capability area or service offering that Lumenalta provides to clients. Examples might include "Digital Transformation", "Data Engineering", "Cloud Migration", etc.
@@ -252,10 +252,9 @@ async function main() {
   console.log("=== Pilot Ingestion Pipeline ===");
   console.log(`Drive folder ID: ${env.GOOGLE_DRIVE_FOLDER_ID}`);
 
-  const geminiApiKey = env.GEMINI_API_KEY;
-  if (!geminiApiKey) {
-    console.error("ERROR: GEMINI_API_KEY environment variable is required for classification.");
-    console.error("Get one from: https://aistudio.google.com/apikey");
+  if (!env.GOOGLE_CLOUD_PROJECT) {
+    console.error("ERROR: GOOGLE_CLOUD_PROJECT environment variable is required for classification.");
+    console.error("Set it in apps/agent/.env for Vertex AI authentication.");
     process.exit(1);
   }
 
@@ -281,7 +280,7 @@ async function main() {
     console.log(`  - "${d.name}" (${d.folderPath})`);
   }
 
-  const solutionPillars = await extractSolutionPillars(taxonomyDecks, geminiApiKey);
+  const solutionPillars = await extractSolutionPillars(taxonomyDecks);
 
   // Write solution pillars to manifest
   await mkdir(MANIFEST_DIR, { recursive: true });
@@ -313,7 +312,6 @@ async function main() {
   const classifiedSlides = await classifyAllSlides(
     pilotSlides,
     solutionPillars,
-    geminiApiKey
   );
 
   // ── Step 6: Write pilot manifest ──

@@ -16,6 +16,7 @@
  */
 
 import { GoogleGenAI, Type } from "@google/genai";
+import { env } from "../env";
 import type { ExtractedSlide } from "../lib/slide-extractor";
 import {
   INDUSTRIES,
@@ -175,9 +176,9 @@ export async function classifySlide(
   slide: ExtractedSlide,
   titleSlideText: string,
   solutionPillarList: string[],
-  geminiApiKey: string
+  _geminiApiKey?: string
 ): Promise<ClassifiedSlide> {
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+  const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
   const prompt = buildClassificationPrompt(
     slide,
@@ -186,7 +187,7 @@ export async function classifySlide(
   );
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gpt-oss-120b",
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -237,7 +238,7 @@ export async function classifySlide(
 export async function classifyAllSlides(
   slides: ExtractedSlide[],
   solutionPillarList: string[],
-  geminiApiKey: string
+  _geminiApiKey?: string
 ): Promise<ClassifiedSlide[]> {
   // Group slides by presentationId
   const byPresentation = new Map<string, ExtractedSlide[]>();
@@ -268,7 +269,6 @@ export async function classifyAllSlides(
           slide,
           titleSlideText,
           solutionPillarList,
-          geminiApiKey
         );
         classified.push(result);
       } catch (error) {

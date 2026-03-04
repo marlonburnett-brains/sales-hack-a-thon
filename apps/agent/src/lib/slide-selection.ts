@@ -225,15 +225,14 @@ export async function selectSlidesForDeck(
     };
   }
 
-  // Step 2: Build prompt and call Gemini
-  const geminiApiKey = env.GEMINI_API_KEY;
-  if (!geminiApiKey) {
+  // Step 2: Build prompt and call LLM via Vertex AI
+  if (!env.GOOGLE_CLOUD_PROJECT) {
     throw new Error(
-      "GEMINI_API_KEY is not set. Required for AI-driven slide selection."
+      "GOOGLE_CLOUD_PROJECT is not set. Required for AI-driven slide selection."
     );
   }
 
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+  const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
   if (params.touchType === "touch_2") {
     return selectForTouch2(ai, params, candidates);
@@ -254,7 +253,7 @@ async function selectForTouch2(
   const responseSchema = zodToGeminiSchema(IntroDeckSelectionLlmSchema);
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gpt-oss-120b",
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -287,7 +286,7 @@ async function selectForTouch3(
   const responseSchema = zodToGeminiSchema(CapabilityDeckSelectionLlmSchema);
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gpt-oss-120b",
     contents: prompt,
     config: {
       responseMimeType: "application/json",

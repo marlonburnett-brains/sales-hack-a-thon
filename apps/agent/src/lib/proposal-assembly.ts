@@ -289,8 +289,7 @@ export async function generateSlideCopy(params: {
     };
   }
 
-  const geminiApiKey = env.GEMINI_API_KEY;
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+  const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
   const brandVoice =
     brandGuidelines ||
@@ -323,7 +322,7 @@ export async function generateSlideCopy(params: {
   const responseSchema = zodToGeminiSchema(ProposalCopyLlmSchema);
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gpt-oss-120b",
     contents: prompt,
     config: {
       responseMimeType: "application/json",

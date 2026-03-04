@@ -50,7 +50,7 @@ const generateContent = createStep({
     generatedContent: PagerContentLlmSchema,
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
     const prompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Generate compelling, professional content for a pager targeting this company.
 
@@ -68,7 +68,7 @@ Generate a personalized one-pager with:
 Keep the tone professional but engaging. Focus on the company's likely challenges based on their industry.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gpt-oss-120b",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

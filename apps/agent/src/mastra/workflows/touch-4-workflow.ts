@@ -90,7 +90,7 @@ const parseTranscript = createStep({
     extractedFields: TranscriptFieldsLlmSchema,
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
     const prompt = `You are an expert sales intelligence analyst at Lumenalta, a technology consulting company specializing in ${SOLUTION_PILLARS.join(", ")}.
 
@@ -125,7 +125,7 @@ Extract the following 6 fields:
 - budget: Budget information, investment range, or financial constraints`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gpt-oss-120b",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -315,7 +315,7 @@ const mapPillarsAndGenerateBrief = createStep({
     brief: SalesBriefLlmSchema,
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
     const fields = inputData.reviewedFields;
 
     const prompt = `You are a senior sales strategist at Lumenalta, a technology consulting company. Your job is to create a comprehensive sales brief that maps customer needs to Lumenalta's solution pillars.
@@ -347,7 +347,7 @@ INSTRUCTIONS:
 OUTPUT: A complete sales brief with pillar mapping, evidence, and use cases.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gpt-oss-120b",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -402,7 +402,7 @@ const generateROIFraming = createStep({
     roiFraming: ROIFramingLlmSchema,
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
     const { brief } = inputData;
 
     const useCaseSummary = brief.useCases
@@ -442,7 +442,7 @@ INSTRUCTIONS:
 OUTPUT: ROI framing for each use case with useCaseName matching the brief's use case names exactly.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gpt-oss-120b",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -814,7 +814,7 @@ const assembleSlideJSON = createStep({
     retrievalSummary: z.string(),
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
     // a. Deserialize candidate slides from JSON string
     const candidates = JSON.parse(inputData.candidateSlides) as Array<{
@@ -870,7 +870,7 @@ Provide the selected slide IDs and brief reasoning for your selection.`;
     });
 
     const selectionResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gpt-oss-120b",
       contents: selectionPrompt,
       config: {
         responseMimeType: "application/json",
@@ -1211,7 +1211,7 @@ const createBuyerFAQ = createStep({
     const dateStr = new Date().toISOString().split("T")[0];
 
     // b. Generate FAQ via Gemini 2.5 Flash
-    const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY! });
+    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
     const useCaseSummary = JSON.parse(brief.useCases)
       .map((uc: { name: string; description: string }) => `- ${uc.name}: ${uc.description}`)
@@ -1245,7 +1245,7 @@ EXAMPLES of role-specific objections:
 - VP Engineering: "Do we have internal capacity to maintain this?"`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gpt-oss-120b",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
