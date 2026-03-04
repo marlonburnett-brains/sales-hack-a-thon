@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 10-02-PLAN.md (pre-call briefing UI)
-last_updated: "2026-03-04T17:04:12.595Z"
-last_activity: 2026-03-04 — Plan 10-02 complete (pre-call briefing UI)
+status: in_progress
+stopped_at: Completed 11-01-PLAN.md (pipeline stepper and error handling)
+last_updated: "2026-03-04T17:25:34Z"
+last_activity: 2026-03-04 — Plan 11-01 complete (pipeline stepper and error handling)
 progress:
   total_phases: 11
-  completed_phases: 9
-  total_plans: 22
-  completed_plans: 25
-  percent: 86
+  completed_phases: 10
+  total_plans: 24
+  completed_plans: 23
+  percent: 96
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 10 complete. Pre-call briefing flow fully functional (backend + UI). Phase 11 (end-to-end integration) is next.
+**Current focus:** Phase 11 in progress. Pipeline steppers and error handling integrated across all flows. Demo polish next.
 
 ## Current Position
 
-Phase: 10 of 11 (Pre-Call Briefing Flow)
-Plan: 2 of 2 complete in current phase
-Status: Phase 10 complete. Pre-call briefing flow with form, results display, and deal page integration.
-Last activity: 2026-03-04 — Plan 10-02 complete (pre-call briefing UI)
+Phase: 11 of 11 (End-to-End Integration and Demo Polish)
+Plan: 1 of 2 complete in current phase
+Status: Plan 11-01 complete. Pipeline steppers, sonner toasts, and friendly error handling in all 5 flows.
+Last activity: 2026-03-04 — Plan 11-01 complete (pipeline stepper and error handling)
 
-Progress: [████████░░] 86%
+Progress: [█████████░] 96%
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Progress: [████████░░] 86%
 | Phase 09 P02 | 5min | 2 tasks | 11 files |
 | Phase 10 P01 | 3min | 2 tasks | 5 files |
 | Phase 10 P02 | 3min | 2 tasks | 4 files |
+| Phase 11 P01 | 8min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -171,6 +172,9 @@ Recent decisions affecting current work:
 - [Phase 10]: Graceful fallback for case study search -- empty array if no results or search fails
 - [Phase 10]: 4-state form machine (idle/generating/complete/error) for pre-call form -- simpler than Touch 1 (no intermediate review)
 - [Phase 10]: Prep/Engagement visual hierarchy on deal page -- Prep section above Engagement section with clear headings
+- [Phase 11]: Simplified sonner Toaster to use theme='light' (no ThemeProvider in app)
+- [Phase 11]: Touch 4 assetGenerating state keeps GenerationProgress (asset gen is async, not observed from form)
+- [Phase 11]: Monotonic Set pattern for completed steps prevents stepper flicker during polling
 
 ### Pending Todos
 
@@ -185,6 +189,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T16:56:01Z
-Stopped at: Completed 10-02-PLAN.md (pre-call briefing UI)
-Resume file: .planning/phases/11-end-to-end-integration-and-demo-polish/
+Last session: 2026-03-04T17:25:34Z
+Stopped at: Completed 11-01-PLAN.md (pipeline stepper and error handling)
+Resume file: .planning/phases/11-end-to-end-integration-and-demo-polish/11-02-PLAN.md
