@@ -230,6 +230,6 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 6. HITL Checkpoint 1 — Brief Approval | 2/2 | Complete | 2026-03-04 |
 | 7. RAG Retrieval and Slide Block Assembly | 0/2 | Not started | - |
 | 8. Google Workspace Output Generation | 2/3 | Gap closure | - |
-| 9. HITL Checkpoint 2 and Review Delivery UI | 0/2 | Not started | - |
+| 9. HITL Checkpoint 2 and Review Delivery UI | 1/2 | In Progress|  |
 | 10. Pre-Call Briefing Flow | 0/2 | Not started | - |
 | 11. End-to-End Integration and Demo Polish | 0/2 | Not started | - |

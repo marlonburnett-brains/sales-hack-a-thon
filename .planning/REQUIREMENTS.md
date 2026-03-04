@@ -48,8 +48,8 @@
 ### Review & Delivery
 
 - [ ] **REVW-01**: Seller, SME, Marketing, and Solutions can review all generated assets (deck, talk track, FAQ) in the web app before final delivery
-- [ ] **REVW-02**: Web app provides direct links to all Google Drive artifacts after generation is complete
-- [ ] **REVW-03**: All generated Google Slides output uses only Lumenalta-approved layouts, colors, and typography from the building block library
+- [x] **REVW-02**: Web app provides direct links to all Google Drive artifacts after generation is complete
+- [x] **REVW-03**: All generated Google Slides output uses only Lumenalta-approved layouts, colors, and typography from the building block library
 
 ### Touch 1: First Contact Assets
 
@@ -149,8 +149,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ASSET-04 | Phase 8 | Complete |
 | ASSET-05 | Phase 8 | Complete |
 | REVW-01 | Phase 9 | Pending |
-| REVW-02 | Phase 9 | Pending |
-| REVW-03 | Phase 9 | Pending |
+| REVW-02 | Phase 9 | Complete |
+| REVW-03 | Phase 9 | Complete |
 | TOUCH1-01 | Phase 4 | Complete |
 | TOUCH1-02 | Phase 4 | Complete |
 | TOUCH1-03 | Phase 4 | Complete |

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-03-04T16:27:06.352Z"
-last_activity: 2026-03-04 — Plan 08-03 complete (sourceType branching gap closure for retrieved slides)
+status: in-progress
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-03-04T16:25:47Z"
+last_activity: 2026-03-04 — Plan 09-01 complete (HITL-2 backend foundation with brand compliance + 17-step workflow + asset review API)
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 22
   completed_plans: 22
-  percent: 100
+  percent: 75
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 8 fully complete (all 3 plans including gap closure). Phase 9 (HITL-2 review UI) next.
+**Current focus:** Phase 9 in progress. Plan 09-01 complete (HITL-2 backend: brand compliance, 17-step workflow, asset review API). Plan 09-02 (review delivery UI) next.
 
 ## Current Position
 
-Phase: 8 of 11 (Google Workspace Output Generation) -- COMPLETE
-Plan: 3 of 3 complete in current phase
-Status: Phase 8 fully complete. sourceType branching added for retrieved slides with drive.files.copy() source validation and branded template fallback.
-Last activity: 2026-03-04 — Plan 08-03 complete (sourceType branching gap closure for retrieved slides)
+Phase: 9 of 11 (HITL Checkpoint 2 and Review Delivery UI)
+Plan: 1 of 2 complete in current phase
+Status: Plan 09-01 complete. 17-step workflow with brand compliance, HITL-2 suspend, and typed asset review API layer.
+Last activity: 2026-03-04 — Plan 09-01 complete (HITL-2 backend foundation)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [██████████] 100%
 | Phase 08 P01 | 4min | 2 tasks | 5 files |
 | Phase 08 P02 | 5min | 1 tasks | 4 files |
 | Phase 08 P03 | 3min | 1 tasks | 2 files |
+| Phase 09 P01 | 10min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -154,6 +155,10 @@ Recent decisions affecting current work:
 - [Phase 08]: 14-step Touch 4 workflow is the final pipeline shape for Phase 8 with outputSchema: deckUrl, talkTrackUrl, faqUrl, slideCount, dealFolderId
 - [Phase 08]: Source accessibility check uses drive.files.copy() with immediate cleanup rather than metadata-only check
 - [Phase 08]: Extra fields (presentationId, slideObjectId) pass through JSON serialization boundary without modifying Zod LLM schema
+- [Phase 09]: Brand compliance returns all checks (pass + warn) for full visibility in review panel, not just failures
+- [Phase 09]: Rejection endpoint does NOT resume workflow -- unlimited rejection/re-approve cycles while workflow stays suspended
+- [Phase 09]: complianceResult fetched from workflow step output via run.get() for asset-review GET endpoint
+- [Phase 09]: SlideJSON passthrough added to createBuyerFAQ outputSchema (minimal change to existing step)
 
 ### Pending Todos
 
@@ -168,6 +173,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T16:20:49.044Z
-Stopped at: Completed 08-03-PLAN.md
-Resume file: None
+Last session: 2026-03-04T16:25:47Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: .planning/phases/09-hitl-checkpoint-2-and-review-delivery-ui/09-02-PLAN.md
