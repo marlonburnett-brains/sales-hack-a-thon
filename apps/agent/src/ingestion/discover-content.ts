@@ -13,6 +13,7 @@
  */
 
 import { getDriveClient } from "../lib/google-auth";
+import type { drive_v3 } from "googleapis";
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -96,7 +97,7 @@ async function listPresentationsInFolder(
   // 2. Find shortcuts to presentations
   pageToken = undefined;
   do {
-    const response = await drive.files.list({
+    const response: { data: drive_v3.Schema$FileList } = await drive.files.list({
       q: `'${folderId}' in parents and mimeType = '${SHORTCUT_MIME}' and trashed = false`,
       fields:
         "nextPageToken, files(id, name, mimeType, shortcutDetails)",
@@ -170,7 +171,7 @@ async function listSubfolders(folderId: string): Promise<DriveFolder[]> {
   await delay(RATE_LIMIT_DELAY);
   pageToken = undefined;
   do {
-    const response = await drive.files.list({
+    const response: { data: drive_v3.Schema$FileList } = await drive.files.list({
       q: `'${folderId}' in parents and mimeType = '${SHORTCUT_MIME}' and trashed = false`,
       fields: "nextPageToken, files(id, name, shortcutDetails)",
       pageSize: 100,

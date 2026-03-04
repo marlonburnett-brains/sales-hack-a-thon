@@ -124,14 +124,14 @@ export function TimelineEntry({ interaction }: TimelineEntryProps) {
                 <p className="text-xs font-medium text-slate-500 uppercase">
                   Generated Content
                 </p>
-                {generatedContent.headline && (
+                {typeof generatedContent.headline === "string" && (
                   <p className="font-medium text-slate-800">
-                    {String(generatedContent.headline)}
+                    {generatedContent.headline}
                   </p>
                 )}
-                {generatedContent.valueProposition && (
+                {typeof generatedContent.valueProposition === "string" && (
                   <p className="text-slate-600">
-                    {String(generatedContent.valueProposition)}
+                    {generatedContent.valueProposition}
                   </p>
                 )}
                 {Array.isArray(generatedContent.keyCapabilities) && (

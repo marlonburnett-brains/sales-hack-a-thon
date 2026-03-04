@@ -15,7 +15,7 @@ export const FeedbackSignalSchema = z.object({
   interactionId: z.string(),
   signalType: z.enum(["positive", "negative", "override"]),
   source: z.string(),
-  content: z.record(z.unknown()),
+  content: z.record(z.string(), z.unknown()),
   createdAt: z.string(),
 });
 

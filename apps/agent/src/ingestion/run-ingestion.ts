@@ -22,7 +22,8 @@ import { join } from "node:path";
 import { env } from "../env";
 import { discoverPresentations, type DrivePresentation } from "./discover-content";
 import { extractAllSlides } from "./extract-slides";
-import { classifyAllSlides, type ClassifiedSlide, type SlideMetadata, INDUSTRIES } from "./classify-metadata";
+import { classifyAllSlides, type ClassifiedSlide } from "./classify-metadata";
+import { type SlideMetadata, INDUSTRIES } from "@lumenalta/schemas";
 import { ingestDocument, type SlideDocument } from "../lib/atlusai-client";
 import type { ExtractedSlide } from "../lib/slide-extractor";
 
