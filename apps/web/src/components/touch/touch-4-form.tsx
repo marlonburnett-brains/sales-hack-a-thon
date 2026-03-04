@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { X, Loader2, CheckCircle } from "lucide-react";
 import { GenerationProgress } from "./generation-progress";
+import { FieldReview } from "./field-review";
 import {
   generateTouch4BriefAction,
   checkTouch4StatusAction,
@@ -60,6 +61,11 @@ export function Touch4Form({
   const [runId, setRunId] = useState<string | null>(null);
   const [extractedFields, setExtractedFields] =
     useState<TranscriptFields | null>(null);
+  const [fieldSeverity, setFieldSeverity] = useState<Record<
+    string,
+    string
+  > | null>(null);
+  const [hasErrors, setHasErrors] = useState(false);
   const [progressMessage, setProgressMessage] = useState(
     "Extracting fields from transcript..."
   );
@@ -106,6 +112,7 @@ export function Touch4Form({
                 status: "suspended" as const,
                 extractedFields: payload.extractedFields as TranscriptFields,
                 fieldSeverity: payload.fieldSeverity as Record<string, string>,
+                hasErrors: payload.hasErrors as boolean,
                 stepId: "await-field-review",
               };
             }
@@ -183,6 +190,12 @@ export function Touch4Form({
 
       if (pollResult.status === "suspended" && pollResult.extractedFields) {
         setExtractedFields(pollResult.extractedFields);
+        if (pollResult.fieldSeverity) {
+          setFieldSeverity(pollResult.fieldSeverity);
+        }
+        if (pollResult.hasErrors !== undefined) {
+          setHasErrors(pollResult.hasErrors as boolean);
+        }
         setState("fieldReview");
       } else {
         throw new Error(
@@ -198,17 +211,17 @@ export function Touch4Form({
   };
 
   // Step 2: Continue from field review -> generate brief
-  const handleContinueFromReview = async () => {
-    if (!runId || !extractedFields) return;
+  const handleContinueFromReview = async (reviewedFields: TranscriptFields) => {
+    if (!runId) return;
     setError(null);
     setState("generating");
 
     try {
-      // Resume workflow with the extracted fields (pass through unchanged for now)
+      // Resume workflow with seller-reviewed fields
       const result = await resumeTouch4FieldReviewAction(
         runId,
         "await-field-review",
-        extractedFields
+        reviewedFields
       );
 
       // If already completed
@@ -365,8 +378,8 @@ export function Touch4Form({
     );
   }
 
-  // Field Review state (PLACEHOLDER - Plan 02 will build the full field-review component)
-  if (state === "fieldReview" && extractedFields) {
+  // Field Review state -- seller reviews/edits extracted fields
+  if (state === "fieldReview" && extractedFields && fieldSeverity) {
     return (
       <div className="space-y-4 pt-2">
         <Separator />
@@ -386,22 +399,12 @@ export function Touch4Form({
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-slate-700">
-          <p className="mb-2 font-medium">
-            Field review goes here
-          </p>
-          <p className="text-xs text-slate-500">
-            Plan 02 will build the full field-review component with
-            editable fields and severity indicators.
-          </p>
-        </div>
-
-        <Button
-          onClick={handleContinueFromReview}
-          className="w-full cursor-pointer gap-2"
-        >
-          Continue
-        </Button>
+        <FieldReview
+          extractedFields={extractedFields}
+          fieldSeverity={fieldSeverity}
+          hasErrors={hasErrors}
+          onContinue={handleContinueFromReview}
+        />
       </div>
     );
   }
@@ -411,7 +414,7 @@ export function Touch4Form({
     return (
       <div className="pt-2">
         <Separator className="mb-4" />
-        <GenerationProgress message={progressMessage} />
+        <GenerationProgress message="Generating sales brief..." />
       </div>
     );
   }
