@@ -108,12 +108,12 @@ Plans:
   4. The generated Sales Brief identifies a primary solution pillar and at least one secondary pillar with evidence drawn from the transcript
   5. The brief includes 2-3 ROI outcome statements and 1 value hypothesis per identified use case
   6. All submitted transcripts and conversation context are persisted and indexed in the interaction tracking system for future retrieval
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: Transcript ingestion form (Next.js) with industry/subsector selector, transcript persistence and indexing, and Mastra post-call workflow entry point
-- [ ] 05-02: ParseTranscript step (Gemini Flash + TranscriptFieldsSchema) and ValidateTranscript step with missing-field notification surfaced to UI
-- [ ] 05-03: TranscriptAgent solution pillar mapping, GenerateBrief step (SalesBriefSchema), and ROI framing module (ROIFramingSchema)
+- [ ] 05-01-PLAN.md -- SUBSECTORS constant, Prisma Transcript/Brief models, Touch 4 transcript form with cascading dropdowns, API client + server actions, deal page integration
+- [ ] 05-02-PLAN.md -- Mastra touch-4-workflow (parseTranscript + validateFields + awaitFieldReview steps), field review UI with tiered severity indicators and editable fields
+- [ ] 05-03-PLAN.md -- mapPillarsAndGenerateBrief + generateROIFraming + recordInteraction workflow steps, brief display component with pillar badges and use case cards
 
 ### Phase 6: HITL Checkpoint 1 — Brief Approval
 **Goal**: A seller and SME can review the complete structured brief in the web app and the workflow hard-stops until explicit approval is given — and that approval state survives a server restart
