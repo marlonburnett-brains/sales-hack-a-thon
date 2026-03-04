@@ -23,7 +23,10 @@
       "Bash(npx tsc --noEmit)",
       "Bash(node_modules/.bin/tsc --noEmit)",
       "Bash(/Users/marlonburnett/source/lumenalta-hackathon/apps/web/node_modules/.bin/tsc --noEmit --project apps/web/tsconfig.json)",
-      "Bash(/Users/marlonburnett/source/lumenalta-hackathon/apps/agent/node_modules/.bin/tsc --noEmit --project apps/agent/tsconfig.json)"
+      "Bash(/Users/marlonburnett/source/lumenalta-hackathon/apps/agent/node_modules/.bin/tsc --noEmit --project apps/agent/tsconfig.json)",
+      "Bash(npx tsc --noEmit -p apps/web/tsconfig.json)",
+      "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" config-get workflow._auto_chain_active)",
+      "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" config-get workflow.auto_advance)"
     ]
   },
   "enableAllProjectMcpServers": true,

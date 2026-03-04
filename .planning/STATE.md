@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in_progress
-stopped_at: Completed 11-01-PLAN.md (pipeline stepper and error handling)
-last_updated: "2026-03-04T17:25:34Z"
-last_activity: 2026-03-04 — Plan 11-01 complete (pipeline stepper and error handling)
+status: completed
+stopped_at: Completed 11-02-PLAN.md (demo seed and end-to-end validation) -- ALL PHASES COMPLETE
+last_updated: "2026-03-04T18:35:00Z"
+last_activity: 2026-03-04 — Plan 11-02 complete (demo seed and end-to-end validation). ALL 11 PHASES COMPLETE.
 progress:
   total_phases: 11
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 24
-  completed_plans: 23
-  percent: 96
+  completed_plans: 24
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 11 in progress. Pipeline steppers and error handling integrated across all flows. Demo polish next.
+**Current focus:** ALL PHASES COMPLETE. Demo-ready application with pipeline steppers, error handling, and Meridian Capital Group demo scenario.
 
 ## Current Position
 
 Phase: 11 of 11 (End-to-End Integration and Demo Polish)
-Plan: 1 of 2 complete in current phase
-Status: Plan 11-01 complete. Pipeline steppers, sonner toasts, and friendly error handling in all 5 flows.
-Last activity: 2026-03-04 — Plan 11-01 complete (pipeline stepper and error handling)
+Plan: 2 of 2 complete in current phase
+Status: ALL 11 PHASES COMPLETE. Demo seed data, transcript fixture, pipeline steppers, and error handling validated.
+Last activity: 2026-03-04 — Plan 11-02 complete (demo seed and end-to-end validation)
 
-Progress: [█████████░] 96%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -72,6 +72,7 @@ Progress: [█████████░] 96%
 | Phase 10 P01 | 3min | 2 tasks | 5 files |
 | Phase 10 P02 | 3min | 2 tasks | 4 files |
 | Phase 11 P01 | 8min | 2 tasks | 11 files |
+| Phase 11 P02 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -175,6 +176,7 @@ Recent decisions affecting current work:
 - [Phase 11]: Simplified sonner Toaster to use theme='light' (no ThemeProvider in app)
 - [Phase 11]: Touch 4 assetGenerating state keeps GenerationProgress (asset gen is async, not observed from form)
 - [Phase 11]: Monotonic Set pattern for completed steps prevents stepper flicker during polling
+- [Phase 11]: Idempotent upsert pattern for seed script -- Company.upsert by name, Deal/Interaction existence checks before create
 
 ### Pending Todos
 
@@ -189,6 +191,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T17:25:34Z
-Stopped at: Completed 11-01-PLAN.md (pipeline stepper and error handling)
-Resume file: .planning/phases/11-end-to-end-integration-and-demo-polish/11-02-PLAN.md
+Last session: 2026-03-04T18:34:46.638Z
+Stopped at: Completed 11-02-PLAN.md (demo seed and end-to-end validation) -- ALL PHASES COMPLETE
+Resume file: None

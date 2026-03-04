@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 8: Google Workspace Output Generation** - Create the Google Slides deck, talk track Google Doc, and buyer FAQ Google Doc in shared Lumenalta Drive via the Google Slides and Docs APIs, reusing the slide assembly infrastructure established in Phase 4
 - [x] **Phase 9: HITL Checkpoint 2 and Review Delivery UI** - Wire the second HITL checkpoint for final asset review, build the review panel with Drive artifact links, and enforce brand compliance verification before final delivery (completed 2026-03-04)
 - [x] **Phase 10: Pre-Call Briefing Flow** - Build the independent pre-call input form, company research pipeline, role-specific hypothesis and discovery question generation, and Drive output (completed 2026-03-04)
-- [ ] **Phase 11: End-to-End Integration and Demo Polish** - Connect all pipeline steps across all four touch points, validate full runs for each touch type, add step-by-step progress indicators, harden error handling, and produce a demo-ready scenario
+- [x] **Phase 11: End-to-End Integration and Demo Polish** - Connect all pipeline steps across all four touch points, validate full runs for each touch type, add step-by-step progress indicators, harden error handling, and produce a demo-ready scenario (completed 2026-03-04)
 
 ## Phase Details
 
@@ -210,8 +210,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — PipelineStepper component, sonner toast integration, friendly error mapper, step-by-step progress indicators wired into all 5 form components
-- [ ] 11-02-PLAN.md — Demo seed script (Meridian Capital Group), Financial Services transcript fixture, end-to-end validation checkpoint
+- [x] 11-01-PLAN.md — PipelineStepper component, sonner toast integration, friendly error mapper, step-by-step progress indicators wired into all 5 form components
+- [x] 11-02-PLAN.md — Demo seed script (Meridian Capital Group), Financial Services transcript fixture, end-to-end validation checkpoint
 
 ## Progress
 
@@ -232,4 +232,4 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 8. Google Workspace Output Generation | 2/3 | Gap closure | - |
 | 9. HITL Checkpoint 2 and Review Delivery UI | 2/2 | Complete   | 2026-03-04 |
 | 10. Pre-Call Briefing Flow | 2/2 | Complete    | 2026-03-04 |
-| 11. End-to-End Integration and Demo Polish | 1/2 | In Progress|  |
+| 11. End-to-End Integration and Demo Polish | 2/2 | Complete   | 2026-03-04 |
