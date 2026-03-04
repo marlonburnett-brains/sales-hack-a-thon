@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-04T13:30:27Z"
-last_activity: 2026-03-04 — Plan 07-01 complete (RAG retrieval pipeline + proposal assembly)
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-04T13:39:41Z"
+last_activity: 2026-03-04 — Plan 07-02 complete (workflow integration with 3 new steps)
 progress:
   total_phases: 11
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 13
-  completed_plans: 17
-  percent: 59
+  completed_plans: 18
+  percent: 64
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 7 in progress. Plan 07-01 (RAG retrieval pipeline) complete. Plan 07-02 (deck assembly workflow) next.
+**Current focus:** Phase 7 complete. Both plans (07-01 RAG retrieval pipeline, 07-02 workflow integration) done. Phase 8 (Google Slides generation) next.
 
 ## Current Position
 
-Phase: 7 of 11 (RAG Retrieval and Slide Block Assembly)
-Plan: 1 of 2 complete in current phase
-Status: Plan 07-01 complete. Multi-pass RAG retrieval, metadata filtering, proposal assembly, and quality verification infrastructure built.
-Last activity: 2026-03-04 — Plan 07-01 complete (RAG retrieval pipeline + proposal assembly)
+Phase: 7 of 11 (RAG Retrieval and Slide Block Assembly) -- COMPLETE
+Plan: 2 of 2 complete in current phase
+Status: Phase 7 complete. 11-step Touch 4 workflow with RAG retrieval, SlideJSON assembly, and bespoke copy generation.
+Last activity: 2026-03-04 — Plan 07-02 complete (workflow integration with 3 new steps)
 
-Progress: [██████░░░░] 59%
+Progress: [██████▓░░░] 64%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [██████░░░░] 59%
 | Phase 06-hitl-approval P01 | 2 min | 2 tasks | 5 files |
 | Phase 06-hitl-approval P02 | 6 min | 2 tasks | 12 files |
 | Phase 07-rag-retrieval P01 | 5 min | 3 tasks | 7 files |
+| Phase 07-rag-retrieval P02 | 5 min | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -138,6 +139,10 @@ Recent decisions affecting current work:
 - [Phase 07-rag-retrieval]: Slides with unparseable metadata included by filterByMetadata (don't discard content due to metadata issues)
 - [Phase 07-rag-retrieval]: Dynamic deck length formula with floor 8 ceiling 18 for proposal assembly
 - [Phase 07-rag-retrieval]: Minimal content slides (<20 words) skip Gemini copy rewriting and return original text
+- [Phase 07-rag-retrieval]: JSON string serialization for candidateSlides/slideJSON in workflow steps to avoid Mastra nested schema storage issues
+- [Phase 07-rag-retrieval]: Brand voice guidelines hardcoded as constant (not AtlusAI-retrieved) for simplicity
+- [Phase 07-rag-retrieval]: Sequential per-slide copy generation (for...of, not Promise.all) for quality and rate limit safety
+- [Phase 07-rag-retrieval]: Workflow outputSchema updated from Phase 6 decision fields to Phase 7 slideJSON/slideCount/retrievalSummary
 
 ### Pending Todos
 
@@ -152,6 +157,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T13:30:27Z
-Stopped at: Completed 07-01-PLAN.md
-Resume file: .planning/phases/07-rag-retrieval-and-slide-block-assembly/07-01-SUMMARY.md
+Last session: 2026-03-04T13:39:41Z
+Stopped at: Completed 07-02-PLAN.md
+Resume file: .planning/phases/07-rag-retrieval-and-slide-block-assembly/07-02-SUMMARY.md
