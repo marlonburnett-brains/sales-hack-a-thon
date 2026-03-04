@@ -53,11 +53,11 @@
 
 ### Touch 1: First Contact Assets
 
-- [ ] **TOUCH1-01**: Seller can select a first-contact flow, input company name, industry, and key context to generate a 1-2 pager
-- [ ] **TOUCH1-02**: System suggests a generated 1-2 slide Google Slides pager from a branded template, customized with client-specific positioning; seller can approve the suggestion or override it with a custom version
-- [ ] **TOUCH1-03**: Generated or overridden pager is saved to a per-deal folder in shared Lumenalta Google Drive
-- [ ] **TOUCH1-04**: Approved pagers are recorded as successful outputs (positive signal); overridden pagers are recorded as learning signals (negative signal) and the seller's override is ingested into AtlusAI for future retrieval
-- [ ] **TOUCH1-05**: Seller can upload a custom Google Slides pager as an override when the AI-generated suggestion doesn't meet needs
+- [x] **TOUCH1-01**: Seller can select a first-contact flow, input company name, industry, and key context to generate a 1-2 pager
+- [x] **TOUCH1-02**: System suggests a generated 1-2 slide Google Slides pager from a branded template, customized with client-specific positioning; seller can approve the suggestion or override it with a custom version
+- [x] **TOUCH1-03**: Generated or overridden pager is saved to a per-deal folder in shared Lumenalta Google Drive
+- [x] **TOUCH1-04**: Approved pagers are recorded as successful outputs (positive signal); overridden pagers are recorded as learning signals (negative signal) and the seller's override is ingested into AtlusAI for future retrieval
+- [x] **TOUCH1-05**: Seller can upload a custom Google Slides pager as an override when the AI-generated suggestion doesn't meet needs
 
 ### Touch 2: Intro Conversation Assets
 
@@ -75,11 +75,11 @@
 
 ### Data Capture & Knowledge Growth
 
-- [ ] **DATA-01**: Every interaction across all touch points persists a complete interaction record: inputs (company, industry, context), decisions (approve/override/edit), output artifact references (Drive links), and timestamps
+- [x] **DATA-01**: Every interaction across all touch points persists a complete interaction record: inputs (company, industry, context), decisions (approve/override/edit), output artifact references (Drive links), and timestamps
 - [ ] **DATA-02**: All meeting transcripts, notes, and conversation context submitted through any flow are stored and indexed for future retrieval and pattern learning
-- [ ] **DATA-03**: Approved outputs are flagged as positive examples in the knowledge base; overrides and significant edits are flagged as improvement signals
+- [x] **DATA-03**: Approved outputs are flagged as positive examples in the knowledge base; overrides and significant edits are flagged as improvement signals
 - [x] **DATA-04**: Override pagers (Touch 1), edited decks, and approved outputs are ingested into AtlusAI to improve future generation quality — the knowledge base grows with each interaction
-- [ ] **DATA-05**: Interaction history for a given company/deal is retrievable so that later touch points can build on context from earlier touches (e.g., Touch 2 can reference what was generated in Touch 1 for the same company)
+- [x] **DATA-05**: Interaction history for a given company/deal is retrievable so that later touch points can build on context from earlier touches (e.g., Touch 2 can reference what was generated in Touch 1 for the same company)
 
 ## v2 Requirements
 
@@ -151,11 +151,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REVW-01 | Phase 9 | Pending |
 | REVW-02 | Phase 9 | Pending |
 | REVW-03 | Phase 9 | Pending |
-| TOUCH1-01 | Phase 4 | Pending |
-| TOUCH1-02 | Phase 4 | Pending |
-| TOUCH1-03 | Phase 4 | Pending |
-| TOUCH1-04 | Phase 4 | Pending |
-| TOUCH1-05 | Phase 4 | Pending |
+| TOUCH1-01 | Phase 4 | Complete |
+| TOUCH1-02 | Phase 4 | Complete |
+| TOUCH1-03 | Phase 4 | Complete |
+| TOUCH1-04 | Phase 4 | Complete |
+| TOUCH1-05 | Phase 4 | Complete |
 | TOUCH2-01 | Phase 4 | Pending |
 | TOUCH2-02 | Phase 4 | Complete |
 | TOUCH2-03 | Phase 4 | Complete |
@@ -164,11 +164,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOUCH3-02 | Phase 4 | Complete |
 | TOUCH3-03 | Phase 4 | Complete |
 | TOUCH3-04 | Phase 4 | Pending |
-| DATA-01 | Phase 4 | Pending |
+| DATA-01 | Phase 4 | Complete |
 | DATA-02 | Phase 5 | Pending |
-| DATA-03 | Phase 4 | Pending |
+| DATA-03 | Phase 4 | Complete |
 | DATA-04 | Phase 4 | Complete |
-| DATA-05 | Phase 4 | Pending |
+| DATA-05 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 46 total

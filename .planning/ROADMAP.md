@@ -93,8 +93,8 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- Prisma models (Company, Deal, InteractionRecord, FeedbackSignal), shadcn/ui init, deals dashboard, unified deal page, Touch 1 pager generation with approve/edit/override, slide assembly engine, Drive folder management, interaction tracking timeline
-- [ ] 04-02-PLAN.md -- Shared slide selection and assembly engine (AtlusAI search, Gemini slide selection, deck assembly pipeline, salesperson/customer customization injection, AtlusAI re-ingestion pipeline)
+- [x] 04-01-PLAN.md -- Prisma models (Company, Deal, InteractionRecord, FeedbackSignal), shadcn/ui init, deals dashboard, unified deal page, Touch 1 pager generation with approve/edit/override, slide assembly engine, Drive folder management, interaction tracking timeline
+- [x] 04-02-PLAN.md -- Shared slide selection and assembly engine (AtlusAI search, Gemini slide selection, deck assembly pipeline, salesperson/customer customization injection, AtlusAI re-ingestion pipeline)
 - [ ] 04-03-PLAN.md -- Touch 2 intro deck flow and Touch 3 capability deck flow using shared assembly engine, with interaction capture and Drive output
 
 ### Phase 5: Transcript Processing and Brief Generation
@@ -224,7 +224,7 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 1. Monorepo Foundation | 3/3 | Complete | 2026-03-03 |
 | 2. Content Library Ingestion | 1/3 | In progress | - |
 | 3. Zod Schema Layer and Gemini Validation | 2/2 | Complete | 2026-03-03 |
-| 4. Touch 1-3 Asset Generation | 0/3 | Not started | - |
+| 4. Touch 1-3 Asset Generation | 2/3 | In progress | - |
 | 5. Transcript Processing and Brief Generation | 0/3 | Not started | - |
 | 6. HITL Checkpoint 1 — Brief Approval | 0/2 | Not started | - |
 | 7. RAG Retrieval and Slide Block Assembly | 0/2 | Not started | - |

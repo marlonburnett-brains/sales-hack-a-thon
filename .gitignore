@@ -9,6 +9,7 @@ out/
 dist/
 build/
 .turbo/
+.mastra/
 
 # Cache
 .cache/

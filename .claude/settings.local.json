@@ -8,7 +8,10 @@
       "Bash(npx tsx --env-file=.env src/ingestion/run-ingestion.ts --manifest-only)",
       "Bash(npx tsx --env-file=.env src/ingestion/run-ingestion.ts --ingest-only)",
       "Bash(node \"/Users/marlonburnett/source/lumenalta-hackathon/.claude/get-shit-done/bin/gsd-tools.cjs\" init plan-phase 04)",
-      "Bash(git checkout .planning/ROADMAP.md)"
+      "Bash(git checkout .planning/ROADMAP.md)",
+      "Bash(pnpm --filter web build)",
+      "Bash(pnpm --filter agent exec tsc --noEmit)",
+      "Bash(pnpm install)"
     ]
   },
   "enableAllProjectMcpServers": true,

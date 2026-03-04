@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-03-04T00:25:00Z"
-last_activity: "2026-03-04 — Plan 04-02 complete (slide selection engine, deck assembly, ingestion pipeline)"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-04T00:47:00Z"
+last_activity: "2026-03-04 — Plan 04-01 complete (Touch 1 vertical slice: Prisma models, deals dashboard, Touch 1 workflow, slide assembly, Drive folders, interaction timeline)"
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 5
-  completed_plans: 9
-  percent: 20
+  completed_plans: 10
+  percent: 22
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 4 in progress. Plan 04-02 complete (slide selection & assembly engine). Next: Plan 04-01 or 04-03.
+**Current focus:** Phase 4 in progress. Plans 04-01 and 04-02 complete. Next: Plan 04-03 (Touch 2/3 flows).
 
 ## Current Position
 
 Phase: 4 of 11 (Touch 1-3 Asset Generation & Interaction Tracking) — IN PROGRESS
-Plan: 1 of 3 complete in current phase (04-02 complete; 04-01 and 04-03 remaining)
-Status: Slide selection engine, deck assembly pipeline, and AtlusAI re-ingestion pipeline implemented as four reusable library modules. Ready for Touch workflow wiring (Plan 04-03) after Plan 04-01 delivers Prisma models + UI + Touch 1 flow.
-Last activity: 2026-03-04 — Plan 04-02 complete (slide selection engine, deck assembly, ingestion pipeline)
+Plan: 2 of 3 complete in current phase (04-01 and 04-02 complete; 04-03 remaining)
+Status: Touch 1 vertical slice complete (Prisma models, deals dashboard, Touch 1 workflow, slide assembly, Drive folders, interaction timeline). Slide selection engine also complete. Ready for Touch 2/3 flows (Plan 04-03).
+Last activity: 2026-03-04 — Plan 04-01 complete (Touch 1 vertical slice)
 
 Progress: [██░░░░░░░░] 20%
 
@@ -55,6 +55,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 03-zod-schema-layer P01 | 4 min | 2 tasks | 19 files |
 | Phase 03-zod-schema-layer P02 | 7 min | 1 task | 1 file |
 | Phase 04-touch-1-3 P02 | 5 min | 2 tasks | 4 files |
+| Phase 04-touch-1-3 P01 | 15 min | 3 tasks | 43 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,13 @@ Recent decisions affecting current work:
 - [Phase 04-touch-1-3]: Copy-and-prune strategy for deck assembly: copy entire source, delete unwanted slides, reorder remaining — preserves original formatting
 - [Phase 04-touch-1-3]: All decision outcomes (approved/edited/overridden) ingested into AtlusAI with decision signal metadata for weighted examples
 - [Phase 04-touch-1-3]: Generated deck document IDs use 'generated:' namespace prefix to avoid collisions with original library content
+- [Phase 04-touch-1-3]: shadcn/ui initialized with 12 component primitives for consistent UI across all phases
+- [Phase 04-touch-1-3]: Mastra Hono-based registerApiRoute used for CRUD endpoints (companies, deals, interactions) on agent server
+- [Phase 04-touch-1-3]: Touch 1 workflow uses Mastra suspend/resume for seller review checkpoint (pattern reusable for HITL checkpoints in Phases 6 and 9)
+- [Phase 04-touch-1-3]: assembleFromTemplate kept generic (no Touch-specific logic) for Phase 8 reuse
+- [Phase 04-touch-1-3]: Three-state client form pattern (input/review/result) established for touch flows
+- [Phase 04-touch-1-3]: File upload uses Route Handler (not Server Action) due to FormData streaming requirements
+- [Phase 04-touch-1-3]: Server Actions proxy all API calls to agent service via typed api-client
 
 ### Pending Todos
 
@@ -106,6 +114,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T00:25:00Z
-Stopped at: Completed 04-02-PLAN.md
-Resume file: .planning/phases/04-touch-1-3-asset-generation-interaction-tracking/04-02-SUMMARY.md
+Last session: 2026-03-04T00:47:00Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: .planning/phases/04-touch-1-3-asset-generation-interaction-tracking/04-01-SUMMARY.md
