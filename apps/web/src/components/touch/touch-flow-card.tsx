@@ -8,6 +8,7 @@ import { Sparkles, Lock } from "lucide-react";
 import { Touch1Form } from "./touch-1-form";
 import { Touch2Form } from "./touch-2-form";
 import { Touch3Form } from "./touch-3-form";
+import { Touch4Form } from "./touch-4-form";
 import type { InteractionRecord } from "@/lib/api-client";
 
 interface TouchFlowCardProps {
@@ -26,6 +27,7 @@ const TOUCH_COLORS: Record<number, string> = {
   1: "bg-blue-50 border-blue-200",
   2: "bg-green-50 border-green-200",
   3: "bg-purple-50 border-purple-200",
+  4: "bg-amber-50 border-amber-200",
 };
 
 export function TouchFlowCard({
@@ -115,6 +117,15 @@ export function TouchFlowCard({
 
         {showForm && touchNumber === 3 && (
           <Touch3Form
+            dealId={dealId}
+            companyName={companyName}
+            industry={industry}
+            onClose={() => setShowForm(false)}
+          />
+        )}
+
+        {showForm && touchNumber === 4 && (
+          <Touch4Form
             dealId={dealId}
             companyName={companyName}
             industry={industry}

@@ -43,7 +43,7 @@ export default async function DealPage({ params }: DealPageProps) {
       </div>
 
       {/* Touch Flow Cards */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <TouchFlowCard
           dealId={deal.id}
           touchNumber={1}
@@ -75,6 +75,16 @@ export default async function DealPage({ params }: DealPageProps) {
           companyName={company?.name ?? ""}
           industry={company?.industry ?? ""}
           interactions={interactions.filter((i) => i.touchType === "touch_3")}
+        />
+        <TouchFlowCard
+          dealId={deal.id}
+          touchNumber={4}
+          touchName="Post-Call Brief"
+          description="Process a meeting transcript to generate a Multi-Pillar Sales Brief with ROI framing."
+          available={true}
+          companyName={company?.name ?? ""}
+          industry={company?.industry ?? ""}
+          interactions={interactions.filter((i) => i.touchType === "touch_4")}
         />
       </div>
 

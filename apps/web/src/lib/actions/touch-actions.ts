@@ -9,6 +9,9 @@ import {
   getTouch2WorkflowStatus,
   startTouch3Workflow,
   getTouch3WorkflowStatus,
+  startTouch4Workflow,
+  getTouch4WorkflowStatus,
+  resumeTouch4Workflow,
 } from "@/lib/api-client";
 import type { WorkflowStartResult, WorkflowRunResult } from "@/lib/api-client";
 
@@ -94,4 +97,45 @@ export async function checkTouch3StatusAction(
   runId: string
 ): Promise<WorkflowRunResult> {
   return getTouch3WorkflowStatus(runId);
+}
+
+// ────────────────────────────────────────────────────────────
+// Touch 4 Actions
+// ────────────────────────────────────────────────────────────
+
+export async function generateTouch4BriefAction(
+  dealId: string,
+  formData: {
+    companyName: string;
+    industry: string;
+    subsector: string;
+    transcript: string;
+    additionalNotes?: string;
+  }
+): Promise<WorkflowStartResult> {
+  const result = await startTouch4Workflow(dealId, formData);
+  return result;
+}
+
+export async function checkTouch4StatusAction(
+  runId: string
+): Promise<WorkflowRunResult> {
+  return getTouch4WorkflowStatus(runId);
+}
+
+export async function resumeTouch4FieldReviewAction(
+  runId: string,
+  stepId: string,
+  reviewedFields: {
+    customerContext: string;
+    businessOutcomes: string;
+    constraints: string;
+    stakeholders: string;
+    timeline: string;
+    budget: string;
+  }
+): Promise<WorkflowRunResult> {
+  const result = await resumeTouch4Workflow(runId, stepId, { reviewedFields });
+  revalidatePath("/deals");
+  return result;
 }

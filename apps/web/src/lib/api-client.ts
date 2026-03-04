@@ -272,6 +272,68 @@ export async function getTouch3WorkflowStatus(
 }
 
 // ────────────────────────────────────────────────────────────
+// Touch 4 Workflow
+// ────────────────────────────────────────────────────────────
+
+export async function startTouch4Workflow(
+  dealId: string,
+  formData: {
+    companyName: string;
+    industry: string;
+    subsector: string;
+    transcript: string;
+    additionalNotes?: string;
+  }
+): Promise<WorkflowStartResult> {
+  return fetchJSON<WorkflowStartResult>(
+    "/api/workflows/touch-4-workflow/start",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        inputData: {
+          dealId,
+          ...formData,
+        },
+      }),
+    }
+  );
+}
+
+export async function getTouch4WorkflowStatus(
+  runId: string
+): Promise<WorkflowRunResult> {
+  return fetchJSON<WorkflowRunResult>(
+    `/api/workflows/touch-4-workflow/${runId}`
+  );
+}
+
+export async function resumeTouch4Workflow(
+  runId: string,
+  stepId: string,
+  resumeData: {
+    reviewedFields: {
+      customerContext: string;
+      businessOutcomes: string;
+      constraints: string;
+      stakeholders: string;
+      timeline: string;
+      budget: string;
+    };
+  }
+): Promise<WorkflowRunResult> {
+  return fetchJSON<WorkflowRunResult>(
+    `/api/workflows/touch-4-workflow/${runId}/resume`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        stepId,
+        resumeData,
+      }),
+    }
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // Touch 1 Override Upload
 // ────────────────────────────────────────────────────────────
 
