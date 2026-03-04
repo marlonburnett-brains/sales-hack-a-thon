@@ -1,11 +1,12 @@
 /**
- * Touch 4 Transcript Processing Workflow (8-Step Pipeline with HITL-1 Approval)
+ * Touch 4 Transcript Processing Workflow (11-Step Pipeline with HITL-1 Approval + RAG Retrieval + Copy Generation)
  *
  * Workflow: parseTranscript -> validateFields -> awaitFieldReview (SUSPEND 1)
  *           -> mapPillarsAndGenerateBrief -> generateROIFraming
  *           -> recordInteraction (persists with status "pending_approval")
  *           -> awaitBriefApproval (SUSPEND 2)
  *           -> finalizeApproval (updates to "approved", creates FeedbackSignal)
+ *           -> ragRetrieval -> assembleSlideJSON -> generateCustomCopy
  *
  * Step 1: Gemini 2.5 Flash extracts 6 structured fields from the raw transcript
  * Step 2: Pure logic validates fields and assigns tiered severity
@@ -15,6 +16,9 @@
  * Step 6: Persists InteractionRecord, Transcript, Brief to database (status: pending_approval)
  * Step 7: Suspends for brief approval -- HITL Checkpoint 1 (hard stop)
  * Step 8: Finalizes approval -- updates Brief/InteractionRecord status, creates FeedbackSignal
+ * Step 9: RAG retrieval from AtlusAI (multi-pass: primary pillar, secondary pillars, case studies)
+ * Step 10: Assembles SlideJSON with Gemini-powered weighted slide selection
+ * Step 11: Generates bespoke copy per retrieved slide, grounded in approved brief
  */
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
@@ -29,7 +33,11 @@ import {
   SOLUTION_PILLARS,
 } from "@lumenalta/schemas";
 import { searchForProposal } from "../../lib/atlusai-search";
-import { filterByMetadata, buildSlideJSON } from "../../lib/proposal-assembly";
+import {
+  filterByMetadata,
+  buildSlideJSON,
+  generateSlideCopy,
+} from "../../lib/proposal-assembly";
 import { env } from "../../env";
 
 // ────────────────────────────────────────────────────────────
@@ -893,7 +901,95 @@ Provide the selected slide IDs and brief reasoning for your selection.`;
 });
 
 // ────────────────────────────────────────────────────────────
-// Workflow: Touch 4 Transcript Processing (8-Step Pipeline)
+// Step 11: Generate bespoke copy per retrieved slide, grounded in approved brief
+// ────────────────────────────────────────────────────────────
+
+const BRAND_GUIDELINES =
+  "Lumenalta brand voice: Professional, outcome-focused, concise. Avoid jargon and buzzwords. Lead with business outcomes, not technology features. Use active voice. Be specific with metrics and results when available. Address the customer's situation directly.";
+
+const generateCustomCopy = createStep({
+  id: "generate-custom-copy",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    briefData: SalesBriefLlmSchema,
+    roiFramingData: ROIFramingLlmSchema,
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    retrievalSummary: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    retrievalSummary: z.string(),
+  }),
+  execute: async ({ inputData }) => {
+    // a. Deserialize slideJSON from JSON string to SlideAssembly
+    const slideAssembly = JSON.parse(inputData.slideJSON) as {
+      slides: Array<{
+        slideTitle: string;
+        bullets: string[];
+        speakerNotes: string;
+        sourceBlockRef: string;
+        sectionType: string;
+        sourceType: string;
+      }>;
+    };
+
+    const totalSlides = slideAssembly.slides.length;
+
+    // b. Process each slide sequentially (per-slide for quality, avoids rate limiting)
+    for (let i = 0; i < slideAssembly.slides.length; i++) {
+      const slide = slideAssembly.slides[i];
+
+      console.log(
+        `[generate-custom-copy] Generating copy for slide ${i + 1}/${totalSlides}: ${slide.slideTitle}`
+      );
+
+      // Skip synthesized slides -- they already have final content from buildSlideJSON
+      if (slide.sourceType === "synthesized") {
+        console.log(
+          `[generate-custom-copy] Skipping synthesized slide: ${slide.slideTitle}`
+        );
+        continue;
+      }
+
+      // Generate bespoke copy for retrieved slides
+      const copy = await generateSlideCopy({
+        slide: {
+          slideTitle: slide.slideTitle,
+          textContent: slide.bullets.join("\n"),
+          speakerNotes: slide.speakerNotes,
+          sourceBlockRef: slide.sourceBlockRef,
+        },
+        brief: inputData.briefData,
+        brandGuidelines: BRAND_GUIDELINES,
+      });
+
+      // Replace slide content with generated copy
+      slideAssembly.slides[i] = {
+        ...slide,
+        slideTitle: copy.slideTitle,
+        bullets: copy.bullets,
+        speakerNotes: copy.speakerNotes,
+      };
+    }
+
+    // c. Re-serialize the updated SlideAssembly
+    return {
+      interactionId: inputData.interactionId,
+      briefId: inputData.briefId,
+      slideJSON: JSON.stringify(slideAssembly),
+      slideCount: totalSlides,
+      retrievalSummary: inputData.retrievalSummary,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Workflow: Touch 4 Transcript Processing (11-Step Pipeline)
 // ────────────────────────────────────────────────────────────
 
 export const touch4Workflow = createWorkflow({
@@ -908,12 +1004,10 @@ export const touch4Workflow = createWorkflow({
   }),
   outputSchema: z.object({
     interactionId: z.string(),
-    transcriptId: z.string(),
     briefId: z.string(),
-    briefData: SalesBriefLlmSchema,
-    roiFramingData: ROIFramingLlmSchema,
-    decision: z.enum(["approved"]),
-    reviewerName: z.string(),
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    retrievalSummary: z.string(),
   }),
 })
   .then(parseTranscript)
@@ -925,4 +1019,6 @@ export const touch4Workflow = createWorkflow({
   .then(awaitBriefApproval)
   .then(finalizeApproval)
   .then(ragRetrieval)
-  .then(assembleSlideJSON);
+  .then(assembleSlideJSON)
+  .then(generateCustomCopy)
+  .commit();
