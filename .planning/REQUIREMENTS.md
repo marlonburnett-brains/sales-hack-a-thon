@@ -17,8 +17,8 @@
 
 - [x] **TRANS-01**: Seller can paste a raw meeting transcript into a web UI form
 - [x] **TRANS-02**: Seller can select the relevant industry (from 11) and subsector (from 62) before processing
-- [ ] **TRANS-03**: System extracts structured fields from transcript: Customer Context, Business Outcomes, Constraints, Stakeholders, Timeline, Budget
-- [ ] **TRANS-04**: System flags specific missing critical fields (e.g., "Budget not mentioned") and prevents pipeline from advancing until seller acknowledges each gap
+- [x] **TRANS-03**: System extracts structured fields from transcript: Customer Context, Business Outcomes, Constraints, Stakeholders, Timeline, Budget
+- [x] **TRANS-04**: System flags specific missing critical fields (e.g., "Budget not mentioned") and prevents pipeline from advancing until seller acknowledges each gap
 - [ ] **TRANS-05**: System maps transcript content to primary and secondary Lumenalta solution pillars
 
 ### Brief Generation
@@ -130,8 +130,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BRIEF-05 | Phase 10 | Pending |
 | TRANS-01 | Phase 5 | Complete |
 | TRANS-02 | Phase 5 | Complete |
-| TRANS-03 | Phase 5 | Pending |
-| TRANS-04 | Phase 5 | Pending |
+| TRANS-03 | Phase 5 | Complete |
+| TRANS-04 | Phase 5 | Complete |
 | TRANS-05 | Phase 5 | Pending |
 | GEN-01 | Phase 5 | Pending |
 | GEN-02 | Phase 5 | Pending |
