@@ -142,6 +142,12 @@ model Brief {
   budget           String
   useCases         String            // JSON: [{name, description, roiOutcomes[], valueHypothesis}]
   roiFraming       String            // JSON: [{useCaseName, roiOutcomes[], valueHypothesis}]
+  // Phase 6: Approval tracking
+  approvalStatus    String    @default("pending_approval") // "pending_approval" | "approved" | "rejected" | "changes_requested"
+  reviewerName      String?   // Name of person who approved/rejected
+  approvedAt        DateTime? // Timestamp of approval
+  rejectionFeedback String?   // Freeform text on rejection
+  workflowRunId     String?   // Mastra workflow run ID for resume operations
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 

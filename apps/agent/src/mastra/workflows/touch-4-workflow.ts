@@ -1,15 +1,20 @@
 /**
- * Touch 4 Transcript Processing Workflow (Complete 7-Step Pipeline)
+ * Touch 4 Transcript Processing Workflow (8-Step Pipeline with HITL-1 Approval)
  *
- * Workflow: parseTranscript -> validateFields -> awaitFieldReview (SUSPEND)
- *           -> mapPillarsAndGenerateBrief -> generateROIFraming -> recordInteraction
+ * Workflow: parseTranscript -> validateFields -> awaitFieldReview (SUSPEND 1)
+ *           -> mapPillarsAndGenerateBrief -> generateROIFraming
+ *           -> recordInteraction (persists with status "pending_approval")
+ *           -> awaitBriefApproval (SUSPEND 2)
+ *           -> finalizeApproval (updates to "approved", creates FeedbackSignal)
  *
  * Step 1: Gemini 2.5 Flash extracts 6 structured fields from the raw transcript
  * Step 2: Pure logic validates fields and assigns tiered severity
  * Step 3: Suspends for seller review -- seller edits/fills gaps, then resumes
  * Step 4: Gemini maps transcript to Lumenalta solution pillars and generates sales brief
  * Step 5: Gemini enriches use cases with specific ROI outcome statements
- * Step 6: Persists InteractionRecord, Transcript, Brief, and FeedbackSignal to database
+ * Step 6: Persists InteractionRecord, Transcript, Brief to database (status: pending_approval)
+ * Step 7: Suspends for brief approval -- HITL Checkpoint 1 (hard stop)
+ * Step 8: Finalizes approval -- updates Brief/InteractionRecord status, creates FeedbackSignal
  */
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
@@ -188,7 +193,7 @@ const validateFields = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 3: Await Field Review (SUSPEND for seller review)
+// Step 3: Await Field Review (SUSPEND 1 for seller review)
 // ────────────────────────────────────────────────────────────
 
 const awaitFieldReview = createStep({
@@ -443,6 +448,7 @@ OUTPUT: ROI framing for each use case with useCaseName matching the brief's use 
 
 // ────────────────────────────────────────────────────────────
 // Step 6: Record Interaction (Database persistence, no LLM)
+// Status: "pending_approval" -- Brief exists BEFORE approval checkpoint
 // ────────────────────────────────────────────────────────────
 
 const recordInteraction = createStep({
@@ -468,13 +474,13 @@ const recordInteraction = createStep({
   execute: async ({ inputData }) => {
     const { brief, roiFraming, reviewedFields } = inputData;
 
-    // a. Create InteractionRecord
+    // a. Create InteractionRecord with status "pending_approval" (not "completed")
     const interaction = await prisma.interactionRecord.create({
       data: {
         dealId: inputData.dealId,
         touchType: "touch_4",
-        status: "completed",
-        decision: "completed",
+        status: "pending_approval",
+        decision: null,
         inputs: JSON.stringify({
           companyName: inputData.companyName,
           industry: inputData.industry,
@@ -505,7 +511,8 @@ const recordInteraction = createStep({
       },
     });
 
-    // c. Create Brief record
+    // c. Create Brief record with approvalStatus "pending_approval"
+    // workflowRunId left null -- will be set by the approve endpoint
     const briefRecord = await prisma.brief.create({
       data: {
         interactionId: interaction.id,
@@ -520,22 +527,11 @@ const recordInteraction = createStep({
         budget: brief.budget,
         useCases: JSON.stringify(brief.useCases),
         roiFraming: JSON.stringify(roiFraming.useCases),
+        approvalStatus: "pending_approval",
       },
     });
 
-    // d. Create FeedbackSignal
-    await prisma.feedbackSignal.create({
-      data: {
-        interactionId: interaction.id,
-        signalType: "positive",
-        source: "touch_4_complete",
-        content: JSON.stringify({
-          primaryPillar: brief.primaryPillar,
-          secondaryPillars: brief.secondaryPillars,
-          useCaseCount: brief.useCases.length,
-        }),
-      },
-    });
+    // Note: FeedbackSignal is NOT created here -- moved to finalizeApproval step
 
     return {
       interactionId: interaction.id,
@@ -548,7 +544,155 @@ const recordInteraction = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Workflow: Touch 4 Transcript Processing (Complete Pipeline)
+// Step 7: Await Brief Approval (SUSPEND 2 -- HITL Checkpoint 1)
+// The workflow cannot progress past this point without explicit human approval.
+// Rejection/edit operations happen via custom API endpoints, not workflow resume.
+// ────────────────────────────────────────────────────────────
+
+const awaitBriefApproval = createStep({
+  id: "await-brief-approval",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    transcriptId: z.string(),
+    briefId: z.string(),
+    briefData: SalesBriefLlmSchema,
+    roiFramingData: ROIFramingLlmSchema,
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    transcriptId: z.string(),
+    briefId: z.string(),
+    briefData: SalesBriefLlmSchema,
+    roiFramingData: ROIFramingLlmSchema,
+    decision: z.enum(["approved"]),
+    reviewerName: z.string(),
+  }),
+  resumeSchema: z.object({
+    decision: z.enum(["approved"]),
+    reviewerName: z.string(),
+    editedBrief: SalesBriefLlmSchema.optional(),
+  }),
+  suspendSchema: z.object({
+    reason: z.string(),
+    briefId: z.string(),
+    interactionId: z.string(),
+  }),
+  execute: async ({ inputData, resumeData, suspend }) => {
+    if (!resumeData) {
+      // First execution: suspend and wait for brief approval
+      return await suspend({
+        reason: "Brief approval required -- HITL Checkpoint 1",
+        briefId: inputData.briefId,
+        interactionId: inputData.interactionId,
+      });
+    }
+
+    // Resumed with approval decision
+    return {
+      interactionId: inputData.interactionId,
+      transcriptId: inputData.transcriptId,
+      briefId: inputData.briefId,
+      briefData: resumeData.editedBrief ?? inputData.briefData,
+      roiFramingData: inputData.roiFramingData,
+      decision: resumeData.decision,
+      reviewerName: resumeData.reviewerName,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Step 8: Finalize Approval (Updates status, creates FeedbackSignal)
+// ────────────────────────────────────────────────────────────
+
+const finalizeApproval = createStep({
+  id: "finalize-approval",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    transcriptId: z.string(),
+    briefId: z.string(),
+    briefData: SalesBriefLlmSchema,
+    roiFramingData: ROIFramingLlmSchema,
+    decision: z.enum(["approved"]),
+    reviewerName: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    transcriptId: z.string(),
+    briefId: z.string(),
+    briefData: SalesBriefLlmSchema,
+    roiFramingData: ROIFramingLlmSchema,
+    decision: z.enum(["approved"]),
+    reviewerName: z.string(),
+  }),
+  execute: async ({ inputData }) => {
+    // a. Update Brief status to "approved"
+    await prisma.brief.update({
+      where: { id: inputData.briefId },
+      data: {
+        approvalStatus: "approved",
+        reviewerName: inputData.reviewerName,
+        approvedAt: new Date(),
+      },
+    });
+
+    // b. Update InteractionRecord status to "completed" and decision to "approved"
+    await prisma.interactionRecord.update({
+      where: { id: inputData.interactionId },
+      data: {
+        status: "completed",
+        decision: "approved",
+      },
+    });
+
+    // c. If brief data was edited during approval, update Brief fields in-place
+    // (The awaitBriefApproval step already swapped briefData to editedBrief if provided)
+    const brief = inputData.briefData;
+    await prisma.brief.update({
+      where: { id: inputData.briefId },
+      data: {
+        primaryPillar: brief.primaryPillar,
+        secondaryPillars: JSON.stringify(brief.secondaryPillars),
+        evidence: brief.evidence,
+        customerContext: brief.customerContext,
+        businessOutcomes: brief.businessOutcomes,
+        constraints: brief.constraints,
+        stakeholders: brief.stakeholders,
+        timeline: brief.timeline,
+        budget: brief.budget,
+        useCases: JSON.stringify(brief.useCases),
+      },
+    });
+
+    // d. Create FeedbackSignal for approval
+    await prisma.feedbackSignal.create({
+      data: {
+        interactionId: inputData.interactionId,
+        signalType: "positive",
+        source: "brief_approved",
+        content: JSON.stringify({
+          reviewerName: inputData.reviewerName,
+          primaryPillar: brief.primaryPillar,
+          secondaryPillars: brief.secondaryPillars,
+          useCaseCount: brief.useCases.length,
+          briefId: inputData.briefId,
+        }),
+      },
+    });
+
+    return {
+      interactionId: inputData.interactionId,
+      transcriptId: inputData.transcriptId,
+      briefId: inputData.briefId,
+      briefData: inputData.briefData,
+      roiFramingData: inputData.roiFramingData,
+      decision: inputData.decision,
+      reviewerName: inputData.reviewerName,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Workflow: Touch 4 Transcript Processing (8-Step Pipeline)
 // ────────────────────────────────────────────────────────────
 
 export const touch4Workflow = createWorkflow({
@@ -567,6 +711,8 @@ export const touch4Workflow = createWorkflow({
     briefId: z.string(),
     briefData: SalesBriefLlmSchema,
     roiFramingData: ROIFramingLlmSchema,
+    decision: z.enum(["approved"]),
+    reviewerName: z.string(),
   }),
 })
   .then(parseTranscript)
@@ -575,4 +721,6 @@ export const touch4Workflow = createWorkflow({
   .then(mapPillarsAndGenerateBrief)
   .then(generateROIFraming)
   .then(recordInteraction)
+  .then(awaitBriefApproval)
+  .then(finalizeApproval)
   .commit();
