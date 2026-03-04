@@ -71,7 +71,7 @@ Each task was committed atomically:
 
 1. **Task 1: Add sourceType branching to deck-assembly.ts with presentationId passthrough** - `6a58a82` (feat)
 
-**Plan metadata:** [pending] (docs: complete plan)
+**Plan metadata:** `ced7704` (docs: complete plan)
 
 ## Files Created/Modified
 - `apps/agent/src/lib/deck-assembly.ts` - Added SlideWithSourceMeta interface, tryAccessSourcePresentation helper, and sourceType branching in the slide processing loop

@@ -11,7 +11,19 @@
       "Bash(git checkout .planning/ROADMAP.md)",
       "Bash(pnpm --filter web build)",
       "Bash(pnpm --filter agent exec tsc --noEmit)",
-      "Bash(pnpm install)"
+      "Bash(pnpm install)",
+      "Bash(pnpm build)",
+      "Bash(pnpm test)",
+      "Bash(pnpm lint)",
+      "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" commit \"docs\\(phase-06\\): complete phase execution\" --files .planning/ROADMAP.md .planning/STATE.md .planning/REQUIREMENTS.md .planning/phases/06-hitl-checkpoint-1-brief-approval/06-VERIFICATION.md)",
+      "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" state advance-plan)",
+      "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" state update-progress)",
+      "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" roadmap update-plan-progress 9)",
+      "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" requirements mark-complete REVW-01 REVW-02 REVW-03)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(/Users/marlonburnett/source/lumenalta-hackathon/apps/web/node_modules/.bin/tsc --noEmit --project apps/web/tsconfig.json)",
+      "Bash(/Users/marlonburnett/source/lumenalta-hackathon/apps/agent/node_modules/.bin/tsc --noEmit --project apps/agent/tsconfig.json)"
     ]
   },
   "enableAllProjectMcpServers": true,
