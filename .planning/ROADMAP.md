@@ -125,11 +125,11 @@ Plans:
   3. No asset generation step begins until an SME explicitly clicks the approve button in the web app
   4. If the server is restarted after the brief is generated but before it is approved, the workflow resumes correctly when the approve action is submitted
   5. If the brief is rejected, the seller receives feedback and can resubmit a corrected version without starting a new workflow
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: Mastra workflow suspend at HITL-1, Prisma workflow state table (created -> notified -> viewed -> approved/rejected/expired), resume API endpoint
-- [ ] 06-02: Brief approval UI (shadcn/ui card components rendering SalesBrief fields), workflow status polling (3s interval), and server-restart resume verification
+- [ ] 06-01-PLAN.md -- Prisma Brief approval fields, Touch 4 workflow restructure (awaitBriefApproval suspend + finalizeApproval), API endpoints for approve/reject/edit/fetch, api-client + server actions
+- [ ] 06-02-PLAN.md -- BriefApprovalBar + BriefEditMode components, Touch4Form approval state machine, standalone review page, deal page alert banner, dashboard indicator, timeline lifecycle
 
 ### Phase 7: RAG Retrieval and Slide Block Assembly
 **Goal**: Given an approved brief, the system retrieves relevant slide blocks from AtlusAI, assembles them into an ordered structured JSON representation, and generates bespoke copy for each block — all constrained to pre-approved building blocks
@@ -141,7 +141,7 @@ Plans:
   3. Every slide block in the SlideJSON references a specific AtlusAI content block — no AI-generated layouts appear
   4. Bespoke copy generated for each block is grounded in the approved brief language and does not introduce capabilities or claims not in the retrieved content
   5. RAG retrieval quality is verified for at least 3 different industries before Phase 8 begins
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 07-01: ContentAgent with AtlusAI MCP tool, RAGRetrieval workflow step (semantic + structured filter search), and retrieval quality verification across 3 industries
@@ -157,7 +157,7 @@ Plans:
   3. A talk track Google Doc is created in the same per-deal Drive folder with speaker notes for each slide
   4. A buyer FAQ Google Doc is created with anticipated objections and recommended responses derived from the stakeholder roles and business context in the approved brief
   5. All three artifacts are accessible from the shared Lumenalta Drive folder without requiring per-seller OAuth
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 08-01: Google Slides creation step (Drive template copy -> sequential batchUpdate, getPlaceholderIdByType utility, per-deal folder creation) — extending Phase 4 slide assembly pipeline
@@ -172,7 +172,7 @@ Plans:
   2. The workflow pauses at HITL-2 and no "delivery complete" state is reached until at least one reviewer explicitly approves
   3. Every slide in the delivered deck uses only Lumenalta-approved layouts, colors, and typography from the building block library — a brand compliance check runs before HITL-2 is triggered
   4. The web app status page correctly reflects the full workflow lifecycle from transcript submission through final delivery
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 09-01: Mastra workflow suspend at HITL-2, asset review panel UI with Drive artifact links (shadcn/ui), brand compliance check step before HITL-2 trigger
@@ -188,7 +188,7 @@ Plans:
   3. The generated briefing includes role-specific hypotheses framed for the buyer's persona (e.g., CIO framing vs CFO framing)
   4. The briefing includes 5-10 prioritized discovery questions mapped to specific Lumenalta solution areas
   5. The completed briefing is displayed in the web app and a formatted Google Doc is saved to the shared Lumenalta Drive with a link surfaced in the UI
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 10-01: Pre-call input form (Next.js), ResearchAgent (AtlusAI + public source research), ResearchCompany and GenerateHypotheses workflow steps
@@ -206,7 +206,7 @@ Plans:
   5. Any pipeline error surfaces a clear, actionable error message in the UI — no silent failures or raw stack traces visible to the user
   6. Interaction records are captured for every flow execution and a company's interaction history is accessible for cross-touch-point context
   7. A rehearsed demo scenario (realistic transcript from a Financial Services deal) runs cleanly through all four touch types, produces polished assets, and demonstrates the knowledge base growing with each interaction
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 11-01: End-to-end pipeline wiring for all four touch types, step-by-step progress indicator UI, and error handling hardening across all workflow steps
