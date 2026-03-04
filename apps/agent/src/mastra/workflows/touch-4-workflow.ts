@@ -1,5 +1,5 @@
 /**
- * Touch 4 Transcript Processing Workflow (14-Step Pipeline with HITL-1 Approval + RAG Retrieval + Google Workspace Output)
+ * Touch 4 Transcript Processing Workflow (17-Step Pipeline with HITL-1 Approval + RAG Retrieval + Google Workspace Output + HITL-2 Asset Review)
  *
  * Workflow: parseTranscript -> validateFields -> awaitFieldReview (SUSPEND 1)
  *           -> mapPillarsAndGenerateBrief -> generateROIFraming
@@ -8,6 +8,7 @@
  *           -> finalizeApproval (updates to "approved", creates FeedbackSignal)
  *           -> ragRetrieval -> assembleSlideJSON -> generateCustomCopy
  *           -> createSlidesDeck -> createTalkTrack -> createBuyerFAQ
+ *           -> checkBrandCompliance -> awaitAssetReview (SUSPEND 3) -> finalizeDelivery
  *
  * Step 1: Gemini 2.5 Flash extracts 6 structured fields from the raw transcript
  * Step 2: Pure logic validates fields and assigns tiered severity
@@ -23,6 +24,9 @@
  * Step 12: createSlidesDeck -- Google Slides deck from SlideJSON
  * Step 13: createTalkTrack -- slide-by-slide talk track Google Doc
  * Step 14: createBuyerFAQ -- role-specific buyer FAQ Google Doc + outputRefs persistence
+ * Step 15: checkBrandCompliance -- pure-logic brand compliance checks on SlideJSON
+ * Step 16: awaitAssetReview -- suspends for HITL Checkpoint 2 (asset review approval)
+ * Step 17: finalizeDelivery -- updates status to "delivered", creates approval FeedbackSignal
  */
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
@@ -46,6 +50,7 @@ import {
 import { createSlidesDeckFromJSON } from "../../lib/deck-assembly";
 import { createGoogleDoc } from "../../lib/doc-builder";
 import type { DocSection } from "../../lib/doc-builder";
+import { runBrandComplianceChecks } from "../../lib/brand-compliance";
 import { getOrCreateDealFolder } from "../../lib/drive-folders";
 import { env } from "../../env";
 
@@ -1186,6 +1191,7 @@ const createBuyerFAQ = createStep({
     deckUrl: z.string(),
     talkTrackUrl: z.string(),
     faqUrl: z.string(),
+    slideJSON: z.string(),
     slideCount: z.number(),
     dealFolderId: z.string(),
   }),
@@ -1306,6 +1312,7 @@ EXAMPLES of role-specific objections:
       deckUrl: inputData.deckUrl,
       talkTrackUrl: inputData.talkTrackUrl,
       faqUrl: result.docUrl,
+      slideJSON: inputData.slideJSON,
       slideCount: inputData.slideCount,
       dealFolderId: inputData.dealFolderId,
     };
@@ -1313,7 +1320,239 @@ EXAMPLES of role-specific objections:
 });
 
 // ────────────────────────────────────────────────────────────
-// Workflow: Touch 4 Transcript Processing (14-Step Pipeline)
+// Step 15: Brand Compliance Check -- Pure Logic (No LLM)
+// Validates SlideJSON against brand and structural rules
+// ────────────────────────────────────────────────────────────
+
+const complianceCheckSchema = z.object({
+  check: z.string(),
+  message: z.string(),
+  severity: z.enum(["pass", "warn"]),
+});
+
+const complianceResultSchema = z.object({
+  passed: z.boolean(),
+  warnings: z.array(complianceCheckSchema),
+});
+
+const checkBrandCompliance = createStep({
+  id: "check-brand-compliance",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    faqUrl: z.string(),
+    slideJSON: z.string(),
+    slideCount: z.number(),
+    dealFolderId: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    faqUrl: z.string(),
+    slideCount: z.number(),
+    dealFolderId: z.string(),
+    complianceResult: complianceResultSchema,
+  }),
+  execute: async ({ inputData }) => {
+    // a. Deserialize slideJSON
+    const slideAssembly = JSON.parse(inputData.slideJSON) as {
+      slides: Array<{
+        slideTitle: string;
+        bullets: string[];
+        speakerNotes: string;
+        sectionType: string;
+        sourceType: string;
+      }>;
+    };
+
+    // b. Fetch brief for companyName
+    const brief = await prisma.brief.findUniqueOrThrow({
+      where: { id: inputData.briefId },
+      include: {
+        interaction: {
+          include: { deal: { include: { company: true } } },
+        },
+      },
+    });
+
+    const companyName = brief.interaction.deal.company.name;
+
+    // c. Run brand compliance checks (pure logic, no LLM)
+    const complianceResult = runBrandComplianceChecks({
+      slideJSON: slideAssembly,
+      companyName,
+    });
+
+    console.log(
+      `[check-brand-compliance] Passed: ${complianceResult.passed}, Warnings: ${complianceResult.warnings.filter((w) => w.severity === "warn").length}`
+    );
+
+    // d. Update InteractionRecord status to "pending_asset_review"
+    await prisma.interactionRecord.update({
+      where: { id: inputData.interactionId },
+      data: { status: "pending_asset_review" },
+    });
+
+    return {
+      interactionId: inputData.interactionId,
+      briefId: inputData.briefId,
+      deckUrl: inputData.deckUrl,
+      talkTrackUrl: inputData.talkTrackUrl,
+      faqUrl: inputData.faqUrl,
+      slideCount: inputData.slideCount,
+      dealFolderId: inputData.dealFolderId,
+      complianceResult,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Step 16: Await Asset Review -- HITL Checkpoint 2 (SUSPEND 3)
+// Workflow suspends until reviewer approves assets
+// ────────────────────────────────────────────────────────────
+
+const awaitAssetReview = createStep({
+  id: "await-asset-review",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    faqUrl: z.string(),
+    slideCount: z.number(),
+    dealFolderId: z.string(),
+    complianceResult: complianceResultSchema,
+  }),
+  suspendSchema: z.object({
+    reason: z.string(),
+    interactionId: z.string(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    faqUrl: z.string(),
+    complianceResult: complianceResultSchema,
+  }),
+  resumeSchema: z.object({
+    decision: z.enum(["approved"]),
+    reviewerName: z.string(),
+    reviewerRole: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    faqUrl: z.string(),
+    slideCount: z.number(),
+    dealFolderId: z.string(),
+    reviewerName: z.string(),
+    reviewerRole: z.string(),
+  }),
+  execute: async ({ inputData, resumeData, suspend }) => {
+    if (!resumeData) {
+      // First execution: suspend for asset review
+      await suspend({
+        reason: "Asset review required -- HITL Checkpoint 2",
+        interactionId: inputData.interactionId,
+        deckUrl: inputData.deckUrl,
+        talkTrackUrl: inputData.talkTrackUrl,
+        faqUrl: inputData.faqUrl,
+        complianceResult: inputData.complianceResult,
+      });
+
+      // This line is never reached (suspend halts execution)
+      throw new Error("Unreachable after suspend");
+    }
+
+    // Resumed with approval -- merge input + resume data
+    return {
+      interactionId: inputData.interactionId,
+      briefId: inputData.briefId,
+      deckUrl: inputData.deckUrl,
+      talkTrackUrl: inputData.talkTrackUrl,
+      faqUrl: inputData.faqUrl,
+      slideCount: inputData.slideCount,
+      dealFolderId: inputData.dealFolderId,
+      reviewerName: resumeData.reviewerName,
+      reviewerRole: resumeData.reviewerRole,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Step 17: Finalize Delivery -- Updates status, creates approval FeedbackSignal
+// ────────────────────────────────────────────────────────────
+
+const finalizeDelivery = createStep({
+  id: "finalize-delivery",
+  inputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    faqUrl: z.string(),
+    slideCount: z.number(),
+    dealFolderId: z.string(),
+    reviewerName: z.string(),
+    reviewerRole: z.string(),
+  }),
+  outputSchema: z.object({
+    interactionId: z.string(),
+    briefId: z.string(),
+    deckUrl: z.string(),
+    talkTrackUrl: z.string(),
+    faqUrl: z.string(),
+    slideCount: z.number(),
+    dealFolderId: z.string(),
+  }),
+  execute: async ({ inputData }) => {
+    // a. Update InteractionRecord status to "delivered" and decision to "approved"
+    await prisma.interactionRecord.update({
+      where: { id: inputData.interactionId },
+      data: {
+        status: "delivered",
+        decision: "approved",
+      },
+    });
+
+    // b. Create positive FeedbackSignal for asset review approval
+    await prisma.feedbackSignal.create({
+      data: {
+        interactionId: inputData.interactionId,
+        signalType: "positive",
+        source: "asset_review",
+        content: JSON.stringify({
+          reviewerName: inputData.reviewerName,
+          reviewerRole: inputData.reviewerRole,
+          decision: "approved",
+          deckUrl: inputData.deckUrl,
+          talkTrackUrl: inputData.talkTrackUrl,
+          faqUrl: inputData.faqUrl,
+        }),
+      },
+    });
+
+    console.log(
+      `[finalize-delivery] Delivery finalized by ${inputData.reviewerName} (${inputData.reviewerRole})`
+    );
+
+    return {
+      interactionId: inputData.interactionId,
+      briefId: inputData.briefId,
+      deckUrl: inputData.deckUrl,
+      talkTrackUrl: inputData.talkTrackUrl,
+      faqUrl: inputData.faqUrl,
+      slideCount: inputData.slideCount,
+      dealFolderId: inputData.dealFolderId,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Workflow: Touch 4 Transcript Processing (17-Step Pipeline)
 // ────────────────────────────────────────────────────────────
 
 export const touch4Workflow = createWorkflow({
@@ -1350,4 +1589,7 @@ export const touch4Workflow = createWorkflow({
   .then(createSlidesDeck)
   .then(createTalkTrack)
   .then(createBuyerFAQ)
+  .then(checkBrandCompliance)
+  .then(awaitAssetReview)
+  .then(finalizeDelivery)
   .commit();
