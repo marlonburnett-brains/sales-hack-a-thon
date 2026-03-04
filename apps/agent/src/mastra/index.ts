@@ -127,7 +127,7 @@ export const mastra = new Mastra({
             include: {
               company: true,
               interactions: {
-                include: { feedbackSignals: true },
+                include: { feedbackSignals: true, brief: true },
                 orderBy: { createdAt: "desc" },
               },
             },
@@ -277,6 +277,272 @@ export const mastra = new Mastra({
           } catch (err) {
             console.error("[touch-1/upload] Error:", err);
             return c.json({ error: "Upload failed", details: String(err) }, 500);
+          }
+        },
+      }),
+      // ────────────────────────────────────────────────────────────
+      // Brief Approval API (Phase 6 -- HITL Checkpoint 1)
+      // ────────────────────────────────────────────────────────────
+
+      // GET /briefs/:briefId -- Fetch brief by ID
+      registerApiRoute("/briefs/:briefId", {
+        method: "GET",
+        handler: async (c) => {
+          const briefId = c.req.param("briefId");
+          try {
+            const brief = await prisma.brief.findUniqueOrThrow({
+              where: { id: briefId },
+              include: {
+                interaction: {
+                  include: { deal: { include: { company: true } } },
+                },
+              },
+            });
+            return c.json(brief);
+          } catch {
+            return c.json({ error: "Brief not found" }, 404);
+          }
+        },
+      }),
+
+      // GET /briefs/:briefId/review -- Fetch brief + deal context for standalone review page
+      registerApiRoute("/briefs/:briefId/review", {
+        method: "GET",
+        handler: async (c) => {
+          const briefId = c.req.param("briefId");
+          try {
+            const brief = await prisma.brief.findUniqueOrThrow({
+              where: { id: briefId },
+              include: {
+                interaction: {
+                  include: {
+                    deal: { include: { company: true } },
+                    transcript: true,
+                  },
+                },
+              },
+            });
+
+            const deal = brief.interaction.deal;
+            const transcript = brief.interaction.transcript;
+
+            return c.json({
+              brief: {
+                id: brief.id,
+                interactionId: brief.interactionId,
+                primaryPillar: brief.primaryPillar,
+                secondaryPillars: brief.secondaryPillars,
+                evidence: brief.evidence,
+                customerContext: brief.customerContext,
+                businessOutcomes: brief.businessOutcomes,
+                constraints: brief.constraints,
+                stakeholders: brief.stakeholders,
+                timeline: brief.timeline,
+                budget: brief.budget,
+                useCases: brief.useCases,
+                roiFraming: brief.roiFraming,
+                approvalStatus: brief.approvalStatus,
+                reviewerName: brief.reviewerName,
+                approvedAt: brief.approvedAt,
+                rejectionFeedback: brief.rejectionFeedback,
+                workflowRunId: brief.workflowRunId,
+                createdAt: brief.createdAt,
+                updatedAt: brief.updatedAt,
+              },
+              deal: {
+                companyName: deal.company.name,
+                industry: deal.company.industry,
+                dealName: deal.name,
+              },
+              transcript: transcript
+                ? {
+                    subsector: transcript.subsector,
+                    summary: transcript.rawText.slice(0, 200),
+                  }
+                : null,
+            });
+          } catch {
+            return c.json({ error: "Brief not found" }, 404);
+          }
+        },
+      }),
+
+      // POST /briefs/:briefId/approve -- Resume workflow with approval
+      registerApiRoute("/briefs/:briefId/approve", {
+        method: "POST",
+        handler: async (c) => {
+          const briefId = c.req.param("briefId");
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                reviewerName: z.string().min(1),
+                editedBrief: z.record(z.unknown()).optional(),
+                runId: z.string().min(1),
+              })
+              .parse(body);
+
+            // Update workflowRunId on the Brief (steps cannot access runId)
+            await prisma.brief.update({
+              where: { id: briefId },
+              data: { workflowRunId: data.runId },
+            });
+
+            // Resume the workflow at the await-brief-approval step
+            const wf = mastra.getWorkflow("touch-4-workflow");
+            const run = wf.createRun({ runId: data.runId });
+            await run.resume({
+              stepId: "await-brief-approval",
+              resumeData: {
+                decision: "approved",
+                reviewerName: data.reviewerName,
+                editedBrief: data.editedBrief,
+              },
+            });
+
+            return c.json({ success: true });
+          } catch (err) {
+            console.error("[briefs/approve] Error:", err);
+            return c.json(
+              { error: "Approval failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
+      // POST /briefs/:briefId/reject -- Record rejection (does NOT resume workflow)
+      registerApiRoute("/briefs/:briefId/reject", {
+        method: "POST",
+        handler: async (c) => {
+          const briefId = c.req.param("briefId");
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                reviewerName: z.string().min(1),
+                feedback: z.string().min(1),
+              })
+              .parse(body);
+
+            // Update Brief with rejection info
+            const brief = await prisma.brief.update({
+              where: { id: briefId },
+              data: {
+                approvalStatus: "changes_requested",
+                reviewerName: data.reviewerName,
+                rejectionFeedback: data.feedback,
+              },
+            });
+
+            // Update InteractionRecord status
+            await prisma.interactionRecord.update({
+              where: { id: brief.interactionId },
+              data: { status: "changes_requested" },
+            });
+
+            // Create FeedbackSignal for rejection
+            await prisma.feedbackSignal.create({
+              data: {
+                interactionId: brief.interactionId,
+                signalType: "negative",
+                source: "brief_rejection",
+                content: JSON.stringify({
+                  reviewerName: data.reviewerName,
+                  feedback: data.feedback,
+                  briefId,
+                }),
+              },
+            });
+
+            return c.json({ success: true });
+          } catch (err) {
+            console.error("[briefs/reject] Error:", err);
+            return c.json(
+              { error: "Rejection failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
+      // POST /briefs/:briefId/edit -- Save brief edits with FeedbackSignal diff
+      registerApiRoute("/briefs/:briefId/edit", {
+        method: "POST",
+        handler: async (c) => {
+          const briefId = c.req.param("briefId");
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                editedBrief: z.record(z.unknown()),
+                reviewerName: z.string().min(1),
+              })
+              .parse(body);
+
+            // Snapshot original brief before editing
+            const original = await prisma.brief.findUniqueOrThrow({
+              where: { id: briefId },
+            });
+
+            const edited = data.editedBrief as Record<string, unknown>;
+
+            // Update Brief fields in-place
+            await prisma.brief.update({
+              where: { id: briefId },
+              data: {
+                primaryPillar: (edited.primaryPillar as string) ?? original.primaryPillar,
+                secondaryPillars:
+                  typeof edited.secondaryPillars === "string"
+                    ? edited.secondaryPillars
+                    : JSON.stringify(edited.secondaryPillars ?? JSON.parse(original.secondaryPillars)),
+                evidence: (edited.evidence as string) ?? original.evidence,
+                customerContext: (edited.customerContext as string) ?? original.customerContext,
+                businessOutcomes: (edited.businessOutcomes as string) ?? original.businessOutcomes,
+                constraints: (edited.constraints as string) ?? original.constraints,
+                stakeholders: (edited.stakeholders as string) ?? original.stakeholders,
+                timeline: (edited.timeline as string) ?? original.timeline,
+                budget: (edited.budget as string) ?? original.budget,
+                useCases:
+                  typeof edited.useCases === "string"
+                    ? edited.useCases
+                    : JSON.stringify(edited.useCases ?? JSON.parse(original.useCases)),
+                approvalStatus: "pending_approval", // Reset for re-review
+              },
+            });
+
+            // Create FeedbackSignal with before/after diff
+            await prisma.feedbackSignal.create({
+              data: {
+                interactionId: original.interactionId,
+                signalType: "edited",
+                source: "brief_edit",
+                content: JSON.stringify({
+                  reviewerName: data.reviewerName,
+                  before: {
+                    primaryPillar: original.primaryPillar,
+                    secondaryPillars: original.secondaryPillars,
+                    evidence: original.evidence,
+                    customerContext: original.customerContext,
+                    businessOutcomes: original.businessOutcomes,
+                    constraints: original.constraints,
+                    stakeholders: original.stakeholders,
+                    timeline: original.timeline,
+                    budget: original.budget,
+                    useCases: original.useCases,
+                  },
+                  after: edited,
+                }),
+              },
+            });
+
+            return c.json({ success: true });
+          } catch (err) {
+            console.error("[briefs/edit] Error:", err);
+            return c.json(
+              { error: "Edit failed", details: String(err) },
+              500
+            );
           }
         },
       }),

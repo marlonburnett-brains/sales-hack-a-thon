@@ -101,6 +101,29 @@ export interface FeedbackSignal {
   createdAt: string;
 }
 
+export interface BriefRecord {
+  id: string;
+  interactionId: string;
+  primaryPillar: string;
+  secondaryPillars: string; // JSON array
+  evidence: string;
+  customerContext: string;
+  businessOutcomes: string;
+  constraints: string;
+  stakeholders: string;
+  timeline: string;
+  budget: string;
+  useCases: string; // JSON
+  roiFraming: string; // JSON
+  approvalStatus: string; // "pending_approval" | "approved" | "rejected" | "changes_requested"
+  reviewerName: string | null;
+  approvedAt: string | null;
+  rejectionFeedback: string | null;
+  workflowRunId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface InteractionRecord {
   id: string;
   dealId: string;
@@ -114,6 +137,7 @@ export interface InteractionRecord {
   createdAt: string;
   updatedAt: string;
   feedbackSignals?: FeedbackSignal[];
+  brief?: BriefRecord | null;
 }
 
 export async function getInteractions(
@@ -363,4 +387,58 @@ export async function uploadTouch1Override(
   }
 
   return response.json() as Promise<UploadResult>;
+}
+
+// ────────────────────────────────────────────────────────────
+// Brief Approval API (Phase 6 -- HITL Checkpoint 1)
+// ────────────────────────────────────────────────────────────
+
+export interface BriefReviewData {
+  brief: BriefRecord;
+  deal: { companyName: string; industry: string; dealName: string };
+  transcript: { subsector: string; summary: string } | null;
+}
+
+export async function getBrief(briefId: string): Promise<BriefRecord> {
+  return fetchJSON<BriefRecord>(`/briefs/${briefId}`);
+}
+
+export async function getBriefReview(
+  briefId: string
+): Promise<BriefReviewData> {
+  return fetchJSON<BriefReviewData>(`/briefs/${briefId}/review`);
+}
+
+export async function approveBrief(
+  briefId: string,
+  data: {
+    reviewerName: string;
+    editedBrief?: Record<string, unknown>;
+    runId: string;
+  }
+): Promise<{ success: boolean }> {
+  return fetchJSON<{ success: boolean }>(`/briefs/${briefId}/approve`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function rejectBrief(
+  briefId: string,
+  data: { reviewerName: string; feedback: string }
+): Promise<{ success: boolean }> {
+  return fetchJSON<{ success: boolean }>(`/briefs/${briefId}/reject`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function editBrief(
+  briefId: string,
+  data: { editedBrief: Record<string, unknown>; reviewerName: string }
+): Promise<{ success: boolean }> {
+  return fetchJSON<{ success: boolean }>(`/briefs/${briefId}/edit`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }

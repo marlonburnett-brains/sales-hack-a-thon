@@ -12,8 +12,18 @@ import {
   startTouch4Workflow,
   getTouch4WorkflowStatus,
   resumeTouch4Workflow,
+  getBrief,
+  getBriefReview,
+  approveBrief,
+  rejectBrief,
+  editBrief,
 } from "@/lib/api-client";
-import type { WorkflowStartResult, WorkflowRunResult } from "@/lib/api-client";
+import type {
+  WorkflowStartResult,
+  WorkflowRunResult,
+  BriefRecord,
+  BriefReviewData,
+} from "@/lib/api-client";
 
 export async function generateTouch1PagerAction(
   dealId: string,
@@ -136,6 +146,53 @@ export async function resumeTouch4FieldReviewAction(
   }
 ): Promise<WorkflowRunResult> {
   const result = await resumeTouch4Workflow(runId, stepId, { reviewedFields });
+  revalidatePath("/deals");
+  return result;
+}
+
+// ────────────────────────────────────────────────────────────
+// Brief Approval Actions (Phase 6 -- HITL Checkpoint 1)
+// ────────────────────────────────────────────────────────────
+
+export async function getBriefAction(
+  briefId: string
+): Promise<BriefRecord> {
+  return getBrief(briefId);
+}
+
+export async function getBriefReviewAction(
+  briefId: string
+): Promise<BriefReviewData> {
+  return getBriefReview(briefId);
+}
+
+export async function approveBriefAction(
+  briefId: string,
+  data: {
+    reviewerName: string;
+    editedBrief?: Record<string, unknown>;
+    runId: string;
+  }
+): Promise<{ success: boolean }> {
+  const result = await approveBrief(briefId, data);
+  revalidatePath("/deals");
+  return result;
+}
+
+export async function rejectBriefAction(
+  briefId: string,
+  data: { reviewerName: string; feedback: string }
+): Promise<{ success: boolean }> {
+  const result = await rejectBrief(briefId, data);
+  revalidatePath("/deals");
+  return result;
+}
+
+export async function editBriefAction(
+  briefId: string,
+  data: { editedBrief: Record<string, unknown>; reviewerName: string }
+): Promise<{ success: boolean }> {
+  const result = await editBrief(briefId, data);
   revalidatePath("/deals");
   return result;
 }
