@@ -1,0 +1,167 @@
+Discovery Call Transcript
+Client: Meridian Capital Group
+Date: January 15, 2026
+Participants: Alex Chen (Lumenalta, Sales Director), Jordan Patel (VP of Engineering, Meridian Capital Group)
+
+---
+
+Alex Chen: Jordan, thanks for taking the time today. I really appreciate you fitting this in -- I know January is always a crunch after the holidays, especially in financial services.
+
+Jordan Patel: Absolutely, Alex. We've been looking forward to this conversation. Our CTO, Sarah Kim, has been pushing for us to explore modern infrastructure partners, and your work with capital markets firms came up in a few conversations. So the timing is good.
+
+Alex Chen: That's great to hear. Before we dive in, I'd love to get a picture of where Meridian is today and where you're trying to go. Can you give me the lay of the land?
+
+Jordan Patel: Sure, happy to. So Meridian Capital Group -- we're a mid-market financial services firm. About $2.8 billion in assets under management right now. We've been growing steadily over the past five years, and that growth has been great from a business perspective, but our technology stack hasn't kept pace.
+
+Alex Chen: That's a pretty common story. What does your current technology landscape look like?
+
+Jordan Patel: Our core payment processing platform -- and this is really the heart of what we need to talk about -- runs on a legacy monolithic Java system that was built back in 2014. At the time it was solid engineering, but we're now ten years in and the cracks are showing.
+
+Alex Chen: What kind of scale are you dealing with on that platform?
+
+Jordan Patel: We process roughly 850,000 transactions per month across 12 institutional clients. The system handles settlement, reconciliation, reporting -- the whole lifecycle. And honestly, for a long time it worked fine. But as we've grown and our clients' expectations have evolved, we're hitting walls.
+
+Alex Chen: What kind of walls specifically? Performance? Reliability?
+
+Jordan Patel: Both, actually. Our average transaction processing latency is sitting at about 340 milliseconds. Now, that might sound fine, but the industry is moving toward real-time settlement. Our institutional clients are starting to ask for sub-100 millisecond processing, and we just can't get there on the current architecture without basically rewriting the whole thing.
+
+On the reliability side, we're at 99.2% uptime. Which sounds decent until you realize our target -- and what our clients expect -- is 99.99%. That gap represents a lot of money in the financial services world. Every minute of downtime, we're looking at potential settlement failures, reconciliation backlogs, client trust erosion.
+
+Alex Chen: And you're headquartered in Chicago, correct?
+
+Jordan Patel: Yes, headquarters in Chicago. We also have an engineering team in Austin -- that's about 28 engineers total between the two offices. The Austin team was originally a startup we acquired two years ago for their real-time analytics capabilities, but integrating their work into the monolith has been... challenging, to say the least.
+
+Alex Chen: I can imagine. Acquisitions with different tech stacks are always tricky to integrate, especially into a monolith. What's the deployment story like right now? How often are you shipping?
+
+Jordan Patel: We're doing releases every two weeks, which used to feel fast but now feels painfully slow. Each release requires a full regression cycle because the monolith is so interconnected. A change in the reconciliation module can break settlement reporting if we're not careful. We've had three production incidents in the last quarter that traced back to unintended side effects from seemingly minor changes.
+
+Alex Chen: That coupling issue is really common with monoliths at your scale. And I imagine the testing overhead is significant?
+
+Jordan Patel: Enormous. Our CI pipeline takes about 45 minutes to run the full test suite, and even then we don't catch everything. The Austin team built some great analytics dashboards, but they're basically bolted onto the side of the monolith through a read replica. It works, but it's fragile. If the schema changes, which it does fairly often, their dashboards break.
+
+Alex Chen: Let me pull up some notes... You mentioned the system was built in 2014. What was the original design philosophy?
+
+Jordan Patel: It was a classic three-tier architecture. Java Spring backend, Oracle database -- we've since migrated to PostgreSQL, which was its own adventure -- and a JSP-based admin interface that we've been slowly replacing with React components. The original architect was brilliant, but they designed it for a company processing maybe 100,000 transactions a month. We've 8x'd that volume and the architecture just wasn't built for it.
+
+The database layer is particularly painful. We have about 200 tables, many with complex stored procedures that handle business logic that should really be in the application layer. Moving that logic out is one of the things we need help with in the modernization effort.
+
+Alex Chen: That's really helpful context. So when you think about where you need to be in, say, 18 months, what does that look like?
+
+Jordan Patel: Great question. Let me walk you through what success looks like for us. First and foremost, we need to get that transaction processing latency down -- from 340 milliseconds to under 100 milliseconds. That's non-negotiable for our growth plans.
+
+Second, we want to cut our operational costs for payment reconciliation by about 40%. Right now we have a team of eight people who spend most of their time on manual reconciliation tasks that should be automated. That's expensive and error-prone.
+
+Third -- and this is the big strategic one -- we need real-time settlement capabilities. Our institutional clients are increasingly demanding this, and two of our largest clients have explicitly told us that it's a requirement for contract renewal in 2027.
+
+Alex Chen: That sounds like there's real urgency there.
+
+Jordan Patel: There is. And beyond that, we want to be able to scale to support 25 or more institutional clients without hitting infrastructure constraints. Right now, every time we onboard a new client, it's a six-week integration effort because of how tightly coupled everything is in the monolith.
+
+And then there's compliance. We need to achieve PCI DSS Level 1 compliance with automated monitoring. Right now our compliance is mostly manual processes -- spreadsheets, quarterly reviews, that kind of thing. It needs to be continuous and automated.
+
+Alex Chen: Let me pull up my notes here... So that's latency, cost reduction, real-time settlement, scalability, and automated compliance. That's a significant transformation. What are the constraints you're working within?
+
+Jordan Patel: Yeah, and this is where it gets interesting. First constraint -- and this is probably the biggest one technically -- we absolutely must maintain backward compatibility with our existing client APIs during migration. We have 12 institutional clients with deep integrations into our current API surface. We cannot break those. Zero breaking changes. Any migration strategy has to support the existing API contracts while we transition to the new architecture underneath.
+
+Alex Chen: That's a hard requirement. No wiggle room there?
+
+Jordan Patel: None. Our contracts explicitly guarantee API stability. Breaking a client integration could mean losing a $50 million relationship. So whatever we do, it has to be a gradual, transparent migration from the client's perspective.
+
+Second, PCI DSS and SOX compliance are non-negotiable. Any new system architecture must be designed from the ground up to pass our annual audits. We can't build something and then figure out compliance later -- it has to be baked in from day one. Maria Santos leads our regulatory compliance team -- three people -- and they need to sign off on any architectural changes before we can proceed.
+
+Third, downtime constraint. We cannot have more than four hours of planned downtime per quarter for migration activities. Our clients run 24/7 operations and settlement cycles are continuous. So we need to be able to migrate components with minimal disruption.
+
+Alex Chen: What about your team's capabilities? You mentioned 28 engineers.
+
+Jordan Patel: Right, and this is actually one of our bigger challenges. Our team is strong, but they're mostly experienced with on-premises Java and Spring. Limited cloud-native experience. We've done some AWS experimentation, but nobody on the team has production experience with microservices architecture, container orchestration, or the kind of distributed systems patterns you'd need for real-time settlement.
+
+I'm not saying they can't learn -- they're talented engineers. But there's a significant skills gap that we need to account for in any transformation plan. We need a partner who can help us upskill while we build.
+
+Alex Chen: And I imagine your leadership has opinions about the approach?
+
+Jordan Patel: [laughs] That's an understatement. The board has been very clear: they want a phased approach. No big-bang migration. They saw what happened when a competitor tried to replatform everything at once and it turned into a two-year disaster. So we need to show incremental progress and value at each phase.
+
+Speaking of which, let me tell you about the timeline we're working with. Our board presentation on the new platform strategy is in Q2 of this year -- 2026. We need to have an architecture blueprint ready by then that shows the full roadmap with clear phases and milestones.
+
+For Phase 1, we want to have a pilot running with two of our institutional clients by Q3 2026. These would be two of our smaller clients where the risk is manageable but the proof point is meaningful.
+
+Full migration target is Q1 2027. And here's a hard date that we can't miss -- our annual audit cycle starts in November. Any new system components that are in production by then need to be audit-ready. Maria's team needs time to prepare the documentation and evidence for the auditors.
+
+Alex Chen: That's an aggressive but doable timeline if we scope it right. Let's talk about budget.
+
+Jordan Patel: Sure. We've got board approval for an initial budget of $1.2 to $1.8 million for Phase 1. That covers infrastructure modernization and the first two client migrations. Now, the total multi-year budget ceiling is $4.5 million -- that's for the full transformation from monolith to cloud-native microservices.
+
+But here's the thing -- Phase 2 funding isn't guaranteed. We need to show measurable ROI within six months of Phase 1 completion to unlock the next tranche. So whatever we build in Phase 1 needs to deliver tangible, measurable results that David Chen -- our CFO -- can take to the board and say, "This is working, here's the proof, let's continue investing."
+
+Alex Chen: That's actually a really healthy way to structure it. Forces discipline in Phase 1.
+
+Jordan Patel: Exactly. David is very metrics-driven. He wants to see transaction latency improvements, cost savings from automation, and client satisfaction scores. If we can show those improvements concretely, the Phase 2 funding will flow.
+
+Alex Chen: Let's talk about the decision-making process. You mentioned Sarah Kim, David Chen, and Maria Santos. Who else is involved?
+
+Jordan Patel: So the key stakeholders -- let me lay them out. I'm the primary technical decision maker on this. I report directly to Sarah Kim, our CTO, who's the executive sponsor for the modernization initiative. She's focused on strategic alignment -- making sure whatever we build positions us for the next five years, not just the next two.
+
+David Chen is our CFO. He controls the budget and he needs clear ROI justification at every stage. He's not going to rubber-stamp anything -- he wants detailed cost-benefit analysis and ongoing metrics.
+
+And then Maria Santos leads our regulatory compliance team. As I mentioned, she has three people on her team, and they must sign off on any architecture changes before we can deploy to production. They're not going to block progress, but they need to be involved from the beginning, not brought in at the end.
+
+There's also our Head of Client Services, but for the technology decision, those four -- myself, Sarah, David, and Maria -- are the core decision-making group.
+
+Alex Chen: How does the decision process typically work? Is it a formal RFP, or more of a collaborative evaluation?
+
+Jordan Patel: It's more collaborative. Sarah wants to see a proof of concept or at least a detailed architecture proposal before she takes it to the board. David will need a formal cost-benefit analysis with projected ROI timelines, but he's reasonable -- he doesn't need a 100-page document. A clear executive summary with the financial model will do.
+
+Maria's team will need a compliance impact assessment -- basically, how does the proposed architecture maintain or improve our compliance posture? She's actually been lobbying for automated compliance monitoring for two years, so she's a natural ally in this project.
+
+The typical cycle from initial engagement to signed contract for something of this scale has been about 60 to 90 days for us historically. But Sarah has indicated she wants to move faster this time given the regulatory timeline.
+
+Alex Chen: That's really helpful context. You know, I was at a fintech conference last month and there was a lot of buzz about the new instant settlement regulations coming out of the SEC. Are those a factor in your planning?
+
+Jordan Patel: Actually, yes. The proposed T+0 settlement requirements are one of the reasons we're accelerating this. If those regulations pass as expected, we'll need real-time settlement capabilities by 2028 at the latest. So in some ways, this isn't just about competitive advantage anymore -- it's about regulatory survival.
+
+Alex Chen: That adds urgency but also makes the business case stronger for your board.
+
+Jordan Patel: Exactly. It's one of those situations where the regulatory environment actually helps us justify the investment internally. David especially responds well to "we need this to stay compliant" arguments.
+
+Alex Chen: [laughs] CFOs do love a compliance mandate. One more thing -- can you tell me a bit about your team culture? How do they feel about this kind of transformation?
+
+Jordan Patel: The team is actually excited about it, which is great. The Austin team especially -- they came from a startup background and they've been eager to introduce more modern practices. The Chicago team was initially nervous, but once we framed it as a growth opportunity -- "you're going to learn cloud-native engineering on a real project with expert guidance" -- the energy shifted.
+
+We actually ran an internal survey last quarter and 78% of our engineers said they wanted to work on more modern technology. Retention has been a challenge because talented engineers don't want to spend their careers maintaining a 10-year-old monolith. So this transformation is also a talent retention play.
+
+Alex Chen: That's a really compelling point. The talent angle is often underestimated in these transformation business cases.
+
+Jordan Patel: It really is. We lost two senior engineers last year to fintech startups, and their exit interviews both mentioned wanting to work with modern cloud-native technology. The cost of replacing senior financial services engineers is significant -- we're talking six months to get someone fully productive given the domain complexity and compliance requirements.
+
+Alex Chen: Speaking of industry trends -- I noticed Meridian was mentioned in that American Banker article last month about mid-market firms adopting real-time payment rails. Is that initiative related to what we're discussing?
+
+Jordan Patel: It is, actually. That article was about our participation in the FedNow pilot program. We've been testing FedNow with two of our clients, but we're currently processing those transactions through a separate, manually managed pipeline because the monolith can't handle the real-time throughput requirements. It's working as a proof of concept, but it's absolutely not scalable. The new platform needs to natively support FedNow and RTP network integration.
+
+Alex Chen: That's really interesting. So you're already seeing client demand for real-time rails beyond just the settlement speed improvements.
+
+Jordan Patel: Exactly. Three of our institutional clients have asked about FedNow support in the last quarter alone. It's becoming table stakes. The firms that can offer real-time payment processing with institutional-grade security and compliance are going to win the next wave of institutional clients. That's the competitive positioning Sarah keeps emphasizing.
+
+Alex Chen: It sounds like you have strong alignment across the organization. Let me summarize what I'm hearing and then we can talk about potential next steps.
+
+You're looking at a fundamental modernization of your payment processing infrastructure -- moving from a legacy monolithic Java system to a cloud-native architecture. The driving forces are performance requirements from your institutional clients, cost optimization in reconciliation operations, regulatory pressure around real-time settlement, and scalability constraints that are limiting your growth.
+
+The constraints are clear: backward API compatibility, PCI DSS and SOX compliance throughout, minimal downtime, team upskilling needs, and a phased approach mandated by the board.
+
+The timeline is aggressive but structured: architecture blueprint for Q2 board meeting, Phase 1 pilot by Q3, full migration by Q1 2027, with audit readiness by November.
+
+And the budget is phased: $1.2 to $1.8 million for Phase 1, with the full $4.5 million contingent on demonstrated ROI.
+
+Jordan Patel: That's a great summary, Alex. You've captured the key points well. I think the most important thing is finding a partner who understands the financial services regulatory environment and can help us move fast without cutting corners on compliance.
+
+Alex Chen: Absolutely. And I think Lumenalta's experience with financial services modernization -- we've done similar transformations for three other capital markets firms in the past two years -- positions us well to help. What I'd like to propose is that we schedule a technical deep-dive session where we can map your current architecture and start sketching out the phased modernization roadmap.
+
+Jordan Patel: That sounds like the logical next step. I'd want to have a couple of my senior engineers in that session, and probably Maria Santos as well so she can flag compliance considerations early.
+
+Alex Chen: Perfect. I'll send over a meeting request for next week. We'll bring our financial services architecture lead and one of our compliance-aware engineers. Sound good?
+
+Jordan Patel: Sounds great, Alex. Looking forward to it. Thanks for your time today.
+
+Alex Chen: Thank you, Jordan. This was really productive. Talk to you soon.
+
+---
+End of Transcript
