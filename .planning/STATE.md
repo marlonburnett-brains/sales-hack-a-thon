@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 09-02-PLAN.md (awaiting checkpoint:human-verify)
-last_updated: "2026-03-04T16:35:05Z"
-last_activity: 2026-03-04 — Plan 09-02 complete (HITL-2 review delivery UI with 6 new components + 5 extended components)
+stopped_at: "Completed 10-01-PLAN.md (pre-call briefing backend pipeline)"
+last_updated: "2026-03-04T16:49:39Z"
+last_activity: 2026-03-04 — Plan 10-01 complete (pre-call briefing backend pipeline)
 progress:
   total_phases: 11
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 22
-  completed_plans: 23
-  percent: 77
+  completed_plans: 24
+  percent: 82
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
-**Current focus:** Phase 9 complete. Both plans finished (09-01: HITL-2 backend, 09-02: review delivery UI). Awaiting human verification checkpoint.
+**Current focus:** Phase 10 Plan 01 complete. Pre-call briefing backend pipeline with 6-step Mastra workflow. Plan 10-02 (UI) is next.
 
 ## Current Position
 
-Phase: 9 of 11 (HITL Checkpoint 2 and Review Delivery UI)
-Plan: 2 of 2 complete in current phase
-Status: Plan 09-02 complete. Full HITL-2 review UI with standalone asset review page, workflow stepper, brand compliance display, approval bar, and lifecycle state extensions. Awaiting human verification checkpoint.
-Last activity: 2026-03-04 — Plan 09-02 complete (review delivery UI)
+Phase: 10 of 11 (Pre-Call Briefing Flow)
+Plan: 1 of 2 complete in current phase
+Status: Plan 10-01 complete. 6-step pre-call briefing workflow with Gemini structured output, Google Doc generation, and API client/server action plumbing.
+Last activity: 2026-03-04 — Plan 10-01 complete (pre-call briefing backend pipeline)
 
-Progress: [████████░░] 77%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Progress: [████████░░] 77%
 | Phase 08 P03 | 3min | 1 tasks | 2 files |
 | Phase 09 P01 | 10min | 2 tasks | 5 files |
 | Phase 09 P02 | 5min | 2 tasks | 11 files |
+| Phase 10 P01 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,13 @@ Recent decisions affecting current work:
 - [Phase 09]: Rejection endpoint does NOT resume workflow -- unlimited rejection/re-approve cycles while workflow stays suspended
 - [Phase 09]: complianceResult fetched from workflow step output via run.get() for asset-review GET endpoint
 - [Phase 09]: SlideJSON passthrough added to createBuyerFAQ outputSchema (minimal change to existing step)
+- [Phase 09]: Deck gets tall iframe (450px), docs get shorter iframes (350px) for optimal preview proportions
+- [Phase 09]: Reviewer enters name AND selects role from 4 options (Seller, SME, Marketing, Solutions) before any action
+- [Phase 09]: Asset review badges (Assets Ready, Delivered) take priority over brief approval badges in DealCard
+- [Phase 09]: TimelineEntry handles both array outputRefs (Touch 1-3) and object outputRefs (Touch 4) formats
+- [Phase 10]: JSON string serialization for compound objects between pre-call Mastra steps (same pattern as Phase 7)
+- [Phase 10]: Direct-generation pattern (no suspend/resume) for pre-call workflow matching Touch 2
+- [Phase 10]: Graceful fallback for case study search -- empty array if no results or search fails
 
 ### Pending Todos
 
@@ -174,6 +182,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04T16:35:05Z
-Stopped at: Completed 09-02-PLAN.md (awaiting checkpoint:human-verify Task 3)
-Resume file: .planning/phases/09-hitl-checkpoint-2-and-review-delivery-ui/09-02-PLAN.md
+Last session: 2026-03-04T16:49:39Z
+Stopped at: Completed 10-01-PLAN.md (pre-call briefing backend pipeline)
+Resume file: .planning/phases/10-pre-call-briefing-flow/10-02-PLAN.md

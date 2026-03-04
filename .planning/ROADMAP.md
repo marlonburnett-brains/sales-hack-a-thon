@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: HITL Checkpoint 1 — Brief Approval** - Wire the Mastra workflow suspend/resume at the brief approval checkpoint, build the brief review UI, and verify that durable state survives a server restart before any asset generation is wired up
 - [ ] **Phase 7: RAG Retrieval and Slide Block Assembly** - Build the RAG retrieval step against AtlusAI, assemble the structured SlideJSON intermediate representation, and generate bespoke copy for each block within brand compliance constraints
 - [ ] **Phase 8: Google Workspace Output Generation** - Create the Google Slides deck, talk track Google Doc, and buyer FAQ Google Doc in shared Lumenalta Drive via the Google Slides and Docs APIs, reusing the slide assembly infrastructure established in Phase 4
-- [ ] **Phase 9: HITL Checkpoint 2 and Review Delivery UI** - Wire the second HITL checkpoint for final asset review, build the review panel with Drive artifact links, and enforce brand compliance verification before final delivery
+- [x] **Phase 9: HITL Checkpoint 2 and Review Delivery UI** - Wire the second HITL checkpoint for final asset review, build the review panel with Drive artifact links, and enforce brand compliance verification before final delivery (completed 2026-03-04)
 - [ ] **Phase 10: Pre-Call Briefing Flow** - Build the independent pre-call input form, company research pipeline, role-specific hypothesis and discovery question generation, and Drive output
 - [ ] **Phase 11: End-to-End Integration and Demo Polish** - Connect all pipeline steps across all four touch points, validate full runs for each touch type, add step-by-step progress indicators, harden error handling, and produce a demo-ready scenario
 
@@ -230,6 +230,6 @@ Note: Phases 2 and 3 have no dependency on each other and can proceed in paralle
 | 6. HITL Checkpoint 1 — Brief Approval | 2/2 | Complete | 2026-03-04 |
 | 7. RAG Retrieval and Slide Block Assembly | 0/2 | Not started | - |
 | 8. Google Workspace Output Generation | 2/3 | Gap closure | - |
-| 9. HITL Checkpoint 2 and Review Delivery UI | 1/2 | In Progress | - |
+| 9. HITL Checkpoint 2 and Review Delivery UI | 2/2 | Complete   | 2026-03-04 |
 | 10. Pre-Call Briefing Flow | 0/2 | Not started | - |
 | 11. End-to-End Integration and Demo Polish | 0/2 | Not started | - |
