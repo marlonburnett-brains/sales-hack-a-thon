@@ -26,7 +26,12 @@
       "Bash(/Users/marlonburnett/source/lumenalta-hackathon/apps/agent/node_modules/.bin/tsc --noEmit --project apps/agent/tsconfig.json)",
       "Bash(npx tsc --noEmit -p apps/web/tsconfig.json)",
       "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" config-get workflow._auto_chain_active)",
-      "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" config-get workflow.auto_advance)"
+      "Bash(node \"./.claude/get-shit-done/bin/gsd-tools.cjs\" config-get workflow.auto_advance)",
+      "Bash(npx prisma migrate reset --force)",
+      "Bash(npx prisma migrate resolve --applied 20260304000000_baseline_existing_models)",
+      "Bash(git check-ignore -v apps/agent/src/ingestion/manifest/content-manifest.json apps/agent/src/ingestion/manifest/coverage-report.json)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
