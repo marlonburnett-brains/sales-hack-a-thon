@@ -504,3 +504,33 @@ export async function rejectAssets(
     }
   );
 }
+
+// ────────────────────────────────────────────────────────────
+// Pre-Call Briefing Workflow
+// ────────────────────────────────────────────────────────────
+
+export async function startPreCallWorkflow(
+  dealId: string,
+  formData: {
+    companyName: string;
+    industry: string;
+    buyerRole: string;
+    meetingContext: string;
+  }
+): Promise<WorkflowStartResult> {
+  return fetchJSON<WorkflowStartResult>(
+    "/api/workflows/pre-call-workflow/start",
+    {
+      method: "POST",
+      body: JSON.stringify({ inputData: { dealId, ...formData } }),
+    }
+  );
+}
+
+export async function getPreCallWorkflowStatus(
+  runId: string
+): Promise<WorkflowRunResult> {
+  return fetchJSON<WorkflowRunResult>(
+    `/api/workflows/pre-call-workflow/${runId}`
+  );
+}

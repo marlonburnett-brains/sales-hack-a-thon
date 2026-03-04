@@ -20,6 +20,8 @@ import {
   getAssetReview,
   approveAssets,
   rejectAssets,
+  startPreCallWorkflow,
+  getPreCallWorkflowStatus,
 } from "@/lib/api-client";
 import type {
   WorkflowStartResult,
@@ -227,4 +229,26 @@ export async function rejectAssetsAction(
   const result = await rejectAssets(interactionId, data);
   revalidatePath("/deals");
   return result;
+}
+
+// ────────────────────────────────────────────────────────────
+// Pre-Call Briefing Actions
+// ────────────────────────────────────────────────────────────
+
+export async function generatePreCallBriefingAction(
+  dealId: string,
+  formData: {
+    companyName: string;
+    industry: string;
+    buyerRole: string;
+    meetingContext: string;
+  }
+) {
+  const result = await startPreCallWorkflow(dealId, formData);
+  revalidatePath(`/deals/${dealId}`);
+  return result;
+}
+
+export async function checkPreCallStatusAction(runId: string) {
+  return getPreCallWorkflowStatus(runId);
 }
