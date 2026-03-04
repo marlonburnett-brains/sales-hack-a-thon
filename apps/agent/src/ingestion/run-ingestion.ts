@@ -25,6 +25,7 @@ import { extractAllSlides } from "./extract-slides";
 import { classifyAllSlides, type ClassifiedSlide } from "./classify-metadata";
 import { type SlideMetadata, INDUSTRIES } from "@lumenalta/schemas";
 import { ingestDocument, type SlideDocument } from "../lib/atlusai-client";
+import { syncDiscoveredSources, syncIngestionCounts, getContentSourceSummary } from "./sync-content-sources";
 import type { ExtractedSlide } from "../lib/slide-extractor";
 
 // ────────────────────────────────────────────────────────────
@@ -213,6 +214,17 @@ async function phaseA(): Promise<{
   if (presentations.length === 0) {
     console.error("ERROR: No presentations found. Check folder ID and service account permissions.");
     process.exit(1);
+  }
+
+  // Sync discovered presentations to ContentSource tracking
+  console.log("\nSyncing content source accessibility...");
+  const syncResult = await syncDiscoveredSources(presentations);
+  console.log(`  Matched ${syncResult.matched} known sources as accessible`);
+  if (syncResult.unmatched.length > 0) {
+    console.log(`  ${syncResult.unmatched.length} discovered presentations not in known sources:`);
+    for (const name of syncResult.unmatched) {
+      console.log(`    - ${name}`);
+    }
   }
 
   // Extract slides from all presentations
@@ -588,6 +600,10 @@ async function phaseD(
     console.warn(`\nWARNING: ${errorCount} slides failed to ingest. Check errors above.`);
   }
 
+  // Sync ingestion counts to ContentSource tracking
+  console.log("\nSyncing ingestion counts to content source tracker...");
+  await syncIngestionCounts(manifest);
+
   return manifest;
 }
 
@@ -679,6 +695,21 @@ async function main(): Promise<void> {
       console.log("Review content-manifest.json and coverage-report.json.");
       console.log("Then run with --ingest-only to proceed with bulk ingestion.");
       console.log("========================================");
+    }
+  }
+
+  // Print content source accessibility summary
+  const summary = await getContentSourceSummary();
+  console.log("\n--- Content Source Accessibility ---");
+  console.log(`  Total tracked: ${summary.total}`);
+  console.log(`  Accessible: ${summary.accessible}`);
+  console.log(`  Not accessible: ${summary.notAccessible}`);
+  console.log(`  Pending access: ${summary.pendingAccess}`);
+  if (summary.notAccessible > 0) {
+    console.log("\n  Sources needing access grants:");
+    for (const src of summary.sources.filter((s) => s.accessStatus === "not_accessible")) {
+      const err = src.errorMessage ? ` (${src.errorMessage})` : "";
+      console.log(`    ✗ ${src.name}${err}`);
     }
   }
 

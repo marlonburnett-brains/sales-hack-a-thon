@@ -14,6 +14,7 @@
 
 import { getDriveClient } from "../lib/google-auth";
 import type { drive_v3 } from "googleapis";
+import { markSourceInaccessible } from "./sync-content-sources";
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -268,6 +269,8 @@ export async function discoverPresentations(
       console.warn(
         `  WARNING: Could not scan folder "${subPath}": ${msg}`
       );
+      // Track inaccessible source in DB for dashboard visibility
+      await markSourceInaccessible(subPath, msg).catch(() => {});
     }
   }
 
