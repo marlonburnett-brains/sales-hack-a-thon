@@ -28,10 +28,12 @@ export const env = createEnv({
       .enum(['development', 'production', 'test'])
       .default('development'),
 
-    // Google Gemini API key for AI-powered content generation
-    // Get from: https://aistudio.google.com/apikey
-    // Required for Touch 1/2/3 workflows (Gemini 2.5 Flash)
-    GEMINI_API_KEY: z.string().min(1),
+    // Google Cloud project ID for Vertex AI
+    GOOGLE_CLOUD_PROJECT: z.string().min(1),
+    // Google Cloud region for Vertex AI (e.g., us-central1)
+    GOOGLE_CLOUD_LOCATION: z.string().min(1),
+    // Note: GOOGLE_APPLICATION_CREDENTIALS is read automatically by
+    // @google/genai when vertexai: true is set. No need to validate here.
 
     // Port for the Mastra HTTP server (default 4111)
     MASTRA_PORT: z.string().default('4111'),
