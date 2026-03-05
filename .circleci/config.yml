@@ -1,0 +1,106 @@
+version: 2.1
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:22.22
+    working_directory: ~/project
+
+commands:
+  setup:
+    steps:
+      - checkout
+      - run:
+          name: Install pnpm
+          command: sudo corepack enable && corepack prepare pnpm@9 --activate
+      - restore_cache:
+          keys:
+            - pnpm-deps-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-deps-v1-
+      - run:
+          name: Install dependencies
+          command: pnpm install --frozen-lockfile
+      - save_cache:
+          key: pnpm-deps-v1-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - node_modules
+            - apps/web/node_modules
+            - apps/agent/node_modules
+            - packages/schemas/node_modules
+            - packages/eslint-config/node_modules
+
+jobs:
+  lint-and-build:
+    executor: node
+    steps:
+      - setup
+      - run:
+          name: Lint & Build
+          command: pnpm turbo lint build
+
+  migrate:
+    executor: node
+    steps:
+      - setup
+      - run:
+          name: Generate Prisma Client
+          command: npx prisma generate
+          working_directory: ~/project/apps/agent
+      - run:
+          name: Deploy migrations
+          command: npx prisma migrate deploy
+          working_directory: ~/project/apps/agent
+
+  deploy-agent:
+    executor: node
+    steps:
+      - checkout
+      - run:
+          name: Install Railway CLI
+          command: sudo npm install -g @railway/cli
+      - run:
+          name: Deploy to Railway
+          command: railway up --service $RAILWAY_SERVICE_ID --ci
+
+  deploy-web:
+    executor: node
+    steps:
+      - setup
+      - run:
+          name: Install Vercel CLI
+          command: sudo npm install -g vercel@latest
+      - run:
+          name: Pull Vercel environment
+          command: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          environment:
+            VERCEL_ORG_ID: ${VERCEL_ORG_ID}
+            VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
+      - run:
+          name: Build with Vercel
+          command: vercel build --prod --token=$VERCEL_TOKEN
+          environment:
+            VERCEL_ORG_ID: ${VERCEL_ORG_ID}
+            VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
+      - run:
+          name: Deploy to Vercel
+          command: vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+          environment:
+            VERCEL_ORG_ID: ${VERCEL_ORG_ID}
+            VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
+
+workflows:
+  deploy:
+    jobs:
+      - lint-and-build:
+          filters:
+            branches:
+              only: main
+      - migrate:
+          requires:
+            - lint-and-build
+      - deploy-agent:
+          requires:
+            - migrate
+      - deploy-web:
+          requires:
+            - deploy-agent
