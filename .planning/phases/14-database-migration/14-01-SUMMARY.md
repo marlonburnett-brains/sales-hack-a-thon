@@ -74,7 +74,7 @@ Each task was committed atomically:
 2. **Task 2: Switch Prisma to PostgreSQL with fresh baseline migration** - `37c8232` (feat)
 3. **Task 3: Swap Mastra storage to PostgresStore and verify server startup** - `b386199` (feat)
 
-**Plan metadata:** [pending] (docs: complete plan)
+**Plan metadata:** `8028db4` (docs: complete plan)
 
 ## Files Created/Modified
 - `apps/agent/prisma/schema.prisma` - Datasource changed from sqlite to postgresql with directUrl

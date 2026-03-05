@@ -28,7 +28,7 @@
 
 ### v1.1 Infrastructure & Access Control
 
-- [ ] **Phase 14: Database Migration** - Migrate from SQLite to Supabase PostgreSQL with Mastra durable storage
+- [x] **Phase 14: Database Migration** - Migrate from SQLite to Supabase PostgreSQL with Mastra durable storage
 - [ ] **Phase 15: Service-to-Service Auth** - Shared API key authentication between web app and agent server
 - [ ] **Phase 16: Google OAuth Login Wall** - Supabase Auth with Google OAuth restricted to @lumenalta.com
 - [ ] **Phase 17: Deployment & Go-Live** - Deploy web to Vercel and agent to Oracle Cloud VM with HTTPS
@@ -48,8 +48,8 @@
 **Plans**: 2 plans
 
 Plans:
-- [ ] 14-01-PLAN.md -- Supabase setup, Prisma provider switch, Mastra storage swap
-- [ ] 14-02-PLAN.md -- Seed data, prod migration, full verification
+- [x] 14-01-PLAN.md -- Supabase setup, Prisma provider switch, Mastra storage swap
+- [x] 14-02-PLAN.md -- Seed data, prod migration, full verification
 
 ### Phase 15: Service-to-Service Auth
 **Goal**: The agent server rejects all unauthorized requests, and the web app authenticates every call to the agent
@@ -117,7 +117,7 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 | 11. E2E Integration | v1.0 | 2/2 | Complete | 2026-03-04 |
 | 12. Content Re-ingestion | v1.0 | 2/2 | Complete | 2026-03-04 |
 | 13. Touch 4 Poll Loop Fixes | v1.0 | 1/1 | Complete | 2026-03-04 |
-| 14. Database Migration | 1/2 | In Progress|  | - |
+| 14. Database Migration | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 15. Service-to-Service Auth | v1.1 | 0/? | Not started | - |
 | 16. Google OAuth Login Wall | v1.1 | 0/? | Not started | - |
 | 17. Deployment & Go-Live | v1.1 | 0/? | Not started | - |
