@@ -30,7 +30,7 @@
 
 - [x] **Phase 14: Database Migration** - Migrate from SQLite to Supabase PostgreSQL with Mastra durable storage
 - [x] **Phase 15: Service-to-Service Auth** - Shared API key authentication between web app and agent server (completed 2026-03-05)
-- [ ] **Phase 16: Google OAuth Login Wall** - Supabase Auth with Google OAuth restricted to @lumenalta.com
+- [x] **Phase 16: Google OAuth Login Wall** - Supabase Auth with Google OAuth restricted to @lumenalta.com (completed 2026-03-05)
 - [ ] **Phase 17: Deployment & Go-Live** - Deploy web to Vercel and agent to Oracle Cloud VM with HTTPS
 
 ## Phase Details
@@ -62,7 +62,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 15-01-PLAN.md -- SimpleAuth middleware on agent, X-API-Key header injection on web, health check endpoint
+- [x] 15-01-PLAN.md -- SimpleAuth middleware on agent, X-API-Key header injection on web, health check endpoint
 
 ### Phase 16: Google OAuth Login Wall
 **Goal**: Only authenticated @lumenalta.com users can access the application; everyone else is blocked
@@ -77,8 +77,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md -- Auth infrastructure: Supabase clients, middleware, OAuth callback, route restructure
-- [ ] 16-02-PLAN.md -- Login page UI, UserNav avatar dropdown, end-to-end verification
+- [x] 16-01-PLAN.md -- Auth infrastructure: Supabase clients, middleware, OAuth callback, route restructure
+- [x] 16-02-PLAN.md -- Login page UI, UserNav avatar dropdown, end-to-end verification
 
 ### Phase 17: Deployment & Go-Live
 **Goal**: The platform is accessible at production URLs -- web app on Vercel, agent server on Oracle Cloud VM with HTTPS -- with correct environment separation
@@ -119,5 +119,5 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 | 13. Touch 4 Poll Loop Fixes | v1.0 | 1/1 | Complete | 2026-03-04 |
 | 14. Database Migration | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 15. Service-to-Service Auth | v1.1 | 1/1 | Complete | 2026-03-05 |
-| 16. Google OAuth Login Wall | 1/2 | In Progress|  | - |
+| 16. Google OAuth Login Wall | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 17. Deployment & Go-Live | v1.1 | 0/? | Not started | - |

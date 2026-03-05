@@ -21,7 +21,7 @@ Requirements for Infrastructure & Access Control milestone. Each maps to roadmap
 - [x] **AUTH-02**: Users from non-@lumenalta.com domains are rejected with clear error message
 - [x] **AUTH-03**: Unauthenticated users are redirected to login page on any app route
 - [x] **AUTH-04**: User session persists across browser refresh (cookie-based via Supabase SSR)
-- [ ] **AUTH-05**: User can sign out and is redirected to login page
+- [x] **AUTH-05**: User can sign out and is redirected to login page
 - [x] **AUTH-06**: Agent server rejects requests without valid API key with 401 response
 - [x] **AUTH-07**: Web app sends API key header on all requests to agent server
 
@@ -76,7 +76,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-02 | Phase 16 | Complete |
 | AUTH-03 | Phase 16 | Complete |
 | AUTH-04 | Phase 16 | Complete |
-| AUTH-05 | Phase 16 | Pending |
+| AUTH-05 | Phase 16 | Complete |
 | AUTH-06 | Phase 15 | Complete |
 | AUTH-07 | Phase 15 | Complete |
 | DEPLOY-01 | Phase 17 | Pending |
@@ -94,4 +94,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-05 after Phase 14 completion*
+*Last updated: 2026-03-05 after Phase 16 completion*

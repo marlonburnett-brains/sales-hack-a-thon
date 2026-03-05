@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Infrastructure & Access Control
 status: in-progress
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-03-05T03:46:34Z"
-last_activity: 2026-03-05 -- Completed Phase 16 Plan 01 (Auth Infrastructure)
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-03-05T11:05:00Z"
+last_activity: 2026-03-05 -- Completed Phase 16 Plan 02 (Login Page UI) -- Phase 16 complete
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 5
-  completed_plans: 4
-  percent: 75
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -21,23 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Phase 16 in progress -- Plan 01 (Auth Infrastructure) complete, Plan 02 (Login Page UI) next
+**Current focus:** Phase 16 complete -- ready for Phase 17 (Deployment & Go-Live)
 
 ## Current Position
 
-Phase: 16 (3 of 4 in v1.1) -- Google OAuth Login Wall -- IN PROGRESS
-Plan: 1 of 2 complete
-Status: Plan 01 complete -- ready for Plan 02
-Last activity: 2026-03-05 -- Completed Phase 16 Plan 01 (Auth Infrastructure)
+Phase: 16 (3 of 4 in v1.1) -- Google OAuth Login Wall -- COMPLETE
+Plan: 2 of 2 complete
+Status: Phase 16 complete -- all AUTH requirements verified
+Last activity: 2026-03-05 -- Completed Phase 16 Plan 02 (Login Page UI)
 
-Progress: [########..] 75%
+Progress: [########..] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4 (v1.1) / 34 (all-time)
-- Average duration: 10min (v1.1)
-- Total execution time: 40min (v1.1)
+- Total plans completed: 5 (v1.1) / 35 (all-time)
+- Average duration: 8min (v1.1)
+- Total execution time: 42min (v1.1)
 
 **By Phase:**
 
@@ -45,7 +45,7 @@ Progress: [########..] 75%
 |-------|-------|-------|----------|
 | 14 - Database Migration | 2/2 | 33min | 17min |
 | 15 - Service-to-Service Auth | 1/1 | 4min | 4min |
-| 16 - Google OAuth Login Wall | 1/2 | 3min | 3min |
+| 16 - Google OAuth Login Wall | 2/2 | 5min | 3min |
 
 *Updated after each plan completion*
 
@@ -72,6 +72,9 @@ New v1.1 decisions:
 - [16-01] Server-side domain enforcement in callback route (hd parameter is UX-only)
 - [16-01] Route group (authenticated) for layout split -- nav bar only on authenticated pages
 - [16-01] Middleware redirects authenticated users away from /login to /deals
+- [16-02] Client component for login page (useSearchParams + onClick require 'use client')
+- [16-02] Suspense boundary wrapping useSearchParams per Next.js 15 requirement
+- [16-02] Async server component for authenticated layout to fetch user data via getUser()
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T03:46:34Z
-Stopped at: Completed 16-01-PLAN.md
-Resume file: .planning/phases/16-google-oauth-login-wall/16-01-SUMMARY.md
+Last session: 2026-03-05T11:05:00Z
+Stopped at: Completed 16-02-PLAN.md -- Phase 16 complete
+Resume file: .planning/phases/16-google-oauth-login-wall/16-02-SUMMARY.md
