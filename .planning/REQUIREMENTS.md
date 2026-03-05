@@ -9,10 +9,10 @@ Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roa
 
 ### CI/CD Pipeline
 
-- [ ] **CICD-01**: Push to main triggers automated lint, type-check, and build via GitHub Actions
-- [ ] **CICD-02**: Web app auto-deploys to Vercel after checks pass
-- [ ] **CICD-03**: Agent auto-deploys to Railway after checks pass
-- [ ] **CICD-04**: Pending Prisma migrations auto-run against target database before deploy
+- [x] **CICD-01**: Push to main triggers automated lint, type-check, and build via GitHub Actions
+- [x] **CICD-02**: Web app auto-deploys to Vercel after checks pass
+- [x] **CICD-03**: Agent auto-deploys to Railway after checks pass
+- [x] **CICD-04**: Pending Prisma migrations auto-run against target database before deploy
 
 ### Navigation
 
@@ -84,10 +84,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CICD-01 | Phase 18 | Pending |
-| CICD-02 | Phase 18 | Pending |
-| CICD-03 | Phase 18 | Pending |
-| CICD-04 | Phase 18 | Pending |
+| CICD-01 | Phase 18 | Complete |
+| CICD-02 | Phase 18 | Complete |
+| CICD-03 | Phase 18 | Complete |
+| CICD-04 | Phase 18 | Complete |
 | NAV-01 | Phase 19 | Pending |
 | NAV-02 | Phase 19 | Pending |
 | TMPL-01 | Phase 19 | Pending |
