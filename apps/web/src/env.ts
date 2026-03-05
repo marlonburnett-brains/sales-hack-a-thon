@@ -2,6 +2,7 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
 export const env = createEnv({
+  skipValidation: !!process.env.CI,
   server: {
     AGENT_SERVICE_URL: z.string().url().default("http://localhost:4111"),
     NODE_ENV: z
