@@ -1,7 +1,7 @@
 # Requirements: Lumenalta Agentic Sales Orchestration
 
 **Defined:** 2026-03-04
-**Core Value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
+**Core Value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
 
 ## v1.1 Requirements
 
@@ -67,31 +67,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | — | Pending |
-| DB-02 | — | Pending |
-| DB-03 | — | Pending |
-| DB-04 | — | Pending |
-| DB-05 | — | Pending |
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| AUTH-05 | — | Pending |
-| AUTH-06 | — | Pending |
-| AUTH-07 | — | Pending |
-| DEPLOY-01 | — | Pending |
-| DEPLOY-02 | — | Pending |
-| DEPLOY-03 | — | Pending |
-| DEPLOY-04 | — | Pending |
-| DEPLOY-05 | — | Pending |
-| DEPLOY-06 | — | Pending |
-| DEPLOY-07 | — | Pending |
+| DB-01 | Phase 14 | Pending |
+| DB-02 | Phase 14 | Pending |
+| DB-03 | Phase 14 | Pending |
+| DB-04 | Phase 14 | Pending |
+| DB-05 | Phase 14 | Pending |
+| AUTH-01 | Phase 16 | Pending |
+| AUTH-02 | Phase 16 | Pending |
+| AUTH-03 | Phase 16 | Pending |
+| AUTH-04 | Phase 16 | Pending |
+| AUTH-05 | Phase 16 | Pending |
+| AUTH-06 | Phase 15 | Pending |
+| AUTH-07 | Phase 15 | Pending |
+| DEPLOY-01 | Phase 17 | Pending |
+| DEPLOY-02 | Phase 17 | Pending |
+| DEPLOY-03 | Phase 17 | Pending |
+| DEPLOY-04 | Phase 17 | Pending |
+| DEPLOY-05 | Phase 17 | Pending |
+| DEPLOY-06 | Phase 17 | Pending |
+| DEPLOY-07 | Phase 17 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after initial definition*
+*Last updated: 2026-03-04 after roadmap creation*
