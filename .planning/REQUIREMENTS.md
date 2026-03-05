@@ -31,7 +31,7 @@ Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roa
 
 ### Slide Intelligence
 
-- [ ] **SLIDE-01**: pgvector extension enabled in Supabase with slide embeddings table and HNSW index
+- [x] **SLIDE-01**: pgvector extension enabled in Supabase with slide embeddings table and HNSW index
 - [ ] **SLIDE-02**: User can trigger slide ingestion for an accessible template
 - [ ] **SLIDE-03**: Agent extracts text content from each slide via Google Slides API
 - [ ] **SLIDE-04**: Agent generates vector embedding for each slide via Vertex AI text-embedding model
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TMPL-05 | Phase 19 | Pending |
 | TMPL-06 | Phase 19 | Pending |
 | TMPL-07 | Phase 19 | Pending |
-| SLIDE-01 | Phase 18 | Pending |
+| SLIDE-01 | Phase 18 | Complete |
 | SLIDE-02 | Phase 20 | Pending |
 | SLIDE-03 | Phase 20 | Pending |
 | SLIDE-04 | Phase 20 | Pending |
