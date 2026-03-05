@@ -755,6 +755,188 @@ export const mastra = new Mastra({
           }
         },
       }),
+
+      // ────────────────────────────────────────────────────────────
+      // Template CRUD + Drive Access (Phase 19 -- TMPL-05/06/07)
+      // ────────────────────────────────────────────────────────────
+
+      // GET /templates -- List all templates ordered by createdAt desc
+      registerApiRoute("/templates", {
+        method: "GET",
+        handler: async (c) => {
+          const templates = await prisma.template.findMany({
+            orderBy: { createdAt: "desc" },
+          });
+          return c.json(templates);
+        },
+      }),
+
+      // POST /templates -- Create template with Drive access check
+      registerApiRoute("/templates", {
+        method: "POST",
+        handler: async (c) => {
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                name: z.string().min(1),
+                googleSlidesUrl: z.string().url(),
+                presentationId: z.string().min(1),
+                touchTypes: z.array(z.string()).min(1),
+              })
+              .parse(body);
+
+            let accessStatus = "not_checked";
+            let sourceModifiedAt: Date | null = null;
+            let serviceAccountEmail: string | null = null;
+
+            try {
+              const drive = getDriveClient();
+              const fileRes = await drive.files.get({
+                fileId: data.presentationId,
+                fields: "id,modifiedTime",
+                supportsAllDrives: true,
+              });
+              accessStatus = "accessible";
+              if (fileRes.data.modifiedTime) {
+                sourceModifiedAt = new Date(fileRes.data.modifiedTime);
+              }
+            } catch (driveErr: unknown) {
+              const errCode =
+                driveErr &&
+                typeof driveErr === "object" &&
+                "code" in driveErr
+                  ? (driveErr as { code: number }).code
+                  : 0;
+              if (errCode === 403 || errCode === 404) {
+                accessStatus = "not_accessible";
+                try {
+                  const creds = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_KEY);
+                  serviceAccountEmail = creds.client_email ?? null;
+                } catch {
+                  // ignore parse error
+                }
+              } else {
+                throw driveErr;
+              }
+            }
+
+            const template = await prisma.template.create({
+              data: {
+                name: data.name,
+                googleSlidesUrl: data.googleSlidesUrl,
+                presentationId: data.presentationId,
+                touchTypes: JSON.stringify(data.touchTypes),
+                accessStatus,
+                sourceModifiedAt,
+              },
+            });
+
+            return c.json({ template, serviceAccountEmail });
+          } catch (err) {
+            console.error("[templates/create] Error:", err);
+            return c.json(
+              { error: "Template creation failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
+      // DELETE /templates/:id -- Delete template by id
+      registerApiRoute("/templates/:id", {
+        method: "DELETE",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            await prisma.template.delete({ where: { id } });
+            return c.json({ success: true });
+          } catch (err) {
+            console.error("[templates/delete] Error:", err);
+            return c.json(
+              { error: "Template deletion failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
+      // POST /templates/:id/check-staleness -- Check staleness for a single template
+      registerApiRoute("/templates/:id/check-staleness", {
+        method: "POST",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const template = await prisma.template.findUniqueOrThrow({
+              where: { id },
+            });
+
+            try {
+              const drive = getDriveClient();
+              const fileRes = await drive.files.get({
+                fileId: template.presentationId,
+                fields: "id,modifiedTime",
+                supportsAllDrives: true,
+              });
+
+              const modifiedTime = fileRes.data.modifiedTime ?? null;
+              let isStale = false;
+
+              if (modifiedTime && template.lastIngestedAt) {
+                isStale =
+                  new Date(modifiedTime) > new Date(template.lastIngestedAt);
+              }
+
+              // Update access status and sourceModifiedAt
+              await prisma.template.update({
+                where: { id },
+                data: {
+                  accessStatus: "accessible",
+                  sourceModifiedAt: modifiedTime
+                    ? new Date(modifiedTime)
+                    : undefined,
+                },
+              });
+
+              return c.json({ isStale, modifiedTime });
+            } catch (driveErr: unknown) {
+              const errCode =
+                driveErr &&
+                typeof driveErr === "object" &&
+                "code" in driveErr
+                  ? (driveErr as { code: number }).code
+                  : 0;
+              if (errCode === 403 || errCode === 404) {
+                await prisma.template.update({
+                  where: { id },
+                  data: { accessStatus: "not_accessible" },
+                });
+
+                let serviceAccountEmail: string | null = null;
+                try {
+                  const creds = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_KEY);
+                  serviceAccountEmail = creds.client_email ?? null;
+                } catch {
+                  // ignore
+                }
+
+                return c.json({
+                  isStale: false,
+                  accessError: true,
+                  serviceAccountEmail,
+                });
+              }
+              throw driveErr;
+            }
+          } catch (err) {
+            console.error("[templates/check-staleness] Error:", err);
+            return c.json(
+              { error: "Staleness check failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
     ],
   },
 });

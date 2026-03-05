@@ -505,3 +505,61 @@ export async function getPreCallWorkflowStatus(
     `/api/workflows/pre-call-workflow/${runId}`
   );
 }
+
+// ────────────────────────────────────────────────────────────
+// Templates (Phase 19 -- TMPL-05/06/07)
+// ────────────────────────────────────────────────────────────
+
+export interface Template {
+  id: string;
+  name: string;
+  presentationId: string;
+  googleSlidesUrl: string;
+  touchTypes: string; // JSON array string
+  accessStatus: string;
+  lastIngestedAt: string | null;
+  sourceModifiedAt: string | null;
+  slideCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTemplateResult {
+  template: Template;
+  serviceAccountEmail: string | null;
+}
+
+export interface StalenessCheckResult {
+  isStale: boolean;
+  modifiedTime?: string;
+  accessError?: boolean;
+  serviceAccountEmail?: string;
+}
+
+export async function listTemplates(): Promise<Template[]> {
+  return fetchJSON<Template[]>("/templates");
+}
+
+export async function createTemplate(data: {
+  name: string;
+  googleSlidesUrl: string;
+  presentationId: string;
+  touchTypes: string[];
+}): Promise<CreateTemplateResult> {
+  return fetchJSON<CreateTemplateResult>("/templates", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteTemplate(id: string): Promise<{ success: boolean }> {
+  return fetchJSON<{ success: boolean }>(`/templates/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function checkTemplateStaleness(id: string): Promise<StalenessCheckResult> {
+  return fetchJSON<StalenessCheckResult>(`/templates/${id}/check-staleness`, {
+    method: "POST",
+  });
+}
