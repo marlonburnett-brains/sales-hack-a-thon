@@ -1,586 +1,388 @@
-# Stack Research: v1.1 Infrastructure & Access Control
+# Stack Research
 
-**Domain:** Database migration (SQLite to Supabase/Postgres), Vercel deployment, Google OAuth login wall
-**Researched:** 2026-03-04
-**Confidence:** MEDIUM (WebSearch/WebFetch unavailable; all findings from training data with cutoff May 2025; versions flagged where verification is needed)
+**Domain:** Template management, slide intelligence, CI/CD for agentic sales platform
+**Researched:** 2026-03-05
+**Confidence:** HIGH
 
----
+## Scope
 
-## Research Note
-
-External network tools (WebSearch, WebFetch) were unavailable during this research session. All findings are drawn from training data (cutoff May 2025) and analysis of the existing codebase. This research covers ONLY what is needed for v1.1 -- it does not re-research the existing v1.0 stack (Mastra, Next.js, Prisma, Google Workspace APIs, etc.).
-
-**Scope of changes:**
-1. Prisma provider switch: `sqlite` to `postgresql` (Supabase connection)
-2. Supabase Auth with Google OAuth (domain-restricted to `@lumenalta.com`)
-3. Vercel deployment: 2 projects from a single Turborepo monorepo
-4. Service-to-service API key auth between `apps/web` and `apps/agent`
-5. Mastra internal storage migration from local LibSQL to a durable store
-
----
+This research covers ONLY new technology additions for v1.2 (Templates and Slide Intelligence). The existing stack (Next.js 15, Mastra AI 1.8, `@google/genai` ^1.43.0 with GPT-OSS 120b on Vertex AI, Prisma 6.19 + Supabase PostgreSQL, Google Workspace APIs via `googleapis` ^144.0.0, shadcn/ui, Supabase Auth + Google OAuth, `@supabase/ssr`, Sonner) is validated and NOT re-researched.
 
 ## Recommended Stack Additions
 
-### 1. Database: Supabase (PostgreSQL)
+### 1. pgvector for Slide Embeddings
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Supabase (hosted) | Latest | Managed PostgreSQL with built-in Auth, dashboard, and connection pooling | Zero-ops Postgres; free tier covers dev; Auth module eliminates building login from scratch; pgbouncer connection pooling handles serverless cold-starts on Vercel |
-| `@supabase/supabase-js` | `^2.45` [VERIFY] | Client SDK for Supabase Auth, Realtime, and direct DB access (NOT used for app queries -- Prisma handles those) | Required for Supabase Auth flows (signIn, signOut, getSession). Do NOT use for data queries -- keep Prisma as the single ORM | MEDIUM |
-| `@supabase/ssr` | `^0.5` [VERIFY] | Server-side auth helpers for Next.js App Router | Creates Supabase clients that work in Server Components, Route Handlers, Middleware, and Server Actions. Replaces the deprecated `@supabase/auth-helpers-nextjs` | MEDIUM |
+| pgvector (PostgreSQL extension) | 0.7.x (Supabase-managed) | Vector similarity search on slide embeddings | Supabase includes pgvector out of the box. Enable with one SQL statement in a Prisma migration. No external vector database needed -- embeddings live alongside relational data in the same Supabase PostgreSQL instance already in use. |
+| `pgvector` (npm) | ^0.2.0 | Serialize/deserialize vectors for Prisma raw queries | Official pgvector-node library. Provides `toSql()` for INSERT and `fromSql()` for SELECT. Required because Prisma 6.x lacks native vector type support (tracked at prisma/prisma#26546). |
 
-**Key decision: Prisma stays as the ORM.** Supabase provides the Postgres database and Auth service, but all application data queries continue through Prisma. The `@supabase/supabase-js` client is used ONLY for authentication (signIn, signOut, getSession, onAuthStateChange). This avoids a dual-query-layer and keeps all existing Prisma code unchanged.
+**Supabase pgvector setup:** Enable via SQL in a Prisma migration:
 
-### 2. Authentication: Supabase Auth + Google OAuth
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Supabase Auth (built-in) | N/A (managed service) | Google OAuth provider, session management, JWT issuance | No custom auth server needed; Google OAuth is a first-class provider in Supabase dashboard; JWT tokens enable stateless session validation | HIGH |
-| `@supabase/ssr` | `^0.5` [VERIFY] | Next.js middleware for session refresh and route protection | Handles cookie-based session storage compatible with Server Components; refreshes tokens transparently in middleware before page render | MEDIUM |
+**Prisma schema approach:** Prisma 6.19 does NOT support the `vector` type natively. Use `Unsupported("vector(768)")` in the schema for documentation purposes, but all vector read/write operations go through `$queryRaw` / `$executeRaw`. This is the established and reliable pattern.
 
-**Domain restriction (`@lumenalta.com`):** Supabase Auth does NOT have a built-in "restrict to email domain" setting in the dashboard. Two approaches:
-
-1. **Google Workspace restriction (RECOMMENDED):** Configure the Google Cloud OAuth consent screen as "Internal" (if Lumenalta has Google Workspace). This restricts login at the Google level -- only `@lumenalta.com` accounts can authenticate. No application-level filtering needed.
-
-2. **Application-level check (FALLBACK):** If the OAuth consent screen must be "External" (e.g., testing with non-Workspace accounts during dev), add a check in the auth callback or middleware:
-   ```typescript
-   // In auth callback route handler
-   const { data: { user } } = await supabase.auth.getUser();
-   if (user?.email && !user.email.endsWith('@lumenalta.com')) {
-     await supabase.auth.signOut();
-     redirect('/login?error=unauthorized_domain');
-   }
-   ```
-   Additionally, use a Supabase Database Function/hook or RLS policy to prevent row creation for non-lumenalta emails.
-
-### 3. Prisma Provider Migration: SQLite to PostgreSQL
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `prisma` | `^6.3` (already installed) | Schema definition, migration generation, client generation | Already in use; changing `provider` from `"sqlite"` to `"postgresql"` and updating connection string is the only schema-level change | HIGH |
-| `@prisma/client` | `^6.3` (already installed) | Generated type-safe query client | No version change needed; regenerating the client with `prisma generate` after provider switch produces Postgres-compatible queries | HIGH |
-
-**Schema migration changes required:**
+**Critical: Do NOT upgrade to Prisma 7.x.** Version 7.1.0 has a known regression where migrations fail with `Unsupported("vector")` columns (prisma/prisma#28867). Stay on 6.19.x.
 
 ```prisma
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")  // Required for Supabase -- bypasses pgbouncer for migrations
+model SlideEmbedding {
+  id              String   @id @default(cuid())
+  slideIndex      Int
+  presentationId  String
+  textContent     String
+  embedding       Unsupported("vector(768)")
+  metadata        String   // JSON: classification tags from SlideMetadataSchema
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([presentationId])
 }
 ```
 
-**SQLite to PostgreSQL differences affecting this schema:**
+**Query pattern (pgvector npm + Prisma $queryRaw):**
 
-| SQLite Pattern | PostgreSQL Equivalent | Affected Models |
-|----------------|----------------------|-----------------|
-| `String` for JSON blobs | `Json` native type (or keep as `String`) | WorkflowJob.payload, WorkflowJob.result, InteractionRecord.inputs, FeedbackSignal.content, Brief.useCases, etc. |
-| `@default(cuid())` | `@default(cuid())` -- unchanged | All models (cuid works the same) |
-| `DateTime @default(now())` | `DateTime @default(now())` -- unchanged | All models |
-| `@@unique` constraints | Work identically | Company.name |
-| No native arrays | `String[]` available but not required | Could upgrade Brief.secondaryPillars from JSON string to `String[]`, but not required for migration |
+```typescript
+import pgvector from 'pgvector';
 
-**IMPORTANT: Do NOT change JSON string fields to `Json` type during the migration.** The existing code serializes/deserializes JSON manually with `JSON.stringify`/`JSON.parse`. Changing to Prisma's `Json` type would require updating every read/write site. Keep fields as `String` for now; optimize to `Json` type in a future milestone if desired.
+// INSERT embedding
+const vec = pgvector.toSql(embeddingArray); // number[768] -> SQL string
+await prisma.$executeRaw`
+  INSERT INTO "SlideEmbedding" (id, "slideIndex", "presentationId", "textContent", embedding, metadata, "createdAt", "updatedAt")
+  VALUES (${id}, ${idx}, ${presId}, ${text}, ${vec}::vector, ${metaJson}, NOW(), NOW())
+`;
 
-**Migration strategy (forward-only, per CLAUDE.md rules):**
-1. Change provider to `postgresql` in schema.prisma
-2. Set `DATABASE_URL` to Supabase connection string (pooled, port 6543)
-3. Set `DIRECT_URL` to Supabase direct connection string (port 5432)
-4. Run `prisma migrate dev --name switch-to-postgresql` to generate initial migration
-5. Since this is a fresh Supabase database, the migration will create all tables from scratch
-6. Run seed script to populate demo data (Meridian Capital Group fixture)
+// COSINE SIMILARITY SEARCH
+const queryVec = pgvector.toSql(queryEmbedding);
+const results = await prisma.$queryRaw`
+  SELECT id, "slideIndex", "presentationId", "textContent", metadata,
+         1 - (embedding <=> ${queryVec}::vector) as similarity
+  FROM "SlideEmbedding"
+  ORDER BY embedding <=> ${queryVec}::vector
+  LIMIT ${limit}
+`;
+```
 
-### 4. Vercel Deployment: 2 Projects from Turborepo Monorepo
+**Vector index (add in a later migration after data is loaded):**
+
+```sql
+CREATE INDEX slide_embedding_vector_idx ON "SlideEmbedding"
+  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+```
+
+Use IVFFlat over HNSW for the initial dataset size (hundreds to low thousands of slides). IVFFlat has lower memory overhead and faster index build time. Switch to HNSW only if dataset grows past 10K+ rows and query latency matters.
+
+### 2. Embedding Generation via Vertex AI
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Vercel Platform | N/A | Hosting for both `apps/web` (Next.js) and `apps/agent` (Mastra/Hono) | Native Turborepo support; automatic preview deployments per PR; environment variable management with prod/preview scoping | HIGH |
-| `@hono/node-server` | `^1.13` [VERIFY] | Node.js HTTP adapter for Hono (used by Mastra) | Mastra builds to a Hono server; this adapter runs Hono on Node.js in Vercel's Serverless/Edge runtime | MEDIUM |
+| `@google/genai` (EXISTING -- no install) | ^1.43.0 | Generate text embeddings via Vertex AI `text-embedding-005` | Already installed and configured with `vertexai: true` throughout the codebase. The `embedContent` method supports embedding generation. Zero new dependencies. |
 
-**Two Vercel projects, one Git repo:**
+**Model: `text-embedding-005` (768 dimensions)**
 
-Vercel natively supports multiple projects from a single monorepo. Each project points to a different root directory:
+This is Google's current recommended English text embedding model available through Vertex AI. The newer `gemini-embedding-001` produces 3072-dimensional vectors -- overkill for slide classification, and it wastes 4x the storage and slows similarity queries with no meaningful accuracy gain at this dataset size.
 
-| Vercel Project | Root Directory | Framework | Build Command | Output |
-|----------------|---------------|-----------|---------------|--------|
-| `lumenalta-web` | `apps/web` | Next.js | `cd ../.. && pnpm turbo run build --filter=web` | `.next/` |
-| `lumenalta-agent` | `apps/agent` | Other (Node.js) | `cd ../.. && pnpm turbo run build --filter=agent` | `.mastra/output/` |
-
-**Critical: Vercel project configuration**
-
-For each project in the Vercel dashboard:
-- **Root Directory:** Set to `apps/web` or `apps/agent`
-- **Build Command:** Override to use Turborepo from the monorepo root (Vercel auto-detects Turborepo and handles this, but verify)
-- **Install Command:** `pnpm install` (Vercel detects pnpm from `packageManager` field in root `package.json`)
-- **Node.js Version:** Set to 20.x in project settings
-
-**Environment variables per project:**
-
-| Variable | `lumenalta-web` | `lumenalta-agent` | Scope |
-|----------|-----------------|-------------------|-------|
-| `AGENT_SERVICE_URL` | Yes (points to agent URL) | No | prod + preview |
-| `AGENT_API_KEY` | Yes | Yes (must match) | prod + preview |
-| `DATABASE_URL` | No | Yes (Supabase pooled) | prod + preview |
-| `DIRECT_URL` | No | Yes (Supabase direct) | prod only (migrations) |
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | No | prod + preview |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | No | prod + preview |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes (for server-side auth) | No | prod + preview |
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | No | Yes | prod + preview |
-| `GOOGLE_DRIVE_FOLDER_ID` | No | Yes | prod + preview |
-| `GOOGLE_TEMPLATE_PRESENTATION_ID` | No | Yes | prod + preview |
-| `GOOGLE_CLOUD_PROJECT` | No | Yes | prod + preview |
-| `GOOGLE_CLOUD_LOCATION` | No | Yes | prod + preview |
-| `GOOGLE_APPLICATION_CREDENTIALS` | No | Yes (base64 encoded on Vercel) | prod + preview |
-
-**Preview vs Production environments:**
-- Use Supabase's dev instance for Vercel preview deployments (linked to PR branches)
-- Use Supabase's prod instance for the production deployment
-- Vercel supports scoping env vars to "Production", "Preview", and "Development" independently
-
-### 5. Agent Server Deployment on Vercel
-
-**Problem:** Mastra builds to a standalone Hono server (`mastra build` produces `.mastra/output/`). This is NOT a Next.js app and does not use Vercel's native Next.js adapter.
-
-**Two deployment options for the agent:**
-
-**Option A: Vercel Serverless Functions (RECOMMENDED for this project)**
-
-Mastra 1.8+ supports deployment to Vercel serverless functions. The `mastra build` command can output a Vercel-compatible serverless function format.
-
-Key considerations:
-- Vercel serverless functions have a 60-second timeout on Pro plan (10s on Hobby)
-- Mastra workflows (touch-1 through touch-4) can run 30-120 seconds for full deck generation
-- Suspend/resume pattern already in use -- workflows can be split across function invocations
-- The `/api/workflows/*/start` endpoint kicks off and returns immediately; status is polled
-
-If Mastra's Vercel adapter handles this natively, use it. Check `mastra deploy` docs.
-
-**Option B: Separate hosting (Railway/Fly.io)**
-
-If Mastra requires a long-running Node.js process (persistent WebSocket connections, in-memory state):
-- Deploy to Railway or Fly.io as a Docker container
-- This adds infrastructure but removes serverless timeout concerns
-- `AGENT_SERVICE_URL` would point to the Railway/Fly.io URL instead of a Vercel URL
-
-**Recommendation:** Start with Option A (Vercel). Mastra's suspend/resume pattern means workflows do NOT need a persistent process. Each API call is stateless -- workflow state is persisted in the LibSQL/Postgres store. If timeouts become an issue, fall back to Option B.
-
-### 6. Mastra Storage Migration
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `@mastra/pg` | `^1.0` [VERIFY package name] | PostgreSQL storage adapter for Mastra's internal state | Replaces `@mastra/libsql` with file:// URL; Mastra's workflow snapshots, suspend/resume state, and step outputs need a durable store accessible from Vercel's serverless environment | LOW -- verify package exists |
-
-**Current state:**
-```typescript
-storage: new LibSQLStore({
-  id: "mastra-store",
-  url: "file:./prisma/mastra.db",  // Local SQLite file -- won't work on Vercel
-})
-```
-
-**Required change:** Mastra's internal storage must move to a network-accessible database. Options:
-
-1. **Supabase Postgres (same instance):** Use a separate schema or table prefix for Mastra's internal tables. Mastra likely supports a Postgres connection URL directly.
-2. **Turso (LibSQL cloud):** `@mastra/libsql` already in use; switch from `file://` to a Turso cloud URL. Free tier available.
-3. **Upstash Redis:** If Mastra supports Redis storage adapters.
-
-**Recommendation:** Use the same Supabase Postgres instance with a dedicated `mastra` schema. This avoids adding another service. Verify that `@mastra/libsql` can accept a Turso URL as an alternative if Mastra does not ship a native Postgres adapter.
+**The project already authenticates to Vertex AI** via `GoogleGenAI({ vertexai: true, project, location })` in every workflow. No new auth setup needed.
 
 ```typescript
-// Target configuration (verify adapter package name)
-storage: new PostgresStore({
-  connectionString: env.DATABASE_URL,
-  schemaName: "mastra",  // Separate from app tables
-})
-```
+import { GoogleGenAI } from '@google/genai';
+import { env } from '../env';
 
-### 7. Service-to-Service Authentication (Web to Agent)
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Shared API key (env var) | N/A | Authenticate requests from `apps/web` to `apps/agent` | Simplest effective pattern for two first-party services; no OAuth complexity needed for server-to-server | HIGH |
-
-**Implementation pattern:**
-
-The existing `api-client.ts` in `apps/web` already centralizes all fetch calls to the agent. Adding an API key header requires ONE change:
-
-```typescript
-// apps/web/src/lib/api-client.ts
-async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "X-API-Key": env.AGENT_API_KEY,  // Add this line
-      ...init?.headers,
-    },
-  });
-  // ...
-}
-```
-
-**Agent-side middleware (Hono):**
-
-Mastra's Hono server supports middleware. Add an API key check:
-
-```typescript
-// apps/agent/src/middleware/api-key.ts
-import { createMiddleware } from "hono/factory";
-
-export const apiKeyAuth = createMiddleware(async (c, next) => {
-  // Skip auth for health checks
-  if (c.req.path === "/health") return next();
-
-  const apiKey = c.req.header("X-API-Key");
-  if (!apiKey || apiKey !== process.env.AGENT_API_KEY) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-  await next();
+const ai = new GoogleGenAI({
+  vertexai: true,
+  project: env.GOOGLE_CLOUD_PROJECT,
+  location: env.GOOGLE_CLOUD_LOCATION
 });
+
+// Generate embedding for a slide's text content
+const response = await ai.models.embedContent({
+  model: 'text-embedding-005',
+  contents: slideTextContent,
+  config: { taskType: 'RETRIEVAL_DOCUMENT' }
+});
+const embedding: number[] = response.embeddings[0].values; // length 768
 ```
 
-**Where to apply:** Mastra's `server.middleware` configuration option (verify exact API). The middleware must wrap all `apiRoutes` registered in `mastra/index.ts`.
+**Task types to use:**
+- `RETRIEVAL_DOCUMENT` -- when embedding slides for storage in pgvector
+- `RETRIEVAL_QUERY` -- when embedding a search query for similarity lookup
+- `CLASSIFICATION` -- when embedding for the rating/feedback classification loop
 
-**Key generation:** Use `openssl rand -base64 32` to generate a cryptographically random API key. Store identical values in both Vercel projects' environment variables.
+### 3. CI/CD Pipeline (GitHub Actions)
 
----
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| GitHub Actions | N/A | CI/CD orchestration | Already using GitHub. Natural choice for push-triggered deployment workflows. |
+| `vercel` CLI | latest | Deploy web app from GitHub Actions | Vercel's official CLI. Use `vercel deploy --prebuilt` for fastest deploys. Must disable Vercel's automatic GitHub integration to avoid double-deploys. |
+| Railway CLI (`@railway/cli`) | latest | Deploy agent app from GitHub Actions | Railway supports `railway up --service SERVICE_ID --detach` for CI. Use project tokens for auth (not user tokens). |
+| `pnpm/action-setup@v4` | v4 | Install pnpm in CI | Official pnpm GitHub Action. Matches the project's `packageManager: pnpm@9.12.0`. |
 
-## Supporting Libraries (NEW additions only)
+**No GitHub Actions workflows exist yet** (verified -- no `.github/workflows/` directory in the project).
+
+**Workflow structure (3 workflows):**
+
+```
+.github/workflows/
+  ci.yml           # Lint + type-check on all PRs (runs on pull_request)
+  deploy-web.yml   # Deploy web to Vercel on push to main
+  deploy-agent.yml # Run migrations + deploy agent to Railway on push to main
+```
+
+**Vercel deployment pattern:**
+
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm add -g vercel
+      - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+```
+
+Required secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+
+**Important:** Disable Vercel's GitHub integration auto-deploy (Settings > Git > Ignored Build Step: `exit 0` or disconnect GitHub in Vercel dashboard) to prevent double-deploys when using GitHub Actions.
+
+**Railway deployment pattern:**
+
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      # Run pending migrations BEFORE deploying new code
+      - name: Run Pending Migrations
+        run: pnpm --filter agent exec prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Install Railway CLI
+        run: npm i -g @railway/cli
+
+      - name: Deploy Agent to Railway
+        run: railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+```
+
+Required secrets: `RAILWAY_TOKEN` (project token from Railway dashboard Settings > Tokens), `RAILWAY_SERVICE_ID`.
+
+**Migration safety:** Use `prisma migrate deploy` (NOT `prisma migrate dev`) in CI. This applies pending migrations without generating new ones. Runs BEFORE the Railway deploy step so the database schema is updated before new application code goes live.
+
+### 4. Google Slides API -- Slide-Level Operations for Preview
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `googleapis` (EXISTING -- no install) | ^144.0.0 | Slide thumbnail generation, page-level reads for ingestion | Already installed and used throughout the codebase (`presentations.get`, `presentations.batchUpdate`). The `presentations.pages.getThumbnail` method returns a content URL for individual slide preview images. |
+
+**No new dependencies needed.** The existing `googleapis` package provides everything required.
+
+**Thumbnail generation for slide preview in the rating engine:**
+
+```typescript
+import { google } from 'googleapis';
+
+const slides = google.slides({ version: 'v1', auth });
+const thumbnail = await slides.presentations.pages.getThumbnail({
+  presentationId,
+  pageObjectId: slideObjectId,
+  thumbnailProperties: {
+    mimeType: 'PNG',
+    thumbnailSize: 'LARGE'  // SMALL (200px), MEDIUM (800px), LARGE (1600px)
+  }
+});
+const imageUrl = thumbnail.data.contentUrl; // URL valid for 30 minutes
+```
+
+**Important notes:**
+- Thumbnail URLs expire after 30 minutes. Cache them client-side, but regenerate on page load if stale.
+- Each `getThumbnail` call counts as an "expensive read" against Google API quota. Batch carefully for presentations with many slides.
+- The existing `getDriveClient` / service account auth helpers handle authentication. Reuse them.
+
+**Access awareness (checking if service account can read a file):**
+
+```typescript
+const drive = google.drive({ version: 'v3', auth });
+try {
+  await drive.files.get({ fileId: presentationId, fields: 'id,name,shared' });
+  // File is accessible to service account
+} catch (e: any) {
+  if (e.code === 403 || e.code === 404) {
+    // Not shared with service account -- flag in Templates UI
+  }
+}
+```
+
+The existing `ContentSource` model already tracks `accessStatus` -- this pattern extends naturally.
+
+### 5. Human Feedback and Classification Improvement
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| No new libraries needed | -- | Store ratings, update classifications, improve future embeddings | Uses existing Prisma for data, `@google/genai` for re-embedding if needed, pgvector for updated similarity search. |
+
+**Architecture:** When a human rates a slide classification (approves tags, corrects tags, thumbs up/down):
+
+1. Store the rating in a new `SlideRating` Prisma model
+2. Update the slide's metadata tags in `SlideEmbedding.metadata` based on human correction
+3. Optionally re-generate the embedding with corrected metadata appended to the slide text (improved context = better vector)
+4. Use accumulated approved classifications as few-shot examples in future `classifySlide()` prompts (already in `classify-metadata.ts`)
+
+"Real-time improvement" means the next classification or similarity search immediately benefits from stored human ratings. No WebSocket, SSE, or streaming infrastructure needed. The web app's Server Actions + REST API call to the agent suffices.
+
+**New Prisma model:**
+
+```prisma
+model SlideRating {
+  id                String   @id @default(cuid())
+  slideEmbeddingId  String   // FK to SlideEmbedding (manual, since Unsupported columns prevent relation)
+  raterEmail        String   // From Supabase Auth session
+  action            String   // "approved" | "corrected" | "rejected"
+  correctedMetadata String?  // JSON: corrected classification tags (if action = "corrected")
+  comment           String?  // Optional reviewer note
+  createdAt         DateTime @default(now())
+
+  @@index([slideEmbeddingId])
+  @@index([raterEmail])
+}
+```
+
+### Supporting Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| `@supabase/supabase-js` | `^2.45` [VERIFY] | Supabase client for Auth operations | ONLY in `apps/web` for login/logout/session. NOT for data queries (use Prisma) |
-| `@supabase/ssr` | `^0.5` [VERIFY] | Server-side Supabase client creation for Next.js | In middleware.ts, Server Components, and Route Handlers that need auth context |
-| `@mastra/pg` or equivalent | `^1.0` [VERIFY] | Mastra Postgres storage adapter | In `apps/agent/src/mastra/index.ts` to replace LibSQLStore |
+| `pgvector` | ^0.2.0 | Vector serialization for Prisma raw queries | Every embedding INSERT and cosine similarity search |
 
----
+**This is the ONLY new npm dependency needed for the entire v1.2 milestone.**
+
+### Development Tools
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| GitHub Actions | CI/CD orchestration | Create `.github/workflows/` directory with 3 workflow YAML files |
+| `vercel` CLI (CI only) | Vercel deployment from Actions | Installed in CI workflow, not in devDependencies |
+| `@railway/cli` (CI only) | Railway deployment from Actions | Installed in CI workflow, not in devDependencies |
 
 ## Installation
 
 ```bash
-# In apps/web -- Supabase Auth client
-pnpm add @supabase/supabase-js @supabase/ssr
-
-# In apps/agent -- no new packages needed for Prisma switch
-# Prisma is already installed; just change the provider and connection string
-
-# For Mastra Postgres storage (verify package name first)
-pnpm add @mastra/pg  # [VERIFY] -- may be @mastra/postgres or configuration-only
+# Single new dependency -- agent app only
+pnpm --filter agent add pgvector
 ```
 
----
-
-## Integration Points with Existing Code
-
-### Prisma Schema (apps/agent/prisma/schema.prisma)
-
-**Before:**
-```prisma
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-```
-
-**After:**
-```prisma
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-```
-
-No model changes required. All existing models are compatible with PostgreSQL as-is.
-
-### Environment Configuration (apps/agent/src/env.ts)
-
-Add new env vars:
-```typescript
-export const env = createEnv({
-  server: {
-    DATABASE_URL: z.string().min(1),    // Now a postgres:// URL
-    DIRECT_URL: z.string().min(1),       // NEW: Direct Supabase connection
-    AGENT_API_KEY: z.string().min(32),   // NEW: Service-to-service auth
-    // ... existing vars unchanged
-  },
-  runtimeEnv: process.env,
-});
-```
-
-### Environment Configuration (apps/web/src/env.ts)
-
-Add new env vars:
-```typescript
-export const env = createEnv({
-  server: {
-    AGENT_SERVICE_URL: z.string().url(),
-    AGENT_API_KEY: z.string().min(32),           // NEW
-    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1), // NEW: Server-side auth checks
-  },
-  client: {
-    NEXT_PUBLIC_SUPABASE_URL: z.string().url(),   // NEW
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1), // NEW
-  },
-  runtimeEnv: {
-    AGENT_SERVICE_URL: process.env.AGENT_SERVICE_URL,
-    AGENT_API_KEY: process.env.AGENT_API_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  },
-});
-```
-
-### Next.js Middleware (NEW file: apps/web/middleware.ts)
-
-```typescript
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
-
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return request.cookies.getAll(); },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user && !request.nextUrl.pathname.startsWith("/login") &&
-      !request.nextUrl.pathname.startsWith("/auth")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  return supabaseResponse;
-}
-
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
-};
-```
-
-### Supabase Client Utilities (NEW files in apps/web)
-
-```typescript
-// apps/web/src/lib/supabase/server.ts
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-
-export async function createClient() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-}
-
-// apps/web/src/lib/supabase/client.ts
-import { createBrowserClient } from "@supabase/ssr";
-
-export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
-}
-```
-
-### Auth Callback Route (NEW: apps/web/src/app/auth/callback/route.ts)
-
-```typescript
-import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
-
-export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
-
-  if (code) {
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (!error && data.user) {
-      // Domain restriction check
-      if (!data.user.email?.endsWith("@lumenalta.com")) {
-        await supabase.auth.signOut();
-        return NextResponse.redirect(`${origin}/login?error=unauthorized_domain`);
-      }
-      return NextResponse.redirect(`${origin}${next}`);
-    }
-  }
-
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`);
-}
-```
-
-### Turbo Configuration (turbo.json)
-
-No changes needed. The existing `turbo.json` already supports the monorepo build pipeline. Vercel's Turborepo integration uses this configuration automatically.
-
-However, environment variables should be declared for cache invalidation:
-
-```json
-{
-  "globalEnv": [
-    "DATABASE_URL",
-    "DIRECT_URL",
-    "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY"
-  ]
-}
-```
-
----
+That is it. Everything else is already installed.
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| Supabase Auth (Google OAuth) | NextAuth.js v5 / Auth.js | NextAuth adds another abstraction layer over OAuth; Supabase Auth is already included with the Supabase database -- using it avoids managing sessions separately from the DB provider; fewer moving parts |
-| Supabase Auth | Clerk | Clerk is excellent but adds a paid dependency and another vendor; Supabase Auth is free and co-located with the database |
-| Supabase Auth | Firebase Auth | Firebase would require a separate Firebase project; Supabase already provides the database, so Auth is zero-marginal-cost |
-| Supabase Postgres | Neon Postgres | Neon is excellent but does not include built-in Auth; using Supabase gets both DB and Auth from one provider |
-| Supabase Postgres | PlanetScale (MySQL) | PlanetScale is MySQL-only; Prisma would need more schema changes; PostgreSQL is a more natural upgrade from SQLite |
-| API key auth (service-to-service) | JWT/OAuth2 between services | Overkill for two first-party services in the same monorepo; API key is simpler, equally secure over HTTPS, and requires no token refresh logic |
-| API key auth | Vercel internal networking | Vercel does not provide private networking between serverless functions across projects; public HTTPS with API key is the standard pattern |
-| Vercel for agent | Railway / Fly.io | Adds another hosting provider; Vercel can host the agent as serverless functions; only fall back if timeout limits are hit |
-| Prisma (keep) | Drizzle ORM | Switching ORMs during a migration milestone adds unnecessary risk; Prisma is already integrated with 10+ models and extensive query code |
-
----
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| pgvector in Supabase | Pinecone / Weaviate / Qdrant | Only if dataset grows to millions of vectors with sub-10ms latency requirements. The slide dataset is hundreds to low thousands -- pgvector in the same DB is simpler, cheaper, and eliminates network hops. |
+| `text-embedding-005` (768-dim) via existing `@google/genai` | OpenAI `text-embedding-3-small` or `gemini-embedding-001` (3072-dim) | OpenAI would mean a second auth/billing system. `gemini-embedding-001` produces 3072-dim vectors that quadruple storage with no accuracy gain at this scale. `text-embedding-005` is the right fit. |
+| Prisma `$queryRaw` + pgvector npm | Drizzle ORM or raw `pg` client | Only if you were starting from scratch. Switching ORMs mid-project for vector queries alone is not worth the migration cost. Raw queries for vectors + Prisma for everything else is the standard community pattern. |
+| `prisma migrate deploy` in CI | `prisma db push` | Never. `db push` is explicitly prohibited per CLAUDE.md. `migrate deploy` is the correct CI command. |
+| IVFFlat vector index | HNSW index | HNSW is better for 100K+ vectors with concurrent reads. IVFFlat is appropriate for the current scale and has lower memory/build cost. |
+| Vercel CLI in GitHub Actions | Vercel built-in GitHub integration | Only if you want zero CI/CD configuration and are okay with no migration step before deploy. CLI gives control over build order. |
+| Railway CLI in GitHub Actions | Railway auto-deploy on push | Only if you do not need to run migrations before deploy. The auto-deploy does not run Prisma migrations. |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `@supabase/auth-helpers-nextjs` | Deprecated in favor of `@supabase/ssr`; the auth-helpers package is no longer maintained | `@supabase/ssr` |
-| Supabase JS client for data queries | Creates a dual-query-layer alongside Prisma; confusing, harder to maintain, and Prisma is already deeply integrated | Prisma for all data queries; Supabase JS only for Auth |
-| `prisma db push` | Explicitly forbidden by CLAUDE.md project rules; all schema changes must go through `prisma migrate dev` | `prisma migrate dev --name <descriptive-name>` |
-| `prisma migrate reset` | Explicitly forbidden by CLAUDE.md; treat dev DB as production | Forward-only migrations; use `prisma migrate resolve --applied` if history drifts |
-| Supabase Edge Functions | Would compete with Mastra's workflow engine for business logic; creates confusion about where logic lives | Keep all business logic in Mastra workflows; Supabase is only for DB + Auth |
-| Supabase Realtime | Adds complexity; the existing polling pattern for workflow status works well enough; realtime can be added later | Keep existing polling pattern in `api-client.ts` |
-| Supabase Storage | Google Drive is the file storage system (per project constraints); adding another storage layer creates confusion | Google Drive via service account (already working) |
-| Row Level Security (RLS) on Supabase | RLS is for multi-tenant apps where users query the DB directly via Supabase client; since Prisma handles all queries server-side, RLS adds complexity without benefit | Server-side auth checks in middleware + API key for agent |
-| `next-auth` / `auth.js` | Adds a third auth layer alongside Supabase Auth; unnecessary and creates session management conflicts | Supabase Auth via `@supabase/ssr` |
-
----
-
-## Stack Patterns by Variant
-
-**If Mastra does not have a native Postgres storage adapter:**
-- Use `@mastra/libsql` with a Turso cloud URL instead of `file://`
-- Turso provides a free tier with a hosted LibSQL database
-- Change: `url: "file:./prisma/mastra.db"` to `url: env.MASTRA_STORAGE_URL` (a `libsql://` URL)
-- This is the lowest-risk change since the adapter code stays the same
-
-**If Vercel serverless function timeouts are too short for Mastra workflows:**
-- Deploy `apps/agent` to Railway instead of Vercel
-- Railway supports long-running Node.js processes and WebSocket connections
-- The `AGENT_SERVICE_URL` env var in `apps/web` would point to the Railway URL
-- API key auth works identically regardless of hosting
-
-**If Google Workspace OAuth consent screen cannot be set to "Internal":**
-- Implement domain restriction at the application level (see section 2 above)
-- Add a Supabase Database Webhook or Postgres trigger to block non-lumenalta sign-ups at the database level
-- Consider adding the domain check in BOTH the auth callback AND the middleware for defense-in-depth
-
-**If dev and prod need different Supabase instances:**
-- Create two Supabase projects: `lumenalta-dev` and `lumenalta-prod`
-- In Vercel, scope `DATABASE_URL` and Supabase keys to "Preview" vs "Production" environments
-- Run `prisma migrate deploy` against prod (not `prisma migrate dev`) -- migrations are generated in dev and applied in prod
-
----
+| Prisma 7.x | Known regression with `Unsupported("vector")` columns causing migration failures (prisma/prisma#28867, reported Dec 2025) | Stay on Prisma 6.19.x |
+| `prisma db push` | Explicitly prohibited in CLAUDE.md project rules | `prisma migrate dev --name <name>` for development, `prisma migrate deploy` for CI |
+| `@google-cloud/aiplatform` | Heavyweight SDK with protobuf dependencies. The lighter `@google/genai` already supports Vertex AI embeddings via `embedContent`. | `@google/genai` (already installed) |
+| LangChain PrismaVectorStore | Adds massive dependency tree (~50+ transitive deps). pgvector npm + raw queries is simpler and more maintainable. | `pgvector` npm + Prisma `$queryRaw` |
+| `prisma-extension-pgvector` | Small community package with limited maintenance (last publish 2024). Raw queries are more transparent and debuggable. | `pgvector` npm + Prisma `$queryRaw` |
+| Separate vector DB (Pinecone, Qdrant, etc.) | Adds external dependency, network latency, separate billing, and operational complexity for a small dataset (hundreds of slides). | pgvector in existing Supabase PostgreSQL |
+| WebSocket/SSE for feedback | Overengineered. Rating a slide classification is a form submission, not a real-time stream. | Next.js Server Actions + REST API call to agent |
+| `gemini-embedding-001` | 3072 dimensions quadruples vector storage and slows cosine similarity queries. No accuracy benefit at this dataset size. | `text-embedding-005` (768 dimensions) |
 
 ## Version Compatibility
 
 | Package | Compatible With | Notes |
 |---------|-----------------|-------|
-| `@supabase/supabase-js@^2` | `@supabase/ssr@^0.5` | These must be the same major generation; v2 client with v0.x SSR helpers |
-| `@supabase/ssr@^0.5` | Next.js 15 App Router | SSR helpers explicitly support App Router's `cookies()` API from `next/headers` |
-| Prisma `^6.3` | PostgreSQL 15/16 (Supabase default) | Prisma 6 fully supports PG 15+; Supabase provisions PG 15 by default |
-| Prisma `^6.3` | Supabase connection pooling (pgbouncer) | Use `?pgbouncer=true` in the pooled connection string; use `directUrl` for migrations |
-| `@t3-oss/env-nextjs@^0.13` | Zod v4 | Already in use; `createEnv` works with both Zod v3 and v4 |
-| Turborepo `^2.3` | Vercel deployment | Vercel auto-detects Turborepo and runs builds with Remote Caching |
-| pnpm `9.12` | Vercel | Vercel supports pnpm natively; detects from `packageManager` field in root `package.json` |
+| `pgvector` ^0.2.0 | Prisma 6.x, Node 22 | Uses `$queryRaw` / `$executeRaw` -- no coupling with Prisma internals |
+| `@google/genai` ^1.43.0 | `text-embedding-005` on Vertex AI | `embedContent` method available. Requires `vertexai: true` (already configured). |
+| Prisma 6.19.x | Supabase PostgreSQL 15 + pgvector 0.7.x | `Unsupported("vector(768)")` works for schema documentation. All vector ops via raw SQL. |
+| pgvector extension 0.7.x | PostgreSQL 15 (Supabase default) | Supabase manages the extension version. Supports IVFFlat and HNSW indexes. |
+| `pnpm/action-setup@v4` | pnpm 9.12.0 | Matches the `packageManager` field in root `package.json`. |
+| `actions/setup-node@v4` | Node 22 | Use `node-version: 22` to match the Dockerfile's `node:22-alpine`. |
 
----
+## Migration Strategy
 
-## Connection String Formats
+All schema changes use forward-only migrations per CLAUDE.md rules:
 
 ```bash
-# Supabase pooled connection (for app runtime -- port 6543)
-DATABASE_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true"
+# 1. Enable pgvector extension (create-only to inspect SQL, then apply)
+pnpm --filter agent exec prisma migrate dev --name enable-pgvector-extension --create-only
+# Manually add: CREATE EXTENSION IF NOT EXISTS vector;
+# Then: pnpm --filter agent exec prisma migrate dev --name enable-pgvector-extension
 
-# Supabase direct connection (for migrations -- port 5432)
-DIRECT_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres"
+# 2. Add SlideEmbedding table
+pnpm --filter agent exec prisma migrate dev --name add-slide-embedding-table
 
-# Supabase Auth configuration
-NEXT_PUBLIC_SUPABASE_URL="https://[project-ref].supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJ..."  # Public anon key (safe for client-side)
-SUPABASE_SERVICE_ROLE_KEY="eyJ..."      # Server-only; never expose to client
+# 3. Add SlideRating table (for human feedback)
+pnpm --filter agent exec prisma migrate dev --name add-slide-rating-table
 
-# Service-to-service
-AGENT_API_KEY="[openssl rand -base64 32 output]"
-AGENT_SERVICE_URL="https://lumenalta-agent.vercel.app"  # Production agent URL
+# 4. Add Template model (for templates management page)
+pnpm --filter agent exec prisma migrate dev --name add-template-model
+
+# 5. Add vector index (after data exists, use create-only)
+pnpm --filter agent exec prisma migrate dev --name add-slide-embedding-vector-index --create-only
+# Manually add CREATE INDEX statement, then apply
 ```
 
----
+## CI/CD Secrets Required
 
-## Supabase Setup Checklist
-
-1. Create Supabase project (free tier is sufficient for dev)
-2. Enable Google OAuth provider in Authentication > Providers
-3. Configure Google Cloud OAuth consent screen:
-   - Set to "Internal" (Lumenalta Workspace restriction)
-   - Add authorized redirect URI: `https://[project-ref].supabase.co/auth/v1/callback`
-4. Copy Google OAuth Client ID and Secret into Supabase dashboard
-5. Copy connection strings from Settings > Database
-6. Set `NEXT_PUBLIC_SUPABASE_URL` and keys in Vercel env vars
-7. Run Prisma migrations against the new database
-
----
+| Secret | Where to Configure | Purpose |
+|--------|-------------------|---------|
+| `VERCEL_TOKEN` | GitHub repo Settings > Secrets | Vercel CLI authentication |
+| `VERCEL_ORG_ID` | GitHub repo Settings > Secrets | Vercel organization scope |
+| `VERCEL_PROJECT_ID` | GitHub repo Settings > Secrets | Vercel project scope for web app |
+| `RAILWAY_TOKEN` | GitHub repo Settings > Secrets | Railway project token (Settings > Tokens in Railway dashboard) |
+| `RAILWAY_SERVICE_ID` | GitHub repo Settings > Secrets | Target Railway service for agent deploys |
+| `DATABASE_URL` | GitHub repo Settings > Secrets | Supabase pooled connection for `prisma migrate deploy` |
+| `DIRECT_URL` | GitHub repo Settings > Secrets | Supabase direct connection (non-pooled) for migrations |
 
 ## Sources
 
-- Training data (cutoff May 2025) -- Supabase Auth with Next.js App Router patterns, `@supabase/ssr` usage
-- Training data -- Prisma PostgreSQL provider documentation, connection pooling with pgbouncer
-- Training data -- Vercel Turborepo monorepo deployment patterns
-- Training data -- Hono middleware patterns for API key authentication
-- Codebase analysis -- `apps/agent/src/mastra/index.ts`, `apps/web/src/lib/api-client.ts`, `prisma/schema.prisma`
-- Codebase analysis -- existing env.ts configurations in both apps
-
-**Items requiring verification before implementation:**
-1. `@supabase/ssr` current version -- check npmjs.com (training data says ^0.5, may be higher now)
-2. `@supabase/supabase-js` current version -- check npmjs.com (may be v2.46+ or v3.x by March 2026)
-3. Mastra Postgres storage adapter -- check mastra.ai docs for `@mastra/pg` or equivalent; fallback to Turso/LibSQL cloud
-4. Mastra Vercel deployment support -- check if `mastra deploy` or `mastra build --target vercel` exists
-5. Supabase direct connection string format -- verify in Supabase dashboard (port and URL format may vary by region)
+- [Supabase pgvector docs](https://supabase.com/docs/guides/database/extensions/pgvector) -- enabling and using pgvector in Supabase (HIGH confidence)
+- [Supabase vector columns guide](https://supabase.com/docs/guides/ai/vector-columns) -- vector column usage patterns (HIGH confidence)
+- [Prisma PostgreSQL extensions docs](https://www.prisma.io/docs/postgres/database/postgres-extensions) -- `Unsupported()` type and raw query patterns (HIGH confidence)
+- [prisma/prisma#26546](https://github.com/prisma/prisma/issues/26546) -- first-class vector support feature request, confirms `Unsupported` is current approach (HIGH confidence)
+- [prisma/prisma#28867](https://github.com/prisma/prisma/issues/28867) -- Prisma 7.x regression with vector types (HIGH confidence)
+- [pgvector-node GitHub](https://github.com/pgvector/pgvector-node) -- `toSql()` / `fromSql()` usage with Prisma examples (HIGH confidence)
+- [pgvector npm](https://www.npmjs.com/package/pgvector) -- package version and API (HIGH confidence)
+- [Google Slides API getThumbnail](https://developers.google.com/slides/api/reference/rest/v1/presentations.pages/getThumbnail) -- slide thumbnail endpoint and options (HIGH confidence)
+- [Vertex AI text embeddings docs](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings) -- text-embedding-005 model, task types (HIGH confidence)
+- [Vertex AI text embeddings API reference](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api) -- API parameters and dimensions (HIGH confidence)
+- [@google/genai npm](https://www.npmjs.com/package/@google/genai) -- embedContent method availability, v1.43.0 (HIGH confidence)
+- [Railway GitHub Actions blog](https://blog.railway.com/p/github-actions) -- Railway CLI deploy from CI with project tokens (MEDIUM confidence)
+- [Railway CLI deploying docs](https://docs.railway.com/cli/deploying) -- CLI flags for CI/CD (HIGH confidence)
+- [Vercel GitHub Actions guide](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel) -- Vercel CLI deploy from CI (HIGH confidence)
+- [Turborepo GitHub Actions guide](https://turborepo.dev/docs/guides/ci-vendors/github-actions) -- Turborepo + pnpm setup in CI (HIGH confidence)
+- [bervProject/railway-deploy GitHub Action](https://github.com/bervProject/railway-deploy) -- community Railway deploy action reference (MEDIUM confidence)
 
 ---
-
-*Stack research for: v1.1 Infrastructure & Access Control (Supabase + Vercel + Google OAuth)*
-*Researched: 2026-03-04*
+*Stack research for: Lumenalta v1.2 Templates and Slide Intelligence*
+*Researched: 2026-03-05*

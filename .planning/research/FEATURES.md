@@ -1,19 +1,21 @@
-# Feature Research
+# Feature Research: v1.2 Templates & Slide Intelligence
 
-**Domain:** Infrastructure hardening -- database migration, deployment, authentication, and service auth for an existing agentic sales platform
-**Researched:** 2026-03-04
-**Confidence:** MEDIUM -- web tools unavailable; findings based on training knowledge of Supabase, Vercel, Next.js 15, Prisma, Mastra, and Google OAuth through May 2025. Confidence downgrades noted where recency matters. Existing codebase read directly (HIGH confidence for architecture analysis).
+**Domain:** Agentic sales platform -- template management, AI slide classification, HITL rating, CI/CD automation
+**Researched:** 2026-03-05
+**Confidence:** HIGH (well-understood patterns applied to specific domain; codebase read directly)
 
 ---
 
 ## Scope
 
-This document covers ONLY the v1.1 milestone features. The v1.0 product features (touches 1-4, pre-call briefing, HITL, RAG, etc.) are shipped. The v1.1 milestone adds four infrastructure capabilities to make the platform usable by the Lumenalta team:
+This document covers ONLY the v1.2 milestone features. The v1.0 product (touches 1-4, pre-call briefing, HITL, RAG) and v1.1 infrastructure (Supabase PostgreSQL, Vercel + Railway deploy, Google OAuth, API key auth) are shipped. The v1.2 milestone adds six capabilities:
 
-1. SQLite to Supabase (PostgreSQL) database migration
-2. Vercel deployment (2 projects: web + agent, prod/preview envs)
-3. Google OAuth login wall restricted to @lumenalta.com
-4. Service-to-service API key auth between web and agent
+1. CI/CD pipeline (GitHub Actions to Vercel + Railway + Prisma migrations)
+2. Side panel navigation (Deals + Templates sections)
+3. Templates management page (CRUD with Google Slides links, touch assignment)
+4. Slide ingestion agent (extract, embed, classify slides into Supabase pgvector)
+5. Access awareness (flag unshared Google Slides files)
+6. Preview and rating engine (slide classification review + real-time improvement)
 
 ---
 
@@ -21,541 +23,444 @@ This document covers ONLY the v1.1 milestone features. The v1.0 product features
 
 ### Table Stakes (Users Expect These)
 
-For an internal team tool being deployed for real use, these features are non-negotiable. Without them, the platform remains a localhost demo.
+Features that are non-negotiable for v1.2 to feel complete. Without these, the milestone adds no usable value.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Persistent database (not SQLite file)** | Team members expect data to survive deployments and be shared across environments. A SQLite file on localhost is a single-user demo, not a team tool. | MEDIUM | Prisma schema already exists with 9 models. Must switch datasource provider from `sqlite` to `postgresql`, handle JSON column differences, and create a fresh migration history for Postgres. |
-| **Deployed web app with a URL** | Sellers need a bookmark they can hit from any machine, not `localhost:3000`. | LOW | Next.js 15 on Vercel is a standard deployment. The web app is a straightforward Next.js build. |
-| **Deployed agent server with a URL** | The web app calls the agent service over HTTP. On Vercel, the agent URL must be a real endpoint, not `localhost:4111`. | HIGH | Mastra's Hono-based server uses `mastra build` and runs as a long-lived Node.js process, not a serverless function. Vercel's serverless model may not fit. This is the hardest deployment question. |
-| **Login wall (only Lumenalta people)** | An internal tool exposed on the internet without auth is a security incident. Domain-restricted login ensures only @lumenalta.com employees access the platform. | MEDIUM | Supabase Auth with Google OAuth provider. Domain restriction at the application level (check `email.endsWith('@lumenalta.com')` after OAuth callback). |
-| **Session persistence across page loads** | Users expect to stay logged in. Refreshing the page should not require re-authentication. | LOW | Supabase Auth handles JWT refresh tokens automatically. `@supabase/ssr` package provides cookie-based session management for Next.js. |
-| **Preview deployments for testing** | Developers pushing PRs expect a preview URL to test changes before merging to production. Standard Vercel workflow. | LOW | Vercel provides this automatically. Preview deploys connect to a dev/staging Supabase instance (not production). |
-| **Environment separation (dev/prod databases)** | Data created during development and testing must not pollute production. Two Supabase projects. | LOW | Two Supabase projects: one for dev/preview, one for production. Different `DATABASE_URL` per Vercel environment. |
-| **Protected API routes (agent not publicly callable)** | The agent server exposes endpoints that create database records, trigger AI workflows, and write to Google Drive. Without auth, anyone with the URL can trigger expensive operations. | MEDIUM | API key shared between web and agent. Web sends `Authorization: Bearer <key>` header; agent validates on every request. |
+| **Templates CRUD page** | Users need to register Google Slides source decks before any ingestion can happen. Without a place to add/view/delete template links, the entire slide intelligence pipeline has no input. | LOW | Simple form: Google Slides URL, display name, touch type assignment (touch_1/2/3/4). Validates URL format, extracts presentation ID. List view with status badges. Extends existing `ContentSource` model which already has `sourceType`, `contentType`, `touchTypes`, `driveFileId`, `accessStatus`, `slideCount`, `ingestedCount` fields. Very little new schema work. |
+| **Touch type assignment on templates** | Sellers need to know which templates feed which touch points. The existing system already routes by touch type (touch_1 through touch_4). Templates without touch assignment are useless for deck assembly. | LOW | Multi-select dropdown or checkbox group on the template form. Maps directly to existing `touchTypes` JSON array field on `ContentSource`. Already modeled in the Prisma schema -- purely a UI concern. |
+| **Side panel navigation** | Current nav is a single top bar linking only to Deals. Adding Templates as a second top-level section requires a navigation paradigm shift. A side panel is the standard pattern for apps with 2+ sections and provides room for future growth. Users expect persistent, predictable navigation. | MEDIUM | Replace or augment the top nav bar in `(authenticated)/layout.tsx` with a collapsible sidebar. Two sections: Deals (existing `/deals` routes), Templates (new `/templates` routes). Use shadcn/ui sidebar component or a custom `Sheet`-based layout. Must preserve all existing `/deals` routes without breakage. |
+| **Slide ingestion trigger** | After adding a template, users expect a way to process it. "Add template, then nothing happens" is confusing. A manual trigger button to kick off slide ingestion is baseline UX. | LOW | "Ingest Slides" button on template row or detail view. Calls the agent API endpoint to launch a Mastra workflow. Shows a loading/progress state. Depends on: Templates CRUD existing. |
+| **Slide thumbnail preview** | After ingestion, users need to see what was extracted. A grid of slide thumbnails with classification labels is the minimum viable confirmation that the AI did something useful. Without visual output, users cannot validate ingestion. | MEDIUM | Google Slides API `presentations.pages.getThumbnail` returns PNG URLs with a 30-minute TTL. Either cache thumbnails (download and store in Drive/Supabase Storage) or re-fetch on page load. Display as a responsive card grid with classification tag overlays. Depends on: slide ingestion completing successfully. |
+| **Access awareness (file sharing check)** | 14/17 content sources are currently inaccessible due to Drive permissions. If a user adds a Google Slides URL that the service account cannot read, the system must tell them immediately -- not fail silently during ingestion minutes later. | LOW | On template add: call Google Drive API `files.get` with service account credentials. If 403/404, show a warning banner: "This file is not shared with the agent. Share with [service-account-email@project.iam.gserviceaccount.com] as Viewer to enable ingestion." Update `ContentSource.accessStatus` to `not_accessible`. Also display the service account email clearly in the UI so users can copy it for sharing. |
+| **Basic classification display** | After AI classifies slides by industry, solution pillar, persona, and funnel stage, users need to see those labels. A read-only tag display on each slide thumbnail is the minimum viable intelligence output. | LOW | Color-coded tag badges on each slide card, pulled from vector store metadata. Industry tags in one color, pillar tags in another. No editing needed at table-stakes level -- just display. Depends on: slide ingestion + classification pipeline completing. |
+| **CI/CD pipeline (GitHub Actions)** | The team deploys manually to two platforms (Vercel + Railway) and runs Prisma migrations by hand. With 224 commits in 3 days, manual deploys are a bottleneck. CI/CD is infrastructure table stakes for any multi-environment project past v1.0. | MEDIUM | GitHub Actions workflow triggered on push to `main`. Three jobs: (1) lint + type-check via Turborepo (`turbo run lint build`), (2) deploy web to Vercel via `vercel deploy --prod` using Vercel CLI with `VERCEL_TOKEN`, (3) deploy agent to Railway via `railway up --service=$SVC_ID` using Railway CLI with `RAILWAY_TOKEN`. Prisma migrations run as part of Railway deploy via entrypoint script or pre-deploy command. Secrets needed: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `RAILWAY_TOKEN`, `RAILWAY_SERVICE_ID`. |
 
-### Differentiators (What Makes This Setup Better Than Minimum)
+### Differentiators (Competitive Advantage)
 
-These features go beyond "it works" and make the platform genuinely comfortable for the team.
+Features that elevate v1.2 beyond "template admin page" into an intelligent content management system that learns from human feedback.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Automatic preview deploys per PR with staging data** | Every pull request gets its own URL pointing at the dev Supabase instance. QA reviewers can test changes without asking the developer to run anything locally. Accelerates iteration on the platform. | LOW | Vercel provides this for free. Only configuration needed is environment variables on the Vercel project. |
-| **Google OAuth with Supabase (not raw NextAuth)** | Using Supabase Auth means the auth layer is co-located with the database. User records live in the same Supabase project. No separate auth database or provider. Simplifies the stack. | MEDIUM | Supabase Auth is purpose-built for this. Alternatives (NextAuth/Auth.js, Clerk) add a third service. Supabase consolidates auth + database. |
-| **Middleware-based route protection** | Next.js middleware intercepts every request before it reaches a page. Unauthenticated users are redirected to `/login` without loading page code. Fast, secure, no flash of protected content. | LOW | `@supabase/ssr` provides `createServerClient` for use in Next.js middleware. Standard pattern. |
-| **Supabase Row Level Security (RLS) as defense-in-depth** | Even if application auth is bypassed, RLS policies on the database prevent unauthorized data access. Not strictly needed for v1.1 (internal tool, single tenant), but sets up the right foundation. | MEDIUM | Supabase enables RLS by default on new tables. For v1.1, a simple "authenticated users can do everything" policy is sufficient. More granular policies (per-user, per-deal) are v2. |
-| **Mastra internal storage migration (LibSQL to Supabase)** | Currently Mastra uses a local LibSQL file (`mastra.db`) for workflow state. Moving this to a hosted database means workflow suspend/resume state survives deployments and is shared across instances. | MEDIUM | Mastra supports `@mastra/pg` storage adapter as an alternative to `@mastra/libsql`. Switching to the Postgres adapter means both application data and Mastra internal state live in Supabase. |
+| **AI slide classification into pgvector** | The core differentiator of v1.2. Each slide gets embedded and classified by industry, solution pillar, persona, and funnel stage. This powers the existing RAG retrieval for Touch 1-4 deck assembly with vector similarity instead of keyword matching. Better retrieval = better generated decks. Directly improves the core v1.0 product. | HIGH | Pipeline: (1) Extract slide content via Google Slides API -- text from all shapes + speaker notes per slide, (2) Generate vector embedding via Vertex AI text embedding model (matches existing GPT-OSS/Vertex stack), (3) Classify metadata via LLM structured output with Zod schema (industry, pillar, persona, funnel_stage, confidence), (4) Store embedding + metadata in Supabase pgvector. Requires: enable pgvector extension in Supabase (`CREATE EXTENSION IF NOT EXISTS vector`), new table for slide embeddings (raw SQL or Prisma `Unsupported("vector(768)")` type), Mastra agent workflow with per-slide processing loop. |
+| **Human rating and feedback on classifications** | Thumbs up/down plus optional tag correction on each slide's AI-assigned labels. Creates a feedback loop: human corrections improve future classification quality. Mirrors the approve/override pattern already proven in Touch 1. Makes the AI progressively smarter with each review session. | MEDIUM | UI: thumbs up/down icons on each slide card, click-to-edit on classification tags (inline dropdown editing). Backend: store ratings in a model following the existing `FeedbackSignal` pattern -- `signalType` (positive/negative/correction), `source` (slide_classification), `content` (JSON diff of original vs corrected tags). Link to the slide record via foreign key. |
+| **Real-time classification improvement** | When a human corrects a classification, the system updates the metadata immediately -- not in a nightly batch. The corrected slide's tags in pgvector update on save. Immediate visual feedback makes the rating experience feel responsive and worthwhile for reviewers. | MEDIUM | On correction submit: update the metadata columns in the pgvector slide record. Optionally re-embed with the corrected classification context prepended to the slide text (improves future similarity matches for this slide). No model fine-tuning needed -- this is metadata correction + optional re-embedding, both synchronous operations. Depends on: rating system providing correction data. |
+| **Batch ingestion with progress tracking** | Process all slides from a multi-slide presentation (some decks have 30+ slides) with real-time progress: "Slide 12/38: Classifying..." Transforms a potentially slow operation (1-3 minutes for a large deck) into a transparent, watchable process. | MEDIUM | Mastra workflow processes slides sequentially or in small parallel batches (rate-limited to avoid Google API quota issues). Progress reported via polling endpoint or WebSocket. Reuse the existing Monotonic Set stepper pattern from Touch 4 UI -- already proven to prevent progress bar flicker during polling. |
+| **Classification confidence scores** | Display the AI's confidence for each assigned tag (e.g., "Financial Services: 92%"). Helps users prioritize reviews -- low-confidence classifications get reviewed first, saving time. Surfaces where the AI is uncertain rather than hiding it. | LOW | LLM structured output via Zod already supports confidence fields: add `confidence: z.number().min(0).max(1)` to the classification schema. Display as a percentage badge or color-coded ring (green >80%, yellow 50-80%, red <50%) on each tag. Sort "needs review" queue by ascending confidence. |
+| **Template version tracking** | Detect when a Google Slides source has been modified since last ingestion. Show a "stale" badge on the template list, offer one-click re-ingestion. Prevents serving outdated slide content to the deck assembly pipeline. | LOW | Store `modifiedTime` from Google Drive API `files.get` response on each `ContentSource` record (new field). On template list page load, compare stored vs current `modifiedTime` for each template. Show "Updated since last ingestion" warning badge if they differ. Requires one batch API call on page load -- efficient with a single `files.list` call. |
+| **Slide similarity search** | "Find slides similar to this one" -- click any slide thumbnail, see its nearest neighbors across all ingested presentations. Surfaces duplicate or near-duplicate content, helps curators identify redundancy, and validates that embeddings are working correctly. | LOW | Pure pgvector cosine similarity query: `SELECT * FROM slide_embeddings ORDER BY embedding <=> $1 LIMIT 5`. Display as a "Similar Slides" side panel when a slide is selected. Minimal UI, maximum insight. Depends on: pgvector populated with embeddings from multiple presentations. |
 
-### Anti-Features (Do NOT Build for v1.1)
+### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Role-based access control (admin/seller/SME roles)** | "Different users should see different things" | Adds a permissions model, role assignment UI, and authorization checks on every endpoint. All current users are Lumenalta employees with equal access needs. Over-engineering for a 20-person team. | All authenticated @lumenalta.com users get full access. RBAC is a v2 feature if the tool scales beyond the sales team. |
-| **User profile management / settings page** | "Users should be able to set their preferences" | Google OAuth provides name, email, and avatar. There is nothing to configure in v1.1. A settings page with nothing in it is worse than no settings page. | Display user name/avatar from Google profile in the nav bar. No editable settings. |
-| **Magic link or email/password auth** | "What if someone doesn't have Google?" | All Lumenalta employees have Google Workspace accounts. Adding email/password creates a password management burden, security liability, and UX fork for zero benefit. | Google OAuth only. No alternative auth methods. |
-| **Multi-tenant / organization support** | "What if we sell this to other companies?" | Adds tenant isolation, data scoping, billing, and onboarding. Premature for an internal tool. Would require rewriting every database query to include tenant filtering. | Single-tenant. Lumenalta only. Re-evaluate if the tool is productized. |
-| **Custom domain (e.g., sales.lumenalta.com)** | "Looks more professional than a .vercel.app URL" | Requires DNS configuration, SSL certificate management, and Vercel custom domain setup. Low priority for an internal team tool. | Use the Vercel-provided URL. Add a custom domain later if desired. |
-| **Database migration of existing SQLite data** | "Can we keep the demo data?" | The existing SQLite data is demo/seed data (Meridian Capital Group fixture). It has no production value. Migrating it adds complexity (data type conversion, ID remapping) for worthless data. | Start fresh with a clean Supabase database. Re-seed the demo scenario with a Prisma seed script targeting Postgres. |
-| **Serverless agent deployment (Vercel Functions)** | "Keep everything on Vercel" | The Mastra agent server is a long-lived Hono HTTP server that needs persistent connections for workflow suspend/resume and LibSQL/Postgres connections. Vercel Functions have a 10s default / 60s max timeout. Workflows that call LLMs and Google APIs run for 30-120 seconds. Serverless is architecturally incompatible. | Deploy the agent on a platform that supports long-lived processes: Railway, Render, Fly.io, or a Vercel-adjacent VPS. Or investigate Mastra's `mastra deploy` if it supports a managed hosting option. |
-| **WebSocket or SSE real-time updates** | "Show workflow progress in real-time" | The current polling pattern (check workflow status every 2s) works and is simple. WebSockets add connection management, reconnection logic, and serverless incompatibility. | Keep the polling pattern. It works. |
+| **Drag-and-drop slide reordering in browser** | "Let me visually rearrange slides before generating a deck." | Rebuilding a Google Slides editor in the browser is massive scope creep. The system already handles slide ordering algorithmically during Touch 1-4 deck assembly. Visual reordering creates complex state management (optimistic updates, conflict with AI ordering) and competes with the actual Google Slides UI where sellers edit anyway. | Keep slide ordering in the AI assembly step. Sellers reorder in Google Slides after generation. Show a read-only "suggested order" preview in the app. |
+| **In-browser slide content editing** | "Let me fix slide text right here without opening Google Slides." | The Google Slides API is write-capable but there is no WYSIWYG editor for Slides content. Building one requires rendering fonts, layouts, images, and animations -- months of specialized work for a feature Google Slides already provides. | Link each slide thumbnail directly to Google Slides for editing. The preview in the app is read-only by design. |
+| **Automated nightly re-classification** | "Re-classify all slides every night to catch changes." | Expensive LLM + embedding API calls for content that rarely changes. Most templates are updated monthly at most. A 38-slide deck costs ~$0.50-1.00 in API calls to re-process. Nightly runs burn budget with no value. | Template version tracking (check `modifiedTime` via Drive API -- free) + manual re-ingestion trigger. Only re-classify when content actually changed. |
+| **Multi-tenant template libraries** | "Each seller should have their own template collection." | This is a single-team tool for ~20 Lumenalta sellers. Multi-tenancy adds auth complexity, data isolation, per-tenant vector indices, and UI overhead for zero current value. The shared template library IS the product -- everyone draws from the same curated content. | Single shared template library visible to all authenticated users. Filter by touch type and tags, not by owner. |
+| **Custom embedding model selection** | "Let power users choose which embedding model to use per template." | Creates inconsistent vector spaces. If half the slides use text-embedding-004 and half use text-embedding-005, cosine similarity across models is meaningless. Similarity search breaks, classification quality becomes unpredictable, and the configuration surface area explodes. | Pick one embedding model (Vertex AI text-embedding), use it for all slides. If the model needs upgrading, re-embed everything in a single migration batch. Consistency over configurability. |
+| **Real-time collaborative template curation** | "Multiple admins editing template metadata at the same time." | Requires optimistic concurrency control, conflict resolution, WebSocket infrastructure, and cursor presence indicators -- all for a low-frequency admin operation. Template curation is done by 1-2 people, not collaboratively in real time. | Simple last-write-wins semantics. Template metadata edits (tags, touch type) are infrequent and non-contentious. Show `updatedAt` timestamp to surface potential conflicts. |
+| **Full-text search across slide content** | "Let me search for specific words inside slides." | Requires extracting and indexing all text content from every slide, maintaining a text search index alongside the vector index, and building a search UI. The vector similarity search already finds semantically related slides, which is more useful than exact keyword matching for this use case. | Use vector similarity search as the primary discovery mechanism. If exact keyword search is needed later, Supabase has built-in full-text search via `tsvector` -- add as a P3 enhancement. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Supabase Project Setup (dev + prod)]
-    |
-    +--required-by--> [Prisma Schema Migration (SQLite -> PostgreSQL)]
-    |                      |
-    |                      +--required-by--> [Prisma Seed Script (Postgres-compatible)]
-    |                      |
-    |                      +--required-by--> [Mastra Storage Migration (LibSQL -> @mastra/pg)]
-    |
-    +--required-by--> [Supabase Auth Configuration (Google OAuth provider)]
-                           |
-                           +--required-by--> [Next.js Auth Integration (@supabase/ssr)]
-                           |                      |
-                           |                      +--required-by--> [Middleware Route Protection]
-                           |                      |
-                           |                      +--required-by--> [Login Page UI]
-                           |                      |
-                           |                      +--required-by--> [Auth Callback Route Handler]
-                           |
-                           +--required-by--> [Domain Restriction Logic (@lumenalta.com check)]
+[CI/CD Pipeline]
+    (independent -- pure infrastructure, no feature dependencies)
 
-[Vercel Project Setup (web)]
-    |
-    +--required-by--> [Environment Variables Configuration]
-    |                      |
-    |                      +--required-by--> [Preview Deploy Testing]
-    |
-    +--required-by--> [Production Deploy]
+[Side Panel Navigation]
+    (independent -- layout change, prerequisite for Templates section routing)
 
-[Agent Hosting Decision (Railway/Render/Fly/other)]
-    |
-    +--required-by--> [Agent Deployment Configuration]
-    |                      |
-    |                      +--required-by--> [AGENT_SERVICE_URL in Vercel env vars]
-    |
-    +--required-by--> [Service-to-Service API Key Auth]
-                           |
-                           +--required-by--> [API Key Middleware on Agent (validate Bearer token)]
-                           |
-                           +--required-by--> [Web App API Client Update (send Authorization header)]
+[pgvector Setup in Supabase]
+    (independent -- database extension + schema, prerequisite for ingestion)
 
-[Prisma Schema Migration] --must-complete-before--> [Vercel Production Deploy]
-[Supabase Auth Configuration] --must-complete-before--> [Vercel Production Deploy]
-[Agent Hosting Decision] --must-complete-before--> [Vercel Production Deploy]
+[Templates CRUD]
+    └──requires──> [Side Panel Navigation] (needs nav entry point at /templates)
+
+[Access Awareness]
+    └──enhances──> [Templates CRUD] (validates sharing on template add/view)
+
+[Slide Ingestion Agent]
+    └──requires──> [Templates CRUD] (needs template records to know what to process)
+    └──requires──> [pgvector Setup] (needs vector storage target for embeddings)
+    └──requires──> [Access Awareness] (should only attempt accessible templates)
+
+[Slide Thumbnail Preview]
+    └──requires──> [Slide Ingestion Agent] (needs ingested slide records)
+
+[Classification Display]
+    └──requires──> [Slide Ingestion Agent] (needs classification results in pgvector)
+
+[Human Rating System]
+    └──requires──> [Classification Display] (needs visible classifications to rate)
+    └──requires──> [Slide Thumbnail Preview] (needs visual context for meaningful feedback)
+
+[Real-time Classification Improvement]
+    └──requires──> [Human Rating System] (needs correction input to apply)
+
+[Template Version Tracking]
+    └──enhances──> [Templates CRUD] (adds staleness detection to template list)
+
+[Slide Similarity Search]
+    └──requires──> [Slide Ingestion Agent] (needs populated vector store with multiple decks)
+
+[Confidence Scores]
+    └──requires──> [Classification Display] (adds confidence overlay to existing tags)
+
+[Batch Progress Tracking]
+    └──enhances──> [Slide Ingestion Agent] (adds progress UI to existing trigger)
 ```
 
 ### Dependency Notes
 
-- **Supabase project setup gates everything:** Both the database migration and the auth configuration depend on having Supabase projects created. This is the first action item.
-
-- **Prisma schema migration is independent of auth:** The database migration (SQLite to Postgres) and the auth setup (Google OAuth) can proceed in parallel once Supabase projects exist. They converge at production deployment.
-
-- **Agent hosting is the critical path question:** The web app deploys trivially on Vercel. The agent server does NOT fit Vercel's serverless model. The hosting decision for the agent must be made early because it determines the `AGENT_SERVICE_URL` that the web app needs, and whether the agent needs its own CI/CD pipeline.
-
-- **Service-to-service auth depends on agent hosting:** The API key auth pattern between web and agent can only be implemented after both services have their deployment targets decided, because the API key must be shared as environment variables on both platforms.
-
-- **Domain restriction depends on Supabase Auth:** The @lumenalta.com email check happens in the auth callback handler, after Google OAuth returns the user's email. This is application-level logic, not a Supabase configuration.
-
-- **Mastra storage migration is optional but recommended:** The agent currently uses LibSQL (local file) for Mastra's internal state. This works for development but state is lost on redeployment. Migrating to `@mastra/pg` (using the same Supabase Postgres) makes workflow state persistent across deployments. This is a code change in `apps/agent/src/mastra/index.ts`.
+- **CI/CD Pipeline is fully independent:** Can be built first and in parallel with all other features. Should be first because it accelerates deployment of every subsequent feature.
+- **Side Panel Navigation gates Templates CRUD:** Templates need a `/templates` route accessible from navigation. Building the CRUD page without a nav entry means users cannot reach it. However, the nav and CRUD page can be built together in a single phase.
+- **pgvector Setup gates Slide Ingestion:** Embeddings need a storage target. The Supabase pgvector extension must be enabled and the slide embeddings table must exist before the ingestion agent can write data. This is a schema/migration task, not a feature.
+- **Templates CRUD gates Slide Ingestion:** The ingestion agent needs `ContentSource` records with `driveFileId` values to know which presentations to process. No templates registered = nothing to ingest.
+- **Human Rating requires both Preview AND Classification Display:** Users need to (a) see the slide visually (thumbnail) and (b) see its current classification (tags) to provide meaningful feedback. Rating without either context is useless.
+- **Real-time Improvement requires Human Rating:** Corrections flow from the rating UI. No correction input = nothing to improve in the vector store.
+- **Access Awareness enhances Templates CRUD (not blocks it):** Templates can be created without access checks, but the UX is much better with immediate sharing validation. Build them together.
 
 ---
 
-## Detailed Feature Descriptions
+## Existing System Dependencies
 
-### 1. SQLite to Supabase (PostgreSQL) Migration
+These features directly build on what v1.0/v1.1 already shipped. Understanding these integration points is critical for implementation planning.
 
-**What the developer does:**
-
-1. Create two Supabase projects: `lumenalta-sales-dev` and `lumenalta-sales-prod`
-2. Change `schema.prisma` datasource provider from `"sqlite"` to `"postgresql"`
-3. Update `DATABASE_URL` from `file:./prisma/dev.db` to the Supabase connection string (`postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres`)
-4. Handle SQLite-to-Postgres schema differences:
-   - `String` fields storing JSON blobs (e.g., `payload`, `tags`, `useCases`) should become `Json` type in Prisma
-   - `DateTime` fields work the same way (Prisma abstracts this)
-   - `@default(cuid())` works identically
-   - `@@index` and `@@unique` constraints translate directly
-5. Delete the existing SQLite migration history (`prisma/migrations/`)
-6. Create a fresh baseline migration for Postgres: `prisma migrate dev --name init-postgres`
-7. Update the seed script to work with Postgres (likely no changes needed)
-
-**What changes in the schema:**
-
-The 9 existing models (WorkflowJob, ImageAsset, ContentSource, Company, Deal, InteractionRecord, FeedbackSignal, Transcript, Brief) move to Postgres. Key changes:
-
-- Fields currently stored as `String` with JSON content (e.g., `payload String`, `tags String`, `useCases String`) can optionally become `Json` type for proper Postgres JSONB storage. This is a quality improvement but not required -- `String` with JSON works in Postgres too.
-- No structural model changes needed. The schema is already well-designed.
-- SQLite's `TEXT` type (used for `rawText` on Transcript) maps to Postgres `TEXT` with no practical limit. No change needed.
-
-**What the user experiences:** Nothing changes. The web UI behaves identically. Data persists across deployments. Multiple team members share the same database.
-
-**Complexity:** MEDIUM. The schema translation is mechanical. The complexity is in: (a) not breaking the seed script, (b) ensuring the Supabase connection string includes the correct pooler URL for serverless contexts, and (c) updating all environment files and CI/CD secrets.
-
-### 2. Vercel Deployment (2 Projects)
-
-**What the deployment topology looks like:**
-
-```
-GitHub Repo: lumenalta-hackathon/
-    |
-    +-- Vercel Project "lumenalta-web"
-    |       Root Directory: apps/web
-    |       Framework: Next.js
-    |       Build Command: (auto-detected or `cd ../.. && npx turbo run build --filter=web`)
-    |       Environments:
-    |           Production: main branch -> lumenalta-web.vercel.app
-    |           Preview: PR branches -> lumenalta-web-pr-123.vercel.app
-    |       Env Vars:
-    |           AGENT_SERVICE_URL = https://agent-host.example.com
-    |           NEXT_PUBLIC_SUPABASE_URL = https://xxx.supabase.co
-    |           NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJ...
-    |           SUPABASE_SERVICE_ROLE_KEY = eyJ...
-    |           AGENT_API_KEY = sk-...
-    |
-    +-- Agent Server (NOT on Vercel)
-            Host: Railway / Render / Fly.io
-            Build: `mastra build`
-            Start: node output
-            Env Vars:
-                DATABASE_URL = postgresql://...
-                GOOGLE_SERVICE_ACCOUNT_KEY = {...}
-                GOOGLE_DRIVE_FOLDER_ID = ...
-                GOOGLE_TEMPLATE_PRESENTATION_ID = ...
-                GOOGLE_CLOUD_PROJECT = ...
-                GOOGLE_CLOUD_LOCATION = ...
-                AGENT_API_KEY = sk-... (same key, validates inbound requests)
-```
-
-**Why 2 projects, not 1:**
-
-The web app (Next.js) and the agent server (Mastra/Hono) have fundamentally different runtime requirements. Next.js is designed for Vercel. Mastra's Hono server is a long-running Node.js process that needs:
-- Persistent connections to Postgres (for Prisma and Mastra storage)
-- Long request timeouts (workflow execution can take 30-120 seconds)
-- File system access during build (for `mastra build`)
-- A stable process for workflow suspend/resume state
-
-Vercel Functions timeout at 10s (Hobby) or 60s (Pro), which is insufficient for LLM + Google API workflow execution.
-
-**What the developer experience looks like:**
-
-1. Push to `main` -> Vercel auto-deploys the web app to production
-2. Push a PR branch -> Vercel creates a preview deploy of the web app
-3. Preview deploys use dev Supabase; production uses prod Supabase
-4. Agent deploys separately on its hosting platform (Railway/Render/Fly)
-5. Agent hosting platform watches the same GitHub repo (or a deploy hook)
-
-**What the user experiences:**
-
-- Production URL: `https://lumenalta-web.vercel.app` (or custom domain)
-- Everything works the same as localhost, but accessible from any browser
-- Preview URLs let QA test changes before they reach production
-
-**Complexity:** LOW for the web app (Vercel + Next.js is trivial). HIGH for the agent server (choosing a host, configuring the build pipeline, ensuring `mastra build` output is deployable, managing environment variables on a second platform).
-
-### 3. Google OAuth Login Wall (@lumenalta.com)
-
-**What the login flow looks like (user perspective):**
-
-1. User navigates to `https://lumenalta-web.vercel.app/`
-2. Next.js middleware checks for a Supabase session cookie
-3. No session found -> redirect to `/login`
-4. `/login` page shows: Lumenalta logo, "Sign in with Google" button, and a note: "Only @lumenalta.com accounts are allowed"
-5. User clicks "Sign in with Google"
-6. Browser redirects to Google's OAuth consent screen
-7. User selects their @lumenalta.com Google account and consents
-8. Google redirects to `/auth/callback` with an authorization code
-9. The callback route handler:
-   a. Exchanges the code for tokens via Supabase Auth
-   b. Gets the user's email from the token
-   c. Checks: does the email end with `@lumenalta.com`?
-   d. If YES: creates/updates the user in Supabase Auth, sets session cookie, redirects to `/`
-   e. If NO: destroys the session, redirects to `/login?error=unauthorized` with message "Only @lumenalta.com accounts can access this application"
-10. User is now on the main app page, logged in. Their name and avatar appear in the navigation.
-11. Subsequent page loads: middleware finds valid session cookie, allows access. No re-authentication.
-12. Session expires (configurable, default 1 hour with refresh): automatic token refresh via `@supabase/ssr`. User stays logged in as long as they have an active browser session.
-
-**What the middleware does:**
-
-```
-Every request to the web app
-    |
-    +-- Is this /login, /auth/callback, or a static asset?
-    |       YES -> Allow through (no auth required)
-    |
-    +-- Does the request have a valid Supabase session cookie?
-    |       YES -> Allow through (user is authenticated)
-    |       NO  -> Redirect to /login
-```
-
-**Technical implementation (Next.js + Supabase):**
-
-- Package: `@supabase/ssr` (replaces the older `@supabase/auth-helpers-nextjs`)
-- Two Supabase client utilities:
-  - `createServerClient` for Server Components and middleware (reads/writes cookies)
-  - `createBrowserClient` for Client Components (reads cookies)
-- Auth callback route: `apps/web/src/app/auth/callback/route.ts` (Route Handler)
-- Middleware: `apps/web/src/middleware.ts` (Next.js Middleware)
-- Login page: `apps/web/src/app/login/page.tsx` (public, shows Google sign-in button)
-
-**Domain restriction approach:**
-
-There are two ways to restrict to @lumenalta.com:
-
-1. **Google Cloud Console -> OAuth consent screen -> restrict to organization** (Google Workspace admin setting). This prevents non-Lumenalta Google accounts from even seeing the consent screen. Requires Google Workspace admin access. The cleanest approach if admin access is available.
-
-2. **Application-level check in the auth callback** (check `user.email.endsWith('@lumenalta.com')`). Works regardless of Google Workspace settings. Defense-in-depth: even if someone bypasses the Google restriction, the app rejects them.
-
-**Recommendation:** Use BOTH. Configure Google OAuth to the organization at the Google Cloud level, AND check the email domain in the callback handler. Belt and suspenders.
-
-**Complexity:** MEDIUM. The auth flow has several moving parts (Supabase project config, Google Cloud Console OAuth client, callback handler, middleware, cookie management), but each piece is well-documented and follows standard patterns.
-
-### 4. Service-to-Service API Key Auth (Web to Agent)
-
-**What this protects:**
-
-The agent server (`apps/agent`) exposes HTTP endpoints that:
-- Create/modify database records (Company, Deal, InteractionRecord, Brief)
-- Trigger AI workflows (LLM calls cost money, Google API calls have quotas)
-- Write to Google Drive (creating presentations, documents)
-
-Without auth, anyone who discovers the agent URL can trigger all of these operations.
-
-**How it works:**
-
-1. Generate a random API key: `openssl rand -hex 32` -> `sk-abc123...`
-2. Store the key as an environment variable on BOTH services:
-   - Web app (Vercel): `AGENT_API_KEY=sk-abc123...`
-   - Agent server (Railway/Render): `AGENT_API_KEY=sk-abc123...`
-3. Web app sends the key on every request to the agent:
-   ```
-   Authorization: Bearer sk-abc123...
-   ```
-4. Agent server validates the key on every incoming request:
-   ```
-   if (request.headers.get('Authorization') !== `Bearer ${process.env.AGENT_API_KEY}`) {
-     return 401 Unauthorized
-   }
-   ```
-
-**What changes in the existing code:**
-
-- `apps/web/src/lib/api-client.ts`: Add `Authorization` header to the `fetchJSON` function
-- `apps/agent/src/mastra/index.ts`: Add auth middleware before all API routes (Hono middleware)
-- `apps/web/src/env.ts`: Add `AGENT_API_KEY` to the env schema
-- `apps/agent/src/env.ts`: Add `AGENT_API_KEY` to the env schema
-
-**What the user experiences:** Nothing. The API key is invisible to end users. It is a backend-to-backend security measure.
-
-**Complexity:** LOW. It is a shared secret with header validation. No token refresh, no JWT, no OAuth. For an internal tool with two services, this is the right level of security.
+| New Feature | Existing System It Extends | Integration Point |
+|-------------|---------------------------|-------------------|
+| Templates CRUD | `ContentSource` Prisma model (v1.0) | Reuse and extend existing model fields: `driveFileId`, `touchTypes`, `accessStatus`, `slideCount`, `ingestedCount`, `lastCheckedAt`. May need 1-2 new fields (e.g., `modifiedTime` for version tracking). No new model needed. |
+| Access Awareness | Google Drive service account auth (v1.0) | Same `googleapis` client and same credential injection pattern (entrypoint writes JSON to temp file). Use `files.get` with `fields: 'id,name,modifiedTime'` -- if 403, file is not shared. |
+| Slide Ingestion Agent | Mastra AI workflows + Google Slides API (v1.0) | Same agent server on Railway, same `presentations.get` API already used for copy-and-prune deck assembly. New: `presentations.pages.getThumbnail` for previews. New: per-slide text extraction loop. |
+| Classification Display | AtlusAI taxonomy (v1.0) | Same classification categories: 11 industries, solution pillars, personas, funnel stages. Constants already defined in `packages/schemas`. |
+| Human Rating | `FeedbackSignal` model + approve/override pattern (v1.0) | Same signal pattern: `signalType` (positive/negative/correction), `source` (slide_classification), `content` (JSON payload). Extends existing feedback infrastructure. |
+| Slide Thumbnail Preview | Google Slides API (v1.0) | Same API client. New endpoint: `presentations.pages.getThumbnail`. Returns PNG URL with 30-min TTL. |
+| Side Panel Navigation | shadcn/ui component library (v1.0) | Same design system. New sidebar layout component replacing current top-bar-only layout in `(authenticated)/layout.tsx`. |
+| CI/CD Pipeline | Turborepo + Vercel + Railway deploy targets (v1.1) | Automates existing manual `vercel deploy --prod` and `railway up` commands. Turbo already has `build`, `lint`, `db:generate`, `db:migrate` tasks defined in `turbo.json`. |
 
 ---
 
-## MVP Definition
+## MVP Definition (v1.2 Scope)
 
-### Launch With (v1.1)
+### Launch With (v1.2 Core)
 
-The minimum to get the platform deployed and accessible to the Lumenalta team with basic security.
+The minimum feature set to demonstrate template intelligence with human-in-the-loop improvement.
 
-- [ ] **Supabase project setup (dev + prod)** -- foundation for everything else
-- [ ] **Prisma schema migration to PostgreSQL** -- the application database must work on Supabase before anything else can be tested
-- [ ] **Supabase Auth with Google OAuth** -- the login wall is a security requirement, not a nice-to-have
-- [ ] **@lumenalta.com domain restriction** -- both at Google Cloud level and in application callback
-- [ ] **Next.js middleware route protection** -- every page behind auth
-- [ ] **Login page UI** -- simple, branded, Google sign-in button
-- [ ] **Auth callback route handler** -- exchanges code for session, checks domain
-- [ ] **Vercel web app deployment** -- prod + preview environments
-- [ ] **Agent server deployment (Railway/Render/Fly)** -- long-running process, not serverless
-- [ ] **Service-to-service API key auth** -- protects agent endpoints from public access
-- [ ] **Environment variable configuration** -- Supabase URL, keys, API key, agent URL across all environments
-- [ ] **Demo seed data for Postgres** -- re-seed Meridian Capital Group scenario on the new database
+- [x] **CI/CD Pipeline** -- eliminates manual deploy friction, accelerates iteration on all subsequent features
+- [x] **Side Panel Navigation** -- structural prerequisite; provides room for Templates + future sections
+- [x] **Templates CRUD** -- users can register Google Slides templates with display name and touch type assignment
+- [x] **Access Awareness** -- immediate feedback when templates are not shared with agent service account
+- [x] **pgvector Setup** -- enable extension, create slide embeddings table, write Prisma migration
+- [x] **Slide Ingestion Agent** -- core AI pipeline: extract text per slide, generate embedding, classify with structured output, store in pgvector
+- [x] **Slide Thumbnail Preview** -- visual grid of ingested slides with thumbnails
+- [x] **Classification Display** -- AI-assigned tags (industry, pillar, persona, funnel stage) shown on each slide card
+- [x] **Human Rating (thumbs up/down + tag correction)** -- basic feedback loop on classifications
+- [x] **Real-time Classification Improvement** -- corrections update pgvector metadata immediately on save
 
-### Add After Validation (v1.1.x)
+### Add After Validation (v1.2.x)
 
-- [ ] **Mastra storage migration (LibSQL to @mastra/pg)** -- trigger: workflow state not persisting across agent redeployments
-- [ ] **Supabase RLS policies** -- trigger: concern about direct database access or multi-role access patterns
-- [ ] **Custom domain** -- trigger: team wants a professional URL
-- [ ] **User activity logging** -- trigger: need to know who is using the platform and how often
+Features to add once the core pipeline is working and users are reviewing classifications.
+
+- [ ] **Confidence scores on classification tags** -- add when users ask "which slides should I review first?"
+- [ ] **Template version tracking (staleness detection)** -- add when templates are updated in Google Slides and stale content is noticed
+- [ ] **Batch ingestion progress tracking** -- add when ingesting large presentations (30+ slides) feels like a black box
+- [ ] **Slide similarity search** -- add after multiple presentations are ingested and users want to find cross-deck duplicates
 
 ### Future Consideration (v2+)
 
-- [ ] **Role-based access control** -- defer: all users are equal in v1.1
-- [ ] **User settings/preferences page** -- defer: nothing to configure
-- [ ] **Multi-tenant support** -- defer: not a product, it is an internal tool
-- [ ] **OAuth token-based service auth (JWT)** -- defer: API key is sufficient for two internal services
+- [ ] **Cross-template deduplication** -- automatically flag near-duplicate slides across presentations for curator review
+- [ ] **Classification analytics dashboard** -- distribution of slides by industry/pillar/persona, coverage gaps, review completion rates
+- [ ] **Drive webhook auto-re-ingestion** -- Google Drive push notifications trigger re-ingestion when template source files change
+- [ ] **Full-text slide content search** -- Supabase `tsvector` index for exact keyword search alongside vector similarity
 
 ---
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Supabase project setup (dev + prod) | HIGH | LOW | P1 |
-| Prisma schema migration (SQLite -> PostgreSQL) | HIGH | MEDIUM | P1 |
-| Supabase Auth + Google OAuth configuration | HIGH | MEDIUM | P1 |
-| @lumenalta.com domain restriction | HIGH | LOW | P1 |
-| Next.js middleware route protection | HIGH | LOW | P1 |
-| Login page UI | HIGH | LOW | P1 |
-| Auth callback route handler | HIGH | LOW | P1 |
-| Vercel web app deployment (prod + preview) | HIGH | LOW | P1 |
-| Agent server deployment (Railway/Render/Fly) | HIGH | HIGH | P1 |
-| Service-to-service API key auth | HIGH | LOW | P1 |
-| Environment variables across all platforms | HIGH | LOW | P1 |
-| Postgres-compatible seed script | MEDIUM | LOW | P1 |
-| Mastra storage migration (LibSQL -> @mastra/pg) | MEDIUM | MEDIUM | P2 |
-| Supabase RLS policies (defense-in-depth) | LOW | MEDIUM | P2 |
-| Custom domain | LOW | LOW | P3 |
-| User activity logging | LOW | MEDIUM | P3 |
-| Role-based access control | LOW | HIGH | P3 |
+| Feature | User Value | Implementation Cost | Priority | Builds On |
+|---------|------------|---------------------|----------|-----------|
+| CI/CD Pipeline | HIGH | MEDIUM | P1 | Turborepo, Vercel CLI, Railway CLI |
+| Side Panel Navigation | MEDIUM | LOW | P1 | shadcn/ui, existing layout |
+| Templates CRUD | HIGH | LOW | P1 | `ContentSource` model (existing) |
+| Access Awareness | HIGH | LOW | P1 | Google Drive service account (existing) |
+| pgvector Setup | HIGH | LOW | P1 | Supabase PostgreSQL (existing) |
+| Slide Ingestion Agent | HIGH | HIGH | P1 | Mastra workflows, Google Slides API, Vertex AI embeddings |
+| Slide Thumbnail Preview | HIGH | MEDIUM | P1 | Google Slides `getThumbnail` API |
+| Classification Display | HIGH | LOW | P1 | Ingestion pipeline output |
+| Human Rating (basic) | HIGH | MEDIUM | P1 | `FeedbackSignal` pattern (existing) |
+| Real-time Improvement | MEDIUM | MEDIUM | P1 | Rating system output |
+| Confidence Scores | MEDIUM | LOW | P2 | Classification Zod schema |
+| Template Version Tracking | MEDIUM | LOW | P2 | Drive API `modifiedTime` field |
+| Batch Progress Tracking | MEDIUM | MEDIUM | P2 | Monotonic Set stepper pattern (existing) |
+| Slide Similarity Search | LOW | LOW | P3 | pgvector cosine similarity |
 
 **Priority key:**
-- P1: Must have for v1.1 launch (team can use the deployed platform)
-- P2: Should have, add when v1.1 is stable
+- P1: Must have for v1.2 launch (10 features -- the full intelligence pipeline end-to-end)
+- P2: Should have, add in v1.2.x iterations when users request them
 - P3: Nice to have, future consideration
 
 ---
 
-## Login Flow UX Description
+## Detailed Feature Descriptions
 
-### Happy Path
+### 1. CI/CD Pipeline (GitHub Actions)
 
-```
-[User opens lumenalta-web.vercel.app]
-    |
-    v
-[Middleware: no session cookie]
-    |
-    v
-[Redirect to /login]
-    |
-    v
-[Login Page]
-    +-- Lumenalta branding (logo, colors)
-    +-- "Sign in to Sales Platform"
-    +-- [Sign in with Google] button (shadcn/ui Button, Google icon)
-    +-- Small text: "Only @lumenalta.com accounts are allowed"
-    |
-    v (user clicks button)
-    |
-[Supabase Auth: redirect to Google OAuth consent screen]
-    |
-    v (user selects their @lumenalta.com account)
-    |
-[Google redirects to /auth/callback?code=...]
-    |
-    v
-[Callback Route Handler]
-    +-- Exchanges code for Supabase session
-    +-- Reads user.email from session
-    +-- Checks: email.endsWith('@lumenalta.com')? YES
-    +-- Sets session cookie
-    +-- Redirects to / (or the URL they originally tried to visit)
-    |
-    v
-[Main App Page -- user sees their name/avatar in nav]
+**What it automates:**
+
+Currently, deploying requires manually running `vercel deploy --prod` for the web app and `railway up` for the agent server, plus manually running `prisma migrate deploy` against production. With 224 commits in 3 days, this manual process is unsustainable.
+
+**What the workflow looks like:**
+
+```yaml
+# .github/workflows/deploy.yml
+on:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    # Run turbo lint + type-check + build
+    # Uses Turborepo caching for speed
+
+  deploy-web:
+    needs: check
+    # Install Vercel CLI
+    # Run: vercel deploy --prod --token=$VERCEL_TOKEN
+    # Vercel handles monorepo root detection via vercel.json
+
+  deploy-agent:
+    needs: check
+    # Install Railway CLI
+    # Run: railway up --service=$RAILWAY_SERVICE_ID
+    # Railway Dockerfile handles prisma generate + prisma migrate deploy + mastra build
 ```
 
-### Rejection Path (Non-Lumenalta Account)
+**Secrets required:** `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `RAILWAY_TOKEN`, `RAILWAY_SERVICE_ID`
+
+**Prisma migrations:** Run automatically during Railway deploy as part of the Docker entrypoint or Dockerfile `CMD` -- execute `npx prisma migrate deploy` before starting the agent. This follows the project's forward-only migration discipline.
+
+**What the user experiences:** Push to `main`, everything deploys automatically. No manual steps. Failures surface as GitHub Actions notifications.
+
+### 2. Templates CRUD Page
+
+**What the user sees:**
 
 ```
-[User tries to log in with a @gmail.com account]
-    |
-    v
-[Google OAuth consent screen -- user selects personal account]
-    |
-    v
-[Callback Route Handler]
-    +-- Exchanges code for session
-    +-- Reads user.email: "user@gmail.com"
-    +-- Checks: email.endsWith('@lumenalta.com')? NO
-    +-- Destroys the Supabase session (sign out)
-    +-- Redirects to /login?error=unauthorized
-    |
-    v
-[Login Page with error banner]
-    +-- Red alert: "Access denied. Only @lumenalta.com accounts can sign in."
-    +-- [Try Again] button
+/templates
++------------------------------------------+
+| Templates                    [+ Add New]  |
++------------------------------------------+
+| Name          | Touch   | Slides | Status |
+|---------------|---------|--------|--------|
+| Meet Lumenalta| T2      | 12/12  | Ready  |
+| AtlusAI Deck  | T3, T4  | 38/38  | Ready  |
+| NBC Case Study| T3      | 0/0    | No Access |
+| First Contact | T1      | 8/8    | Stale  |
++------------------------------------------+
 ```
 
-### Session Refresh (Returning User)
+**Add Template form:**
+- Google Slides URL (validated: must match `docs.google.com/presentation/d/{id}`)
+- Display name (auto-populated from presentation title via API if accessible)
+- Touch type assignment (multi-select: Touch 1, Touch 2, Touch 3, Touch 4)
+- On submit: extract presentation ID from URL, check access via Drive API, create `ContentSource` record
+
+**Status badges:**
+- "Ready" (green) -- ingested, all slides classified
+- "Ingesting..." (blue, animated) -- ingestion in progress
+- "No Access" (red) -- service account cannot read the file
+- "Stale" (yellow) -- template modified since last ingestion (v1.2.x)
+- "Not Ingested" (gray) -- template added but never processed
+
+### 3. Slide Ingestion Agent
+
+**What the pipeline does for each slide:**
 
 ```
-[User opens the app hours later]
-    |
-    v
-[Middleware: session cookie exists]
-    +-- Verifies JWT with Supabase
-    +-- Token expired? -> Supabase auto-refreshes using refresh token cookie
-    +-- Refresh successful? -> Update cookies, allow request
-    +-- Refresh failed? -> Redirect to /login (session fully expired)
+Input: ContentSource record with driveFileId (presentation ID)
+
+Step 1: Fetch presentation structure
+  - Google Slides API: presentations.get(presentationId)
+  - Extract: list of page IDs, slide count
+
+Step 2: For each slide (page):
+  a. Extract text content
+     - Iterate all page elements (shapes, tables, groups)
+     - Concatenate text from each element + speaker notes
+     - Result: plain text representation of slide content
+
+  b. Generate thumbnail
+     - Google Slides API: presentations.pages.getThumbnail(presentationId, pageId)
+     - Result: PNG URL (30-min TTL)
+     - Store URL or download + store in Supabase Storage
+
+  c. Generate embedding
+     - Vertex AI text-embedding model (e.g., text-embedding-004)
+     - Input: slide text content
+     - Output: 768-dimensional vector
+
+  d. Classify metadata via LLM
+     - GPT-OSS 120b structured output with Zod schema:
+       {
+         industry: z.enum([...11 industries]),
+         solutionPillar: z.string(),
+         persona: z.string(),
+         funnelStage: z.enum(["awareness", "consideration", "decision", "retention"]),
+         contentType: z.enum(["title", "agenda", "case_study", "capability", "process", ...]),
+         confidence: z.number().min(0).max(1)
+       }
+     - Input: slide text + context (presentation title, position in deck)
+
+  e. Store in pgvector
+     - INSERT into slide_embeddings table:
+       (id, content_source_id, slide_index, text_content, embedding, metadata,
+        thumbnail_url, created_at)
+
+Step 3: Update ContentSource
+  - Set slideCount = total slides
+  - Set ingestedCount = successfully processed slides
+  - Set lastCheckedAt = now()
 ```
 
----
+**What a slide embedding record looks like in the database:**
 
-## Deployment Flow Description
+```sql
+CREATE TABLE slide_embeddings (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+  content_source_id TEXT NOT NULL REFERENCES "ContentSource"(id),
+  slide_index INTEGER NOT NULL,
+  page_object_id TEXT NOT NULL,
+  text_content TEXT NOT NULL,
+  embedding vector(768) NOT NULL,
+  -- Classification metadata (from LLM)
+  industry TEXT,
+  solution_pillar TEXT,
+  persona TEXT,
+  funnel_stage TEXT,
+  content_type TEXT,
+  confidence FLOAT,
+  -- Thumbnail
+  thumbnail_url TEXT,
+  -- Human feedback
+  human_rating TEXT, -- 'positive' | 'negative' | null
+  human_corrections JSONB, -- {industry: "corrected_value", ...}
+  -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
 
-### Web App (Vercel)
+  UNIQUE(content_source_id, slide_index)
+);
 
-```
-[Developer pushes to GitHub]
-    |
-    +-- Push to main branch:
-    |       Vercel triggers production build
-    |       Build: turbo run build --filter=web
-    |       Deploy to: lumenalta-web.vercel.app
-    |       Uses: Production env vars (prod Supabase, prod agent URL)
-    |
-    +-- Push to PR branch:
-            Vercel triggers preview build
-            Build: same as production
-            Deploy to: lumenalta-web-<hash>.vercel.app
-            Uses: Preview env vars (dev Supabase, dev/staging agent URL)
-```
-
-### Agent Server (Railway/Render/Fly)
-
-```
-[Developer pushes to GitHub]
-    |
-    v
-[Railway/Render detects push]
-    |
-    v
-[Build]
-    +-- cd apps/agent
-    +-- pnpm install
-    +-- npx prisma generate
-    +-- npx mastra build
-    |
-    v
-[Start]
-    +-- node .mastra/output/index.mjs (or equivalent mastra build output)
-    +-- Listens on PORT (provided by platform)
-    +-- Connects to Supabase Postgres via DATABASE_URL
-    +-- Ready to accept requests from web app
+-- HNSW index for fast similarity search
+CREATE INDEX ON slide_embeddings USING hnsw (embedding vector_cosine_ops);
 ```
 
----
+**Note on Prisma:** Prisma does not natively support the `vector` type. Use `Unsupported("vector(768)")` in the Prisma schema for the column definition, and use raw SQL (`prisma.$queryRaw`) for vector operations (similarity search, embedding insert). The migration creating this table should be written as raw SQL via `prisma migrate dev --create-only`, then edited to include the `vector` column and HNSW index.
 
-## Supabase Migration Path Details
+### 4. Human Rating and Classification Improvement
 
-### What changes in the Prisma schema
+**What the review UX looks like:**
 
-```prisma
-// BEFORE (SQLite)
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+```
+/templates/[id]/review
++--------------------------------------------------+
+| Meet Lumenalta - Slide Review          12/12 done |
++--------------------------------------------------+
+| [Thumbnail]     Industry: Financial Services  [x] |
+|                 Pillar: Digital Transformation [x] |
+| Slide 3/12      Persona: CTO                 [x] |
+|                 Stage: Consideration          [x] |
+|                 Confidence: 87%                   |
+|                                                   |
+|                 [thumbs-down] [thumbs-up]         |
++--------------------------------------------------+
+```
+
+**Interaction patterns:**
+
+1. **Thumbs up:** User confirms classification is correct. Stores positive signal. Slide marked as "reviewed."
+2. **Thumbs down:** User indicates classification is wrong. Opens inline tag correction:
+   - Each tag becomes an editable dropdown with the full taxonomy
+   - User selects correct values
+   - On save: stores negative signal + correction diff, updates pgvector metadata immediately
+3. **Click [x] on any tag:** Opens inline correction for that specific tag without requiring thumbs-down first (shortcut for partial corrections)
+4. **Keyboard navigation:** Arrow keys to move between slides, Enter to approve, Tab to move between tags
+
+**Feedback storage:** Extends the existing `FeedbackSignal` pattern:
+```
+signalType: "positive" | "negative" | "correction"
+source: "slide_classification_review"
+content: JSON {
+  slideEmbeddingId: "...",
+  originalTags: { industry: "Healthcare", pillar: "AI/ML" },
+  correctedTags: { industry: "Financial Services", pillar: "AI/ML" },
+  diff: { industry: { from: "Healthcare", to: "Financial Services" } }
 }
-
-// AFTER (PostgreSQL)
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
 ```
 
-### SQLite to Postgres differences that affect this schema
+**Real-time improvement flow:**
+1. User corrects a tag -> frontend sends PATCH to agent API
+2. Agent updates `slide_embeddings` metadata columns (industry, pillar, etc.)
+3. Agent optionally re-embeds: prepend corrected classification context to slide text, generate new embedding, update vector in pgvector
+4. Frontend refreshes the slide card to show updated tags
+5. Next similarity search or Touch 1-4 deck assembly uses the corrected metadata
 
-| SQLite Pattern | Postgres Equivalent | Affected Models |
-|----------------|---------------------|-----------------|
-| `String` for JSON data | Keep as `String` (works) or upgrade to `Json` type (better) | WorkflowJob.payload, WorkflowJob.result, ImageAsset.tags, InteractionRecord.inputs, InteractionRecord.generatedContent, InteractionRecord.outputRefs, FeedbackSignal.content, Brief.secondaryPillars, Brief.useCases, Brief.roiFraming, ContentSource.touchTypes |
-| `@default(cuid())` | Works identically | All models |
-| `DateTime @default(now())` | Works identically | All models |
-| `@@index` | Works identically | All models |
-| `@@unique` | Works identically | Company, ContentSource, Transcript, Brief |
-| SQLite TEXT (unlimited) | Postgres TEXT (unlimited) | Transcript.rawText |
+### 5. Access Awareness
 
-### Migration strategy
+**What the user sees when adding an inaccessible template:**
 
-1. **Do NOT try to migrate SQLite data to Postgres.** The existing data is seed/demo data only.
-2. Delete the `prisma/migrations/` directory entirely (4 SQLite migrations).
-3. Change the datasource provider to `postgresql`.
-4. Optionally upgrade JSON `String` fields to `Json` type.
-5. Run `prisma migrate dev --name init-postgres` to create a fresh baseline migration.
-6. Run the seed script to populate the Meridian Capital Group demo data.
+```
++--------------------------------------------------+
+| Add Template                                      |
++--------------------------------------------------+
+| URL: https://docs.google.com/presentation/d/1abc  |
+| Name: NBC Universal Case Study                    |
+| Touch: [Touch 3] [Touch 4]                       |
+|                                                   |
+| [!] Cannot access this presentation.              |
+|     Share it with:                                |
+|     agent@lumenalta-sales.iam.gserviceaccount.com |
+|     [Copy Email]                                  |
+|                                                   |
+|     The template will be saved but cannot be       |
+|     ingested until access is granted.             |
+|                                                   |
+| [Save Anyway]  [Cancel]                           |
++--------------------------------------------------+
+```
 
-This approach follows the project's migration discipline (forward-only migrations) while acknowledging that the SQLite migration history has no value in a Postgres context.
+**Implementation:** On URL input blur or form submit:
+1. Extract presentation ID from URL
+2. Call `drive.files.get({ fileId: presentationId, fields: 'id,name,modifiedTime' })` with service account
+3. Success (200): populate display name from response, set `accessStatus: "accessible"`
+4. Error (403/404): show warning banner, set `accessStatus: "not_accessible"`, disable "Ingest" button
+5. Display service account email prominently with copy button
+
+**Periodic re-check:** On template list page load, re-validate access for `not_accessible` templates. If access has been granted since last check, update status automatically.
 
 ---
 
 ## Sources
 
-- Codebase analysis: `apps/agent/prisma/schema.prisma` -- 9 models, SQLite datasource, 4 existing migrations (HIGH confidence, read directly)
-- Codebase analysis: `apps/agent/src/mastra/index.ts` -- Mastra configuration with LibSQLStore, Hono-based API routes (HIGH confidence, read directly)
-- Codebase analysis: `apps/web/src/lib/api-client.ts` -- web-to-agent communication pattern, no auth headers currently (HIGH confidence, read directly)
-- Codebase analysis: `apps/web/src/env.ts` and `apps/agent/src/env.ts` -- current environment variable schemas (HIGH confidence, read directly)
-- Training knowledge: Supabase Auth with Google OAuth provider, `@supabase/ssr` for Next.js (MEDIUM confidence -- based on training through May 2025; verify current package names and API)
-- Training knowledge: Vercel monorepo deployment with Turborepo, root directory configuration (MEDIUM confidence -- standard pattern, unlikely to have changed significantly)
-- Training knowledge: Prisma SQLite-to-PostgreSQL migration, datasource provider switching (MEDIUM confidence -- standard Prisma operation)
-- Training knowledge: Mastra `@mastra/pg` storage adapter as alternative to `@mastra/libsql` (LOW confidence -- verify Mastra 1.8 supports this adapter and its configuration)
-- Training knowledge: Railway/Render/Fly.io deployment for Node.js long-running processes (MEDIUM confidence -- all three are established platforms for this use case)
-- Note: Web search and WebFetch tools were unavailable. All non-codebase claims should be verified against current documentation before implementation.
+- [Supabase pgvector documentation](https://supabase.com/docs/guides/database/extensions/pgvector) -- extension setup, vector columns, similarity search functions
+- [Supabase vector columns guide](https://supabase.com/docs/guides/ai/vector-columns) -- data types, dimensions, indexing
+- [Supabase semantic search guide](https://supabase.com/docs/guides/ai/semantic-search) -- match functions, threshold tuning
+- [Google Slides API getThumbnail](https://developers.google.com/slides/api/reference/rest/v1/presentations.pages/getThumbnail) -- thumbnail extraction, PNG format, 30-min URL TTL
+- [Google Drive API permissions.list](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/list) -- checking file access for service accounts
+- [Google Drive API sharing guide](https://developers.google.com/workspace/drive/api/guides/manage-sharing) -- permission model, roles
+- [Railway GitHub Actions guide](https://blog.railway.com/p/github-actions) -- project tokens, CLI deploy, service IDs
+- [Vercel GitHub Actions guide](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel) -- Vercel CLI, token auth, monorepo support
+- [Vercel monorepo CI/CD academy](https://vercel.com/academy/production-monorepos/github-actions) -- Turborepo integration, caching
+- [Railway monorepo deployment docs](https://docs.railway.com/guides/monorepo) -- root directory configuration
+- [HITL AI design patterns 2025](https://blog.ideafloats.com/human-in-the-loop-ai-in-2025/) -- review queue UX, feedback types, rating patterns
+- [pgvector 2026 guide](https://www.instaclustr.com/education/vector-database/pgvector-key-features-tutorial-and-pros-and-cons-2026-guide/) -- HNSW indexing, performance tuning
+- Codebase analysis: `apps/agent/prisma/schema.prisma` -- 9 existing models, `ContentSource` with ingestion tracking fields (HIGH confidence, read directly)
+- Codebase analysis: `apps/web/src/app/(authenticated)/layout.tsx` -- current top-bar navigation, shadcn/ui components (HIGH confidence, read directly)
+- Codebase analysis: `turbo.json` -- existing build, lint, db:generate, db:migrate task definitions (HIGH confidence, read directly)
 
 ---
 
-*Feature research for: v1.1 Infrastructure & Access Control milestone*
-*Researched: 2026-03-04*
+*Feature research for: v1.2 Templates & Slide Intelligence milestone*
+*Researched: 2026-03-05*

@@ -1,222 +1,167 @@
 # Project Research Summary
 
-**Project:** Lumenalta Sales Platform — v1.1 Infrastructure & Access Control
-**Domain:** Infrastructure hardening — database migration (SQLite to Supabase/PostgreSQL), Vercel deployment, Google OAuth login wall, and service-to-service authentication
-**Researched:** 2026-03-04
-**Confidence:** MEDIUM (training data only; web tools unavailable; codebase analysis is HIGH confidence)
+**Project:** Lumenalta v1.2 -- Templates & Slide Intelligence
+**Domain:** Agentic sales platform -- template management, AI slide classification, HITL rating, CI/CD automation
+**Researched:** 2026-03-05
+**Confidence:** HIGH
 
 ## Executive Summary
 
-The v1.1 milestone transforms a functioning localhost demo into a team-accessible deployed platform. The work is purely infrastructure — no new business features, no changes to the AI workflows, and no schema model additions. The four pieces of work (database migration, auth, agent deployment, service auth) have clearly defined dependencies and all four researchers agree on the correct technical approach: Supabase for both the database and auth, Vercel for the web app, and a non-serverless host (Railway/Fly.io/Render) for the Mastra agent. The existing v1.0 architecture is sound and does not need restructuring — only new wiring is required.
+The v1.2 milestone transforms the Lumenalta sales platform from a deal-focused tool into an intelligent content management system. It adds six capabilities on top of the shipped v1.0/v1.1 foundation: CI/CD automation via GitHub Actions, a templates management UI with side panel navigation, an AI-powered slide ingestion pipeline that extracts, embeds, and classifies Google Slides content into pgvector, access awareness for Drive file sharing, and a human-in-the-loop rating engine that improves classifications in real time. The existing stack (Next.js 15, Mastra AI, Vertex AI, Prisma 6.19, Supabase PostgreSQL, shadcn/ui) handles nearly everything -- the only new npm dependency is `pgvector` for vector serialization.
 
-The highest-confidence recommendation across all four research files is to keep the existing Prisma ORM as-is, change only the datasource provider to `postgresql`, and use Supabase purely as a managed Postgres host plus auth service. The Supabase JS client is used ONLY for auth operations (signIn/signOut/getSession) — never for data queries, which remain Prisma's domain. This avoids a dual-query layer and means the vast majority of existing application code (workflows, Server Actions, api-client, Google API helpers) stays completely unchanged.
+The recommended approach is to build in four dependency-driven phases: (1) CI/CD pipeline and database schema first, because automated deploys accelerate every subsequent feature and the schema must exist before any data flows; (2) templates CRUD with navigation and access awareness, creating the user-facing surface; (3) the slide ingestion workflow with embeddings and classification, which is the core intelligence; (4) the preview and rating engine that closes the human feedback loop. This ordering follows the strict dependency chain -- each phase produces what the next phase consumes.
 
-The single biggest risk — flagged consistently across all four research files — is deploying the Mastra agent to Vercel serverless. Mastra workflows executing touch sequences take 30-120 seconds end-to-end, exceeding Vercel's function timeout on all but the most expensive Pro plan with `maxDuration` overrides. The strongly recommended mitigation is to deploy the agent on a persistent-process host (Railway, Render, or Fly.io), with the web app staying on Vercel. This is already compatible with the existing `AGENT_SERVICE_URL` env var design. A secondary risk is that `@mastra/pg` (the Postgres storage adapter for Mastra's internal workflow state) needs to be verified against current npm before implementation — if it does not exist, the fallback is Turso (hosted LibSQL cloud), which requires only a URL change.
+The top risks are: Prisma's lack of native pgvector support (requiring all vector operations via raw SQL in a dedicated repository layer), Google Slides API rate limits (60 requests/minute/user, demanding careful batching during ingestion), CI/CD migration safety (production migrations must run in isolated GitHub Actions jobs with concurrency guards), and the feedback loop trap (collecting ratings without actually using them to improve classifications). All are well-understood problems with documented prevention strategies.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The v1.1 stack additions are minimal and intentionally avoid introducing new vendors beyond Supabase and a persistent-process hosting platform. Supabase is chosen because it bundles managed PostgreSQL and Google OAuth into a single provider, eliminating the need for a separate auth service (NextAuth, Clerk, Firebase Auth). Prisma remains the ORM — it treats Supabase as an ordinary Postgres host and requires no code changes beyond the connection string and datasource provider field.
+The v1.2 milestone requires remarkably few additions to the existing stack. The only new npm dependency is `pgvector` (^0.2.0) for vector serialization in Prisma raw queries. Everything else -- embedding generation, slide extraction, classification, authentication -- reuses existing installed packages.
 
-**Core technologies (new additions only):**
-- `@supabase/supabase-js ^2.x`: Supabase client — used ONLY in `apps/web` for auth (signIn/signOut/getSession); never for data queries
-- `@supabase/ssr ^0.5+`: Server-side auth helpers for Next.js App Router — cookie-based sessions in middleware, Server Components, and Route Handlers
-- Supabase Auth (hosted service): Google OAuth provider with JWT issuance — no custom auth server; domain restriction enforced at the application level
-- Supabase PostgreSQL (hosted service): Managed Postgres with Supavisor connection pooling — replaces the SQLite file; all app queries remain through Prisma unchanged
-- Vercel (web project only): Hosts `apps/web` (Next.js) — zero-config Next.js App Router, automatic preview deployments per PR
-- Railway/Render/Fly.io (agent server): Hosts `apps/agent` (Mastra/Hono) as a persistent Node.js process — eliminates serverless timeout risk entirely
-- Shared API key (env var): Service-to-service auth between web and agent — simplest effective pattern; no JWT/OAuth complexity for first-party services
-- `@mastra/pg` or Turso equivalent (VERIFY): Postgres or hosted LibSQL adapter for Mastra's internal workflow state — replaces `file:./prisma/mastra.db`; required for suspend/resume to survive deployments
+**Core technologies:**
+- **pgvector (Supabase extension):** Vector similarity search on slide embeddings -- Supabase includes it out of the box, enable with one SQL statement in a Prisma migration
+- **`pgvector` npm (^0.2.0):** Serialize/deserialize vectors for Prisma `$queryRaw` / `$executeRaw` -- the only new dependency for the entire milestone
+- **Vertex AI `text-embedding-005` (768 dimensions):** Generate slide embeddings via the existing `@google/genai` package -- same auth, same platform, zero new dependencies
+- **GitHub Actions:** CI/CD orchestration with 3 workflows (ci.yml, deploy-web.yml, deploy-agent.yml) using Vercel CLI and Railway CLI
 
-**Versions requiring verification before implementation:**
-- `@supabase/supabase-js` — may be v3.x as of March 2026; check npm
-- `@supabase/ssr` — was `^0.5` at training cutoff; verify current version and API
-- `@mastra/pg` — package name, existence, and constructor API must be confirmed; fallback is Turso with `@mastra/libsql` and a `libsql://` URL
+**Critical version constraint:** Stay on Prisma 6.19.x. Prisma 7.x has a known regression where migrations fail with `Unsupported("vector")` columns (prisma/prisma#28867).
 
 ### Expected Features
 
-All v1.1 features are infrastructure features. They are security and deployment requirements, not user-facing functionality changes. Users gain access to a deployed URL with login; they do not see new product features.
+**Must have (table stakes -- 10 features for v1.2 launch):**
+- CI/CD pipeline -- eliminates manual deploy bottleneck (224 commits in 3 days)
+- Side panel navigation -- structural prerequisite for templates section
+- Templates CRUD page -- register Google Slides decks with touch type assignment
+- Access awareness -- immediate feedback when files are not shared with service account
+- pgvector setup -- database extension and schema for embeddings
+- Slide ingestion agent -- extract, embed, classify slides into vector store
+- Slide thumbnail preview -- visual grid of ingested slides
+- Classification display -- AI-assigned tags on each slide card
+- Human rating (thumbs up/down + tag correction) -- basic feedback loop
+- Real-time classification improvement -- corrections update pgvector immediately
 
-**Must have (table stakes — without these the platform is a localhost demo):**
-- Persistent PostgreSQL database (Supabase) — team data must survive deployments and be shared across members
-- Google OAuth login wall restricted to `@lumenalta.com` — security requirement for any internet-exposed internal tool
-- Middleware-based route protection — every page behind auth; no flash of unprotected content
-- Login page UI — branded "Sign in with Google" button with clear `@lumenalta.com` domain requirement
-- Auth callback route handler — exchanges OAuth code for Supabase session; enforces domain check server-side
-- Deployed web app URL (Vercel) — sellers need a bookmark, not `localhost:3000`
-- Deployed agent server URL (Railway/Render/Fly.io) — web app must call a real endpoint, not `localhost:4111`
-- Service-to-service API key auth — agent endpoints create DB records and trigger costly AI workflows; cannot be publicly accessible
-- Environment variable configuration — Supabase URL/keys, API key, and agent URL correctly set in both Vercel projects for both Production and Preview environments
-- Postgres-compatible seed script — re-seeds the Meridian Capital Group demo scenario on the fresh Supabase database
+**Should have (add in v1.2.x after validation):**
+- Confidence scores on classification tags -- helps prioritize reviews
+- Template version tracking (staleness detection) -- flags modified source decks
+- Batch ingestion progress tracking -- transparency for large decks
+- Slide similarity search -- find cross-deck duplicates via pgvector cosine similarity
 
-**Should have (quality improvements within v1.1 scope):**
-- Mastra internal storage migration (LibSQL file to hosted Postgres/Turso) — prevents workflow state loss on agent redeployment; enables suspend/resume across cold starts
-- Preview deployments per PR (Vercel) — automatic with correct env var scoping; QA can test PRs without running locally
-- Supabase project separation (dev vs. prod) — isolates test data from production; required from day one
-
-**Defer to v2+:**
-- Role-based access control — all users are equal in v1.1; RBAC is over-engineering for a 20-person internal team
-- User settings/preferences page — nothing to configure; Google profile provides name and avatar
-- Multi-tenant support — internal tool only; premature
-- Magic link or email/password auth — all team members have Google Workspace accounts
-- Supabase RLS policies — server-side Prisma queries make RLS redundant for this single-tenant setup
-- Custom domain — Vercel-provided URL is sufficient for an internal tool
-
-**Do NOT build (anti-features confirmed by research):**
-- Serverless agent deployment on Vercel — workflow timeouts are architecturally incompatible
-- SQLite data migration to Postgres — existing data is demo-only seed data; start fresh
-- WebSocket/SSE real-time workflow updates — existing polling pattern works and is simpler
-- User profile management — Google OAuth provides all needed identity data
+**Defer (v2+):**
+- Cross-template deduplication, classification analytics dashboard, Drive webhook auto-re-ingestion, full-text slide content search
+- Drag-and-drop slide reordering, in-browser slide editing, automated nightly re-classification, multi-tenant template libraries (all identified as anti-features)
 
 ### Architecture Approach
 
-The v1.1 architecture is an additive wrapper around the existing v1.0 system. The web app gains an auth layer (middleware + login page + Supabase client utilities); the agent gains API key validation middleware; and the database connection string changes. No data access code, workflow logic, Server Actions, or Google API helpers require modification. The two-service deployment topology (`apps/web` on Vercel, `apps/agent` on persistent compute) is a natural extension of the existing monorepo structure, with `AGENT_SERVICE_URL` as the seam between them.
+The architecture extends the existing web-agent-database pattern without changing any foundational boundaries. The web app (Next.js on Vercel) gets new `/templates` routes and a side panel layout. The agent (Mastra Hono on Railway) gets template CRUD API routes, a slide ingestion Mastra workflow, and rating endpoints. The database (Supabase PostgreSQL) gets three new Prisma models (Template, TemplateSlide, SlideRating) plus a raw SQL `slide_embeddings` table with pgvector. The critical invariant -- web has zero direct database access, all data flows through the agent API -- remains unchanged.
 
 **Major components:**
-1. **Next.js middleware (`apps/web/src/middleware.ts`)** — intercepts every request, validates Supabase session cookie, redirects unauthenticated users to `/auth/login`; transparently refreshes expiring tokens
-2. **Supabase client utilities (`apps/web/src/lib/supabase/`)** — three factory files: `client.ts` (browser), `server.ts` (RSC/Server Actions), `middleware.ts` (edge); all use `@supabase/ssr`
-3. **Auth routes (`apps/web/src/app/auth/`)** — login page with Google sign-in button, plus callback route handler that exchanges OAuth code, validates `@lumenalta.com` domain, and sets session cookies
-4. **Prisma schema update (`apps/agent/prisma/schema.prisma`)** — provider changes from `sqlite` to `postgresql`; `directUrl` field added for migrations; all 9 models remain unchanged
-5. **Prisma migrations (recreated from scratch)** — existing SQLite migration history deleted; fresh Postgres baseline generated with `prisma migrate dev --name init-postgres`
-6. **Mastra storage backend (`apps/agent/src/mastra/index.ts`)** — `LibSQLStore` replaced with `PostgresStore` (or Turso LibSQL) so workflow state survives deployments
-7. **API key middleware (agent Hono server)** — validates `X-API-Key` header on all agent routes; rejects unauthorized requests with 401
-8. **API client update (`apps/web/src/lib/api-client.ts`)** — adds `X-API-Key: ${AGENT_API_KEY}` header to all outbound calls to the agent
-
-**Key patterns to follow:**
-- Prisma is the sole data query layer — Supabase JS client is auth-only, never data
-- Auth boundary is the web app — the agent validates only a shared API key, not user JWTs
-- Defense-in-depth for domain restriction — Google Workspace "Internal" OAuth + server-side email check in callback + middleware session validation
-- Supabase dual connection strings — pooled URL (port 6543, `?pgbouncer=true`) for app queries; direct URL (port 5432) for migrations only
-- Turborepo build pipeline unchanged — Vercel native Turborepo detection handles both projects
+1. **Template model + CRUD routes** -- user-managed Google Slides references with touch assignment, extending the existing `ContentSource` pattern
+2. **Slide ingestion workflow** -- Mastra workflow (extract slides, classify via LLM structured output, embed via Vertex AI, store in pgvector) following the same pattern as touch-1 through touch-4 workflows
+3. **Vector store module (`vector-store.ts`)** -- typed wrapper around raw SQL pgvector operations (insert, cosine similarity search), isolating all non-ORM queries
+4. **Embeddings module (`embeddings.ts`)** -- Vertex AI text-embedding-005 integration via existing `@google/genai`
+5. **Preview and rating engine** -- slide thumbnail grid with classification tags and thumbs up/down feedback that updates pgvector metadata in real time
+6. **CI/CD pipeline** -- GitHub Actions workflows for lint, migrate, deploy web (Vercel), deploy agent (Railway)
 
 ### Critical Pitfalls
 
-1. **Prisma migration history is provider-locked to SQLite** — Existing `migrations/` directory contains SQLite-specific SQL that refuses to run against Postgres; `migration_lock.toml` embeds the provider. Avoid by deleting the `migrations/` directory and `migration_lock.toml`, then generating a fresh Postgres baseline. Keep old migrations in git history for reference only.
+1. **Prisma has no native pgvector support** -- all vector operations must use `$queryRaw` / `$executeRaw` wrapped in a typed repository layer. Never attempt Prisma client methods on vector columns. Use `--create-only` for vector migrations and manually add `CREATE EXTENSION IF NOT EXISTS vector`.
 
-2. **Mastra LibSQLStore uses a separate SQLite file that also needs migration** — The `mastra.db` file is separate from `dev.db`. Migrating only Prisma leaves Mastra's workflow state on an ephemeral local file that Vercel destroys on every cold start. Any suspended HITL workflows or active runs will be permanently orphaned. Avoid by migrating Mastra's storage to `@mastra/pg` (PostgresStore) or Turso in the same phase as the Prisma migration — not as an afterthought.
+2. **Google Slides API 60 req/min rate limit** -- a 30-slide deck needs 31+ API calls. Use `presentations.get` to fetch ALL slide data in one call. Batch thumbnails with delays. Implement exponential backoff on 429 responses. Make ingestion idempotent for resume-after-failure.
 
-3. **Vercel serverless timeout kills long-running workflows** — Touch 4 workflows take 30-120 seconds. Vercel Hobby is 10 seconds; Pro is 60 seconds (300 with `maxDuration`). The Mastra agent is architecturally incompatible with serverless. Deploy on persistent compute (Railway/Render/Fly.io). The existing async poll-based architecture (start workflow, return runId, poll for status) is already designed for this separation — no redesign required.
+3. **CI/CD migration race conditions** -- use `prisma migrate deploy` (not `migrate dev`) in CI. Run migrations in a dedicated job with a concurrency group before deploying either app. Never run migrations from Vercel build steps or Docker entrypoints.
 
-4. **Google OAuth redirect URI mismatch on Vercel preview deployments** — Registering the Vercel app URL in Google Cloud Console breaks on dynamic preview URLs. Avoid by using Supabase as the OAuth intermediary — register only Supabase's callback URL in GCP, and configure Supabase's redirect allowlist with a wildcard pattern for Vercel preview subdomains.
+4. **Vercel git integration conflicts with GitHub Actions** -- disable Vercel's automatic GitHub integration before adding GitHub Actions deploy workflows. Otherwise, both trigger simultaneously, creating duplicate deployments.
 
-5. **Supabase domain restriction is not enforced at the provider level** — A personal Gmail user can complete the OAuth flow and receive a valid Supabase session unless explicitly blocked. Enforce at three layers: (1) Google Workspace "Internal" OAuth consent, (2) server-side email check in the `/auth/callback` route handler, and (3) middleware session check. Test with an actual personal Gmail account as acceptance criteria.
-
-6. **Prisma connection pool exhaustion on Vercel serverless** — Each function invocation creates a new Prisma Client instance with its own pool. Supabase free tier allows 60 connections. Under moderate load, this exhausts quickly. Avoid by using the Supabase Supavisor pooler URL (port 6543, `?pgbouncer=true&connection_limit=1`) in `DATABASE_URL` from day one.
+5. **HITL feedback stored but never consumed** -- the rating UI and the feedback consumption mechanism must ship in the same phase. Design the consumption path (few-shot example retrieval from verified classifications) before building the storage. Track "% accepted without changes" as the improvement metric.
 
 ## Implications for Roadmap
 
-The dependency chain is unambiguous: the database must exist before anything can be tested, service auth must exist before any deployment is secure, auth must be complete before deployment is useful, and all three must converge before go-live. All four research files independently converged on a 4-phase structure with the same ordering rationale.
+Based on research, suggested phase structure:
 
-### Phase 1: Database Migration (Supabase + Prisma + Mastra Storage)
+### Phase 1: Foundation (CI/CD + Database Schema)
+**Rationale:** CI/CD has zero feature dependencies and accelerates deployment of everything that follows. Database schema (Template, TemplateSlide, SlideRating models + pgvector extension + slide_embeddings table) must exist before any feature can write data.
+**Delivers:** Automated lint/deploy pipeline on push to main; complete database schema for all v1.2 features
+**Addresses:** CI/CD pipeline, pgvector setup
+**Avoids:** Migration race conditions (concurrency groups), Vercel double-deploy (disable git integration), shadow database extension conflicts (use `migrate deploy` in CI)
+**Stack:** GitHub Actions, Vercel CLI, Railway CLI, Prisma migrations with `--create-only` for vector columns
 
-**Rationale:** Everything else depends on a working Postgres database. Auth, deployment, and service auth all require Supabase to exist. This phase has zero auth dependencies and zero deployment dependencies — it can be started immediately. It also has the highest complexity per line of code changed (migration history recreation, dual connection strings, Mastra storage adapter verification).
+### Phase 2: Template Management (CRUD + Navigation + Access Awareness)
+**Rationale:** The user-facing surface must exist before the ingestion pipeline has anything to process. Templates CRUD, side panel navigation, and access awareness are tightly coupled -- they form a single coherent user experience.
+**Delivers:** Users can register Google Slides templates, assign touch types, see access status, navigate between Deals and Templates sections
+**Addresses:** Templates CRUD page, side panel navigation, access awareness, touch type assignment
+**Avoids:** Side panel breaking existing deal pages (test all existing routes with sidebar present), stale access status (re-check on every ingestion attempt, show `lastCheckedAt`)
+**Uses:** Existing `ContentSource` patterns (borrowed, not extended -- create dedicated `Template` model), shadcn/ui sidebar, Google Drive API `files.get`
 
-**Delivers:** Supabase dev and prod projects created; all 9 Prisma models running on PostgreSQL; Mastra workflow state on a hosted durable store (Postgres or Turso); Meridian Capital Group seed data re-created on Postgres; agent runs locally against Supabase dev instance
+### Phase 3: Slide Intelligence (Ingestion + Embeddings + Classification)
+**Rationale:** This is the core differentiator and the most complex phase. It depends on Phase 1 (schema) and Phase 2 (template records to process). Should be a single phase because the ingestion pipeline is one continuous flow: extract, embed, classify, store.
+**Delivers:** AI-powered slide ingestion that transforms Google Slides into classified, searchable vector embeddings
+**Addresses:** Slide ingestion agent, slide thumbnail preview, classification display
+**Avoids:** Embedding dimension mismatch (lock on text-embedding-005 at 768 dims, document in migration SQL), Google API rate limits (batch with delays, idempotent processing), raw SQL scattered across codebase (isolate in `vector-store.ts`)
+**Uses:** `pgvector` npm, Vertex AI text-embedding-005, Mastra workflow, Google Slides API `presentations.get` + `getThumbnail`
 
-**Addresses:** "Persistent database (table stakes)", "Mastra internal storage migration (should have)", "Environment separation dev/prod"
-
-**Avoids:** Pitfall 1 (migration lock mismatch), Pitfall 2 (data type issues — keep all JSON fields as `String` for v1.1), Pitfall 3 (Mastra LibSQLStore on local file), Pitfall 12 (connection pool exhaustion — pooler URL from day one)
-
-**Research flag needed:** Verify `@mastra/pg` package existence and constructor API on npmjs.com before writing code. If absent, switch to Turso cloud (`@mastra/libsql` with a `libsql://` URL — zero API change, only URL change).
-
-### Phase 2: Service-to-Service API Key Auth
-
-**Rationale:** Small change (two files modified, one env var each side) that must exist before the agent is deployed to any public URL. Piggybacks on Phase 1's env.ts changes. Can be completed in the same work session as Phase 1 with minimal overhead.
-
-**Delivers:** Agent server rejects all requests without a valid `X-API-Key` header; web app sends the key on every outbound call; both services have the key in their validated env var schemas; curl test confirms rejection without auth
-
-**Addresses:** "Protected API routes (table stakes)", "Service-to-service API key auth (P1)"
-
-**Avoids:** Pitfall 6 (auth token not forwarded — fixed here), security mistake "agent server deployed without authentication"
-
-**Research flag needed:** None. This is a textbook shared-secret pattern. No additional research required.
-
-### Phase 3: Google OAuth Login Wall (Auth)
-
-**Rationale:** Depends on Supabase existing (Phase 1) but is otherwise independent of service auth. Can begin in parallel with Phase 1 once the Supabase project is created. The Google Cloud OAuth consent screen configuration and Supabase Auth provider setup can happen while Phase 1 database work is in progress.
-
-**Delivers:** All app routes protected behind login; Google OAuth restricted to `@lumenalta.com` at three enforcement layers; login page with "Sign in with Google" button and domain messaging; auth callback with server-side domain enforcement; session cookie management via `@supabase/ssr`; user name and avatar displayed in the nav bar
-
-**Addresses:** "Login wall (table stakes)", "Session persistence (table stakes)", "Middleware-based route protection (should have)", "@lumenalta.com domain restriction (P1)"
-
-**Avoids:** Pitfall 7 (OAuth redirect mismatch — use Supabase as intermediary with wildcard allowlist), Pitfall 8 (domain restriction client-side only — enforce at all 3 layers), Pitfall 9 (middleware ordering conflict — precise matcher required, exclude `/auth/` and static assets)
-
-**Research flag needed:** Consult current `@supabase/ssr` official docs before implementing. The package API was evolving through 2025. Standard enough to proceed without a full research-phase — just verify the `createServerClient`/`createBrowserClient` signatures before writing code.
-
-### Phase 4: Vercel + Agent Deployment (Go-Live)
-
-**Rationale:** Requires all three preceding phases to be complete and tested locally. The web app cannot be deployed usefully without auth. The agent cannot be deployed securely without API key auth and a hosted database. This phase is the integration and go-live phase — it converges all prior work.
-
-**Delivers:** Production web URL on Vercel; production agent URL on Railway/Render/Fly.io; preview deployments per PR with correct env var scoping; prod Supabase database with `prisma migrate deploy`; end-to-end workflow verified on production URLs; Google OAuth redirect working on both production and preview deployments; CORS headers on Hono server; canonical env var manifest verified
-
-**Addresses:** "Deployed web app URL (table stakes)", "Deployed agent server URL (table stakes)", "Preview deployments (should have)", "Environment variable configuration (P1)"
-
-**Avoids:** Pitfall 4 (serverless bundle size — agent is NOT on Vercel serverless), Pitfall 5 (workflow timeout — agent on persistent compute), Pitfall 7 (OAuth redirects — Supabase wildcard allowlist), Pitfall 10 (env var misconfiguration — create canonical manifest as first deployment task), Pitfall 11 (CORS between Vercel projects — add CORS middleware to Hono server before first cross-domain deploy)
-
-**Research flag needed:** This is the highest-risk phase. Verify that `mastra build` output is deployable on Railway/Render/Fly.io and confirm the correct start command (likely `node .mastra/output/index.mjs`). Check Mastra v1.8 deployment docs specifically for Railway/persistent-process deployment. If Mastra has added a managed hosting option since training cutoff, it may simplify this phase.
+### Phase 4: Human Review (Rating + Classification Improvement)
+**Rationale:** The feedback loop requires both visual preview (Phase 3) and classification display (Phase 3) to provide meaningful context for ratings. Must ship feedback collection AND consumption together to avoid the open feedback loop trap.
+**Delivers:** Human-in-the-loop classification review with real-time improvement -- corrections update pgvector metadata immediately and feed into future classifications as few-shot examples
+**Addresses:** Human rating (thumbs up/down + tag correction), real-time classification improvement
+**Avoids:** Feedback stored but never consumed (ship few-shot retriever in same phase), review fatigue (show low-confidence classifications first, auto-accept high-confidence ones)
+**Uses:** SlideRating model, existing FeedbackSignal pattern, pgvector metadata updates
 
 ### Phase Ordering Rationale
 
-- Phase 1 is foundational — Supabase must exist before any other work is testable or meaningful
-- Phase 2 is tiny and security-critical — it belongs with Phase 1 to ensure the agent is never exposed unauthenticated
-- Phase 3 can begin in parallel with Phase 1 but must complete before Phase 4; the Supabase project (from Phase 1) is the only prerequisite
-- Phase 4 is the convergence and go-live phase; partial deployment is not useful — all three predecessors must be tested first
-- The existing async poll-based workflow architecture is a deliberate advantage: it means the web app makes only short-lived HTTP calls to the agent, which decouples serverless web from persistent-process agent cleanly
+- **Strict dependency chain:** Each phase produces what the next consumes. CI/CD and schema enable everything. Templates create the input data. Ingestion processes that data. Rating validates the output.
+- **Risk front-loading:** The hardest integration (Prisma + pgvector + Supabase extensions) is in Phase 1 schema work, surfacing problems before feature code depends on it.
+- **CI/CD first pays compound dividends:** Every feature in Phases 2-4 benefits from automated deployment. At 224 commits in 3 days, manual deploys are already a bottleneck.
+- **Feedback loop closure in Phase 4:** Combining rating collection with consumption prevents the most common HITL pitfall (storing feedback that never improves anything).
 
 ### Research Flags
 
-**Phases needing deeper validation during implementation (verify before writing code):**
-- **Phase 1:** Confirm `@mastra/pg` package exists on npmjs.com. Identify its exact constructor API. If absent, plan switch to Turso — 15 minutes of verification that determines the implementation path.
-- **Phase 4:** Confirm `mastra build` output structure and deployment procedure on Railway/Render/Fly.io. Check Mastra v1.8 release notes for any deployment adapter additions. This is the lowest-confidence area across all research files.
+Phases likely needing deeper research during planning:
+- **Phase 1 (CI/CD):** Supabase shadow database + pgvector extension interaction needs careful migration testing. The `CREATE EXTENSION IF NOT EXISTS vector SCHEMA public` pattern must be validated against the specific Supabase project configuration.
+- **Phase 3 (Slide Intelligence):** Most complex phase. The ingestion workflow combines Google Slides API, Vertex AI embeddings, LLM classification, and pgvector storage in a single pipeline. Rate limiting strategy and idempotent processing design need detailed phase-level research.
 
-**Phases with standard patterns (no dedicated research-phase needed):**
-- **Phase 2:** API key auth in Hono middleware is a trivial, textbook pattern. Proceed directly.
-- **Phase 3:** Supabase Auth + Next.js App Router + Google OAuth is thoroughly documented with official examples. Consult `@supabase/ssr` docs directly; no research-phase required.
-- **Phase 1 (Prisma part):** Provider switching is a well-documented, stable Prisma operation. Proceed with confidence.
+Phases with standard patterns (skip research-phase):
+- **Phase 2 (Template Management):** Standard CRUD with existing patterns. Side panel navigation is well-documented in shadcn/ui. Access awareness reuses existing `ContentSource.accessStatus` approach.
+- **Phase 4 (Human Review):** Follows the existing FeedbackSignal approve/override pattern from Touch 1. The rating UI is a straightforward form. Few-shot example retrieval is a well-documented LLM prompting technique.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | MEDIUM | Supabase/Prisma/Vercel patterns are stable and well-established. Package versions need verification against npm (training cutoff behind current releases). Mastra storage adapter is LOW confidence — package may not exist under the assumed name. |
-| Features | HIGH | Feature analysis is based on direct codebase reading (what exists, what is missing) and clear security requirements. No ambiguity about what needs to be built. |
-| Architecture | MEDIUM-HIGH | Component boundaries, data flow, and integration points are clear from codebase analysis. Two low-confidence areas: (1) exact `@supabase/ssr` current API, (2) Mastra build output format and persistent-process deployment specifics. |
-| Pitfalls | MEDIUM-HIGH | Most pitfalls are well-documented industry patterns (Prisma migration lock, serverless connection pooling, OAuth redirect URIs). Mastra-specific pitfalls (bundle size on Vercel, persistent-process requirement) are MEDIUM — training data confirms the general concern but not current Mastra-specific behavior. |
+| Stack | HIGH | Only one new dependency (`pgvector` npm). All other technologies already in use. Version constraints verified against official issue trackers. |
+| Features | HIGH | Feature set derived from direct codebase analysis. Dependency graph is clear. Anti-features well-identified. |
+| Architecture | HIGH | Extends existing patterns (Mastra workflows, API routes, Prisma models) without architectural changes. One discrepancy resolved: ARCHITECTURE.md references 1536-dim vectors but STACK.md correctly recommends 768-dim via `text-embedding-005`. Use 768. |
+| Pitfalls | HIGH | All pitfalls verified against official docs and GitHub issues. Prevention strategies are specific and actionable. |
 
-**Overall confidence:** MEDIUM
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **`@mastra/pg` package existence (CRITICAL):** Verify on npmjs.com before Phase 1 begins. If absent, use Turso (`@mastra/libsql` with `libsql://` URL — no API changes, only URL change). This is the most critical unknown and takes 15 minutes to resolve.
-- **`mastra build` output format (HIGH):** Verify the build artifact structure (file name, entry point, start command) against current Mastra v1.8 docs before Phase 4 planning. The build may produce a different structure than assumed.
-- **Agent deployment on Vercel (MEDIUM):** Research strongly advises against serverless for the agent due to timeout risk. However, if Mastra has added a Vercel-compatible deployment adapter since training cutoff, it could change the deployment topology. Check Mastra release notes.
-- **`@supabase/ssr` current API (MEDIUM):** The package was in flux through 2025 (replaced deprecated `@supabase/auth-helpers-nextjs`). Verify current `createServerClient`, `createBrowserClient` signatures against official Supabase docs before writing auth code.
-- **Google Workspace "Internal" OAuth availability (LOW):** Requires a Google Workspace org admin to verify whether the `lumenalta.com` GCP project's OAuth consent screen can be set to "Internal". If not, rely entirely on application-level domain restriction (which is already planned as a layer).
+- **Embedding dimension discrepancy:** ARCHITECTURE.md references `vector(1536)` in schema examples and scaling notes, while STACK.md recommends `text-embedding-005` at 768 dimensions. Resolution: use 768 dimensions. Update all schema references during implementation.
+- **IVFFlat vs HNSW index choice:** STACK.md recommends IVFFlat (lower memory, faster build at small scale), while ARCHITECTURE.md recommends HNSW (better recall, no training step). Resolution: start with IVFFlat for the initial dataset (hundreds of slides). Add the index in a later migration after data exists, making it easy to switch to HNSW if needed.
+- **Template model vs ContentSource reuse:** ARCHITECTURE.md recommends a dedicated `Template` model, while FEATURES.md notes that `ContentSource` already has most needed fields. Resolution: create a dedicated `Template` model as ARCHITECTURE.md recommends. The concerns are different enough (user-managed CRUD with slide relations vs. offline batch discovery) to warrant separation.
+- **Thumbnail caching strategy:** Not resolved. Google Slides thumbnail URLs expire after 30 minutes. Options: re-fetch on page load (simple, more API calls) or download and store in Supabase Storage (complex, fewer API calls). Decide during Phase 3 implementation based on actual usage patterns.
+- **Prisma migration ordering:** The pgvector extension must be enabled before the `slide_embeddings` table can be created, and the Template/TemplateSlide models must exist before `slide_embeddings` can reference them. This means at least 2-3 sequential migrations in Phase 1. Plan the migration order explicitly.
 
 ## Sources
 
-### Primary (HIGH confidence — direct codebase analysis)
-- `apps/agent/prisma/schema.prisma` — 9 models, SQLite datasource, 4 existing migrations
-- `apps/agent/src/mastra/index.ts` — Mastra configuration with LibSQLStore, Hono API routes
-- `apps/web/src/lib/api-client.ts` — web-to-agent HTTP communication pattern, no auth headers currently
-- `apps/web/src/env.ts` and `apps/agent/src/env.ts` — current environment variable schemas
-- `turbo.json`, `package.json` — monorepo build configuration
+### Primary (HIGH confidence)
+- [Supabase pgvector docs](https://supabase.com/docs/guides/database/extensions/pgvector) -- extension setup, vector columns, similarity search
+- [Prisma pgvector issues #18442, #26546](https://github.com/prisma/prisma/issues/18442) -- `Unsupported` type workaround, raw SQL pattern
+- [Prisma 7.x vector regression #28867](https://github.com/prisma/prisma/issues/28867) -- stay on 6.19.x
+- [pgvector-node GitHub](https://github.com/pgvector/pgvector-node) -- `toSql()` / `fromSql()` with Prisma examples
+- [Google Slides API getThumbnail](https://developers.google.com/slides/api/reference/rest/v1/presentations.pages/getThumbnail) -- thumbnail extraction, 30-min TTL
+- [Google Slides API usage limits](https://developers.google.com/workspace/slides/api/limits) -- 60 requests/minute/user
+- [Vertex AI text embeddings docs](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings) -- text-embedding-005, 768 dimensions
+- [Vercel GitHub Actions guide](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel) -- CLI deploy pattern
+- [Railway CLI deploying docs](https://docs.railway.com/cli/deploying) -- CLI flags for CI/CD
+- Codebase analysis: `apps/agent/prisma/schema.prisma`, `apps/web/src/app/(authenticated)/layout.tsx`, `turbo.json`, `apps/agent/src/mastra/index.ts`
 
-### Secondary (MEDIUM confidence — training data through May 2025)
-- Supabase Auth with Next.js App Router, `@supabase/ssr` usage patterns
-- Prisma PostgreSQL provider documentation, connection pooling with PgBouncer/Supavisor
-- Vercel Turborepo monorepo deployment patterns, project configuration
-- Hono middleware patterns for API key authentication
-- Railway/Render/Fly.io persistent Node.js process deployment
-- Next.js 15 middleware edge runtime, `@supabase/ssr` session management
-
-### Tertiary (LOW confidence — verify before implementing)
-- Mastra `@mastra/pg` storage adapter (package name, API, existence)
-- Mastra `mastra build` output format for persistent-process deployment targets
-- Mastra Vercel deployment adapter (may have been added after training cutoff)
-- `@supabase/supabase-js` current version (may be v3.x by March 2026)
+### Secondary (MEDIUM confidence)
+- [Railway GitHub Actions blog](https://blog.railway.com/p/github-actions) -- project tokens, CI deploy
+- [Prisma shadow database extension conflicts #26231](https://github.com/prisma/prisma/issues/26231) -- shadow DB + extensions schema
+- [HITL AI design patterns 2025](https://blog.ideafloats.com/human-in-the-loop-ai-in-2025/) -- review queue UX, feedback types
 
 ---
-*Research completed: 2026-03-04*
+*Research completed: 2026-03-05*
 *Ready for roadmap: yes*
