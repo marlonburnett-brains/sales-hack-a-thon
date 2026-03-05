@@ -51,7 +51,8 @@
       "Bash(supabase projects api-keys --project-ref bhfnhtxeeuelxasotsrh)",
       "Read(//Users/marlonburnett/source/lumenalta-hackathon/**)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.items\\(\\) if ''google'' in k.lower\\(\\) or ''GOOGLE'' in k}, indent=2\\)\\)\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(make run dev --dry-run)"
     ]
   },
   "enableAllProjectMcpServers": true,

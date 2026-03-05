@@ -1,11 +1,23 @@
-.PHONY: run dev install build lint db-generate db-migrate seed
+.PHONY: run dev prod install build lint db-generate db-migrate seed
 
-# Start both agent and web dev servers
+# Determine environment from command line: make run dev | make run prod
+# Defaults to dev
+ifeq ($(word 2,$(MAKECMDGOALS)),prod)
+  ENV = prod
+else
+  ENV = dev
+endif
+
+# No-op targets so "make run dev" / "make run prod" don't error
+dev prod:
+	@:
+
+# Start both agent and web dev servers with selected environment
 run:
+	@cp apps/web/.env.$(ENV) apps/web/.env.local
+	@cp apps/agent/.env.$(ENV) apps/agent/.env
+	@echo "Running with $(ENV) environment"
 	pnpm dev
-
-# Aliases
-dev: run
 
 # Install dependencies
 install:
