@@ -74,11 +74,11 @@ Plans:
   3. Signing in with a non-@lumenalta.com Google account (e.g., personal Gmail) is rejected with a clear error message explaining the domain restriction
   4. After signing in, refreshing the browser or opening a new tab preserves the session (no re-login required)
   5. Clicking "Sign out" ends the session and redirects to the login page
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: TBD
-- [ ] 16-02: TBD
+- [ ] 16-01-PLAN.md -- Auth infrastructure: Supabase clients, middleware, OAuth callback, route restructure
+- [ ] 16-02-PLAN.md -- Login page UI, UserNav avatar dropdown, end-to-end verification
 
 ### Phase 17: Deployment & Go-Live
 **Goal**: The platform is accessible at production URLs -- web app on Vercel, agent server on Oracle Cloud VM with HTTPS -- with correct environment separation
@@ -118,6 +118,6 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 | 12. Content Re-ingestion | v1.0 | 2/2 | Complete | 2026-03-04 |
 | 13. Touch 4 Poll Loop Fixes | v1.0 | 1/1 | Complete | 2026-03-04 |
 | 14. Database Migration | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 15. Service-to-Service Auth | 1/1 | Complete    | 2026-03-05 | - |
-| 16. Google OAuth Login Wall | v1.1 | 0/? | Not started | - |
+| 15. Service-to-Service Auth | v1.1 | 1/1 | Complete | 2026-03-05 |
+| 16. Google OAuth Login Wall | v1.1 | 0/2 | Not started | - |
 | 17. Deployment & Go-Live | v1.1 | 0/? | Not started | - |
