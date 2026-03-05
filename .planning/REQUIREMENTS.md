@@ -31,9 +31,9 @@ Requirements for Infrastructure & Access Control milestone. Each maps to roadmap
 - [ ] **DEPLOY-02**: Production deploys from main branch; preview deploys from other branches
 - [ ] **DEPLOY-03**: Environment variables configured per Vercel environment (prod Supabase for production, dev Supabase for preview)
 - [ ] **DEPLOY-04**: Mastra agent server runs on Oracle Cloud Ampere A1 VM with HTTPS via reverse proxy
-- [ ] **DEPLOY-05**: Agent server auto-restarts on crash (Docker restart policy)
-- [ ] **DEPLOY-06**: CI/CD: web auto-deploys via Vercel on push; agent deploys via GitHub Actions or deploy script
-- [ ] **DEPLOY-07**: Google Workspace API credentials work in deployed environments (inline JSON, no file path dependency)
+- [x] **DEPLOY-05**: Agent server auto-restarts on crash (Docker restart policy)
+- [x] **DEPLOY-06**: CI/CD: web auto-deploys via Vercel on push; agent deploys via GitHub Actions or deploy script
+- [x] **DEPLOY-07**: Google Workspace API credentials work in deployed environments (inline JSON, no file path dependency)
 
 ## Future Requirements
 
@@ -83,9 +83,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEPLOY-02 | Phase 17 | Pending |
 | DEPLOY-03 | Phase 17 | Pending |
 | DEPLOY-04 | Phase 17 | Pending |
-| DEPLOY-05 | Phase 17 | Pending |
-| DEPLOY-06 | Phase 17 | Pending |
-| DEPLOY-07 | Phase 17 | Pending |
+| DEPLOY-05 | Phase 17 | Complete |
+| DEPLOY-06 | Phase 17 | Complete |
+| DEPLOY-07 | Phase 17 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 19 total
