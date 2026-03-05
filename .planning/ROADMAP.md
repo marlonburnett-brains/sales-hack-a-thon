@@ -88,7 +88,10 @@ Plans:
   2. Agent extracts text content from each slide, generates a vector embedding via Vertex AI, and classifies each slide by industry, solution pillar, persona, funnel stage, and content type with a confidence score
   3. All embeddings, classifications, and confidence scores are stored in Supabase pgvector and associated with the correct template and slide index
   4. Ingestion is idempotent -- re-ingesting a template replaces previous slide data without duplicates
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 20-01-PLAN.md -- Schema migration, ingestion pipeline (extract, embed, classify, store), API endpoints
+- [ ] 20-02-PLAN.md -- Progress UI on template cards, auto-trigger on add, background staleness polling
 
 ### Phase 21: Preview & Review Engine
 **Goal**: Users can visually review AI classifications on ingested slides, provide thumbs-up/down ratings with tag corrections, and find similar slides across all templates
@@ -127,5 +130,5 @@ Phases execute in numeric order: 18 -> 19 -> 20 -> 21
 | 17. Deployment & Go-Live | v1.1 | 1/1 | Complete | 2026-03-05 |
 | 18. CI/CD Pipeline & pgvector Schema | v1.2 | Complete    | 2026-03-05 | 2026-03-05 |
 | 19. Navigation & Template Management | 3/3 | Complete    | 2026-03-05 | - |
-| 20. Slide Ingestion Agent | v1.2 | 0/TBD | Not started | - |
+| 20. Slide Ingestion Agent | v1.2 | 0/2 | Not started | - |
 | 21. Preview & Review Engine | v1.2 | 0/TBD | Not started | - |
