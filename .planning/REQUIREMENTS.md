@@ -22,8 +22,8 @@ Requirements for Infrastructure & Access Control milestone. Each maps to roadmap
 - [ ] **AUTH-03**: Unauthenticated users are redirected to login page on any app route
 - [ ] **AUTH-04**: User session persists across browser refresh (cookie-based via Supabase SSR)
 - [ ] **AUTH-05**: User can sign out and is redirected to login page
-- [ ] **AUTH-06**: Agent server rejects requests without valid API key with 401 response
-- [ ] **AUTH-07**: Web app sends API key header on all requests to agent server
+- [x] **AUTH-06**: Agent server rejects requests without valid API key with 401 response
+- [x] **AUTH-07**: Web app sends API key header on all requests to agent server
 
 ### Deployment (DEPLOY)
 
@@ -77,8 +77,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 16 | Pending |
 | AUTH-04 | Phase 16 | Pending |
 | AUTH-05 | Phase 16 | Pending |
-| AUTH-06 | Phase 15 | Pending |
-| AUTH-07 | Phase 15 | Pending |
+| AUTH-06 | Phase 15 | Complete |
+| AUTH-07 | Phase 15 | Complete |
 | DEPLOY-01 | Phase 17 | Pending |
 | DEPLOY-02 | Phase 17 | Pending |
 | DEPLOY-03 | Phase 17 | Pending |

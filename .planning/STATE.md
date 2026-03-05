@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Infrastructure & Access Control
-status: completed
-stopped_at: Phase 16 context gathered
-last_updated: "2026-03-05T03:16:32.751Z"
-last_activity: 2026-03-05 -- Completed Phase 14 (Database Migration -- seed, prod schema, full verification)
+status: in-progress
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-03-05T03:33:00Z"
+last_activity: 2026-03-05 -- Completed Phase 15 Plan 01 (Service-to-Service Auth)
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 25
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -21,29 +21,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Phase 14 complete -- next: Phase 15 (Service-to-Service Auth)
+**Current focus:** Phase 15 complete -- next: Phase 16 (Google OAuth Login Wall)
 
 ## Current Position
 
-Phase: 14 (1 of 4 in v1.1) -- Database Migration -- COMPLETE
-Plan: 2 of 2 (all plans complete)
-Status: Phase complete -- ready for Phase 15
-Last activity: 2026-03-05 -- Completed Phase 14 (Database Migration -- seed, prod schema, full verification)
+Phase: 15 (2 of 4 in v1.1) -- Service-to-Service Auth -- COMPLETE
+Plan: 1 of 1 (all plans complete)
+Status: Phase complete -- ready for Phase 16
+Last activity: 2026-03-05 -- Completed Phase 15 Plan 01 (Service-to-Service Auth)
 
-Progress: [##........] 25%
+Progress: [#####.....] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2 (v1.1) / 32 (all-time)
-- Average duration: 17min (v1.1)
-- Total execution time: 33min (v1.1)
+- Total plans completed: 3 (v1.1) / 33 (all-time)
+- Average duration: 12min (v1.1)
+- Total execution time: 37min (v1.1)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 14 - Database Migration | 2/2 | 33min | 17min |
+| 15 - Service-to-Service Auth | 1/1 | 4min | 4min |
 
 *Updated after each plan completion*
 
@@ -63,6 +64,9 @@ New v1.1 decisions:
 - [14-01] Schema isolation: public schema (Prisma) + mastra schema (PostgresStore) in single database
 - [14-02] Seed script requires no changes for PostgreSQL -- all Prisma Client operations are database-agnostic
 - [14-02] Prod migrations applied via subshell env override (no .env file modification)
+- [15-01] X-API-Key header (not Authorization Bearer) to avoid collision with future Google OAuth user auth
+- [15-01] Dev mode keeps /api/* routes public for Mastra playground/docs accessibility
+- [15-01] /health endpoint public with requiresAuth: false for uptime monitoring
 
 ### Pending Todos
 
@@ -79,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T03:16:32.747Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-google-oauth-login-wall/16-CONTEXT.md
+Last session: 2026-03-05T03:33:00Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: .planning/phases/15-service-to-service-auth/15-01-SUMMARY.md
