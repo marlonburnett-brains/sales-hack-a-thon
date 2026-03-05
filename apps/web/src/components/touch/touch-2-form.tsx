@@ -18,7 +18,7 @@ import {
   generateTouch2DeckAction,
   checkTouch2StatusAction,
 } from "@/lib/actions/touch-actions";
-import { getInteractions } from "@/lib/api-client";
+import { getInteractionsAction } from "@/lib/actions/deal-actions";
 import type { InteractionRecord } from "@/lib/api-client";
 
 interface Touch2FormProps {
@@ -125,7 +125,7 @@ export function Touch2Form({
   // Gather prior touch outputs for cross-touch context
   const getPriorTouchOutputs = async (): Promise<string[]> => {
     try {
-      const interactions: InteractionRecord[] = await getInteractions(dealId);
+      const interactions: InteractionRecord[] = await getInteractionsAction(dealId);
       return interactions
         .filter(
           (i) =>

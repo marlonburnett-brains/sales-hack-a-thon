@@ -33,8 +33,10 @@ const prisma = new PrismaClient();
 // Service-to-service auth: require X-API-Key header on all endpoints except /health
 const publicPaths: (string | RegExp)[] = ["/health"];
 if (env.NODE_ENV === "development") {
-  // Keep Mastra playground/docs accessible without a key in development
-  publicPaths.push(/^\/api\//);
+  // Only Mastra playground/docs routes are public in dev — workflow APIs still require auth
+  publicPaths.push(/^\/api\/playground/);
+  publicPaths.push(/^\/api\/docs/);
+  publicPaths.push(/^\/api\/openapi/);
 }
 
 const auth = new SimpleAuth({
@@ -61,6 +63,12 @@ export const mastra = new Mastra({
   server: {
     port: parseInt(env.MASTRA_PORT, 10),
     auth,
+    cors: {
+      origin: env.WEB_APP_URL,
+      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'x-mastra-client-type'],
+      credentials: false,
+    },
     apiRoutes: [
       // ────────────────────────────────────────────────────────────
       // Health Check (public -- no auth required)

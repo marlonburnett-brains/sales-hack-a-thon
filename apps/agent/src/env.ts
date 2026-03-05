@@ -41,7 +41,11 @@ export const env = createEnv({
     MASTRA_PORT: z.string().default('4111'),
 
     // Shared API key for service-to-service auth (web <-> agent)
-    AGENT_API_KEY: z.string().min(1),
+    // Generate with: openssl rand -base64 32
+    AGENT_API_KEY: z.string().min(32, "AGENT_API_KEY must be at least 32 characters"),
+
+    // Web app origin URL for CORS restriction (default: http://localhost:3000)
+    WEB_APP_URL: z.string().url().default('http://localhost:3000'),
   },
   runtimeEnv: process.env,
 })

@@ -17,7 +17,7 @@ import {
   generateTouch3DeckAction,
   checkTouch3StatusAction,
 } from "@/lib/actions/touch-actions";
-import { getInteractions } from "@/lib/api-client";
+import { getInteractionsAction } from "@/lib/actions/deal-actions";
 import type { InteractionRecord } from "@/lib/api-client";
 
 interface Touch3FormProps {
@@ -149,7 +149,7 @@ export function Touch3Form({
   // Gather prior touch outputs for cross-touch context
   const getPriorTouchOutputs = async (): Promise<string[]> => {
     try {
-      const interactions: InteractionRecord[] = await getInteractions(dealId);
+      const interactions: InteractionRecord[] = await getInteractionsAction(dealId);
       return interactions
         .filter(
           (i) =>

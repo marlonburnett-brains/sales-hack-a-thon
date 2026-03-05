@@ -31,7 +31,6 @@ import {
   checkTouch1StatusAction,
   approveTouch1Action,
 } from "@/lib/actions/touch-actions";
-import { uploadTouch1Override } from "@/lib/api-client";
 
 interface Touch1FormProps {
   dealId: string;
@@ -362,14 +361,28 @@ export function Touch1Form({
     }
   };
 
-  // Step 2c: Upload custom override
+  // Step 2c: Upload custom override (via server-side route handler)
   const handleUpload = async (file: File) => {
     setError(null);
     setState("assembling");
     setProgressMessage("Uploading custom deck to Drive...");
 
     try {
-      const result = await uploadTouch1Override(dealId, file);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("dealId", dealId);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Upload failed (${response.status})`);
+      }
+
+      const result = await response.json();
       setResultData({
         presentationId: result.presentationId,
         driveUrl: result.driveUrl,

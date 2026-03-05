@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(`${env.AGENT_SERVICE_URL}/touch-1/upload`, {
       method: "POST",
+      headers: {
+        "X-API-Key": env.AGENT_API_KEY,
+      },
       body: agentFormData,
     });
 

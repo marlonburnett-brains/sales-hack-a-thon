@@ -8,7 +8,8 @@ export const env = createEnv({
       .enum(["development", "production", "test"])
       .default("development"),
     // Shared API key for service-to-service auth (web <-> agent)
-    AGENT_API_KEY: z.string().min(1),
+    // Generate with: openssl rand -base64 32
+    AGENT_API_KEY: z.string().min(32, "AGENT_API_KEY must be at least 32 characters"),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),

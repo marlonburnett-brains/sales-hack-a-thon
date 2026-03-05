@@ -1,3 +1,5 @@
+import "server-only";
+
 /**
  * Typed Fetch Wrapper for Agent Service
  *
@@ -356,41 +358,6 @@ export async function resumeTouch4Workflow(
       }),
     }
   );
-}
-
-// ────────────────────────────────────────────────────────────
-// Touch 1 Override Upload
-// ────────────────────────────────────────────────────────────
-
-export interface UploadResult {
-  interactionId: string;
-  presentationId: string;
-  driveUrl: string;
-  decision: string;
-}
-
-export async function uploadTouch1Override(
-  dealId: string,
-  file: File
-): Promise<UploadResult> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("dealId", dealId);
-
-  const response = await fetch(`${BASE_URL}/touch-1/upload`, {
-    method: "POST",
-    headers: {
-      "X-API-Key": env.AGENT_API_KEY,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Upload failed (${response.status}): ${text}`);
-  }
-
-  return response.json() as Promise<UploadResult>;
 }
 
 // ────────────────────────────────────────────────────────────
