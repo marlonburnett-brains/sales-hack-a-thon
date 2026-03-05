@@ -72,7 +72,15 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ### Active
 
-(Fresh for next milestone — define via `/gsd:new-milestone`)
+## Current Milestone: v1.1 Infrastructure & Access Control
+
+**Goal:** Harden the platform for team use — migrate from SQLite to Supabase (Postgres), deploy to Vercel with staging/prod environments, and add Google OAuth login restricted to @lumenalta.com.
+
+**Target features:**
+- SQLite → Supabase (PostgreSQL) with dev and prod instances
+- Vercel deployment: 2 projects (web + agent) with prod/preview environments
+- Google OAuth login wall via Supabase Auth (@lumenalta.com domain only)
+- Service-to-service API key authentication between web app and agent server
 
 ### Out of Scope
 
@@ -126,4 +134,4 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | Monotonic Set pattern for stepper progress | Prevents UI flicker during polling by only adding to completed set | ✓ Good — smooth progress display across all forms |
 
 ---
-*Last updated: 2026-03-05 after v1.0 milestone*
+*Last updated: 2026-03-04 after v1.1 milestone start*
