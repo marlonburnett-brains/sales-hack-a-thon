@@ -150,7 +150,7 @@ export function PreCallForm({
       let companyResearch = null;
       let hypotheses = null;
       let discoveryQuestions = null;
-      let caseStudies: Array<{ title: string; content: string }> = [];
+      const caseStudies: Array<{ title: string; content: string }> = [];
       let docUrl = "";
 
       // Extract docUrl from record-interaction step output
