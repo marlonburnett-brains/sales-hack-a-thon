@@ -90,11 +90,11 @@ Plans:
   3. The agent server is accessible at an HTTPS URL on the Oracle Cloud VM and responds to health checks
   4. The agent server automatically restarts after a crash (Docker restart policy verified)
   5. An end-to-end workflow (e.g., Touch 1 pager generation) completes successfully using production URLs -- web on Vercel calls agent on Oracle VM, agent writes to Google Drive via inline JSON credentials
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 17-01: TBD
-- [ ] 17-02: TBD
+- [ ] 17-01-PLAN.md -- Deployment infrastructure files (Dockerfile, Docker Compose, Caddy, deploy script)
+- [ ] 17-02-PLAN.md -- Vercel deployment, Oracle VM provisioning, external service config, E2E verification
 
 ## Progress
 
@@ -120,4 +120,4 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 | 14. Database Migration | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 15. Service-to-Service Auth | v1.1 | 1/1 | Complete | 2026-03-05 |
 | 16. Google OAuth Login Wall | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 17. Deployment & Go-Live | v1.1 | 0/? | Not started | - |
+| 17. Deployment & Go-Live | v1.1 | 0/2 | Not started | - |
