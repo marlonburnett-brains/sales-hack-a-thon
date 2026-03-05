@@ -1,65 +1,82 @@
 # Requirements: Lumenalta Agentic Sales Orchestration
 
-**Defined:** 2026-03-04
+**Defined:** 2026-03-05
 **Core Value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
 
-## v1.1 Requirements
+## v1.2 Requirements
 
-Requirements for Infrastructure & Access Control milestone. Each maps to roadmap phases.
+Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roadmap phases.
 
-### Database (DB)
+### CI/CD Pipeline
 
-- [x] **DB-01**: Supabase dev and prod projects created with Prisma-compatible connection strings
-- [x] **DB-02**: Prisma provider switched from sqlite to postgresql with fresh migration baseline
-- [x] **DB-03**: All existing Prisma models work against Supabase Postgres without application code changes
-- [x] **DB-04**: Mastra workflow state persists in durable Postgres storage (not local SQLite file)
-- [x] **DB-05**: Seed data loads successfully against Supabase dev instance
+- [ ] **CICD-01**: Push to main triggers automated lint, type-check, and build via GitHub Actions
+- [ ] **CICD-02**: Web app auto-deploys to Vercel after checks pass
+- [ ] **CICD-03**: Agent auto-deploys to Railway after checks pass
+- [ ] **CICD-04**: Pending Prisma migrations auto-run against target database before deploy
 
-### Authentication (AUTH)
+### Navigation
 
-- [x] **AUTH-01**: User can sign in with Google OAuth (@lumenalta.com accounts only)
-- [x] **AUTH-02**: Users from non-@lumenalta.com domains are rejected with clear error message
-- [x] **AUTH-03**: Unauthenticated users are redirected to login page on any app route
-- [x] **AUTH-04**: User session persists across browser refresh (cookie-based via Supabase SSR)
-- [x] **AUTH-05**: User can sign out and is redirected to login page
-- [x] **AUTH-06**: Agent server rejects requests without valid API key with 401 response
-- [x] **AUTH-07**: Web app sends API key header on all requests to agent server
+- [ ] **NAV-01**: User can navigate between Deals and Templates via a persistent side panel
+- [ ] **NAV-02**: Side panel is collapsible and preserves all existing authenticated routes
 
-### Deployment (DEPLOY)
+### Template Management
 
-- [ ] **DEPLOY-01**: Next.js web app deploys to Vercel with production and preview environments
-- [ ] **DEPLOY-02**: Production deploys from main branch; preview deploys from other branches
-- [ ] **DEPLOY-03**: Environment variables configured per Vercel environment (prod Supabase for production, dev Supabase for preview)
-- [ ] **DEPLOY-04**: Mastra agent server runs on Oracle Cloud Ampere A1 VM with HTTPS via reverse proxy
-- [x] **DEPLOY-05**: Agent server auto-restarts on crash (Docker restart policy)
-- [x] **DEPLOY-06**: CI/CD: web auto-deploys via Vercel on push; agent deploys via GitHub Actions or deploy script
-- [x] **DEPLOY-07**: Google Workspace API credentials work in deployed environments (inline JSON, no file path dependency)
+- [ ] **TMPL-01**: User can add a Google Slides template by pasting a URL with display name and touch type assignment
+- [ ] **TMPL-02**: User can view a list of all registered templates with status badges (Ready, No Access, Not Ingested, Stale)
+- [ ] **TMPL-03**: User can delete a registered template
+- [ ] **TMPL-04**: User can assign multiple touch types (Touch 1-4) to each template
+- [ ] **TMPL-05**: System validates Google Slides URL format and extracts presentation ID on add
+- [ ] **TMPL-06**: System checks file access on add and flags inaccessible files with service account email for sharing
+- [ ] **TMPL-07**: System detects when a template source file has been modified since last ingestion and shows staleness badge
+
+### Slide Intelligence
+
+- [ ] **SLIDE-01**: pgvector extension enabled in Supabase with slide embeddings table and HNSW index
+- [ ] **SLIDE-02**: User can trigger slide ingestion for an accessible template
+- [ ] **SLIDE-03**: Agent extracts text content from each slide via Google Slides API
+- [ ] **SLIDE-04**: Agent generates vector embedding for each slide via Vertex AI text-embedding model
+- [ ] **SLIDE-05**: Agent classifies each slide by industry, solution pillar, persona, funnel stage, and content type via LLM structured output
+- [ ] **SLIDE-06**: Embeddings and classifications are stored in Supabase pgvector
+- [ ] **SLIDE-07**: User can see real-time progress during multi-slide ingestion (slide N/M)
+- [ ] **SLIDE-08**: Each classification includes a confidence score (0-100%)
+- [ ] **SLIDE-09**: User can find similar slides across all ingested presentations via vector similarity search
+
+### Preview & Review
+
+- [ ] **PREV-01**: User can view a grid of slide thumbnails for any ingested template
+- [ ] **PREV-02**: Each slide card displays AI-assigned classification tags (industry, pillar, persona, stage)
+- [ ] **PREV-03**: User can rate a slide classification as correct (thumbs up) or incorrect (thumbs down)
+- [ ] **PREV-04**: User can correct individual classification tags via inline editing when rating as incorrect
+- [ ] **PREV-05**: Corrections update pgvector metadata immediately (real-time improvement)
 
 ## Future Requirements
 
-Deferred to future milestone. Tracked but not in current roadmap.
+Deferred to v1.2.x or later. Tracked but not in current roadmap.
 
-### Observability
+### Template Enhancements
 
-- **OBS-01**: Centralized logging for agent server (structured JSON logs)
-- **OBS-02**: Health check endpoint for agent server monitoring
-- **OBS-03**: Vercel analytics for web app performance
+- **TMPL-08**: System auto-re-ingests templates when Drive webhook detects source file changes
+- **TMPL-09**: Cross-template deduplication flags near-duplicate slides across presentations
 
-### User Management
+### Analytics
 
-- **USER-01**: Admin can view list of authenticated users
-- **USER-02**: User profile displayed in app header with Google avatar
+- **ANLYT-01**: Classification analytics dashboard shows distribution by industry/pillar/persona and coverage gaps
+- **ANLYT-02**: Review completion rate tracking across all templates
+
+### Search
+
+- **SRCH-01**: Full-text search across slide content via Supabase tsvector index
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Per-user data isolation | All sellers share the same deal/company data; multi-tenancy is future |
-| Role-based access control | All @lumenalta.com users have equal access for now |
-| Custom domain for agent | Oracle VM uses IP + Caddy auto-TLS or subdomain; custom domain is future |
-| Database data migration | v1.0 data is demo seed only; fresh start on Supabase is acceptable |
-| Supabase Edge Functions | Not needed; Mastra handles all AI orchestration |
-| Vercel Edge Runtime | Standard Node.js runtime sufficient for all routes |
+| Drag-and-drop slide reordering | Rebuilding Google Slides editor is massive scope creep; sellers reorder in Google Slides |
+| In-browser slide content editing | No WYSIWYG for Slides content; link to Google Slides for editing |
+| Automated nightly re-classification | Expensive API calls for rarely-changing content; use version tracking instead |
+| Multi-tenant template libraries | Single-team tool for ~20 sellers; shared library IS the product |
+| Custom embedding model selection | Inconsistent vector spaces break similarity search; one model for all |
+| Real-time collaborative curation | Low-frequency admin operation; last-write-wins is sufficient |
 
 ## Traceability
 
@@ -67,31 +84,39 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | Phase 14 | Complete |
-| DB-02 | Phase 14 | Complete |
-| DB-03 | Phase 14 | Complete |
-| DB-04 | Phase 14 | Complete |
-| DB-05 | Phase 14 | Complete |
-| AUTH-01 | Phase 16 | Complete |
-| AUTH-02 | Phase 16 | Complete |
-| AUTH-03 | Phase 16 | Complete |
-| AUTH-04 | Phase 16 | Complete |
-| AUTH-05 | Phase 16 | Complete |
-| AUTH-06 | Phase 15 | Complete |
-| AUTH-07 | Phase 15 | Complete |
-| DEPLOY-01 | Phase 17 | Pending |
-| DEPLOY-02 | Phase 17 | Pending |
-| DEPLOY-03 | Phase 17 | Pending |
-| DEPLOY-04 | Phase 17 | Pending |
-| DEPLOY-05 | Phase 17 | Complete |
-| DEPLOY-06 | Phase 17 | Complete |
-| DEPLOY-07 | Phase 17 | Complete |
+| CICD-01 | Pending | Pending |
+| CICD-02 | Pending | Pending |
+| CICD-03 | Pending | Pending |
+| CICD-04 | Pending | Pending |
+| NAV-01 | Pending | Pending |
+| NAV-02 | Pending | Pending |
+| TMPL-01 | Pending | Pending |
+| TMPL-02 | Pending | Pending |
+| TMPL-03 | Pending | Pending |
+| TMPL-04 | Pending | Pending |
+| TMPL-05 | Pending | Pending |
+| TMPL-06 | Pending | Pending |
+| TMPL-07 | Pending | Pending |
+| SLIDE-01 | Pending | Pending |
+| SLIDE-02 | Pending | Pending |
+| SLIDE-03 | Pending | Pending |
+| SLIDE-04 | Pending | Pending |
+| SLIDE-05 | Pending | Pending |
+| SLIDE-06 | Pending | Pending |
+| SLIDE-07 | Pending | Pending |
+| SLIDE-08 | Pending | Pending |
+| SLIDE-09 | Pending | Pending |
+| PREV-01 | Pending | Pending |
+| PREV-02 | Pending | Pending |
+| PREV-03 | Pending | Pending |
+| PREV-04 | Pending | Pending |
+| PREV-05 | Pending | Pending |
 
 **Coverage:**
-- v1.1 requirements: 19 total
-- Mapped to phases: 19
-- Unmapped: 0
+- v1.2 requirements: 27 total
+- Mapped to phases: 0
+- Unmapped: 27
 
 ---
-*Requirements defined: 2026-03-04*
-*Last updated: 2026-03-05 after Phase 16 completion*
+*Requirements defined: 2026-03-05*
+*Last updated: 2026-03-05 after initial definition*
