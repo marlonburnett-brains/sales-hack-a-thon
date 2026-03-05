@@ -141,12 +141,26 @@ pnpm install
 
 ### Environment Variables
 
-Copy the example env files and fill in your values:
+Environment files are encrypted and committed to the repo. To set up locally:
+
+1. Get the `SECRETS_KEY` from a team member
+2. Add it to the root `.env.local`:
+   ```
+   SECRETS_KEY=<key-from-team>
+   ```
+3. Decrypt all environment files:
+   ```bash
+   make pull env
+   ```
+
+If you're setting up the project for the first time (no existing key):
 
 ```bash
-cp apps/web/.env.example apps/web/.env
-cp apps/agent/.env.example apps/agent/.env
+make set-new env   # Generates a new key in .env.local
+make push env      # Encrypts all secret files (commit the .enc files)
 ```
+
+The list of managed secret files is defined in `secrets.yml`.
 
 #### Agent (`apps/agent/.env`)
 
@@ -184,11 +198,14 @@ pnpm --filter agent db:migrate    # Run migrations
 
 ### Running the App
 
-Start both the web app and agent service in development mode:
+Start both the web app and agent service with environment switching:
 
 ```bash
-pnpm dev
+make run dev    # Uses .env.dev files (default)
+make run prod   # Uses .env.prod files
 ```
+
+This copies the appropriate env files into place and starts both services.
 
 - **Web app:** http://localhost:3000
 - **Agent service:** http://localhost:4111
@@ -204,13 +221,17 @@ pnpm --filter agent dev    # Mastra agent only
 
 | Command | Description |
 |---|---|
-| `pnpm dev` | Start all apps in development mode |
-| `pnpm build` | Build all apps and packages |
-| `pnpm lint` | Lint all apps and packages |
-| `pnpm --filter agent db:push` | Push Prisma schema to database |
-| `pnpm --filter agent db:generate` | Regenerate Prisma client |
-| `pnpm --filter agent db:migrate` | Run database migrations |
-| `pnpm --filter agent validate-schemas` | Validate all LLM schemas against Gemini API |
+| `make run dev` | Start all apps with dev environment |
+| `make run prod` | Start all apps with prod environment |
+| `make install` | Install dependencies |
+| `make build` | Build all apps and packages |
+| `make lint` | Lint all apps and packages |
+| `make set-new env` | Generate a new secrets encryption key |
+| `make push env` | Encrypt secret files (commit the `.enc` files) |
+| `make pull env` | Decrypt secret files from `.enc` to local |
+| `make db-generate` | Regenerate Prisma client |
+| `make db-migrate` | Run database migrations |
+| `make seed` | Seed the database |
 
 ## Shared Packages
 

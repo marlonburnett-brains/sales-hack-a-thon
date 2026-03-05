@@ -1,4 +1,4 @@
-.PHONY: run dev prod install build lint db-generate db-migrate seed
+.PHONY: run dev prod install build lint db-generate db-migrate seed set-new push pull env
 
 # Determine environment from command line: make run dev | make run prod
 # Defaults to dev
@@ -40,3 +40,16 @@ db-migrate:
 
 seed:
 	pnpm --filter agent seed
+
+# Secrets management: make set-new env | make push env | make pull env
+env:
+	@:
+
+set-new:
+	@./scripts/secrets.sh keygen
+
+push:
+	@./scripts/secrets.sh encrypt
+
+pull:
+	@./scripts/secrets.sh decrypt

@@ -28,6 +28,9 @@ next-env.d.ts
 apps/web/.env
 apps/agent/.env
 
+# Encrypted secrets (committed — decrypt via `make pull env`)
+!*.enc
+
 # SQLite databases
 apps/agent/prisma/dev.db
 apps/agent/prisma/mastra.db
@@ -79,3 +82,4 @@ coverage/
 !.cursor/
 !.agent/
 supabase/.temp/
+!CLAUDE.md
