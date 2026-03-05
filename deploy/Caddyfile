@@ -1,0 +1,3 @@
+{$AGENT_DOMAIN:localhost} {
+	reverse_proxy app:4111
+}
