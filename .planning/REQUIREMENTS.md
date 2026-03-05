@@ -43,8 +43,8 @@ Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roa
 
 ### Preview & Review
 
-- [ ] **PREV-01**: User can view a grid of slide thumbnails for any ingested template
-- [ ] **PREV-02**: Each slide card displays AI-assigned classification tags (industry, pillar, persona, stage)
+- [ ] **PREV-01**: User can preview slides at presentation size in the viewport with navigation between slides
+- [ ] **PREV-02**: Each slide displays AI-assigned classification tags (industry, pillar, persona, stage) alongside the preview
 - [ ] **PREV-03**: User can rate a slide classification as correct (thumbs up) or incorrect (thumbs down)
 - [ ] **PREV-04**: User can correct individual classification tags via inline editing when rating as incorrect
 - [ ] **PREV-05**: Corrections update pgvector metadata immediately (real-time improvement)
@@ -84,39 +84,39 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CICD-01 | Pending | Pending |
-| CICD-02 | Pending | Pending |
-| CICD-03 | Pending | Pending |
-| CICD-04 | Pending | Pending |
-| NAV-01 | Pending | Pending |
-| NAV-02 | Pending | Pending |
-| TMPL-01 | Pending | Pending |
-| TMPL-02 | Pending | Pending |
-| TMPL-03 | Pending | Pending |
-| TMPL-04 | Pending | Pending |
-| TMPL-05 | Pending | Pending |
-| TMPL-06 | Pending | Pending |
-| TMPL-07 | Pending | Pending |
-| SLIDE-01 | Pending | Pending |
-| SLIDE-02 | Pending | Pending |
-| SLIDE-03 | Pending | Pending |
-| SLIDE-04 | Pending | Pending |
-| SLIDE-05 | Pending | Pending |
-| SLIDE-06 | Pending | Pending |
-| SLIDE-07 | Pending | Pending |
-| SLIDE-08 | Pending | Pending |
-| SLIDE-09 | Pending | Pending |
-| PREV-01 | Pending | Pending |
-| PREV-02 | Pending | Pending |
-| PREV-03 | Pending | Pending |
-| PREV-04 | Pending | Pending |
-| PREV-05 | Pending | Pending |
+| CICD-01 | Phase 18 | Pending |
+| CICD-02 | Phase 18 | Pending |
+| CICD-03 | Phase 18 | Pending |
+| CICD-04 | Phase 18 | Pending |
+| NAV-01 | Phase 19 | Pending |
+| NAV-02 | Phase 19 | Pending |
+| TMPL-01 | Phase 19 | Pending |
+| TMPL-02 | Phase 19 | Pending |
+| TMPL-03 | Phase 19 | Pending |
+| TMPL-04 | Phase 19 | Pending |
+| TMPL-05 | Phase 19 | Pending |
+| TMPL-06 | Phase 19 | Pending |
+| TMPL-07 | Phase 19 | Pending |
+| SLIDE-01 | Phase 18 | Pending |
+| SLIDE-02 | Phase 20 | Pending |
+| SLIDE-03 | Phase 20 | Pending |
+| SLIDE-04 | Phase 20 | Pending |
+| SLIDE-05 | Phase 20 | Pending |
+| SLIDE-06 | Phase 20 | Pending |
+| SLIDE-07 | Phase 20 | Pending |
+| SLIDE-08 | Phase 20 | Pending |
+| SLIDE-09 | Phase 21 | Pending |
+| PREV-01 | Phase 21 | Pending |
+| PREV-02 | Phase 21 | Pending |
+| PREV-03 | Phase 21 | Pending |
+| PREV-04 | Phase 21 | Pending |
+| PREV-05 | Phase 21 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 27 total
-- Mapped to phases: 0
-- Unmapped: 27
+- Mapped to phases: 27
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-05*
-*Last updated: 2026-03-05 after initial definition*
+*Last updated: 2026-03-05 after roadmap creation*
