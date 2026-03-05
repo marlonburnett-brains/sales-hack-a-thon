@@ -17,10 +17,10 @@ Requirements for Infrastructure & Access Control milestone. Each maps to roadmap
 
 ### Authentication (AUTH)
 
-- [ ] **AUTH-01**: User can sign in with Google OAuth (@lumenalta.com accounts only)
-- [ ] **AUTH-02**: Users from non-@lumenalta.com domains are rejected with clear error message
-- [ ] **AUTH-03**: Unauthenticated users are redirected to login page on any app route
-- [ ] **AUTH-04**: User session persists across browser refresh (cookie-based via Supabase SSR)
+- [x] **AUTH-01**: User can sign in with Google OAuth (@lumenalta.com accounts only)
+- [x] **AUTH-02**: Users from non-@lumenalta.com domains are rejected with clear error message
+- [x] **AUTH-03**: Unauthenticated users are redirected to login page on any app route
+- [x] **AUTH-04**: User session persists across browser refresh (cookie-based via Supabase SSR)
 - [ ] **AUTH-05**: User can sign out and is redirected to login page
 - [x] **AUTH-06**: Agent server rejects requests without valid API key with 401 response
 - [x] **AUTH-07**: Web app sends API key header on all requests to agent server
@@ -72,10 +72,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DB-03 | Phase 14 | Complete |
 | DB-04 | Phase 14 | Complete |
 | DB-05 | Phase 14 | Complete |
-| AUTH-01 | Phase 16 | Pending |
-| AUTH-02 | Phase 16 | Pending |
-| AUTH-03 | Phase 16 | Pending |
-| AUTH-04 | Phase 16 | Pending |
+| AUTH-01 | Phase 16 | Complete |
+| AUTH-02 | Phase 16 | Complete |
+| AUTH-03 | Phase 16 | Complete |
+| AUTH-04 | Phase 16 | Complete |
 | AUTH-05 | Phase 16 | Pending |
 | AUTH-06 | Phase 15 | Complete |
 | AUTH-07 | Phase 15 | Complete |
