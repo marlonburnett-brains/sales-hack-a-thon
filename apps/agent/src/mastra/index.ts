@@ -1,5 +1,5 @@
 import { Mastra } from "@mastra/core";
-import { registerApiRoute } from "@mastra/core/server";
+import { registerApiRoute, SimpleAuth } from "@mastra/core/server";
 import { PostgresStore } from "@mastra/pg";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
@@ -30,6 +30,21 @@ import { env } from "../env";
 
 const prisma = new PrismaClient();
 
+// Service-to-service auth: require X-API-Key header on all endpoints except /health
+const publicPaths: (string | RegExp)[] = ["/health"];
+if (env.NODE_ENV === "development") {
+  // Keep Mastra playground/docs accessible without a key in development
+  publicPaths.push(/^\/api\//);
+}
+
+const auth = new SimpleAuth({
+  headers: ["X-API-Key"],
+  tokens: {
+    [env.AGENT_API_KEY]: { id: "web-app", role: "service" },
+  },
+  public: publicPaths,
+});
+
 export const mastra = new Mastra({
   storage: new PostgresStore({
     id: "mastra-store",
@@ -45,7 +60,18 @@ export const mastra = new Mastra({
   },
   server: {
     port: parseInt(env.MASTRA_PORT, 10),
+    auth,
     apiRoutes: [
+      // ────────────────────────────────────────────────────────────
+      // Health Check (public -- no auth required)
+      // ────────────────────────────────────────────────────────────
+      registerApiRoute("/health", {
+        method: "GET",
+        requiresAuth: false,
+        handler: async (c) => {
+          return c.json({ status: "ok" });
+        },
+      }),
       // ────────────────────────────────────────────────────────────
       // Company CRUD
       // ────────────────────────────────────────────────────────────

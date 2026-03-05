@@ -39,6 +39,9 @@ export const env = createEnv({
 
     // Port for the Mastra HTTP server (default 4111)
     MASTRA_PORT: z.string().default('4111'),
+
+    // Shared API key for service-to-service auth (web <-> agent)
+    AGENT_API_KEY: z.string().min(1),
   },
   runtimeEnv: process.env,
 })
