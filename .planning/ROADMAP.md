@@ -58,7 +58,10 @@
   3. Agent deploys to Railway automatically after checks pass
   4. Pending Prisma migrations run against the target database before either app deploys
   5. pgvector extension is enabled in Supabase and the slide_embeddings table with HNSW index exists and accepts vector inserts
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 18-01-PLAN.md -- pgvector schema migration (SlideEmbedding table + HNSW index)
+- [ ] 18-02-PLAN.md -- GitHub Actions CI/CD pipeline (lint, build, migrate, deploy)
 
 ### Phase 19: Navigation & Template Management
 **Goal**: Users can navigate to a Templates section and register, view, and manage Google Slides templates with access awareness
@@ -118,7 +121,7 @@ Phases execute in numeric order: 18 -> 19 -> 20 -> 21
 | 15. Service-to-Service Auth | v1.1 | 1/1 | Complete | 2026-03-05 |
 | 16. Google OAuth Login Wall | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 17. Deployment & Go-Live | v1.1 | 1/1 | Complete | 2026-03-05 |
-| 18. CI/CD Pipeline & pgvector Schema | v1.2 | 0/TBD | Not started | - |
+| 18. CI/CD Pipeline & pgvector Schema | v1.2 | 0/2 | Planning | - |
 | 19. Navigation & Template Management | v1.2 | 0/TBD | Not started | - |
 | 20. Slide Ingestion Agent | v1.2 | 0/TBD | Not started | - |
 | 21. Preview & Review Engine | v1.2 | 0/TBD | Not started | - |
