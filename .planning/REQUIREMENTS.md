@@ -25,9 +25,9 @@ Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roa
 - [ ] **TMPL-02**: User can view a list of all registered templates with status badges (Ready, No Access, Not Ingested, Stale)
 - [ ] **TMPL-03**: User can delete a registered template
 - [ ] **TMPL-04**: User can assign multiple touch types (Touch 1-4) to each template
-- [ ] **TMPL-05**: System validates Google Slides URL format and extracts presentation ID on add
-- [ ] **TMPL-06**: System checks file access on add and flags inaccessible files with service account email for sharing
-- [ ] **TMPL-07**: System detects when a template source file has been modified since last ingestion and shows staleness badge
+- [x] **TMPL-05**: System validates Google Slides URL format and extracts presentation ID on add
+- [x] **TMPL-06**: System checks file access on add and flags inaccessible files with service account email for sharing
+- [x] **TMPL-07**: System detects when a template source file has been modified since last ingestion and shows staleness badge
 
 ### Slide Intelligence
 
@@ -94,9 +94,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TMPL-02 | Phase 19 | Pending |
 | TMPL-03 | Phase 19 | Pending |
 | TMPL-04 | Phase 19 | Pending |
-| TMPL-05 | Phase 19 | Pending |
-| TMPL-06 | Phase 19 | Pending |
-| TMPL-07 | Phase 19 | Pending |
+| TMPL-05 | Phase 19 | Complete |
+| TMPL-06 | Phase 19 | Complete |
+| TMPL-07 | Phase 19 | Complete |
 | SLIDE-01 | Phase 18 | Complete |
 | SLIDE-02 | Phase 20 | Pending |
 | SLIDE-03 | Phase 20 | Pending |
