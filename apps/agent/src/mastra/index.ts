@@ -61,6 +61,7 @@ export const mastra = new Mastra({
     "pre-call-workflow": preCallWorkflow,
   },
   server: {
+    host: '0.0.0.0',
     port: parseInt(env.MASTRA_PORT, 10),
     auth,
     cors: {
