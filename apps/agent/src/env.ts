@@ -3,8 +3,10 @@ import { z } from 'zod'
 
 export const env = createEnv({
   server: {
-    // SQLite file path — used by Prisma for app-level job records
-    DATABASE_URL: z.string().min(1),
+    // Supabase pooled connection (port 6543, pgbouncer)
+    DATABASE_URL: z.string().url(),
+    // Supabase direct connection (port 5432, for migrations/introspection)
+    DIRECT_URL: z.string().url(),
 
     // JSON string of Google service account credentials
     // Format: { "type": "service_account", "project_id": "...", "private_key": "...", ... }
