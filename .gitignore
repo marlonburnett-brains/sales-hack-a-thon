@@ -42,6 +42,9 @@ apps/agent/src/ingestion/manifest/
 service-account-key.json
 vertex-service-account.json
 
+# Deploy secrets (production .env on VM -- deploy/ directory itself is committed)
+deploy/.env
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
