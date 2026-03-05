@@ -27,6 +27,12 @@ RUN npx prisma generate
 # Build agent server (produces .mastra/output/)
 RUN pnpm build
 
+# Collect Prisma client from pnpm virtual store to a known location
+RUN mkdir -p /prisma-out && \
+    cp -r $(find /app/node_modules/.pnpm -path '*/@prisma/client' -type d | head -1)/.. /prisma-out/prisma-parent && \
+    cp -r /prisma-out/prisma-parent/.prisma /prisma-out/.prisma && \
+    cp -r /prisma-out/prisma-parent/@prisma /prisma-out/@prisma
+
 # --- Production stage ---
 FROM node:22-alpine
 
@@ -39,8 +45,8 @@ WORKDIR /app
 COPY --from=builder /app/apps/agent/.mastra/output/ ./
 
 # Copy Prisma client (runtime native addon, not bundled by mastra build)
-COPY --from=builder /app/apps/agent/node_modules/.prisma/ ./node_modules/.prisma/
-COPY --from=builder /app/apps/agent/node_modules/@prisma/ ./node_modules/@prisma/
+COPY --from=builder /prisma-out/.prisma/ ./node_modules/.prisma/
+COPY --from=builder /prisma-out/@prisma/ ./node_modules/@prisma/
 
 # Copy entrypoint script
 COPY deploy/entrypoint.sh /entrypoint.sh
