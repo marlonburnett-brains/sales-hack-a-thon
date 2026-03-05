@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Infrastructure & Access Control
-status: completed
-stopped_at: Milestone v1.1 archived
-last_updated: "2026-03-05T19:35:00.000Z"
-last_activity: 2026-03-05 -- Milestone v1.1 complete and archived
+milestone: v1.2
+milestone_name: Templates & Slide Intelligence
+status: active
+stopped_at: Defining requirements
+last_updated: "2026-03-05T20:00:00.000Z"
+last_activity: 2026-03-05 -- Milestone v1.2 started
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,36 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.1 complete -- ready for next milestone (`/gsd:new-milestone`)
+**Current focus:** v1.2 Templates & Slide Intelligence -- defining requirements
 
 ## Current Position
 
-Milestone: v1.1 Infrastructure & Access Control -- SHIPPED 2026-03-05
-All 4 phases complete (17 phases all-time across 2 milestones)
-
-Progress: [##########] 100%
-
-## Performance Metrics
-
-**Velocity:**
-- Total plans completed: 6 (v1.1) / 33 (all-time)
-- Average duration: 7min (v1.1)
-- Total execution time: 44min (v1.1)
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 14 - Database Migration | 2/2 | 33min | 17min |
-| 15 - Service-to-Service Auth | 1/1 | 4min | 4min |
-| 16 - Google OAuth Login Wall | 2/2 | 5min | 3min |
-| 17 - Deployment & Go-Live | 1/1 | 2min | 2min |
+Phase: Not started (defining requirements)
+Plan: --
+Status: Defining requirements
+Last activity: 2026-03-05 -- Milestone v1.2 started
 
 ## Accumulated Context
 
 ### Decisions
 
-All v1.1 decisions logged in PROJECT.md Key Decisions table (21 decisions total with outcomes).
+All v1.0-v1.1 decisions logged in PROJECT.md Key Decisions table (21 decisions total with outcomes).
 
 ### Pending Todos
 
@@ -64,5 +48,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Milestone v1.1 archived
+Stopped at: Milestone v1.2 started -- defining requirements
 Resume file: None

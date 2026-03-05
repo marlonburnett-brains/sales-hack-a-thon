@@ -79,9 +79,28 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - ✓ Web deployed to Vercel with prod/preview environments — v1.1
 - ✓ Agent deployed to Railway with Docker and auto-restart — v1.1
 
+## Current Milestone: v1.2 Templates & Slide Intelligence
+
+**Goal:** Enable template-based deck assembly with AI slide classification, human-in-the-loop rating, and CI/CD automation.
+
+**Target features:**
+- CI/CD pipeline (GitHub Actions → Vercel + Railway + auto Prisma migrations)
+- Side panel navigation (Deals + Templates)
+- Templates management page (Google Slides links, touch assignment)
+- Slide ingestion agent (classify slides into Supabase pgvector)
+- Access awareness (flag unshared Google Slides files)
+- Preview & rating engine (slide classification review + real-time improvement)
+
 ### Active
 
-(No active requirements — define with `/gsd:new-milestone`)
+- [ ] CI/CD pipeline with GitHub Actions deploying web to Vercel, agent to Railway, and auto-running pending migrations
+- [ ] Side panel navigation with Deals and Templates sections
+- [ ] Templates CRUD page with Google Slides link management and touch assignment
+- [ ] Slide ingestion agent processing and classifying each slide into Supabase pgvector
+- [ ] Access awareness flagging files not shared with agent service account
+- [ ] Preview engine for templates with AI slide classification display
+- [ ] Human rating and feedback system for slide classifications
+- [ ] Real-time classification improvement based on human feedback
 
 ### Out of Scope
 
@@ -142,4 +161,4 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | Entrypoint credential injection | Writes inline JSON to temp file for GOOGLE_APPLICATION_CREDENTIALS | ✓ Good — zero code changes to application, works in any container runtime |
 
 ---
-*Last updated: 2026-03-05 after v1.1 milestone*
+*Last updated: 2026-03-05 after v1.2 milestone start*
