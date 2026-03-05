@@ -27,11 +27,12 @@ RUN npx prisma generate
 # Build agent server (produces .mastra/output/)
 RUN pnpm build
 
-# Collect Prisma client from pnpm virtual store to a known location
-RUN mkdir -p /prisma-out && \
-    cp -r $(find /app/node_modules/.pnpm -path '*/@prisma/client' -type d | head -1)/.. /prisma-out/prisma-parent && \
-    cp -r /prisma-out/prisma-parent/.prisma /prisma-out/.prisma && \
-    cp -r /prisma-out/prisma-parent/@prisma /prisma-out/@prisma
+# Overwrite mastra output's @prisma/client with the generated one (includes schema types + engine)
+RUN GENERATED_CLIENT=$(find /app/node_modules/.pnpm -path "*/node_modules/@prisma/client" -type d | head -1) && \
+    rm -rf .mastra/output/node_modules/@prisma/client && \
+    cp -r "$GENERATED_CLIENT" .mastra/output/node_modules/@prisma/client && \
+    PRISMA_ENGINE_DIR=$(find /app/node_modules/.pnpm -path "*/node_modules/.prisma" -type d | head -1) && \
+    if [ -n "$PRISMA_ENGINE_DIR" ]; then cp -r "$PRISMA_ENGINE_DIR" .mastra/output/node_modules/.prisma; fi
 
 # --- Production stage ---
 FROM node:22-alpine
@@ -41,12 +42,8 @@ RUN apk add --no-cache gcompat
 
 WORKDIR /app
 
-# Copy mastra build output (self-contained MJS bundle)
+# Copy mastra build output (includes bundled app + node_modules with generated Prisma client)
 COPY --from=builder /app/apps/agent/.mastra/output/ ./
-
-# Copy Prisma client (runtime native addon, not bundled by mastra build)
-COPY --from=builder /prisma-out/.prisma/ ./node_modules/.prisma/
-COPY --from=builder /prisma-out/@prisma/ ./node_modules/@prisma/
 
 # Copy entrypoint script
 COPY deploy/entrypoint.sh /entrypoint.sh
