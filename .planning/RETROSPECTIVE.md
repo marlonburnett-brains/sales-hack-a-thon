@@ -52,6 +52,52 @@
 
 ---
 
+## Milestone: v1.1 — Infrastructure & Access Control
+
+**Shipped:** 2026-03-05
+**Phases:** 4 | **Plans:** 6 | **Commits:** 55
+
+### What Was Built
+- SQLite → Supabase PostgreSQL migration with Prisma provider switch and Mastra PostgresStore schema isolation
+- Service-to-service API key auth via Mastra SimpleAuth middleware
+- Google OAuth login wall with @lumenalta.com domain restriction via Supabase Auth
+- Login page with Google branding, UserNav avatar dropdown with sign-out
+- Production deployment: web on Vercel (auto-deploy), agent on Railway (Docker + auto-restart)
+- Credential injection pattern for containerized Vertex AI deployments
+
+### What Worked
+- **Rapid infrastructure phases:** 4 phases completed in a single day (44 min total execution time)
+- **Supabase SSR cookie pattern:** getAll/setAll with middleware token refresh — clean, no deprecated API usage
+- **Route group layout split:** (authenticated) group cleanly separates nav bar from login page
+- **Railway pivot:** Switching from Oracle Cloud VM to Railway eliminated manual provisioning and gave auto-deploy, managed HTTPS, and restart policies for free
+- **Entrypoint credential injection:** Zero application code changes to support GOOGLE_APPLICATION_CREDENTIALS in containers
+
+### What Was Inefficient
+- **Oracle VM → Railway pivot:** Phase 17 was originally planned for Oracle Cloud Ampere A1 VM with Caddy reverse proxy. Mid-execution pivot to Railway left obsolete deploy/ artifacts (Caddyfile, docker-compose.yml, deploy.sh)
+- **Deployment debugging:** 10+ fix commits for Railway deployment (CRLF line endings, Prisma client path resolution, healthcheck timeouts, 0.0.0.0 binding)
+- **X-API-Key → Authorization: Bearer switch:** Phase 15 chose X-API-Key to avoid collision with user auth, but post-Phase 16 the web switched to Authorization: Bearer — left vestigial SimpleAuth config
+- **SUMMARY frontmatter gaps:** requirements-completed field missing from 3 of 4 phase SUMMARYs (only 15-01 had it initially)
+
+### Patterns Established
+- **Supabase SSR client pattern:** Browser client via createBrowserClient, server client via createServerClient with cookie proxy
+- **Server-side domain enforcement:** OAuth callback validates email domain on server (hd parameter is UX-only)
+- **Credential injection via entrypoint:** Write inline JSON env var to temp file for SDKs that only accept file paths
+- **Schema isolation:** Prisma uses 'public' schema, Mastra uses 'mastra' schema in same database
+- **Connection string pattern:** DIRECT_URL for migrations and Mastra, DATABASE_URL for Prisma runtime
+
+### Key Lessons
+1. **Platform services > manual VMs for small teams:** Railway auto-deploy + managed HTTPS + restart policies eliminated an entire class of operational complexity that Oracle VM required
+2. **Supabase pooler has propagation delay:** New projects may return "Tenant or user not found" via pooler for hours — use direct DB connection initially
+3. **Container deployment requires iteration:** Even with working local Docker builds, production container platforms have unique constraints (path resolution, networking, health checks)
+4. **Auth header strategy needs upfront design:** Choosing X-API-Key in Phase 15 to "avoid collision" with Phase 16 led to a post-hoc switch to Authorization: Bearer — should have designed both phases together
+
+### Cost Observations
+- Model mix: ~80% sonnet (executors), ~15% haiku (researchers), ~5% opus (orchestration)
+- Sessions: ~8 sessions in 1 day
+- Notable: yolo mode + fine granularity enabled extremely fast phase execution (4min avg per plan)
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -59,14 +105,19 @@
 | Milestone | Commits | Phases | Key Change |
 |-----------|---------|--------|------------|
 | v1.0 | 169 | 13 | Initial milestone — established GSD workflow patterns |
+| v1.1 | 55 | 4 | Infrastructure hardening — platform deploy, auth, Postgres |
 
 ### Cumulative Quality
 
 | Milestone | Verifications | Passed | Human Needed |
 |-----------|--------------|--------|--------------|
 | v1.0 | 13 | 10 | 3 (phases 4, 11, 12) |
+| v1.1 | 4 | 2 | 2 (phases 14, 16 — runtime auth flows) |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Google Drive permissions are the #1 external blocker — budget time for access requests
 2. Mastra suspend/resume is reliable for HITL patterns — design around it confidently
+3. Platform services (Vercel, Railway) beat manual VMs for small-team deployments
+4. Container deployment requires iteration even with working local builds — budget for debugging
+5. Design auth strategy holistically across phases to avoid mid-milestone header switches

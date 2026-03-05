@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A shipped agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. All outputs are saved to shared Lumenalta Drive.
+A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. All outputs are saved to shared Lumenalta Drive. The platform is deployed to Vercel (web) and Railway (agent) with Google OAuth authentication restricted to @lumenalta.com and Supabase PostgreSQL for durable storage.
 
 ## Core Value
 
@@ -70,35 +70,36 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - ⚠ Building Block Library incomplete pending case study and full template access
 - ✓ Brand guidelines ingested as whole-reference document
 
+**Infrastructure & Access Control** — v1.1
+- ✓ SQLite → Supabase PostgreSQL with dev and prod instances — v1.1
+- ✓ Prisma provider switch with fresh baseline migration — v1.1
+- ✓ Mastra durable PostgresStore with schema isolation — v1.1
+- ✓ Service-to-service API key auth (SimpleAuth middleware) — v1.1
+- ✓ Google OAuth login wall via Supabase Auth (@lumenalta.com only) — v1.1
+- ✓ Web deployed to Vercel with prod/preview environments — v1.1
+- ✓ Agent deployed to Railway with Docker and auto-restart — v1.1
+
 ### Active
 
-## Current Milestone: v1.1 Infrastructure & Access Control
-
-**Goal:** Harden the platform for team use — migrate from SQLite to Supabase (Postgres), deploy to Vercel with staging/prod environments, and add Google OAuth login restricted to @lumenalta.com.
-
-**Target features:**
-- SQLite → Supabase (PostgreSQL) with dev and prod instances
-- Vercel deployment: 2 projects (web + agent) with prod/preview environments
-- Google OAuth login wall via Supabase Auth (@lumenalta.com domain only)
-- Service-to-service API key authentication between web app and agent server
+(No active requirements — define with `/gsd:new-milestone`)
 
 ### Out of Scope
 
 - Salesforce integration — v1 relies on transcripts, notes, AtlusAI, and public data only; CRM integration is a v2 modular extension
 - Real-time call feedback — focus is pre-call and post-call; in-call AI coaching is a future phase
 - Mobile app — web-first, browser-based interface only
-- OAuth / per-seller Google accounts — service account to shared Lumenalta Drive
+- OAuth / per-seller Google accounts for Drive — service account to shared Lumenalta Drive (user auth is Supabase OAuth now)
 - Video upload / Zoom integration — sellers paste transcripts manually; direct API integration is v2
 - Fine-tuning or custom model training — all steering done via prompt engineering and few-shot examples
 - Automated edit pattern analysis for prompt refinement — deferred to v2
 
 ## Context
 
-**Current state:** v1.0 shipped. ~20,000 LOC TypeScript/TSX across 439 files. 13 phases, 27 plans, 169 commits in 2 days.
+**Current state:** v1.1 shipped. ~20,665 LOC TypeScript/TSX. 17 phases, 33 plans, 224 commits across 3 days. Deployed to production (Vercel + Railway).
 
-**Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web), Mastra AI 1.8 (agent orchestration), GPT-OSS 120b on Vertex AI (LLM), Zod v4 (structured outputs), Prisma + SQLite (data), Google Workspace API (Slides + Docs + Drive), AtlusAI (RAG + knowledge base), shadcn/ui (components), Sonner (toast notifications).
+**Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL (data), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI (RAG + knowledge base), Supabase Auth + Google OAuth (user auth), shadcn/ui (components), Sonner (toast notifications).
 
-**Architecture:** Two-app monorepo — `apps/web` (Next.js 15 with Server Actions) and `apps/agent` (Mastra Hono server). Shared `packages/schemas` for Zod types and constants. Mastra workflows use suspend/resume for HITL checkpoints. All Google output via service account to shared Lumenalta Drive.
+**Architecture:** Two-app monorepo — `apps/web` (Next.js 15 on Vercel with Server Actions) and `apps/agent` (Mastra Hono server on Railway). Shared `packages/schemas` for Zod types and constants. Mastra workflows use suspend/resume for HITL checkpoints. All Google output via service account to shared Lumenalta Drive. Service-to-service auth via shared API key (Authorization: Bearer header). User auth via Supabase Google OAuth restricted to @lumenalta.com.
 
 **Content library status:** 38 slides ingested from 5 accessible presentations. Brand guidelines ingested. 14/17 known Drive sources need Viewer access on target Shared Drives (shortcut container access is insufficient). Case studies and full template set blocked on Drive permissions.
 
@@ -132,6 +133,13 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | Separate Prisma models for Transcript/Brief | Self-contained querying without JSON blob parsing | ✓ Good — clean separation, enables structured queries |
 | Mastra suspend/resume for HITL | Durable workflow state survives server restarts | ✓ Good — both HITL-1 (brief) and HITL-2 (assets) work correctly |
 | Monotonic Set pattern for stepper progress | Prevents UI flicker during polling by only adding to completed set | ✓ Good — smooth progress display across all forms |
+| Supabase PostgreSQL over SQLite | Durable cloud storage for team use; dev + prod instances | ✓ Good — schema isolation (public + mastra), seamless Prisma migration |
+| Direct DB host over Supabase pooler | Pooler not ready for newly created projects (propagation delay) | ⚠️ Revisit — pooler should work now; test before scaling |
+| SimpleAuth with API key | Service-to-service auth between web and agent | ✓ Good — simple, effective for single-tenant |
+| Supabase Auth + Google OAuth | @lumenalta.com domain restriction, SSR cookie sessions | ✓ Good — server-side domain enforcement, middleware route protection |
+| Route group (authenticated) layout | Nav bar only on authenticated pages, login page is standalone | ✓ Good — clean separation of auth vs public routes |
+| Railway over Oracle Cloud VM | Platform-managed Docker deploys vs manual VM provisioning | ✓ Good — auto-deploy on push, auto-restart, managed HTTPS |
+| Entrypoint credential injection | Writes inline JSON to temp file for GOOGLE_APPLICATION_CREDENTIALS | ✓ Good — zero code changes to application, works in any container runtime |
 
 ---
-*Last updated: 2026-03-04 after v1.1 milestone start*
+*Last updated: 2026-03-05 after v1.1 milestone*

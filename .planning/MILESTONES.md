@@ -1,5 +1,28 @@
 # Milestones
 
+## v1.1 Infrastructure & Access Control (Shipped: 2026-03-05)
+
+**Phases:** 4 | **Plans:** 6 | **Commits:** 55 | **Files changed:** 59 | **LOC:** ~20,665 TypeScript/TSX (total)
+**Timeline:** 1 day (2026-03-05)
+**Git range:** `v1.0..0d61f7b`
+
+**Key accomplishments:**
+- Migrated from SQLite to Supabase PostgreSQL with Prisma provider switch, fresh baseline migration, and Mastra durable PostgresStore with schema isolation
+- Added service-to-service API key authentication (SimpleAuth middleware on agent, X-API-Key header injection on web)
+- Implemented Google OAuth login wall via Supabase Auth with @lumenalta.com domain restriction, middleware route protection, and UserNav avatar dropdown
+- Deployed web app to Vercel (auto-deploy from main, preview from branches) and agent server to Railway with Docker + auto-restart
+- Established credential injection pattern for containerized Vertex AI deployments (entrypoint script writes inline JSON to file)
+
+**Tech debt (accepted):**
+- Stale SQLite comments in schema.prisma (cosmetic)
+- Vestigial X-API-Key header config in SimpleAuth (web switched to Authorization: Bearer)
+- Obsolete Oracle VM artifacts in deploy/ (Caddyfile, docker-compose.yml, deploy.sh)
+- PostgresStore uses DATABASE_URL (pooled) -- may need DIRECT_URL with pgbouncer
+
+**Archives:** [v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) | [v1.1-REQUIREMENTS.md](milestones/v1.1-REQUIREMENTS.md) | [v1.1-MILESTONE-AUDIT.md](milestones/v1.1-MILESTONE-AUDIT.md)
+
+---
+
 ## v1.0 Agentic Sales MVP (Shipped: 2026-03-05)
 
 **Phases:** 13 | **Plans:** 27 | **Commits:** 169 | **Files:** 439 | **LOC:** ~20,000 TypeScript/TSX
