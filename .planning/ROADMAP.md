@@ -59,10 +59,10 @@ Plans:
   1. A curl request to any agent endpoint without an `X-API-Key` header returns 401 Unauthorized
   2. A curl request with an incorrect API key returns 401 Unauthorized
   3. The web app successfully communicates with the agent when both share the correct API key (all existing workflows still function)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 15-01: TBD
+- [ ] 15-01-PLAN.md -- SimpleAuth middleware on agent, X-API-Key header injection on web, health check endpoint
 
 ### Phase 16: Google OAuth Login Wall
 **Goal**: Only authenticated @lumenalta.com users can access the application; everyone else is blocked
@@ -118,6 +118,6 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 | 12. Content Re-ingestion | v1.0 | 2/2 | Complete | 2026-03-04 |
 | 13. Touch 4 Poll Loop Fixes | v1.0 | 1/1 | Complete | 2026-03-04 |
 | 14. Database Migration | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 15. Service-to-Service Auth | v1.1 | 0/? | Not started | - |
+| 15. Service-to-Service Auth | v1.1 | 0/1 | Not started | - |
 | 16. Google OAuth Login Wall | v1.1 | 0/? | Not started | - |
 | 17. Deployment & Go-Live | v1.1 | 0/? | Not started | - |
