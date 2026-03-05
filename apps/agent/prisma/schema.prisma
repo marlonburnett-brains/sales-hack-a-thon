@@ -205,3 +205,25 @@ model SlideEmbedding {
   @@index([templateId])
   @@index([embedding], name: "SlideEmbedding_embedding_idx")
 }
+
+// ────────────────────────────────────────────────────────────
+// Phase 19: Template Management (TMPL-05/06/07)
+// Tracks Google Slides templates used for touch generation
+// No FK to SlideEmbedding yet — that comes in Phase 20
+// ────────────────────────────────────────────────────────────
+
+model Template {
+  id               String    @id @default(cuid())
+  name             String
+  presentationId   String    @unique
+  googleSlidesUrl  String
+  touchTypes       String    // JSON array: ["touch_1", "touch_2"]
+  accessStatus     String    @default("not_checked") // "accessible" | "not_accessible" | "not_checked"
+  lastIngestedAt   DateTime?
+  sourceModifiedAt DateTime?
+  slideCount       Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([accessStatus])
+}
