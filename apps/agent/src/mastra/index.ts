@@ -1,6 +1,6 @@
 import { Mastra } from "@mastra/core";
 import { registerApiRoute } from "@mastra/core/server";
-import { LibSQLStore } from "@mastra/libsql";
+import { PostgresStore } from "@mastra/pg";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { touch1Workflow } from "./workflows/touch-1-workflow";
@@ -14,27 +14,27 @@ import { ingestDocument } from "../lib/atlusai-client";
 import { env } from "../env";
 
 /**
- * Two-database architecture for apps/agent:
+ * Single-database architecture with schema isolation:
  *
- * prisma/mastra.db --- Mastra's INTERNAL database
+ * public schema (Prisma) --- APPLICATION-level tables
+ *   Stores: WorkflowJob, Company, Deal, InteractionRecord, etc.
+ *   Managed: by Prisma migrations (schema.prisma + prisma migrate).
+ *
+ * mastra schema (PostgresStore) --- Mastra INTERNAL tables
  *   Stores: workflow execution snapshots, suspend/resume state,
  *           message history, traces, and step outputs.
- *   Managed: entirely by Mastra; do NOT add Prisma models here.
+ *   Managed: entirely by Mastra (auto-created on first startup).
  *
- * prisma/dev.db   --- APPLICATION-level database
- *   Stores: WorkflowJob records, Company, Deal, InteractionRecord, FeedbackSignal.
- *   Managed: by Prisma migrations (schema.prisma + prisma db push).
- *
- * Both SQLite files coexist in apps/agent/prisma/ without conflict.
+ * Both schemas coexist in the same Supabase PostgreSQL database.
  */
 
 const prisma = new PrismaClient();
 
 export const mastra = new Mastra({
-  storage: new LibSQLStore({
+  storage: new PostgresStore({
     id: "mastra-store",
-    // LibSQL local file mode --- file: prefix is required
-    url: "file:./prisma/mastra.db",
+    connectionString: env.DIRECT_URL,
+    schemaName: "mastra",
   }),
   workflows: {
     "touch-1-workflow": touch1Workflow,
