@@ -9,10 +9,10 @@ Requirements for Infrastructure & Access Control milestone. Each maps to roadmap
 
 ### Database (DB)
 
-- [ ] **DB-01**: Supabase dev and prod projects created with Prisma-compatible connection strings
-- [ ] **DB-02**: Prisma provider switched from sqlite to postgresql with fresh migration baseline
-- [ ] **DB-03**: All existing Prisma models work against Supabase Postgres without application code changes
-- [ ] **DB-04**: Mastra workflow state persists in durable Postgres storage (not local SQLite file)
+- [x] **DB-01**: Supabase dev and prod projects created with Prisma-compatible connection strings
+- [x] **DB-02**: Prisma provider switched from sqlite to postgresql with fresh migration baseline
+- [x] **DB-03**: All existing Prisma models work against Supabase Postgres without application code changes
+- [x] **DB-04**: Mastra workflow state persists in durable Postgres storage (not local SQLite file)
 - [ ] **DB-05**: Seed data loads successfully against Supabase dev instance
 
 ### Authentication (AUTH)
@@ -67,10 +67,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | Phase 14 | Pending |
-| DB-02 | Phase 14 | Pending |
-| DB-03 | Phase 14 | Pending |
-| DB-04 | Phase 14 | Pending |
+| DB-01 | Phase 14 | Complete |
+| DB-02 | Phase 14 | Complete |
+| DB-03 | Phase 14 | Complete |
+| DB-04 | Phase 14 | Complete |
 | DB-05 | Phase 14 | Pending |
 | AUTH-01 | Phase 16 | Pending |
 | AUTH-02 | Phase 16 | Pending |

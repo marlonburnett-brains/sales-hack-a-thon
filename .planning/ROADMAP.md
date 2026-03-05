@@ -117,7 +117,7 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 | 11. E2E Integration | v1.0 | 2/2 | Complete | 2026-03-04 |
 | 12. Content Re-ingestion | v1.0 | 2/2 | Complete | 2026-03-04 |
 | 13. Touch 4 Poll Loop Fixes | v1.0 | 1/1 | Complete | 2026-03-04 |
-| 14. Database Migration | v1.1 | 0/2 | Planned | - |
+| 14. Database Migration | 1/2 | In Progress|  | - |
 | 15. Service-to-Service Auth | v1.1 | 0/? | Not started | - |
 | 16. Google OAuth Login Wall | v1.1 | 0/? | Not started | - |
 | 17. Deployment & Go-Live | v1.1 | 0/? | Not started | - |
