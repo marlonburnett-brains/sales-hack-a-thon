@@ -21,10 +21,10 @@ Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roa
 
 ### Template Management
 
-- [ ] **TMPL-01**: User can add a Google Slides template by pasting a URL with display name and touch type assignment
-- [ ] **TMPL-02**: User can view a list of all registered templates with status badges (Ready, No Access, Not Ingested, Stale)
-- [ ] **TMPL-03**: User can delete a registered template
-- [ ] **TMPL-04**: User can assign multiple touch types (Touch 1-4) to each template
+- [x] **TMPL-01**: User can add a Google Slides template by pasting a URL with display name and touch type assignment
+- [x] **TMPL-02**: User can view a list of all registered templates with status badges (Ready, No Access, Not Ingested, Stale)
+- [x] **TMPL-03**: User can delete a registered template
+- [x] **TMPL-04**: User can assign multiple touch types (Touch 1-4) to each template
 - [x] **TMPL-05**: System validates Google Slides URL format and extracts presentation ID on add
 - [x] **TMPL-06**: System checks file access on add and flags inaccessible files with service account email for sharing
 - [x] **TMPL-07**: System detects when a template source file has been modified since last ingestion and shows staleness badge
@@ -90,10 +90,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CICD-04 | Phase 18 | Complete |
 | NAV-01 | Phase 19 | Complete |
 | NAV-02 | Phase 19 | Complete |
-| TMPL-01 | Phase 19 | Pending |
-| TMPL-02 | Phase 19 | Pending |
-| TMPL-03 | Phase 19 | Pending |
-| TMPL-04 | Phase 19 | Pending |
+| TMPL-01 | Phase 19 | Complete |
+| TMPL-02 | Phase 19 | Complete |
+| TMPL-03 | Phase 19 | Complete |
+| TMPL-04 | Phase 19 | Complete |
 | TMPL-05 | Phase 19 | Complete |
 | TMPL-06 | Phase 19 | Complete |
 | TMPL-07 | Phase 19 | Complete |
