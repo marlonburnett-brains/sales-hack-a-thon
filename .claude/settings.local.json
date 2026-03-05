@@ -54,7 +54,12 @@
       "Bash(fi)",
       "Bash(make run dev --dry-run)",
       "Bash(chmod +x /Users/marlonburnett/source/lumenalta-hackathon/scripts/secrets.sh)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(gh run list --limit 5 --json event,createdAt,headSha,status)",
+      "Bash(gh run list --limit 5)",
+      "Bash(gh run watch 22740195391)",
+      "Bash(gh run view 22740195391 --json status,conclusion,jobs)",
+      "Bash(gh run view 22740195391 --json status,conclusion)"
     ]
   },
   "enableAllProjectMcpServers": true,

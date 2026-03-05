@@ -1,8 +1,7 @@
-name: Deploy
+name: Deploy (disabled - migrated to CircleCI)
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch: # manual-only, no longer triggers on push
 
 concurrency:
   group: deploy-${{ github.ref }}
