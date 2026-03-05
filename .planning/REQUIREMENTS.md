@@ -16,8 +16,8 @@ Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roa
 
 ### Navigation
 
-- [ ] **NAV-01**: User can navigate between Deals and Templates via a persistent side panel
-- [ ] **NAV-02**: Side panel is collapsible and preserves all existing authenticated routes
+- [x] **NAV-01**: User can navigate between Deals and Templates via a persistent side panel
+- [x] **NAV-02**: Side panel is collapsible and preserves all existing authenticated routes
 
 ### Template Management
 
@@ -88,8 +88,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CICD-02 | Phase 18 | Complete |
 | CICD-03 | Phase 18 | Complete |
 | CICD-04 | Phase 18 | Complete |
-| NAV-01 | Phase 19 | Pending |
-| NAV-02 | Phase 19 | Pending |
+| NAV-01 | Phase 19 | Complete |
+| NAV-02 | Phase 19 | Complete |
 | TMPL-01 | Phase 19 | Pending |
 | TMPL-02 | Phase 19 | Pending |
 | TMPL-03 | Phase 19 | Pending |
