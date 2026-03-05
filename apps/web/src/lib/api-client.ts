@@ -16,7 +16,7 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      "X-API-Key": env.AGENT_API_KEY,
+      Authorization: `Bearer ${env.AGENT_API_KEY}`,
       ...init?.headers,
     },
   });
