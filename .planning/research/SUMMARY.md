@@ -1,247 +1,222 @@
 # Project Research Summary
 
-**Project:** Lumenalta Agentic Sales Orchestration Platform
-**Domain:** Agentic AI — LLM orchestration with RAG, HITL approval flows, Google Workspace output
-**Researched:** 2026-03-03
-**Confidence:** MEDIUM (training data cutoff August 2025; web search unavailable during research; specific Mastra API details require verification)
+**Project:** Lumenalta Sales Platform — v1.1 Infrastructure & Access Control
+**Domain:** Infrastructure hardening — database migration (SQLite to Supabase/PostgreSQL), Vercel deployment, Google OAuth login wall, and service-to-service authentication
+**Researched:** 2026-03-04
+**Confidence:** MEDIUM (training data only; web tools unavailable; codebase analysis is HIGH confidence)
 
 ## Executive Summary
 
-This is a purpose-built agentic workflow platform for consultancy sales enablement, occupying a gap in the market that no existing tool covers end-to-end: pre-call briefing + post-call transcript processing, gated by human-in-the-loop approval, producing brand-compliant Google Slides decks, talk tracks, and buyer FAQs. The recommended approach is a workflow-first architecture using Mastra AI as the orchestration layer, Google Gemini Flash as the LLM (1M token context window handles noisy transcripts), Zod v4 for schema-enforced structured outputs, and the Google Workspace API for output artifacts — all within a Next.js monorepo. The pre-decided stack is well-suited to the problem. The primary engineering risk is not the AI layer but the Google Slides API integration complexity, specifically around placeholder ID management and batchUpdate ordering.
+The v1.1 milestone transforms a functioning localhost demo into a team-accessible deployed platform. The work is purely infrastructure — no new business features, no changes to the AI workflows, and no schema model additions. The four pieces of work (database migration, auth, agent deployment, service auth) have clearly defined dependencies and all four researchers agree on the correct technical approach: Supabase for both the database and auth, Vercel for the web app, and a non-serverless host (Railway/Fly.io/Render) for the Mastra agent. The existing v1.0 architecture is sound and does not need restructuring — only new wiring is required.
 
-The most important architectural decision is also the most differentiating product decision: HITL approval is a hard stop, not optional scaffolding. No slides are generated until the structured brief is explicitly approved by a human. This design eliminates a category of errors (bad brief propagated into every slide) and makes the platform trustworthy for a consultancy where AI-generated client-facing output has real reputational stakes. The second most important decision is treating AtlusAI content library population as an engineering deliverable, not a data-entry task — retrieval quality at the slide-block level is the foundation all downstream generation depends on, and it must be operational before any integration testing begins.
+The highest-confidence recommendation across all four research files is to keep the existing Prisma ORM as-is, change only the datasource provider to `postgresql`, and use Supabase purely as a managed Postgres host plus auth service. The Supabase JS client is used ONLY for auth operations (signIn/signOut/getSession) — never for data queries, which remain Prisma's domain. This avoids a dual-query layer and means the vast majority of existing application code (workflows, Server Actions, api-client, Google API helpers) stays completely unchanged.
 
-The top risks in priority order: (1) Google Slides API pitfalls around placeholder IDs, batchUpdate ordering, image insertion via public URLs, and layout ID mismatches — all require validated integration spikes before building any abstraction on top; (2) Gemini structured output schema rejections for complex Zod v4 schemas — every schema must be validated against the live API in isolation; (3) Mastra HITL state loss if durable storage is not configured from day one; (4) AtlusAI content library bottleneck blocking all RAG-dependent testing if ingestion is deprioritized.
+The single biggest risk — flagged consistently across all four research files — is deploying the Mastra agent to Vercel serverless. Mastra workflows executing touch sequences take 30-120 seconds end-to-end, exceeding Vercel's function timeout on all but the most expensive Pro plan with `maxDuration` overrides. The strongly recommended mitigation is to deploy the agent on a persistent-process host (Railway, Render, or Fly.io), with the web app staying on Vercel. This is already compatible with the existing `AGENT_SERVICE_URL` env var design. A secondary risk is that `@mastra/pg` (the Postgres storage adapter for Mastra's internal workflow state) needs to be verified against current npm before implementation — if it does not exist, the fallback is Turso (hosted LibSQL cloud), which requires only a URL change.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The core stack is pre-decided in PROJECT.md and well-supported by research: Mastra AI for workflow orchestration, Google Gemini Flash as the LLM, Zod v4 for schema validation, Next.js 15 (App Router) for the UI, and the `googleapis` Node.js client with service account auth for Google Workspace output. The recommended structure is a monorepo with two apps (`/apps/web` for Next.js, `/apps/agent` for Mastra) and a shared `/packages/schemas` package for Zod v4 schema definitions — this shared schema pattern eliminates the primary source of runtime type drift between frontend and backend.
+The v1.1 stack additions are minimal and intentionally avoid introducing new vendors beyond Supabase and a persistent-process hosting platform. Supabase is chosen because it bundles managed PostgreSQL and Google OAuth into a single provider, eliminating the need for a separate auth service (NextAuth, Clerk, Firebase Auth). Prisma remains the ORM — it treats Supabase as an ordinary Postgres host and requires no code changes beyond the connection string and datasource provider field.
 
-Supporting libraries are well-established: `react-hook-form` + `@hookform/resolvers` for multi-step forms, `shadcn/ui` for the HITL approval UI, Prisma + SQLite for local state persistence (swap to PostgreSQL for production), and `@t3-oss/env-nextjs` for startup-time environment variable validation.
+**Core technologies (new additions only):**
+- `@supabase/supabase-js ^2.x`: Supabase client — used ONLY in `apps/web` for auth (signIn/signOut/getSession); never for data queries
+- `@supabase/ssr ^0.5+`: Server-side auth helpers for Next.js App Router — cookie-based sessions in middleware, Server Components, and Route Handlers
+- Supabase Auth (hosted service): Google OAuth provider with JWT issuance — no custom auth server; domain restriction enforced at the application level
+- Supabase PostgreSQL (hosted service): Managed Postgres with Supavisor connection pooling — replaces the SQLite file; all app queries remain through Prisma unchanged
+- Vercel (web project only): Hosts `apps/web` (Next.js) — zero-config Next.js App Router, automatic preview deployments per PR
+- Railway/Render/Fly.io (agent server): Hosts `apps/agent` (Mastra/Hono) as a persistent Node.js process — eliminates serverless timeout risk entirely
+- Shared API key (env var): Service-to-service auth between web and agent — simplest effective pattern; no JWT/OAuth complexity for first-party services
+- `@mastra/pg` or Turso equivalent (VERIFY): Postgres or hosted LibSQL adapter for Mastra's internal workflow state — replaces `file:./prisma/mastra.db`; required for suspend/resume to survive deployments
 
-**Core technologies:**
-- **Mastra AI (`@mastra/core`):** Workflow orchestration with suspend/resume at HITL checkpoints — purpose-built for this pipeline model
-- **Google Gemini Flash:** LLM for all extraction and generation — 1M+ token context window handles long transcripts; structured output mode pairs with Zod schemas
-- **Zod v4:** Runtime validation for all structured data contracts between LLM output and application logic — v4's ~14x faster parse speed and improved error messages are production-ready
-- **Next.js 15 (App Router):** Full-stack framework for seller UI and API routes as BFF to Mastra — Server Components reduce boilerplate for HITL review pages
-- **`googleapis` + `google-auth-library`:** Official Google Node.js clients for Slides, Docs, and Drive APIs via service account
-- **Prisma + SQLite:** Durable workflow state persistence — zero infrastructure for hackathon, trivially upgradeable to PostgreSQL
-
-**Version flags requiring verification before implementation:** Mastra current semver, Gemini provider package name for Mastra, `zod-to-json-schema` v4 compatibility, Tailwind v4 stability, `@hookform/resolvers` v3.9+ for Zod v4 support.
+**Versions requiring verification before implementation:**
+- `@supabase/supabase-js` — may be v3.x as of March 2026; check npm
+- `@supabase/ssr` — was `^0.5` at training cutoff; verify current version and API
+- `@mastra/pg` — package name, existence, and constructor API must be confirmed; fallback is Turso with `@mastra/libsql` and a `libsql://` URL
 
 ### Expected Features
 
-Research confirms this platform occupies a genuine gap between revenue intelligence tools (Gong), content management platforms (Highspot/Seismic), and AI deck generators (Tome/Pitch). No existing tool delivers the full pipeline with HITL gating and brand-compliant output. The feature set in PROJECT.md is well-scoped for v1.
+All v1.1 features are infrastructure features. They are security and deployment requirements, not user-facing functionality changes. Users gain access to a deployed URL with login; they do not see new product features.
 
-**Must have (table stakes — required for any sales enablement tool):**
-- Transcript ingestion with paste input — users expect any post-call tool to accept transcripts
-- Structured brief extraction with Zod validation — justifies the HITL checkpoint; without structured output, there is nothing meaningful to review
-- Missing-field notification before proceeding — silently generating on incomplete data destroys seller trust
-- Brand-compliant output via pre-approved building blocks — non-negotiable for a consultancy
-- HITL approval checkpoint (brief + final assets) — the core design constraint; makes the platform trustworthy
-- Output to Google Slides + Docs — sellers work in Google Workspace; other formats are unacceptable
-- Industry / vertical selection (11 industries, 62 subsectors) — enterprise sales are vertical-specific
-- Talk track alongside the deck — sellers expect both; a deck without a talk track forces improvisation
-- Content library with RAG retrieval — "find the relevant case study" is a basic expectation
+**Must have (table stakes — without these the platform is a localhost demo):**
+- Persistent PostgreSQL database (Supabase) — team data must survive deployments and be shared across members
+- Google OAuth login wall restricted to `@lumenalta.com` — security requirement for any internet-exposed internal tool
+- Middleware-based route protection — every page behind auth; no flash of unprotected content
+- Login page UI — branded "Sign in with Google" button with clear `@lumenalta.com` domain requirement
+- Auth callback route handler — exchanges OAuth code for Supabase session; enforces domain check server-side
+- Deployed web app URL (Vercel) — sellers need a bookmark, not `localhost:3000`
+- Deployed agent server URL (Railway/Render/Fly.io) — web app must call a real endpoint, not `localhost:4111`
+- Service-to-service API key auth — agent endpoints create DB records and trigger costly AI workflows; cannot be publicly accessible
+- Environment variable configuration — Supabase URL/keys, API key, and agent URL correctly set in both Vercel projects for both Production and Preview environments
+- Postgres-compatible seed script — re-seeds the Meridian Capital Group demo scenario on the fresh Supabase database
 
-**Should have (differentiators — make this platform genuinely better than alternatives):**
-- Multi-pillar solution mapping (primary + secondary) — consultancies sell across multiple capability areas per deal
-- Buyer FAQ + objection handling doc — third artifact in the output package; rare at this fidelity
-- Slide block assembly as structured JSON before rendering — transparent, reviewable intermediate step; no other tool works this way
-- Role-specific hypotheses by buyer persona — CTO and CFO need different problem framings
-- Discovery question generation mapped to Lumenalta solutions (pre-call flow)
-- ROI framing module (2-3 quantified business outcome statements per use case)
-- Feedback loop — edit capture for prompt and RAG refinement (v1.x, after initial adoption)
+**Should have (quality improvements within v1.1 scope):**
+- Mastra internal storage migration (LibSQL file to hosted Postgres/Turso) — prevents workflow state loss on agent redeployment; enables suspend/resume across cold starts
+- Preview deployments per PR (Vercel) — automatic with correct env var scoping; QA can test PRs without running locally
+- Supabase project separation (dev vs. prod) — isolates test data from production; required from day one
 
-**Defer (v2+):**
-- In-call coaching — fundamentally different architecture; pre-call briefing provides the same preparation value
-- Usage analytics dashboard — Google Drive telemetry sufficient for early stage
-- Competitive intelligence module — high hallucination risk; requires curated, maintained content
-- CRM (Salesforce) integration — data hygiene prerequisites not met; adds significant integration surface
-- Video/transcript API integration (Granola, Zoom, Firefly) — manual paste works with any tool; revisit when paste friction causes adoption drop-off
-- Multi-user collaborative brief editing — async HITL is adequate; real-time editing complexity not justified
+**Defer to v2+:**
+- Role-based access control — all users are equal in v1.1; RBAC is over-engineering for a 20-person internal team
+- User settings/preferences page — nothing to configure; Google profile provides name and avatar
+- Multi-tenant support — internal tool only; premature
+- Magic link or email/password auth — all team members have Google Workspace accounts
+- Supabase RLS policies — server-side Prisma queries make RLS redundant for this single-tenant setup
+- Custom domain — Vercel-provided URL is sufficient for an internal tool
 
-**Critical dependency:** The AtlusAI content library gates everything downstream. No RAG retrieval, no slide assembly, no deck generation until the library is loaded and indexed at the slide-block level. This is the single highest-risk dependency for a hackathon timeline.
+**Do NOT build (anti-features confirmed by research):**
+- Serverless agent deployment on Vercel — workflow timeouts are architecturally incompatible
+- SQLite data migration to Postgres — existing data is demo-only seed data; start fresh
+- WebSocket/SSE real-time workflow updates — existing polling pattern works and is simpler
+- User profile management — Google OAuth provides all needed identity data
 
 ### Architecture Approach
 
-The recommended architecture is a five-layer system: Presentation Layer (Next.js seller UI + HITL review panels) → API Gateway Layer (Next.js API routes as BFF) → Mastra AI Orchestration Layer (stateful workflows with suspend/resume, agent definitions) → Knowledge Layer (AtlusAI MCP for RAG) + LLM Layer (Gemini Flash) → Output Layer (Google Slides/Docs/Drive). The two workflows (pre-call briefing and post-call transcript-to-deck) are independent flows that share AtlusAI and the industry taxonomy but do not depend on each other — they can be built in parallel.
-
-The four key patterns the architecture must follow: (1) Workflow-as-State-Machine with durable suspend/resume at HITL checkpoints; (2) Agent-per-Concern — one scoped agent per role (research, transcript parsing, content retrieval, copywriting) with no cross-contamination of concerns; (3) RAG as an explicit workflow step, not implicit agent intelligence — retrieval is deterministic and auditable; (4) Schema-First Output Contract — every LLM call is constrained by a Zod v4 schema passed to Gemini's structured output mode.
+The v1.1 architecture is an additive wrapper around the existing v1.0 system. The web app gains an auth layer (middleware + login page + Supabase client utilities); the agent gains API key validation middleware; and the database connection string changes. No data access code, workflow logic, Server Actions, or Google API helpers require modification. The two-service deployment topology (`apps/web` on Vercel, `apps/agent` on persistent compute) is a natural extension of the existing monorepo structure, with `AGENT_SERVICE_URL` as the seam between them.
 
 **Major components:**
-1. **Mastra Workflows** — stateful step-by-step orchestration with suspend/resume at HITL-1 (brief approval) and HITL-2 (final asset review)
-2. **Mastra Agents (4)** — ResearchAgent, TranscriptAgent, ContentAgent, CopywritingAgent — each scoped to one concern with its own system prompt and tools
-3. **Zod v4 Schema Layer** — centralized in `/schemas`; single source of truth for data contracts between LLM output and application logic
-4. **AtlusAI MCP Integration** — RAG retrieval via structured filter search (industry + solution pillar + funnel stage) + semantic search; called as an explicit workflow step
-5. **Google API Integration Layer** — `googleapis` client for Slides, Docs, Drive; called only from explicit workflow steps, never from agent tools
-6. **Next.js UI + API Routes** — seller input forms, workflow status polling (3s interval), HITL review panels
-7. **Workflow State Store (Prisma + SQLite/PostgreSQL)** — durable persistence of workflow state across suspend/resume cycles
+1. **Next.js middleware (`apps/web/src/middleware.ts`)** — intercepts every request, validates Supabase session cookie, redirects unauthenticated users to `/auth/login`; transparently refreshes expiring tokens
+2. **Supabase client utilities (`apps/web/src/lib/supabase/`)** — three factory files: `client.ts` (browser), `server.ts` (RSC/Server Actions), `middleware.ts` (edge); all use `@supabase/ssr`
+3. **Auth routes (`apps/web/src/app/auth/`)** — login page with Google sign-in button, plus callback route handler that exchanges OAuth code, validates `@lumenalta.com` domain, and sets session cookies
+4. **Prisma schema update (`apps/agent/prisma/schema.prisma`)** — provider changes from `sqlite` to `postgresql`; `directUrl` field added for migrations; all 9 models remain unchanged
+5. **Prisma migrations (recreated from scratch)** — existing SQLite migration history deleted; fresh Postgres baseline generated with `prisma migrate dev --name init-postgres`
+6. **Mastra storage backend (`apps/agent/src/mastra/index.ts`)** — `LibSQLStore` replaced with `PostgresStore` (or Turso LibSQL) so workflow state survives deployments
+7. **API key middleware (agent Hono server)** — validates `X-API-Key` header on all agent routes; rejects unauthorized requests with 401
+8. **API client update (`apps/web/src/lib/api-client.ts`)** — adds `X-API-Key: ${AGENT_API_KEY}` header to all outbound calls to the agent
+
+**Key patterns to follow:**
+- Prisma is the sole data query layer — Supabase JS client is auth-only, never data
+- Auth boundary is the web app — the agent validates only a shared API key, not user JWTs
+- Defense-in-depth for domain restriction — Google Workspace "Internal" OAuth + server-side email check in callback + middleware session validation
+- Supabase dual connection strings — pooled URL (port 6543, `?pgbouncer=true`) for app queries; direct URL (port 5432) for migrations only
+- Turborepo build pipeline unchanged — Vercel native Turborepo detection handles both projects
 
 ### Critical Pitfalls
 
-1. **Google Slides placeholder ID blindness** — Placeholder `objectId` values are reassigned on every slide duplication; never hardcode them. Build `getPlaceholderIdByType(slide, 'TITLE')` utility that reads live presentation state after every `duplicateObject` call. Address this in the first Slides API integration spike before any abstraction is built.
+1. **Prisma migration history is provider-locked to SQLite** — Existing `migrations/` directory contains SQLite-specific SQL that refuses to run against Postgres; `migration_lock.toml` embeds the provider. Avoid by deleting the `migrations/` directory and `migration_lock.toml`, then generating a fresh Postgres baseline. Keep old migrations in git history for reference only.
 
-2. **Gemini structured output schema rejections** — Gemini supports a constrained subset of JSON Schema; `anyOf`/`oneOf` unions, recursive schemas, `z.default()`, and `z.transform()` on fields sent to the API all cause runtime rejections. Validate every Zod v4 schema against the live Gemini API in isolation before integrating into agent logic. Keep "LLM schemas" (raw, flat, no transforms) separate from "application schemas" (post-processing transforms).
+2. **Mastra LibSQLStore uses a separate SQLite file that also needs migration** — The `mastra.db` file is separate from `dev.db`. Migrating only Prisma leaves Mastra's workflow state on an ephemeral local file that Vercel destroys on every cold start. Any suspended HITL workflows or active runs will be permanently orphaned. Avoid by migrating Mastra's storage to `@mastra/pg` (PostgresStore) or Turso in the same phase as the Prisma migration — not as an afterthought.
 
-3. **Mastra HITL state not persisted by default** — Workflow suspension state is in-memory unless a durable storage backend is explicitly configured. A server restart between HITL approval and deck generation silently orphans the workflow. Configure Prisma + SQLite as Mastra's storage adapter from the project start, and test suspend/resume across a server restart before demo day.
+3. **Vercel serverless timeout kills long-running workflows** — Touch 4 workflows take 30-120 seconds. Vercel Hobby is 10 seconds; Pro is 60 seconds (300 with `maxDuration`). The Mastra agent is architecturally incompatible with serverless. Deploy on persistent compute (Railway/Render/Fly.io). The existing async poll-based architecture (start workflow, return runId, poll for status) is already designed for this separation — no redesign required.
 
-4. **RAG chunking at deck level instead of slide block level** — Indexing whole decks into AtlusAI produces unusable retrieval results. The correct granularity is one retrievable unit per slide, tagged with `{ industry, subsector, solutionPillar, funnelStage, slideCategory }`. Wrong chunking strategy requires full re-indexing to fix — define and validate the chunk schema with 2-3 sample decks before any bulk ingestion.
+4. **Google OAuth redirect URI mismatch on Vercel preview deployments** — Registering the Vercel app URL in Google Cloud Console breaks on dynamic preview URLs. Avoid by using Supabase as the OAuth intermediary — register only Supabase's callback URL in GCP, and configure Supabase's redirect allowlist with a wildcard pattern for Vercel preview subdomains.
 
-5. **AtlusAI content library bottleneck** — All RAG-dependent pipeline testing is blocked until AtlusAI is populated. If content ingestion is treated as a prerequisite to be done before the demo, the team has no ability to test the full pipeline until the last hours. Treat content ingestion as a day-one engineering deliverable with its own idempotent ingestion script and content inventory manifest.
+5. **Supabase domain restriction is not enforced at the provider level** — A personal Gmail user can complete the OAuth flow and receive a valid Supabase session unless explicitly blocked. Enforce at three layers: (1) Google Workspace "Internal" OAuth consent, (2) server-side email check in the `/auth/callback` route handler, and (3) middleware session check. Test with an actual personal Gmail account as acceptance criteria.
 
-6. **Google Slides image insertion requires public URLs** — `createImage` requests use URLs that Google's servers must be able to fetch publicly; Drive file URLs do not work here even with a service account. Host brand image assets in a public GCS bucket during content library setup and store those URLs in AtlusAI.
-
-7. **batchUpdate request ordering** — Operations that depend on each other (duplicate a slide, then insert text into the new slide's placeholder) cannot be batched into a single `batchUpdate` call. Separate dependent operations into sequential API calls; batch only truly independent operations.
+6. **Prisma connection pool exhaustion on Vercel serverless** — Each function invocation creates a new Prisma Client instance with its own pool. Supabase free tier allows 60 connections. Under moderate load, this exhausts quickly. Avoid by using the Supabase Supavisor pooler URL (port 6543, `?pgbouncer=true&connection_limit=1`) in `DATABASE_URL` from day one.
 
 ## Implications for Roadmap
 
-The architecture's dependency chain in ARCHITECTURE.md, cross-referenced with the FEATURES.md feature dependency graph, produces a clear phase structure. The key forcing constraints are: (1) AtlusAI must be populated before any RAG-dependent step can be tested; (2) Zod schemas and Google API auth must be validated before any workflow step can be built on top of them; (3) HITL workflow wiring must be complete before the UI can be tested end-to-end; (4) pre-call and post-call flows are independent and can proceed in parallel after foundations are laid.
+The dependency chain is unambiguous: the database must exist before anything can be tested, service auth must exist before any deployment is secure, auth must be complete before deployment is useful, and all three must converge before go-live. All four research files independently converged on a 4-phase structure with the same ordering rationale.
 
-### Phase 1: Foundations and Content Infrastructure
+### Phase 1: Database Migration (Supabase + Prisma + Mastra Storage)
 
-**Rationale:** Nothing else can be built or tested without validated foundations. Google service account auth, Zod schema definitions, and AtlusAI content ingestion are all blocking dependencies for every downstream phase. This phase has the longest lead time (content ingestion) and the highest risk (Google Slides API integration quirks). It must start on day one.
+**Rationale:** Everything else depends on a working Postgres database. Auth, deployment, and service auth all require Supabase to exist. This phase has zero auth dependencies and zero deployment dependencies — it can be started immediately. It also has the highest complexity per line of code changed (migration history recreation, dual connection strings, Mastra storage adapter verification).
 
-**Delivers:** Working Google Workspace credentials, validated Zod schemas for all data contracts, AtlusAI populated with slide-block-level content for all 11 industries, Mastra framework configured with durable SQLite state storage, monorepo scaffold with shared schema package.
+**Delivers:** Supabase dev and prod projects created; all 9 Prisma models running on PostgreSQL; Mastra workflow state on a hosted durable store (Postgres or Turso); Meridian Capital Group seed data re-created on Postgres; agent runs locally against Supabase dev instance
 
-**Addresses:** AtlusAI content library (table stakes), industry/subsector taxonomy (62 subsectors), service account authentication for Google Drive output.
+**Addresses:** "Persistent database (table stakes)", "Mastra internal storage migration (should have)", "Environment separation dev/prod"
 
-**Avoids:** AtlusAI content library bottleneck (Pitfall 9), wrong RAG chunking strategy (Pitfall 5), Gemini schema rejection (Pitfall 3 — validate all schemas here), hardcoded placeholder IDs (Pitfall 1 — build the utility function here), image URL public access requirement (Pitfall 6 — configure GCS here), service account scope too broad (security mistake — scope to AI-Generated folder only).
+**Avoids:** Pitfall 1 (migration lock mismatch), Pitfall 2 (data type issues — keep all JSON fields as `String` for v1.1), Pitfall 3 (Mastra LibSQLStore on local file), Pitfall 12 (connection pool exhaustion — pooler URL from day one)
 
-### Phase 2: Core Pipeline — Transcript Extraction and Brief Generation
+**Research flag needed:** Verify `@mastra/pg` package existence and constructor API on npmjs.com before writing code. If absent, switch to Turso cloud (`@mastra/libsql` with a `libsql://` URL — zero API change, only URL change).
 
-**Rationale:** The post-call flow is the primary value delivery mechanism and the demo centerpiece. Transcript parsing and brief generation are the intelligence layer that makes the HITL checkpoint meaningful — without them, the approval checkpoint has nothing to show. These steps are also the most LLM-intensive and require careful schema engineering.
+### Phase 2: Service-to-Service API Key Auth
 
-**Delivers:** Working ParseTranscript step (Gemini Flash + Zod schema), ValidateTranscript step with missing-field notification surfaced to the UI, GenerateBrief step producing a structured SalesBrief with primary + secondary solution pillar mapping, and a working post-call workflow entry point.
+**Rationale:** Small change (two files modified, one env var each side) that must exist before the agent is deployed to any public URL. Piggybacks on Phase 1's env.ts changes. Can be completed in the same work session as Phase 1 with minimal overhead.
 
-**Addresses:** Transcript ingestion with industry/subsector selector, structured brief extraction, missing-field notification, multi-pillar solution mapping.
+**Delivers:** Agent server rejects all requests without a valid `X-API-Key` header; web app sends the key on every outbound call; both services have the key in their validated env var schemas; curl test confirms rejection without auth
 
-**Uses:** Mastra TranscriptAgent, Zod TranscriptFieldsSchema + SalesBriefSchema, Gemini Flash structured output mode, Next.js post-call input form.
+**Addresses:** "Protected API routes (table stakes)", "Service-to-service API key auth (P1)"
 
-**Avoids:** Zod `.transform()` on LLM schemas (Pitfall 8 — keep raw LLM schemas separate from application schemas), monolithic super-agent anti-pattern (one scoped agent per concern), storing full transcript in every step's context (pass typed schema output downstream, not raw text).
+**Avoids:** Pitfall 6 (auth token not forwarded — fixed here), security mistake "agent server deployed without authentication"
 
-### Phase 3: HITL Workflow Wiring
+**Research flag needed:** None. This is a textbook shared-secret pattern. No additional research required.
 
-**Rationale:** HITL Checkpoint 1 (brief approval) is on the critical path — zero slides are generated until it is functional. The suspend/resume mechanism, durable state persistence, and the brief approval UI must all be working together before the RAG and slide assembly phases can be tested end-to-end.
+### Phase 3: Google OAuth Login Wall (Auth)
 
-**Delivers:** Post-call workflow with suspend at HITL-1, Prisma workflow state table with full lifecycle tracking (`created → notified → viewed → approved/rejected/expired`), resume API endpoint, brief approval UI rendering the SalesBrief as formatted card UI (not raw JSON), and workflow status polling in the seller UI.
+**Rationale:** Depends on Supabase existing (Phase 1) but is otherwise independent of service auth. Can begin in parallel with Phase 1 once the Supabase project is created. The Google Cloud OAuth consent screen configuration and Supabase Auth provider setup can happen while Phase 1 database work is in progress.
 
-**Addresses:** HITL Checkpoint 1 (brief approval), workflow status display, seller/SME notification.
+**Delivers:** All app routes protected behind login; Google OAuth restricted to `@lumenalta.com` at three enforcement layers; login page with "Sign in with Google" button and domain messaging; auth callback with server-side domain enforcement; session cookie management via `@supabase/ssr`; user name and avatar displayed in the nav bar
 
-**Uses:** Mastra workflow suspend/resume, Prisma + SQLite, Next.js API routes (`/api/workflow/[id]/status`, `/api/workflow/[id]/resume`), shadcn/ui card components for brief review panel.
+**Addresses:** "Login wall (table stakes)", "Session persistence (table stakes)", "Middleware-based route protection (should have)", "@lumenalta.com domain restriction (P1)"
 
-**Avoids:** In-memory HITL state loss (Pitfall 4 — durable storage is configured in Phase 1 but verified here), HITL browser-close ambiguity (Pitfall 7 — implement `viewedAt`, expiry, and re-notification in this phase), HITL approval UI showing raw JSON (UX pitfall — render formatted brief cards).
+**Avoids:** Pitfall 7 (OAuth redirect mismatch — use Supabase as intermediary with wildcard allowlist), Pitfall 8 (domain restriction client-side only — enforce at all 3 layers), Pitfall 9 (middleware ordering conflict — precise matcher required, exclude `/auth/` and static assets)
 
-### Phase 4: RAG Retrieval and Slide Block Assembly
+**Research flag needed:** Consult current `@supabase/ssr` official docs before implementing. The package API was evolving through 2025. Standard enough to proceed without a full research-phase — just verify the `createServerClient`/`createBrowserClient` signatures before writing code.
 
-**Rationale:** With an approved brief in hand and AtlusAI populated (Phase 1), RAG retrieval and the slide assembly intermediate layer can be built and tested. This phase produces the SlideJSON — the auditable, reviewable intermediate representation before any pixel is painted in Google Slides.
+### Phase 4: Vercel + Agent Deployment (Go-Live)
 
-**Delivers:** Working RAGRetrieval step (AtlusAI MCP semantic + metadata filter search), AssembleSlideJSON step producing an ordered array of slide block specs, GenerateCopy step populating each block with bespoke copy via CopywritingAgent, and verified retrieval quality for at least 3 different industries.
+**Rationale:** Requires all three preceding phases to be complete and tested locally. The web app cannot be deployed usefully without auth. The agent cannot be deployed securely without API key auth and a hosted database. This phase is the integration and go-live phase — it converges all prior work.
 
-**Addresses:** AtlusAI RAG retrieval (industry + pillar + stage matching), slide block assembly as structured JSON, multi-pillar content retrieval, ROI framing module integration point.
+**Delivers:** Production web URL on Vercel; production agent URL on Railway/Render/Fly.io; preview deployments per PR with correct env var scoping; prod Supabase database with `prisma migrate deploy`; end-to-end workflow verified on production URLs; Google OAuth redirect working on both production and preview deployments; CORS headers on Hono server; canonical env var manifest verified
 
-**Uses:** Mastra ContentAgent (AtlusAI tool), Mastra CopywritingAgent (copywriting agent, scoped to copy-only), SlideAssemblySchema, retrieved content chunks from AtlusAI.
+**Addresses:** "Deployed web app URL (table stakes)", "Deployed agent server URL (table stakes)", "Preview deployments (should have)", "Environment variable configuration (P1)"
 
-**Avoids:** RAG as agent intelligence rather than explicit workflow step (Pattern 3 — retrieval is a deterministic step, not implicit agent behavior), unthrottled AtlusAI queries (batch pre-fetch all needed blocks before slide creation), deck-level RAG chunking already addressed in Phase 1.
+**Avoids:** Pitfall 4 (serverless bundle size — agent is NOT on Vercel serverless), Pitfall 5 (workflow timeout — agent on persistent compute), Pitfall 7 (OAuth redirects — Supabase wildcard allowlist), Pitfall 10 (env var misconfiguration — create canonical manifest as first deployment task), Pitfall 11 (CORS between Vercel projects — add CORS middleware to Hono server before first cross-domain deploy)
 
-### Phase 5: Google Workspace Output Generation
-
-**Rationale:** With validated slide JSON from Phase 4, the Google API integration can be built against a known, stable input contract. This is the phase that produces the visible demo deliverable — a Google Slides deck in the shared Lumenalta Drive.
-
-**Delivers:** CreateGoogleSlides step (Drive template copy → sequential batchUpdate calls), CreateTalkTrack step (Google Docs), CreateBuyerFAQ step (Google Docs), auto-named output files (`[CompanyName] - [PrimaryPillar] - [Date]`), per-deal folder in shared Lumenalta Drive, and HITL Checkpoint 2 (final asset review with Drive links).
-
-**Addresses:** Google Slides deck generation, talk track (Google Doc), buyer FAQ with objection handling (Google Doc), HITL Checkpoint 2 (final asset review), artifact persistence in Google Drive.
-
-**Uses:** `googleapis` Node.js client, Google Slides API `files.copy` + `batchUpdate`, Google Docs API, Google Drive API, service account credentials.
-
-**Avoids:** Placeholder ID blindness (Pitfall 1 — use `getPlaceholderIdByType()` utility from Phase 1), batchUpdate ordering errors (Pitfall 2 — separate create and insert into sequential calls), image insertion via Drive URLs (Pitfall 6 — GCS URLs from Phase 1), layout ID mismatch (Pitfall 10 — copy template first, then modify), inline Google API calls inside agent tools (Anti-Pattern 3 — all Google API calls are in workflow steps only).
-
-### Phase 6: Pre-Call Briefing Flow
-
-**Rationale:** Pre-call briefing is independent of the post-call flow and can be built in parallel after Phase 2 foundations are established. It has a lighter dependency graph (no HITL suspend, no slide assembly) and demonstrates the full platform scope in the demo.
-
-**Delivers:** Pre-call input form (company name, buyer role, meeting context), ResearchCompany step (public source research + AtlusAI solution matching), GenerateHypotheses step (discovery questions mapped to Lumenalta solutions, role-specific framing), BuildBriefingDoc step, SaveToDrive step, and pre-call UI displaying the formatted briefing with Drive link.
-
-**Addresses:** Pre-call company snapshot, discovery question generation, role-specific hypotheses by buyer persona, pre-call Google Doc output.
-
-**Uses:** Mastra ResearchAgent, AtlusAI MCP, Gemini Flash, Google Drive API, CompanyResearchSchema, pre-call UI form.
-
-### Phase 7: Feedback Loop and Polish
-
-**Rationale:** After the full end-to-end pipeline is working, the feedback capture mechanism and UX polish can be layered on. The CaptureEdits step is low-complexity compared to building it; the primary value is establishing the data capture pattern early enough that real usage generates training signal.
-
-**Delivers:** CaptureEdits step (structured diff of human edits at HITL-2 approval), feedback logger, progress indicators for the 2-3 minute deck generation pipeline (step-by-step status), inline missing-field warnings on transcript paste (debounced analysis), Slack webhook for HITL notification, and end-to-end demo scenario validation.
-
-**Addresses:** Feedback loop (edit capture for prompt and RAG refinement), UX polish (progress indicators, inline warnings, named Drive files).
-
-**Avoids:** No progress indicator during long generation (UX pitfall), missing fields surfaced only after submission (UX pitfall — debounced analysis while typing).
+**Research flag needed:** This is the highest-risk phase. Verify that `mastra build` output is deployable on Railway/Render/Fly.io and confirm the correct start command (likely `node .mastra/output/index.mjs`). Check Mastra v1.8 deployment docs specifically for Railway/persistent-process deployment. If Mastra has added a managed hosting option since training cutoff, it may simplify this phase.
 
 ### Phase Ordering Rationale
 
-- **Content ingestion before everything:** RAG retrieval gates all downstream generation. Wrong order means a full re-index penalty.
-- **Schema validation before agent logic:** Gemini schema rejection is a blocking error that must be discovered in isolation, not mid-pipeline.
-- **HITL wiring before slide generation:** The hard stop design means the approval UI must be functional before any deck output can be tested end-to-end.
-- **Google API spike in Phase 1, production integration in Phase 5:** The placeholder ID and batchUpdate pitfalls must be discovered and solved in a low-stakes spike before the full slide assembly pipeline is built on top of them.
-- **Pre-call flow in Phase 6:** It is independent and lighter; deferring it prevents it from blocking post-call flow development without delaying the overall demo.
+- Phase 1 is foundational — Supabase must exist before any other work is testable or meaningful
+- Phase 2 is tiny and security-critical — it belongs with Phase 1 to ensure the agent is never exposed unauthenticated
+- Phase 3 can begin in parallel with Phase 1 but must complete before Phase 4; the Supabase project (from Phase 1) is the only prerequisite
+- Phase 4 is the convergence and go-live phase; partial deployment is not useful — all three predecessors must be tested first
+- The existing async poll-based workflow architecture is a deliberate advantage: it means the web app makes only short-lived HTTP calls to the agent, which decouples serverless web from persistent-process agent cleanly
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
+**Phases needing deeper validation during implementation (verify before writing code):**
+- **Phase 1:** Confirm `@mastra/pg` package exists on npmjs.com. Identify its exact constructor API. If absent, plan switch to Turso — 15 minutes of verification that determines the implementation path.
+- **Phase 4:** Confirm `mastra build` output structure and deployment procedure on Railway/Render/Fly.io. Check Mastra v1.8 release notes for any deployment adapter additions. This is the lowest-confidence area across all research files.
 
-- **Phase 1 (AtlusAI content ingestion):** The MCP chunking schema for slide-level content and AtlusAI's specific ingestion API are not fully documented in training data. Verify AtlusAI's actual ingestion endpoint, supported metadata fields, and semantic search filter syntax against live AtlusAI documentation before designing the ingestion script.
-- **Phase 3 (Mastra suspend/resume specifics):** Mastra is actively developed and its exact suspend/resume API, storage adapter configuration, and `.afterEvent()` syntax require verification against current Mastra docs (post-August 2025). This is the highest-risk API surface in the entire stack.
-- **Phase 4 (AtlusAI MCP query interface):** Hybrid search (semantic + structured filter) query syntax and the specific tool call format for AtlusAI via Mastra's MCP client are uncertain. Verify before building the RAGRetrieval step.
-- **Phase 5 (Google Slides template copy pattern):** The exact `files.copy` parameters for Shared Drives with a service account (including `supportsAllDrives: true` and Drive folder targeting) should be verified against Google Drive API docs before the deck assembly implementation begins.
-
-Phases with standard patterns (skip or reduce research-phase):
-
-- **Phase 2 (Gemini structured output + Zod):** Pattern is well-documented; primary risk is schema-specific rejection, which is caught by the Phase 1 schema validation spike.
-- **Phase 6 (Pre-call briefing flow):** Standard LLM call pattern with no HITL or Google API complexity; well-covered by existing Mastra and Gemini documentation.
-- **Phase 7 (Feedback loop + UX polish):** Standard UI patterns and simple database logging; no novel integration challenges.
+**Phases with standard patterns (no dedicated research-phase needed):**
+- **Phase 2:** API key auth in Hono middleware is a trivial, textbook pattern. Proceed directly.
+- **Phase 3:** Supabase Auth + Next.js App Router + Google OAuth is thoroughly documented with official examples. Consult `@supabase/ssr` docs directly; no research-phase required.
+- **Phase 1 (Prisma part):** Provider switching is a well-documented, stable Prisma operation. Proceed with confidence.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | MEDIUM | Core stack is pre-decided and appropriate. Supporting library versions (Mastra semver, Gemini provider package name, zod-to-json-schema v4 compat) need npm verification before pinning. |
-| Features | MEDIUM | Feature set is well-scoped; competitor analysis based on training data through August 2025 — specific competitor capabilities may have evolved. The feature dependencies and MVP definition are high-confidence. |
-| Architecture | MEDIUM | Core patterns (workflow-as-state-machine, agent-per-concern, RAG as explicit step, schema-first contract) are HIGH confidence from established literature. Mastra-specific API details (suspend/resume syntax, storage adapter config) are MEDIUM — actively developed framework. |
-| Pitfalls | MEDIUM-HIGH | Google Slides API pitfalls (placeholder IDs, batchUpdate ordering, image URLs, layout IDs) are HIGH confidence from stable official API documentation. Gemini schema constraints are MEDIUM. Mastra-specific pitfalls (HITL state persistence) are LOW — verify against current Mastra GitHub/docs. |
+| Stack | MEDIUM | Supabase/Prisma/Vercel patterns are stable and well-established. Package versions need verification against npm (training cutoff behind current releases). Mastra storage adapter is LOW confidence — package may not exist under the assumed name. |
+| Features | HIGH | Feature analysis is based on direct codebase reading (what exists, what is missing) and clear security requirements. No ambiguity about what needs to be built. |
+| Architecture | MEDIUM-HIGH | Component boundaries, data flow, and integration points are clear from codebase analysis. Two low-confidence areas: (1) exact `@supabase/ssr` current API, (2) Mastra build output format and persistent-process deployment specifics. |
+| Pitfalls | MEDIUM-HIGH | Most pitfalls are well-documented industry patterns (Prisma migration lock, serverless connection pooling, OAuth redirect URIs). Mastra-specific pitfalls (bundle size on Vercel, persistent-process requirement) are MEDIUM — training data confirms the general concern but not current Mastra-specific behavior. |
 
 **Overall confidence:** MEDIUM
 
 ### Gaps to Address
 
-- **Mastra current API surface:** Suspend/resume syntax, storage adapter configuration, and `.afterEvent()` semantics must be verified against current Mastra documentation (post-August 2025) before Phase 3 planning. This is the highest-uncertainty surface in the stack.
-- **AtlusAI MCP query interface:** The exact MCP tool call format, semantic search filter parameters, and ingestion API for AtlusAI are not in training data. Verify against AtlusAI documentation or API before designing the RAGRetrieval step and ingestion script.
-- **Gemini model ID naming:** `gemini-2.5-flash` model ID string may have changed post-August 2025. Verify against Google AI Studio before any LLM call configuration.
-- **Mastra Gemini provider package:** The official Mastra provider adapter for Gemini (`@mastra/google` or similar) — package name and API are uncertain. Verify on npmjs.com to determine whether to use the adapter or raw `@google/generative-ai`.
-- **Tailwind v4 stability:** Research flags this as uncertain (was in beta as of August 2025). Default to Tailwind v3.4 unless team confirms v4 is stable and the team is comfortable with its CSS-first config model.
-- **Zod v4 + `@hookform/resolvers` compatibility:** Resolvers v3.9+ adds Zod v4 support; earlier versions fail silently. Pin to `^3.9` minimum and verify.
+- **`@mastra/pg` package existence (CRITICAL):** Verify on npmjs.com before Phase 1 begins. If absent, use Turso (`@mastra/libsql` with `libsql://` URL — no API changes, only URL change). This is the most critical unknown and takes 15 minutes to resolve.
+- **`mastra build` output format (HIGH):** Verify the build artifact structure (file name, entry point, start command) against current Mastra v1.8 docs before Phase 4 planning. The build may produce a different structure than assumed.
+- **Agent deployment on Vercel (MEDIUM):** Research strongly advises against serverless for the agent due to timeout risk. However, if Mastra has added a Vercel-compatible deployment adapter since training cutoff, it could change the deployment topology. Check Mastra release notes.
+- **`@supabase/ssr` current API (MEDIUM):** The package was in flux through 2025 (replaced deprecated `@supabase/auth-helpers-nextjs`). Verify current `createServerClient`, `createBrowserClient` signatures against official Supabase docs before writing auth code.
+- **Google Workspace "Internal" OAuth availability (LOW):** Requires a Google Workspace org admin to verify whether the `lumenalta.com` GCP project's OAuth consent screen can be set to "Internal". If not, rely entirely on application-level domain restriction (which is already planned as a layer).
 
 ## Sources
 
-### Primary (HIGH confidence)
-- `PROJECT.md` — pre-decided stack constraints, feature scope, Lumenalta-specific requirements (authoritative)
-- Google Slides API reference (batchUpdate, placeholder types, image insertion constraints) — stable official documentation
-- Google Drive API service account + Shared Drive permission model — stable official documentation
-- Next.js 15 official documentation — stable; GA released October 2024
+### Primary (HIGH confidence — direct codebase analysis)
+- `apps/agent/prisma/schema.prisma` — 9 models, SQLite datasource, 4 existing migrations
+- `apps/agent/src/mastra/index.ts` — Mastra configuration with LibSQLStore, Hono API routes
+- `apps/web/src/lib/api-client.ts` — web-to-agent HTTP communication pattern, no auth headers currently
+- `apps/web/src/env.ts` and `apps/agent/src/env.ts` — current environment variable schemas
+- `turbo.json`, `package.json` — monorepo build configuration
 
-### Secondary (MEDIUM confidence)
-- Mastra AI documentation (training data, cutoff August 2025) — framework actively evolving; verify current API
-- Zod v4 release notes (May 2025) — some API details may have shifted in stable release
-- Gemini API structured output documentation (supported JSON Schema subset) — verify schema constraints against current API
-- Competitor analysis: Highspot, Seismic, Gong, Chorus, Tome, Pitch, Beautiful.ai (training data through August 2025)
-- RAG pipeline architecture patterns (LangChain, LlamaIndex documentation) — HIGH on principles; MEDIUM on Mastra-specific implementation
+### Secondary (MEDIUM confidence — training data through May 2025)
+- Supabase Auth with Next.js App Router, `@supabase/ssr` usage patterns
+- Prisma PostgreSQL provider documentation, connection pooling with PgBouncer/Supavisor
+- Vercel Turborepo monorepo deployment patterns, project configuration
+- Hono middleware patterns for API key authentication
+- Railway/Render/Fly.io persistent Node.js process deployment
+- Next.js 15 middleware edge runtime, `@supabase/ssr` session management
 
-### Tertiary (LOW confidence, requires verification)
-- `@mastra/google` or `@mastra/google-ai` Gemini provider package — name and existence uncertain; verify on npmjs.com
-- `zod-to-json-schema` v4 compatibility — verify current release supports Zod v4 stable
-- Tailwind v4 stability and shadcn/ui compatibility — was in beta as of August 2025
-- Mastra-specific HITL edge cases (state persistence behavior, storage adapter config) — verify against current Mastra GitHub
+### Tertiary (LOW confidence — verify before implementing)
+- Mastra `@mastra/pg` storage adapter (package name, API, existence)
+- Mastra `mastra build` output format for persistent-process deployment targets
+- Mastra Vercel deployment adapter (may have been added after training cutoff)
+- `@supabase/supabase-js` current version (may be v3.x by March 2026)
 
 ---
-*Research completed: 2026-03-03*
+*Research completed: 2026-03-04*
 *Ready for roadmap: yes*

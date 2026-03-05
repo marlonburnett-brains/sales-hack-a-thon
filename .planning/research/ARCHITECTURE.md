@@ -1,383 +1,689 @@
-# Architecture Research
+# Architecture Research: v1.1 Infrastructure & Access Control
 
-**Domain:** Agentic sales orchestration — LLM orchestration with RAG, HITL approval flows, Google Workspace output
-**Researched:** 2026-03-03
-**Confidence:** MEDIUM (Mastra AI specifics from training data; core patterns HIGH from established literature)
+**Domain:** Supabase migration, Vercel deployment, and Google OAuth integration into existing Mastra AI + Next.js 15 monorepo
+**Researched:** 2026-03-04
+**Confidence:** MEDIUM-HIGH (Supabase/Prisma/Vercel patterns well-established in training data; Mastra deployment specifics are MEDIUM confidence)
 
 ---
 
-## Standard Architecture
+## Existing Architecture Snapshot
 
-### System Overview
+Before detailing what changes, here is what exists and MUST NOT break:
+
+```
+lumenalta-hackathon/
+├── apps/
+│   ├── web/                    # Next.js 15 (App Router, Server Actions)
+│   │   ├── src/
+│   │   │   ├── app/            # Routes: /deals, /deals/[id], /api/upload
+│   │   │   ├── lib/
+│   │   │   │   ├── api-client.ts       # ALL web->agent HTTP calls (fetchJSON wrapper)
+│   │   │   │   ├── actions/            # Server Actions (deal-actions.ts, touch-actions.ts)
+│   │   │   │   └── error-messages.ts
+│   │   │   ├── components/             # shadcn/ui + custom components
+│   │   │   └── env.ts                  # t3-env: AGENT_SERVICE_URL, NODE_ENV
+│   │   └── next.config.ts
+│   │
+│   └── agent/                  # Mastra Hono server (port 4111)
+│       ├── src/
+│       │   ├── mastra/
+│       │   │   ├── index.ts            # Mastra init: LibSQLStore, workflows, API routes
+│       │   │   └── workflows/          # touch-1 through touch-4, pre-call
+│       │   ├── lib/                    # Google APIs, Drive, AtlusAI client
+│       │   └── env.ts                  # t3-env: DATABASE_URL, Google creds, Vertex AI
+│       └── prisma/
+│           ├── schema.prisma           # SQLite provider, 9 models
+│           ├── dev.db                  # Application database
+│           ├── mastra.db              # Mastra internal state (LibSQL)
+│           └── migrations/             # 4 forward-only migrations
+│
+├── packages/
+│   ├── schemas/                # Shared Zod v4 types + constants
+│   ├── eslint-config/
+│   └── tsconfig/
+│
+├── turbo.json                  # build depends on ^db:generate
+├── pnpm-workspace.yaml
+└── package.json                # pnpm@9.12.0, turbo@^2.3.3
+```
+
+**Critical invariants:**
+- Web app has ZERO direct database access -- all data flows through `api-client.ts` to agent server
+- Agent owns both databases: Prisma (app data) and LibSQL (Mastra workflow state)
+- Mastra workflows use suspend/resume -- workflow state MUST survive server restarts
+- Google API calls use a service account (not user OAuth) -- this stays unchanged
+- Server Actions in web app proxy to agent server -- they do NOT access DB directly
+
+---
+
+## What Changes, What Stays the Same
+
+### STAYS THE SAME (do not touch)
+
+| Component | Why Unchanged |
+|-----------|---------------|
+| `apps/web/src/lib/api-client.ts` | Web->agent HTTP communication pattern is correct; only the BASE_URL changes per environment |
+| `apps/web/src/lib/actions/*.ts` | Server Actions proxy to agent; auth will wrap these, not replace them |
+| `apps/agent/src/mastra/workflows/*.ts` | Workflow logic is database-agnostic; Prisma client handles the switch |
+| `apps/agent/src/lib/` (Google API helpers) | Service account auth is separate from user auth |
+| `packages/schemas/` | Shared Zod types are infrastructure-independent |
+| `turbo.json` | Build pipeline stays the same; Vercel respects Turborepo out of the box |
+| All UI components | Auth wraps the layout, does not change page components |
+
+### CHANGES (new or modified)
+
+| Component | Change Type | Details |
+|-----------|-------------|---------|
+| `apps/agent/prisma/schema.prisma` | **MODIFY** | Change `provider = "sqlite"` to `provider = "postgresql"`, add connection pooling URL |
+| `apps/agent/prisma/migrations/` | **RECREATE** | New Postgres migration baseline (SQLite migrations are not portable) |
+| `apps/agent/prisma/migration_lock.toml` | **MODIFY** | Lock changes from `sqlite` to `postgresql` |
+| `apps/agent/src/env.ts` | **MODIFY** | `DATABASE_URL` becomes a Postgres connection string; add `DIRECT_DATABASE_URL` for migrations |
+| `apps/agent/src/mastra/index.ts` | **MODIFY** | Replace `LibSQLStore` with Postgres-compatible store (see below) |
+| `apps/web/src/env.ts` | **MODIFY** | Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| `apps/web/src/middleware.ts` | **NEW** | Next.js middleware for Supabase Auth session refresh |
+| `apps/web/src/lib/supabase/` | **NEW** | Supabase client factories (server, client, middleware) |
+| `apps/web/src/app/auth/` | **NEW** | Login page, callback route, auth components |
+| `apps/web/src/app/layout.tsx` | **MODIFY** | Wrap with auth provider, add user display in nav |
+| `apps/web/src/lib/api-client.ts` | **MODIFY** | Pass auth token in headers to agent server |
+| `apps/agent/src/mastra/index.ts` API routes | **MODIFY** | Add API key validation middleware for service-to-service auth |
+| `vercel.json` (root) | **NEW** | Vercel project configuration (if needed beyond defaults) |
+| `.env.example` files | **MODIFY** | Add Supabase and deployment env vars |
+
+---
+
+## System Overview: v1.1 Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         PRESENTATION LAYER                          │
-│  ┌─────────────────────┐      ┌──────────────────────────────────┐  │
-│  │   Seller Web UI     │      │    HITL Review Panel             │  │
-│  │  (Next.js / React)  │      │  (brief approval + deck review)  │  │
-│  └──────────┬──────────┘      └────────────┬─────────────────────┘  │
-└─────────────┼───────────────────────────────┼───────────────────────┘
-              │ HTTP / REST                    │ webhook / polling
-┌─────────────▼───────────────────────────────▼───────────────────────┐
-│                         API GATEWAY LAYER                           │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │              Next.js API Routes / Express server             │   │
-│  │  POST /api/pre-call        POST /api/post-call               │   │
-│  │  POST /api/workflow/resume  GET /api/workflow/:id/status      │   │
-│  └──────────────────────────────┬───────────────────────────────┘   │
-└──────────────────────────────────┼──────────────────────────────────┘
-                                   │ function calls
-┌──────────────────────────────────▼──────────────────────────────────┐
-│                      MASTRA AI ORCHESTRATION LAYER                  │
+│                         BROWSER                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │  Next.js App (React 19)                                     │    │
+│  │  Google OAuth login -> Supabase Auth session (cookie-based) │    │
+│  └──────────────────────────┬──────────────────────────────────┘    │
+└──────────────────────────────┼──────────────────────────────────────┘
+                               │ HTTPS
+┌──────────────────────────────▼──────────────────────────────────────┐
+│               VERCEL PROJECT 1: web                                 │
 │                                                                      │
-│  ┌─────────────────────────┐   ┌────────────────────────────────┐   │
-│  │   Pre-Call Workflow      │   │   Post-Call Workflow           │   │
-│  │  ┌───────────────────┐  │   │  ┌──────────────────────────┐  │   │
-│  │  │ Step: ResearchCo  │  │   │  │ Step: ParseTranscript    │  │   │
-│  │  │ Step: GenHypothes │  │   │  │ Step: ValidateSchema     │  │   │
-│  │  │ Step: BuildBriefin│  │   │  │ Step: GenerateBrief      │  │   │
-│  │  │ Step: SaveToDrive │  │   │  │ Step: [SUSPEND → HITL-1] │  │   │
-│  │  └───────────────────┘  │   │  │ Step: RAGRetrieval       │  │   │
-│  └─────────────────────────┘   │  │ Step: AssembleSlideJSON  │  │   │
-│                                 │  │ Step: GenerateCopy       │  │   │
-│  ┌─────────────────────────┐   │  │ Step: CreateGoogleSlides │  │   │
-│  │   Mastra Agents          │   │  │ Step: CreateTalkTrack    │  │   │
-│  │  - ResearchAgent         │   │  │ Step: [SUSPEND → HITL-2] │  │   │
-│  │  - TranscriptAgent       │   │  │ Step: CaptureEdits       │  │   │
-│  │  - ContentAgent          │   │  └──────────────────────────┘  │   │
-│  │  - CopywritingAgent      │   └────────────────────────────────┘   │
-│  └─────────────────────────┘                                         │
-└──────────────────────────────────────────────────────────────────────┘
-         │                    │                        │
-         │ MCP calls          │ Gemini API             │ Google APIs
-         ▼                    ▼                        ▼
-┌──────────────────┐ ┌──────────────────┐ ┌──────────────────────────┐
-│  KNOWLEDGE LAYER │ │   LLM LAYER      │ │   OUTPUT LAYER           │
-│                  │ │                  │ │                           │
-│  AtlusAI MCP     │ │  Gemini 3 Flash  │ │  Google Slides API       │
-│  - Semantic srch │ │  - Transcript    │ │  Google Docs API          │
-│  - Struct search │ │    extraction    │ │  Google Drive API         │
-│  - Doc discovery │ │  - Brief gen     │ │  (service account auth)  │
-│  - Slide chunks  │ │  - Copy gen      │ └──────────────────────────┘
-│  - Case studies  │ │  - FAQ gen       │
-│  - Brand assets  │ └──────────────────┘
-└──────────────────┘
-         │
-┌──────────────────┐
-│  CONTENT INDEX   │
-│  (indexed by:)   │
-│  - industry      │
-│  - subsector     │
-│  - solution pillar│
-│  - persona       │
-│  - funnel stage  │
-└──────────────────┘
+│  ┌────────────────────┐  ┌─────────────────────────────────────┐    │
+│  │  middleware.ts      │  │  Server Actions (deal, touch)      │    │
+│  │  - Session refresh  │  │  - Forward user JWT to agent       │    │
+│  │  - Auth gate        │  │  - Proxy all calls via api-client  │    │
+│  │  - Domain check     │  └──────────────┬──────────────────────┘    │
+│  └────────────────────┘                  │                           │
+│                                          │ HTTP + API Key + JWT      │
+│  ┌────────────────────┐                  │                           │
+│  │  /auth/callback     │                  │                           │
+│  │  (OAuth redirect)   │                  │                           │
+│  └────────────────────┘                  │                           │
+└──────────────────────────────────────────┼───────────────────────────┘
+                                           │
+┌──────────────────────────────────────────▼───────────────────────────┐
+│               VERCEL PROJECT 2: agent                                │
+│                                                                       │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │  Mastra Hono Server                                          │    │
+│  │  - API key validation on all routes                          │    │
+│  │  - Prisma Client -> Supabase PostgreSQL                      │    │
+│  │  - Mastra Storage -> Postgres (or Upstash/Turso for state)   │    │
+│  │  - Workflow suspend/resume (durable state)                   │    │
+│  │  - Google Workspace API calls (service account, unchanged)   │    │
+│  └──────────────────────────────┬───────────────────────────────┘    │
+└──────────────────────────────────┼───────────────────────────────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │    SUPABASE                   │
+                    │                               │
+                    │  ┌─────────────────────────┐  │
+                    │  │  Auth (Google OAuth)     │  │
+                    │  │  - @lumenalta.com only   │  │
+                    │  │  - JWT tokens            │  │
+                    │  └─────────────────────────┘  │
+                    │                               │
+                    │  ┌─────────────────────────┐  │
+                    │  │  PostgreSQL Database     │  │
+                    │  │  - App tables (Prisma)   │  │
+                    │  │  - Supavisor pooling     │  │
+                    │  │  - dev + prod instances  │  │
+                    │  └─────────────────────────┘  │
+                    └───────────────────────────────┘
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │  EXTERNAL SERVICES           │
+                    │  (unchanged from v1.0)       │
+                    │  - Google Slides/Docs/Drive  │
+                    │  - Vertex AI (GPT-OSS 120b)  │
+                    │  - AtlusAI (RAG/MCP)          │
+                    └──────────────────────────────┘
 ```
-
-### Component Responsibilities
-
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| Seller Web UI | Input collection (company name, transcript paste), workflow status display, HITL review panels | Next.js + React, polling or SSE for workflow status |
-| HITL Review Panel | Renders structured brief for approval, shows final deck/doc links for sign-off, captures edit annotations | React component backed by workflow state endpoint |
-| API Gateway | Receives UI requests, validates input, starts Mastra workflows, exposes resume/status endpoints | Next.js API routes or a thin Express layer |
-| Mastra Workflows | Stateful step-by-step orchestration with suspend/resume at HITL checkpoints; owns execution logic | `workflow.createWorkflow()` with typed step definitions |
-| Mastra Agents | Encapsulate LLM calls with tool access; each agent has a specific role (research, parse, copy) | `agent.create()` with system prompt, tools, and model config |
-| AtlusAI MCP Integration | RAG retrieval: semantic search over slide blocks, case studies, brand assets; returns ranked chunks | MCP tool calls from within Mastra workflow steps |
-| Gemini 3 Flash (LLM) | All generation tasks: transcript field extraction, brief synthesis, copy generation, FAQ creation | Gemini API via Mastra model provider; Zod schemas enforce structured output |
-| Zod v4 Schema Layer | Runtime validation of LLM output; rejects incomplete structured data with field-level errors | Defined alongside each workflow step; used in Mastra `.generate()` calls |
-| Google Slides API | Creates slides in shared Lumenalta Drive from assembled slide JSON; sets content and layout | `googleapis` Node client, service account credentials |
-| Google Docs API | Creates talk track and buyer FAQ documents | `googleapis` Node client, service account credentials |
-| Google Drive API | Organizes output artifacts in folder structure, controls sharing | `googleapis` Node client, same service account |
-| Workflow State Store | Persists workflow run state between suspend/resume cycles (HITL checkpoints) | Mastra built-in persistence (typically PostgreSQL or SQLite) |
 
 ---
 
-## Recommended Project Structure
+## Component Integration Details
 
-```
-src/
-├── workflows/               # Mastra workflow definitions
-│   ├── pre-call.workflow.ts    # Pre-call briefing flow (4 steps, no suspend)
-│   ├── post-call.workflow.ts   # Post-call flow (10 steps, 2 suspend points)
-│   └── steps/               # Individual step implementations
-│       ├── research-company.step.ts
-│       ├── parse-transcript.step.ts
-│       ├── validate-transcript.step.ts
-│       ├── generate-brief.step.ts
-│       ├── rag-retrieval.step.ts
-│       ├── assemble-slide-json.step.ts
-│       ├── generate-copy.step.ts
-│       ├── create-google-slides.step.ts
-│       ├── create-talk-track.step.ts
-│       └── capture-edits.step.ts
-│
-├── agents/                  # Mastra agent definitions
-│   ├── research.agent.ts       # Company research via public sources
-│   ├── transcript.agent.ts     # Transcript parsing and extraction
-│   ├── content.agent.ts        # RAG retrieval and slide block selection
-│   └── copywriting.agent.ts    # Copy generation for slide blocks
-│
-├── schemas/                 # Zod v4 schema definitions
-│   ├── transcript-fields.schema.ts   # Extracted transcript structured data
-│   ├── sales-brief.schema.ts         # Multi-Pillar Sales Brief structure
-│   ├── slide-assembly.schema.ts      # Slide JSON assembly output
-│   └── company-research.schema.ts    # Pre-call briefing structure
-│
-├── tools/                   # Mastra tool definitions (callable by agents)
-│   ├── atlusai.tool.ts         # AtlusAI MCP semantic + structured search
-│   ├── google-slides.tool.ts   # Google Slides API write operations
-│   ├── google-docs.tool.ts     # Google Docs API write operations
-│   └── google-drive.tool.ts    # Drive folder creation and file linking
-│
-├── integrations/            # External service clients
-│   ├── atlusai/
-│   │   ├── client.ts           # MCP connection and query methods
-│   │   └── index-content.ts    # One-time content ingestion scripts
-│   └── google/
-│       ├── auth.ts             # Service account credential setup
-│       ├── slides.ts           # Slides API helper functions
-│       ├── docs.ts             # Docs API helper functions
-│       └── drive.ts            # Drive API helper functions
-│
-├── app/                     # Next.js web UI (if collocated)
-│   ├── api/                    # API route handlers
-│   │   ├── pre-call/route.ts
-│   │   ├── post-call/route.ts
-│   │   └── workflow/
-│   │       ├── [id]/status/route.ts
-│   │       └── [id]/resume/route.ts
-│   └── (ui)/                   # React pages and components
-│       ├── pre-call/page.tsx
-│       ├── post-call/page.tsx
-│       └── review/[id]/page.tsx  # HITL review page
-│
-├── lib/                     # Shared utilities
-│   ├── taxonomy.ts             # 11 industry / 62 subsector definitions
-│   ├── quality-checker.ts      # Output quality checklist validation
-│   └── feedback-logger.ts      # Captures human edits for refinement loop
-│
-└── mastra.config.ts         # Mastra framework entry point and registration
+### 1. Database Migration: SQLite -> Supabase PostgreSQL
+
+**What changes in Prisma:**
+
+The schema.prisma file changes minimally -- SQLite and PostgreSQL share most Prisma syntax. Key differences:
+
+```prisma
+// BEFORE (v1.0)
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// AFTER (v1.1)
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")       // Supavisor pooled connection (port 6543)
+  directUrl = env("DIRECT_DATABASE_URL") // Direct connection (port 5432, for migrations)
+}
 ```
 
-### Structure Rationale
+**Schema changes needed for Postgres compatibility:**
+- `String` fields used for JSON blobs (e.g., `payload`, `tags`, `inputs`) can stay as `String` (Postgres TEXT) or be upgraded to `Json` type for better querying. Recommendation: keep as `String` for v1.1 to minimize diff; upgrade to `Json` in v1.2 when query patterns demand it.
+- `@default(cuid())` works identically in Postgres.
+- `DateTime` fields work identically.
+- `@@index` annotations work identically.
+- The `@unique` constraint on `ContentSource.name` and `ImageAsset.driveFileId` works identically.
 
-- **workflows/ vs agents/:** Workflows own the stateful execution graph including suspend points; agents own the LLM interaction logic. Keeping them separate prevents coupling orchestration state to model behavior.
-- **schemas/:** Centralizing Zod schemas ensures the same validation is used in both Mastra `.generate()` calls and API route input validation. Single source of truth for data contracts.
-- **tools/:** Mastra tools are the formal boundary between agents and external services. All Google API and AtlusAI calls go through tools, making them testable and replaceable.
-- **integrations/:** Raw API clients with no Mastra coupling. This layer can be tested independently and swapped if AtlusAI or Google credentials change.
-- **lib/taxonomy.ts:** The 11-industry / 62-subsector taxonomy is a shared constant referenced by both the UI (dropdowns) and the RAG retrieval step (filter parameters). One definition, many consumers.
+**Migration strategy (forward-only, per CLAUDE.md rules):**
+1. Create a NEW Supabase project (dev instance)
+2. Change `schema.prisma` provider to `postgresql`
+3. Delete the `migrations/` directory (SQLite migrations cannot be applied to Postgres -- the SQL dialects differ)
+4. Delete `migration_lock.toml`
+5. Run `prisma migrate dev --name init-postgres` to generate a fresh Postgres baseline
+6. The dev.db SQLite file becomes irrelevant for deployed environments but stays in .gitignore for local reference
+7. Seed data can be re-run via `prisma db seed`
+
+**Confidence:** HIGH -- Prisma provider switching is well-documented and the schema uses no SQLite-specific features.
+
+**Connection string format (Supabase):**
+```
+# Pooled (for application connections -- use in DATABASE_URL)
+postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true
+
+# Direct (for migrations -- use in DIRECT_DATABASE_URL)
+postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
+```
+
+**Confidence:** HIGH -- Supabase connection string format is stable and well-documented.
+
+### 2. Mastra Internal Storage Migration
+
+**Current state:** Mastra uses `LibSQLStore` pointing to a local `file:./prisma/mastra.db` SQLite file. This stores workflow execution state, suspend/resume snapshots, and step outputs.
+
+**Problem for Vercel:** Vercel serverless functions have an ephemeral filesystem. A local SQLite file will be lost between invocations. The Mastra storage backend MUST move to a networked database.
+
+**Options (ordered by recommendation):**
+
+| Option | Recommendation | Notes |
+|--------|---------------|-------|
+| `@mastra/pg` (PostgresStore) | **RECOMMENDED** | Uses the same Supabase Postgres instance; Mastra stores its tables in a separate schema. Single database, no extra service. |
+| Turso (LibSQL cloud) | Alternative | LibSQLStore already works; Turso is the hosted version. Adds another service but keeps the LibSQL compatibility. |
+| Upstash Redis | Not recommended | Different data model; Mastra's Postgres store is more natural for workflow state. |
+
+**Implementation:**
+
+```typescript
+// BEFORE (v1.0)
+import { LibSQLStore } from "@mastra/libsql";
+
+export const mastra = new Mastra({
+  storage: new LibSQLStore({
+    id: "mastra-store",
+    url: "file:./prisma/mastra.db",
+  }),
+  // ...
+});
+
+// AFTER (v1.1) -- using @mastra/pg
+import { PostgresStore } from "@mastra/pg";
+
+export const mastra = new Mastra({
+  storage: new PostgresStore({
+    connectionString: process.env.DATABASE_URL!,
+  }),
+  // ...
+});
+```
+
+**Confidence:** MEDIUM -- `@mastra/pg` package name and API are based on Mastra documentation patterns from training data. The exact import path and constructor shape should be verified against current Mastra v1.8 docs. If `@mastra/pg` does not exist, Mastra may use a different package name like `@mastra/postgres` or accept a Drizzle/Prisma adapter. **Verify on npmjs.com before implementing.**
+
+**Risk:** If Mastra does not have a first-party Postgres storage adapter, the fallback is Turso (hosted LibSQL, which `@mastra/libsql` already supports -- just change the URL from `file:` to `libsql://`).
+
+### 3. Google OAuth via Supabase Auth
+
+**Architecture decision:** Authentication lives entirely in `apps/web`. The agent server does NOT handle user authentication -- it validates a shared API key for service-to-service trust.
+
+**Why Supabase Auth (not NextAuth/Auth.js):**
+- Single platform: Database and auth from the same provider eliminates credential sprawl
+- Google OAuth is a first-class Supabase Auth provider
+- Domain restriction (`@lumenalta.com`) is handled server-side in Supabase
+- JWT tokens are automatically managed via Supabase client libraries
+- No additional service to deploy or manage
+
+**Components to add in `apps/web`:**
+
+```
+apps/web/src/
+├── lib/
+│   └── supabase/
+│       ├── client.ts           # createBrowserClient() for client components
+│       ├── server.ts           # createServerClient() for Server Actions/RSC
+│       └── middleware.ts       # createServerClient() for middleware session refresh
+├── middleware.ts               # NEW: Auth gate + session refresh at edge
+├── app/
+│   ├── auth/
+│   │   ├── login/page.tsx      # Login page with "Sign in with Google" button
+│   │   └── callback/route.ts   # OAuth callback handler (GET /auth/callback)
+│   └── layout.tsx              # MODIFIED: conditional auth wrapper
+```
+
+**Auth flow:**
+
+```
+1. User visits any page
+       │
+2. middleware.ts intercepts
+       │
+       ├── Has valid Supabase session cookie? -> Allow through
+       │
+       └── No session? -> Redirect to /auth/login
+                              │
+3. User clicks "Sign in with Google"
+       │
+4. supabase.auth.signInWithOAuth({ provider: 'google' })
+       │   -> Redirects to Google consent screen
+       │   -> Google authenticates, checks @lumenalta.com domain (via Google Workspace)
+       │
+5. Google redirects to /auth/callback?code=...
+       │
+6. /auth/callback/route.ts exchanges code for session
+       │   -> supabase.auth.exchangeCodeForSession(code)
+       │   -> Supabase sets session cookies
+       │   -> Server-side check: if email domain !== '@lumenalta.com', sign out + error
+       │
+7. Redirect to /deals (authenticated)
+```
+
+**Domain restriction enforcement (defense in depth):**
+
+1. **Google Cloud Console:** Configure the OAuth consent screen as "Internal" (Google Workspace). This inherently restricts to `@lumenalta.com` users at the Google level. No external user can even reach the consent screen.
+
+2. **Supabase callback (server-side):** In `/auth/callback/route.ts`, verify `user.email?.endsWith('@lumenalta.com')`. If not, immediately sign out and redirect with error. This catches edge cases where OAuth consent screen is misconfigured as "External."
+
+3. **middleware.ts (edge):** On every request, validate session exists and has not expired. If expired, Supabase client automatically refreshes the token using the refresh token cookie.
+
+**Confidence:** HIGH for the auth flow pattern (Supabase + Next.js + Google OAuth is thoroughly documented). MEDIUM for the exact `@supabase/ssr` API as it was evolving through 2025.
+
+**Key dependency:** `@supabase/ssr` (replaces the deprecated `@supabase/auth-helpers-nextjs`). This is the current official package for Next.js App Router integration with Supabase Auth.
+
+### 4. Vercel Deployment: Two Projects
+
+**Why two Vercel projects (not one):**
+- `apps/web` is a Next.js app -- Vercel's primary deployment target with zero-config
+- `apps/agent` is a Mastra/Hono server -- NOT a Next.js app; needs a different build and runtime
+- Different scaling characteristics: web is request-response, agent has long-running workflows
+- Independent environment variables per project
+- Independent preview URLs per project (each PR gets both a web and agent preview)
+
+**Vercel project configuration:**
+
+| Setting | web project | agent project |
+|---------|-------------|---------------|
+| Root Directory | `apps/web` | `apps/agent` |
+| Framework Preset | Next.js | Other |
+| Build Command | `cd ../.. && pnpm turbo build --filter=web` | `cd ../.. && pnpm turbo build --filter=agent` |
+| Output Directory | `.next` | `.mastra/output` (verify Mastra build output) |
+| Install Command | `pnpm install` | `pnpm install` |
+| Node.js Version | 20.x | 20.x |
+
+**Monorepo handling:** Vercel natively detects pnpm workspaces and Turborepo. Setting the Root Directory tells Vercel which app to build. The Install Command runs at the workspace root so all workspace dependencies (including `packages/schemas`) are available.
+
+**Environment variables per Vercel project:**
+
+Web project:
+```
+AGENT_SERVICE_URL=https://agent-[project].vercel.app  (prod)
+                  https://agent-[hash]-[project].vercel.app  (preview)
+NEXT_PUBLIC_SUPABASE_URL=https://[project-ref].supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+AGENT_API_KEY=shared-secret-for-service-auth
+```
+
+Agent project:
+```
+DATABASE_URL=postgresql://...@pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_DATABASE_URL=postgresql://...@pooler.supabase.com:5432/postgres
+GOOGLE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
+GOOGLE_DRIVE_FOLDER_ID=...
+GOOGLE_TEMPLATE_PRESENTATION_ID=...
+MEET_LUMENALTA_PRESENTATION_ID=...
+CAPABILITY_DECK_PRESENTATION_ID=...
+GOOGLE_CLOUD_PROJECT=...
+GOOGLE_CLOUD_LOCATION=us-central1
+GOOGLE_APPLICATION_CREDENTIALS=  (handled differently on Vercel -- see pitfall)
+AGENT_API_KEY=shared-secret-for-service-auth
+```
+
+**Confidence:** HIGH for web deployment (Next.js on Vercel is trivial). MEDIUM for agent deployment -- Mastra's `mastra build` produces a standalone Hono server, and its compatibility with Vercel's serverless/edge model needs verification.
+
+### 5. Agent Server on Vercel: The Key Challenge
+
+**Problem:** The Mastra agent runs as a long-lived Hono server (`mastra dev` / `mastra build`). Vercel's default deployment model is serverless functions with a 10-second (hobby) to 300-second (pro) timeout. Mastra workflows (especially Touch 4) can run for 30-120 seconds including multiple LLM calls and Google API operations.
+
+**Options:**
+
+| Option | Viability | Notes |
+|--------|-----------|-------|
+| Vercel Serverless Functions | **RISKY** | 300s max on Pro plan. Touch 4 workflows may exceed this. Cold starts add latency. |
+| Vercel Fluid Compute | **POSSIBLE** | Allows streaming/long-running functions. Check if Mastra's Hono adapter is compatible. |
+| Separate hosting (Railway, Fly.io, Render) | **SAFEST** | Deploy agent as a persistent Node.js process. No timeout limits. Adds another platform but eliminates timeout risk. |
+| Vercel + background function pattern | **RECOMMENDED** | Start workflow in a serverless function, return runId immediately. Workflow executes asynchronously (with Postgres-backed state). Client polls for completion. This already matches the existing architecture. |
+
+**Recommended approach:** Deploy the agent to Vercel as a Node.js serverless function, BUT restructure long workflows to use Mastra's durable execution with Postgres-backed state. The existing poll-based UI pattern (`getWorkflowStatus(runId)` every 3s) already handles this. The key is ensuring that Mastra's workflow engine can survive function restarts between polls -- which is exactly what the storage backend migration (LibSQL -> Postgres) enables.
+
+If Vercel's `mastra build` output does not map to a Vercel-deployable artifact, the fallback is:
+1. Deploy agent to **Railway** (persistent Node.js process, $5/mo, zero config for Docker)
+2. Web stays on Vercel, AGENT_SERVICE_URL points to Railway
+
+**Confidence:** MEDIUM -- the Mastra build artifact structure and Vercel compatibility require verification. The poll-based pattern is sound regardless of hosting platform.
+
+### 6. Service-to-Service Authentication (Web -> Agent)
+
+**Current state:** `api-client.ts` calls the agent server with no authentication. This is fine for local development but unacceptable for production.
+
+**Recommended approach: Shared API key**
+
+```typescript
+// apps/web/src/lib/api-client.ts (MODIFIED)
+async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": env.AGENT_API_KEY,      // NEW: shared secret
+      ...init?.headers,
+    },
+  });
+  // ...
+}
+
+// apps/agent/src/mastra/index.ts (add middleware to all routes)
+// Validate X-API-Key header on every request
+function validateApiKey(c: Context, next: () => Promise<void>) {
+  const apiKey = c.req.header("X-API-Key");
+  if (apiKey !== process.env.AGENT_API_KEY) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  return next();
+}
+```
+
+**Why not JWT forwarding from user session:**
+- The agent server does not need to know WHO the user is -- it processes workflows for the platform
+- Adding JWT verification to the agent would create a dependency on Supabase Auth from the agent, coupling the services
+- A shared API key is simpler and sufficient for a private service-to-service link
+- If user-level audit logging is needed later, the web app can include a `X-User-Email` header alongside the API key
+
+**Confidence:** HIGH -- this is the standard pattern for internal service communication where both services are controlled by the same team.
+
+---
+
+## Data Flow Changes
+
+### Authentication Flow (NEW)
+
+```
+Browser
+    │
+    │  GET /deals
+    ▼
+middleware.ts
+    │
+    ├── supabase.auth.getUser() -> valid session?
+    │       │
+    │       ├── YES -> pass through to page
+    │       │
+    │       └── NO -> redirect /auth/login
+    │
+    │  User clicks "Sign in with Google"
+    ▼
+supabase.auth.signInWithOAuth({ provider: 'google' })
+    │
+    │  -> Google OAuth consent (Internal, @lumenalta.com only)
+    │  -> Redirect to /auth/callback?code=...
+    ▼
+/auth/callback/route.ts
+    │
+    │  supabase.auth.exchangeCodeForSession(code)
+    │  verify email domain === '@lumenalta.com'
+    │  set session cookies
+    ▼
+Redirect to /deals (authenticated)
+```
+
+### Modified Web -> Agent Flow
+
+```
+Server Action (deal-actions.ts / touch-actions.ts)
+    │
+    │  fetchJSON(path, { headers: { "X-API-Key": AGENT_API_KEY } })
+    ▼
+Agent Server (Mastra Hono)
+    │
+    │  validateApiKey middleware -> 401 if invalid
+    │  Prisma Client -> Supabase PostgreSQL (pooled)
+    │  Mastra Storage -> Supabase PostgreSQL
+    ▼
+Response -> Server Action -> Client Component
+```
+
+### Database Connections
+
+```
+apps/agent (Vercel serverless)
+    │
+    ├── Prisma Client ──────> Supabase Supavisor (port 6543, pgbouncer=true)
+    │                          └── PostgreSQL (app tables)
+    │
+    ├── Prisma Migrate ─────> Supabase Direct (port 5432)
+    │   (CI/CD or local only)  └── PostgreSQL (DDL operations)
+    │
+    └── Mastra PostgresStore -> Supabase Supavisor (port 6543)
+                                 └── PostgreSQL (mastra.* schema/tables)
+```
+
+---
+
+## Recommended Project Structure Changes
+
+```
+apps/web/src/
+├── middleware.ts                    # NEW: auth gate + session refresh
+├── lib/
+│   ├── supabase/                   # NEW: Supabase client factories
+│   │   ├── client.ts               #   createBrowserClient()
+│   │   ├── server.ts               #   createServerClient() for RSC/Actions
+│   │   └── middleware.ts           #   createServerClient() for edge middleware
+│   ├── api-client.ts               # MODIFIED: add X-API-Key header
+│   └── actions/                    # UNCHANGED (but auth-protected by middleware)
+├── app/
+│   ├── auth/                       # NEW: auth routes
+│   │   ├── login/page.tsx          #   Google sign-in button
+│   │   └── callback/route.ts       #   OAuth code exchange
+│   ├── layout.tsx                  # MODIFIED: auth context wrapper
+│   └── ...                         # UNCHANGED
+└── env.ts                          # MODIFIED: add Supabase env vars
+
+apps/agent/
+├── prisma/
+│   ├── schema.prisma               # MODIFIED: postgresql provider + directUrl
+│   └── migrations/                 # RECREATED: fresh postgres baseline
+├── src/
+│   ├── mastra/
+│   │   └── index.ts                # MODIFIED: PostgresStore, API key middleware
+│   └── env.ts                      # MODIFIED: DATABASE_URL, DIRECT_DATABASE_URL, AGENT_API_KEY
+└── package.json                    # MODIFIED: add @mastra/pg, remove @mastra/libsql (maybe)
+```
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Workflow-as-State-Machine with Suspend/Resume
+### Pattern 1: Supabase Auth with Next.js App Router (Server-Side Sessions)
 
-**What:** Each workflow is a directed graph of steps. Steps produce typed output consumed by subsequent steps. At HITL checkpoints, the workflow suspends and stores its state to persistent storage. A human action (API call from the UI) resumes the workflow with approval data injected as the next step's input.
+**What:** Use `@supabase/ssr` to create Supabase clients in three contexts: browser (client components), server (RSC/Server Actions), and middleware (edge runtime). Sessions are stored in HTTP-only cookies, not localStorage.
 
-**When to use:** Any flow that requires human decision-making in the middle of an automated pipeline. Required for both HITL-1 (brief approval) and HITL-2 (final assets sign-off).
+**When to use:** Always for Supabase + Next.js App Router. The `@supabase/ssr` package handles cookie serialization across all three contexts.
 
-**Trade-offs:** Adds complexity of durable state storage; eliminates the risk of losing work in progress if the process dies between human actions.
-
-**Example:**
-```typescript
-// post-call.workflow.ts (Mastra v0.x pattern)
-import { createWorkflow, createStep } from '@mastra/core';
-import { generateBriefStep } from './steps/generate-brief.step';
-import { salesBriefSchema } from '../schemas/sales-brief.schema';
-
-export const postCallWorkflow = createWorkflow({
-  name: 'post-call-deck-generation',
-  triggerSchema: z.object({
-    transcript: z.string(),
-    industry: z.string(),
-    subsector: z.string(),
-    sellerId: z.string(),
-  }),
-})
-  .step(parseTranscriptStep)
-  .step(validateTranscriptStep)
-  .step(generateBriefStep)
-  // Suspend here; workflow persists state; UI polls /workflow/:id/status
-  .step(hitlCheckpoint1Step)   // emits { status: 'awaiting_approval', briefData: ... }
-  .afterEvent('brief-approved') // resumes on explicit resume call
-  .step(ragRetrievalStep)
-  .step(assembleSlideJsonStep)
-  .step(generateCopyStep)
-  .step(createGoogleSlidesStep)
-  .step(createTalkTrackStep)
-  .step(hitlCheckpoint2Step)   // second suspend
-  .afterEvent('assets-approved')
-  .step(captureEditsStep)
-  .commit();
-```
-
-### Pattern 2: Agent-per-Concern with Typed Tool Boundaries
-
-**What:** Each LLM-interaction concern gets its own agent with a scoped system prompt, a specific set of tools, and a Zod-validated output schema. Agents do not call each other directly; they are invoked by workflow steps which pass typed context.
-
-**When to use:** Whenever the same capability (e.g., RAG retrieval) is needed in multiple workflow steps, or when a single LLM call must be constrained to a specific domain (e.g., copywriting agent only writes copy — it never researches companies).
-
-**Trade-offs:** More files and definitions upfront; prevents prompt contamination across concerns; each agent is independently testable with mock tool responses.
+**Trade-offs:** Slightly more boilerplate than NextAuth (3 client factory files), but gives direct access to Supabase's full auth API including RLS, JWT claims, and admin operations.
 
 **Example:**
 ```typescript
-// agents/content.agent.ts
-import { createAgent } from '@mastra/core';
-import { atlusaiTool } from '../tools/atlusai.tool';
+// apps/web/src/lib/supabase/server.ts
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-export const contentAgent = createAgent({
-  name: 'content-retrieval',
-  instructions: `You are a content retrieval specialist for Lumenalta's sales collateral library.
-    Given an industry, subsector, solution pillars, and deal context, retrieve the most relevant
-    slide blocks, case studies, and capability descriptions. Return ONLY content from the library.
-    Never generate layouts or capabilities not present in the retrieved content.`,
-  model: geminiFlash,
-  tools: { atlusai: atlusaiTool },
-  defaultGenerateOptions: {
-    output: slideRetrievalSchema,  // Zod schema enforces structured retrieval result
-  },
-});
+export async function createSupabaseServerClient() {
+  const cookieStore = await cookies();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+}
 ```
 
-### Pattern 3: RAG as a Workflow Step, Not Agent Intelligence
+### Pattern 2: Edge Middleware Auth Gate
 
-**What:** RAG retrieval is treated as a discrete, explicit workflow step rather than an implicit capability of an agent. The retrieval step calls AtlusAI via MCP with structured filter parameters (industry, solution pillar, funnel stage), receives ranked chunks, and passes the chunk set to the next step as typed context.
+**What:** Next.js middleware runs on every request before the page renders. Use it to check auth state and redirect unauthenticated users. Do NOT use it for heavy logic -- just session validation.
 
-**When to use:** When retrieval quality is a first-class concern — explicit steps are observable, debuggable, and replaceable. Prevents the model from "deciding" when to retrieve content.
+**When to use:** For protecting all routes except `/auth/*` and static assets.
 
-**Trade-offs:** More deterministic and auditable than letting an agent autonomously decide to call a retrieval tool; less flexible if retrieval needs to be iterative (e.g., refine query based on initial results).
+**Trade-offs:** Runs on Vercel's edge network (fast), but cannot access Node.js APIs. The Supabase middleware client is edge-compatible.
 
 **Example:**
 ```typescript
-// steps/rag-retrieval.step.ts
-export const ragRetrievalStep = createStep({
-  id: 'rag-retrieval',
-  inputSchema: salesBriefSchema,  // Output of HITL-1 approved brief
-  outputSchema: retrievedContentSchema,
-  execute: async ({ context }) => {
-    const { primaryPillar, secondaryPillar, industry, subsector } = context;
-    const chunks = await atlusaiClient.semanticSearch({
-      query: buildRetrievalQuery(primaryPillar, industry),
-      filters: { industry, subsector, solutionPillar: primaryPillar, funnelStage: 'proposal' },
-      topK: 15,
-    });
-    return { slideBlocks: chunks.slides, caseStudies: chunks.cases };
-  },
-});
+// apps/web/src/middleware.ts
+import { NextResponse, type NextRequest } from "next/server";
+import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware";
+
+export async function middleware(request: NextRequest) {
+  const { supabase, response } = createSupabaseMiddlewareClient(request);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Allow auth routes and static assets
+  if (request.nextUrl.pathname.startsWith("/auth")) {
+    return response;
+  }
+
+  // Redirect unauthenticated users to login
+  if (!user) {
+    return NextResponse.redirect(new URL("/auth/login", request.url));
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};
 ```
 
-### Pattern 4: Schema-First Output Contract (Zod v4 + Gemini Structured Output)
+### Pattern 3: Prisma Dual Connection URLs for Supabase
 
-**What:** Every LLM generation call is constrained by a Zod v4 schema passed to Gemini's structured output mode. The schema defines exactly what fields the LLM must produce. If the output fails validation, the workflow step rejects it and returns a field-level error to the caller.
+**What:** Supabase provides two connection endpoints -- a pooled connection (Supavisor, port 6543) for application queries, and a direct connection (port 5432) for schema migrations. Prisma needs both.
 
-**When to use:** For every extraction and generation step. Especially critical for transcript parsing (missing fields must surface as specific errors, not null outputs).
+**When to use:** Always when using Prisma with Supabase in a serverless environment.
 
-**Trade-offs:** Requires careful schema design upfront; greatly reduces hallucinated or malformed output; validation errors are human-readable and can be surfaced to the seller UI.
+**Trade-offs:** Requires managing two connection strings, but this is standard Supabase practice.
+
+**Example:**
+```prisma
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")        // pooled: port 6543, pgbouncer=true
+  directUrl = env("DIRECT_DATABASE_URL") // direct: port 5432 (migrations only)
+}
+```
+
+### Pattern 4: API Key Service Authentication
+
+**What:** The web app includes a shared secret (API key) in every request to the agent server. The agent validates this key before processing any request. No user identity is forwarded -- the agent trusts the web app.
+
+**When to use:** When two services are controlled by the same team and the downstream service (agent) does not need user-level authorization.
+
+**Trade-offs:** Simpler than JWT/mTLS but requires secure key rotation practices. Sufficient for this use case.
 
 ---
 
-## Data Flow
+## Anti-Patterns
 
-### Pre-Call Briefing Flow
+### Anti-Pattern 1: Adding Supabase Auth to the Agent Server
 
-```
-Seller inputs company name + buyer role + meeting context
-    ↓
-POST /api/pre-call  →  starts Mastra pre-call workflow
-    ↓
-[Step: ResearchCompany]
-    ↓  AtlusAI MCP (Lumenalta solution matching)
-    ↓  (public sources via research agent tools)
-    → company snapshot: { initiatives, news, financials, relevantSolutions }
-    ↓
-[Step: GenerateHypotheses]  →  Gemini Flash
-    → hypotheses: string[]
-    → discoveryQuestions: { question, mappedSolution, priority }[]
-    ↓
-[Step: BuildBriefingDoc]  →  assembles formatted one-pager JSON
-    ↓
-[Step: SaveToDrive]  →  Google Drive API (service account)
-    → driveFileUrl: string
-    ↓
-UI polls workflow status  →  displays formatted briefing + Drive link
-```
+**What people do:** Import `@supabase/ssr` into `apps/agent` and verify user JWTs on every agent API route.
 
-### Post-Call Transcript → Deck Flow (with HITL)
+**Why it's wrong:** The agent server is an internal service. Adding user auth creates tight coupling between user identity and workflow execution. It also requires the agent to know about Supabase, doubling the auth configuration surface.
 
-```
-Seller pastes transcript + selects industry + subsector
-    ↓
-POST /api/post-call  →  starts Mastra post-call workflow  →  workflowId returned
-    ↓
-[Step: ParseTranscript]  →  Gemini Flash + transcriptFieldsSchema
-    → { customerContext, businessOutcomes, constraints, stakeholders, timeline, budget }
-    ↓
-[Step: ValidateTranscript]  →  Zod validation
-    IF missing critical fields:
-    → workflow returns { status: 'incomplete', missingFields: string[] }
-    → UI shows seller which fields are missing BEFORE proceeding
-    ↓ (all fields present)
-[Step: GenerateBrief]  →  Gemini Flash + salesBriefSchema
-    → { primaryPillar, secondaryPillar, positioning, roiStatements, valueHypothesis }
-    ↓
-[Step: HITL Checkpoint 1]  →  workflow SUSPENDS
-    → persists { workflowId, briefData, status: 'awaiting_brief_approval' }
-    → notifies seller + SME (email / UI notification)
+**Do this instead:** The web app is the auth boundary. It validates user sessions and forwards requests to the agent with a simple API key. The agent trusts the web app.
 
-    === HUMAN ACTION: Seller + SME review brief in /review/:workflowId ===
+### Anti-Pattern 2: Using Supabase Client Library for Database Queries
 
-POST /api/workflow/:id/resume  { approved: true, edits: {...} }
-    ↓
-[Step: RAGRetrieval]  →  AtlusAI MCP semantic search
-    → { slideBlocks: SlideChunk[], caseStudies: CaseStudy[] }
-    ↓
-[Step: AssembleSlideJSON]  →  Gemini Flash + slideAssemblySchema
-    → ordered array of { slideId, layout, contentFields: {} }
-    ↓
-[Step: GenerateCopy]  →  Gemini Flash (copywritingAgent)
-    → each slideId populated with bespoke copy strings
-    ↓
-[Step: CreateGoogleSlides]  →  Google Slides API (service account)
-    → creates presentation in shared Drive folder
-    → returns { presentationId, driveUrl }
-    ↓
-[Step: CreateTalkTrack]  →  Google Docs API
-    → returns { talkTrackDocId, faqDocId }
-    ↓
-[Step: HITL Checkpoint 2]  →  workflow SUSPENDS
-    → persists { workflowId, assets: { slidesUrl, talkTrackUrl, faqUrl }, status: 'awaiting_final_approval' }
-    → notifies Seller, SME, Marketing, Solutions
+**What people do:** Replace Prisma with `supabase.from('companies').select('*')` for database access, since Supabase provides a client library.
 
-    === HUMAN ACTION: Reviewers approve / annotate in /review/:workflowId ===
+**Why it's wrong:** The existing codebase has 9 Prisma models with relations, indices, and a migration history. Replacing Prisma with the Supabase JS client would rewrite all data access code. Prisma connects directly to PostgreSQL via the connection string -- it does not know or care that the database is hosted on Supabase.
 
-POST /api/workflow/:id/resume  { approved: true, humanEdits: {...} }
-    ↓
-[Step: CaptureEdits]  →  logs edit delta to feedback store
-    → updates few-shot examples for refinement loop
-    ↓
-Workflow complete  →  final status: { status: 'complete', assets: {...} }
-```
+**Do this instead:** Keep Prisma as the ORM. Point `DATABASE_URL` at the Supabase Postgres connection string. Supabase is just a managed Postgres host from Prisma's perspective.
 
-### State Management
+### Anti-Pattern 3: Single Vercel Project for Both Apps
 
-```
-Mastra Workflow State Store (PostgreSQL / SQLite)
-    ↓ (persists on each step completion)
-Workflow Run Record:
-  - workflowId: uuid
-  - status: 'running' | 'suspended' | 'complete' | 'error'
-  - currentStep: string
-  - stepOutputs: Record<stepId, typedOutput>   ← typed, validated
-  - suspendPayload: object                      ← data for HITL UI rendering
-  - createdAt / updatedAt
+**What people do:** Try to deploy both `apps/web` and `apps/agent` from a single Vercel project using rewrites or custom routing.
 
-UI polling: GET /api/workflow/:id/status
-    → returns { status, suspendPayload } on suspension
-    → HITL review page renders suspendPayload directly
-```
+**Why it's wrong:** Web and agent have different build commands (`next build` vs `mastra build`), different runtimes, different scaling needs, and different environment variables. Cramming them into one project creates deployment fragility.
+
+**Do this instead:** Two Vercel projects, one Git repo. Each project has its Root Directory set to the respective app. Both build from the same commit.
+
+### Anti-Pattern 4: Storing Supabase Service Role Key in Web App
+
+**What people do:** Use `SUPABASE_SERVICE_ROLE_KEY` in the web app for admin operations.
+
+**Why it's wrong:** The service role key bypasses Row-Level Security and has full database access. If it leaks to the client (easy mistake in Next.js), it compromises the entire database.
+
+**Do this instead:** Use only `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the web app. If admin operations are needed, add them as agent API routes and call them through the authenticated api-client.
+
+---
+
+## Integration Points
+
+### External Services (v1.1 additions)
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Supabase Auth | `@supabase/ssr` in `apps/web` only; Google OAuth provider configured in Supabase Dashboard | OAuth consent screen must be "Internal" in Google Cloud Console for domain restriction. Supabase project needs Google OAuth client ID/secret. |
+| Supabase PostgreSQL | Prisma Client connects via `DATABASE_URL` (pooled) in `apps/agent` | No code change in data access layer -- only connection string changes. Add `?pgbouncer=true` for pooled connections. |
+| Vercel (hosting) | Two projects via Vercel Dashboard or CLI; Git integration for auto-deploy | Both projects deploy from same repo. Preview environments need preview-specific AGENT_SERVICE_URL. |
+
+### Internal Boundaries (v1.1 additions)
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| Browser <-> Web (auth) | Supabase Auth cookies (HTTP-only, automatic refresh) | No custom token management needed; `@supabase/ssr` handles it |
+| Web middleware <-> Supabase | Edge-compatible HTTP call to Supabase Auth API | Runs on every request; fast because Supabase Auth API is designed for this |
+| Web Server Actions <-> Agent | HTTP + `X-API-Key` header | Same pattern as v1.0 but with auth header added |
+| Agent <-> Supabase DB | Prisma Client over PostgreSQL wire protocol | Connection pooling via Supavisor; Prisma's connection pool should be set low (~5) for serverless |
 
 ---
 
@@ -385,142 +691,129 @@ UI polling: GET /api/workflow/:id/status
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| 0-50 sellers (hackathon / v1) | Single Next.js server, in-process Mastra, SQLite state store, one service account. No queue needed. |
-| 50-500 sellers | Move workflow execution to background workers (BullMQ job queue). Decouple API server from workflow runner. Add PostgreSQL for workflow state. |
-| 500+ sellers | Horizontally scale workflow workers. Add workflow timeout handling and dead-letter queues. Consider separate RAG caching layer for high-frequency AtlusAI queries. |
+| 0-20 users (v1.1 launch) | Current architecture is sufficient. Supabase free tier handles this. Vercel hobby/pro handles the traffic. |
+| 20-100 users | Monitor Supabase connection count. Serverless can exhaust Postgres connections quickly. Supavisor pooling handles this. Set Prisma `connection_limit=5` in DATABASE_URL. |
+| 100+ users | Consider moving agent to a persistent process (Railway/Fly.io) to avoid cold starts and connection churn. Add Supabase Pro plan for higher connection limits. |
 
 ### Scaling Priorities
 
-1. **First bottleneck:** Gemini API rate limits. Each workflow run makes 4-6 Gemini calls. At high concurrency, implement per-seller request queuing.
-2. **Second bottleneck:** Google Slides API. Service account has per-minute write limits. Batch slide creation requests and add retry with exponential backoff.
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Monolithic "Super-Agent" that Does Everything
-
-**What people do:** Create one agent with every tool attached and ask it to run the full pipeline end-to-end in a single prompt.
-
-**Why it's wrong:** A single agent context cannot reliably extract transcript fields, do RAG retrieval, assemble a slide structure, and write copy in one pass. Each concern has different instructions. Mixing them causes the model to drift, hallucinate, or ignore constraints from earlier in the prompt.
-
-**Do this instead:** One agent per concern, each with a scoped system prompt and only the tools it needs. Workflow steps compose agents in sequence.
-
-### Anti-Pattern 2: Generating Slides Without Validating the Brief
-
-**What people do:** Skip structured brief validation and pipe transcript text directly to a slide generation prompt to save steps.
-
-**Why it's wrong:** Missing budget, unclear stakeholders, or generic problem framing will propagate into every generated slide. Errors are expensive to fix post-generation. The HITL-1 brief approval checkpoint exists specifically to catch this.
-
-**Do this instead:** Hard-stop the pipeline at HITL-1. Zero slides are generated until the structured brief is explicitly approved. Zod validation of the brief schema is a prerequisite for the resume call.
-
-### Anti-Pattern 3: Inline Google API Calls Inside LLM Tool Definitions
-
-**What people do:** Embed the full Google Slides API logic inside the agent's tool definition so the agent can "decide" when to create slides.
-
-**Why it's wrong:** Agents should not control when slides are created — that is a workflow orchestration decision. If an agent creates slides during a reasoning loop, the workflow loses the ability to gate creation behind HITL approval.
-
-**Do this instead:** Google API operations are only invoked from explicit workflow steps (not from agent tools). Agents produce structured JSON; workflow steps call the Google API with that JSON.
-
-### Anti-Pattern 4: Storing the Full Transcript in Every Step's Context
-
-**What people do:** Pass the raw transcript string as context to every downstream step for "reference."
-
-**Why it's wrong:** Wastes token budget and increases Gemini API costs per call. After the parse step, the transcript has been reduced to structured fields.
-
-**Do this instead:** The parse step outputs a typed schema. All downstream steps consume the typed output, not the raw transcript. Keep the raw transcript in workflow state but only inject it where explicitly needed.
-
-### Anti-Pattern 5: MCP Content Ingestion as a Runtime Operation
-
-**What people do:** Try to ingest and index Lumenalta content assets into AtlusAI as part of the application startup or first workflow run.
-
-**Why it's wrong:** Content ingestion is a one-time administrative task, not a runtime operation. Treating it as runtime blocks the application on every restart and makes it brittle.
-
-**Do this instead:** Build a separate `src/integrations/atlusai/index-content.ts` script run once before the application is deployed. The RAG pipeline assumes AtlusAI is already populated. Document the ingestion process explicitly.
-
----
-
-## Integration Points
-
-### External Services
-
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| AtlusAI | MCP client within Mastra tool definitions; tool called from RAG retrieval workflow step | Must be populated with indexed content before workflow is functional. Semantic search + structured filter search are distinct query modes. |
-| Gemini Flash API | Via Mastra model provider (`@mastra/google` or similar); pass Zod schema to `.generate()` for structured output | Large context window handles noisy transcripts. Rate limit is the primary scaling concern. |
-| Google Slides API | `googleapis` Node.js client with service account credentials; called only from `CreateGoogleSlides` workflow step | Requires Slides scope in service account. Use `batchUpdate` requests for efficiency — one API call creates all slides. |
-| Google Docs API | `googleapis` Node.js client, same service account | Talk track and FAQ are separate documents. Keep IDs in workflow state for linking. |
-| Google Drive API | `googleapis` Node.js client, same service account | Create per-deal folder in shared Lumenalta Drive. Store folder ID in workflow state for organizing all output artifacts. |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| Web UI ↔ API Gateway | HTTP REST (JSON); polling for workflow status | Use Server-Sent Events (SSE) as a v1.1 upgrade to eliminate polling. For hackathon, polling every 3s is sufficient. |
-| API Gateway ↔ Mastra | Direct function calls (same process in v1) | In v2+, decouple via job queue (BullMQ) so the API server returns immediately and workflows run asynchronously. |
-| Mastra Workflow ↔ Agents | Typed function calls; agents invoked within step `execute()` functions; output validated against Zod schema before step commits | Agents are stateless within a step execution. Workflow state is owned by the workflow, not the agent. |
-| Mastra Agents ↔ Tools | Mastra tool registry; tools are called by the model during generation | Each tool has `inputSchema` and `outputSchema` for type safety. |
-| Workflow Steps ↔ AtlusAI | Via Mastra tool → MCP client → AtlusAI API | The MCP abstraction means the tool implementation can swap AtlusAI for another knowledge base without changing workflow logic. |
-| Workflow Steps ↔ Google APIs | Via `integrations/google/` helper functions, called directly (not via agent tools) | Direct calls enforce that Google output only happens at designated workflow steps, not during agent reasoning. |
+1. **First bottleneck (v1.1):** Vercel cold starts on the agent serverless function. Each cold start re-establishes a Prisma connection to Supabase. Mitigation: connection pooling via Supavisor (already in the architecture).
+2. **Second bottleneck:** Workflow execution timeouts on Vercel. If Touch 4 workflows exceed 300s, move agent to a persistent host.
 
 ---
 
 ## Suggested Build Order
 
-The architecture has a dependency chain that dictates build sequence:
+Dependencies dictate this sequence. Each phase produces a testable, deployable artifact.
 
 ```
-1. Foundations (no dependencies)
-   ├── Zod schemas (transcript, brief, slide assembly)
-   ├── Google service account auth + API helpers (verify credentials work)
-   ├── AtlusAI MCP client + content ingestion script
-   └── Mastra config and agent boilerplate
+Phase 1: Database Migration (no auth dependency, no deployment dependency)
+  ├── Create Supabase project (dev instance)
+  ├── Modify schema.prisma: provider -> postgresql, add directUrl
+  ├── Generate fresh Postgres migration baseline
+  ├── Update apps/agent/src/env.ts with new env vars
+  ├── Replace LibSQLStore with PostgresStore in mastra/index.ts
+  ├── Test: pnpm turbo build (verify Prisma generates for Postgres)
+  ├── Test: Run agent locally against Supabase dev instance
+  └── Verify: All existing workflows work with Postgres backend
 
-2. Core Pipeline Steps (depends on #1)
-   ├── ParseTranscript step + ValidateTranscript step (Zod output)
-   ├── GenerateBrief step (LLM + schema)
-   └── RAGRetrieval step (AtlusAI must be populated)
+Phase 2: Service-to-Service Auth (depends on Phase 1)
+  ├── Add AGENT_API_KEY env var to both apps
+  ├── Add API key validation to agent Hono routes
+  ├── Modify api-client.ts to send X-API-Key header
+  ├── Test: Agent rejects requests without valid API key
+  └── Test: Web app can still call agent with API key
 
-3. Google Output Steps (depends on #2, #1 Google helpers)
-   ├── AssembleSlideJSON step
-   ├── GenerateCopy step
-   ├── CreateGoogleSlides step (first end-to-end integration test)
-   └── CreateTalkTrack step
+Phase 3: Google OAuth + Login Wall (independent of Phases 1-2, can parallel)
+  ├── Configure Google OAuth in Supabase Dashboard
+  ├── Configure OAuth consent screen as "Internal" in Google Cloud Console
+  ├── Install @supabase/ssr in apps/web
+  ├── Create lib/supabase/ client factories (client.ts, server.ts, middleware.ts)
+  ├── Create middleware.ts with auth gate
+  ├── Create /auth/login page and /auth/callback route
+  ├── Modify layout.tsx to show user info in nav
+  ├── Add domain verification in callback
+  ├── Test: Login flow works, non-@lumenalta.com users rejected
+  └── Test: All existing pages accessible after login
 
-4. Workflow Wiring + HITL (depends on #2, #3)
-   ├── Post-call workflow with suspend/resume
-   ├── HITL state persistence
-   └── Resume API endpoint
-
-5. Web UI (depends on #4 for API contract)
-   ├── Post-call input form
-   ├── HITL review panel
-   └── Status polling
-
-6. Pre-Call Flow (parallel to #4-5, lighter dependency)
-   ├── ResearchCompany step
-   ├── GenerateHypotheses step
-   ├── Pre-call workflow (no suspend)
-   └── Pre-call UI
-
-7. Feedback Loop (depends on everything)
-   └── CaptureEdits step + feedback logger
+Phase 4: Vercel Deployment (depends on Phases 1, 2, 3)
+  ├── Create Vercel project for web (Root Directory: apps/web)
+  ├── Create Vercel project for agent (Root Directory: apps/agent)
+  ├── Configure environment variables in both projects
+  ├── Create Supabase prod instance (separate from dev)
+  ├── Run prisma migrate deploy against prod Supabase
+  ├── Deploy both projects
+  ├── Test: End-to-end flow on production URLs
+  ├── Verify: Preview environments work (preview-specific AGENT_SERVICE_URL)
+  └── Verify: Google OAuth redirects work with production URLs
 ```
 
-**Key dependency constraint:** The RAG retrieval step (step 2) cannot be meaningfully tested until AtlusAI is populated with indexed Lumenalta content (step 1). This makes content ingestion a day-one prerequisite, not a later task.
+**Phase ordering rationale:**
+- Phase 1 (DB) is foundational -- everything else depends on Postgres being the data layer
+- Phase 2 (API key) is small and blocks deployment (cannot deploy without service auth)
+- Phase 3 (OAuth) can run in parallel with Phase 2 since auth is web-only
+- Phase 4 (deployment) requires all three preceding phases to be complete and tested
+
+**Research flags:**
+- Phase 1: Verify `@mastra/pg` or equivalent package exists on npmjs.com. If not, fall back to Turso.
+- Phase 4: Verify `mastra build` output is Vercel-compatible. If not, deploy agent to Railway instead.
+
+---
+
+## Preview Environment Strategy
+
+For Vercel preview deployments (one per PR), the web app needs to know the agent's preview URL:
+
+**Option A (Simple):** Use a shared staging agent URL for all preview deployments. Web previews always point to a fixed staging agent.
+
+**Option B (Full isolation):** Each PR deploys both web and agent previews. The web preview's `AGENT_SERVICE_URL` is set dynamically via Vercel's `VERCEL_URL` environment variable on the agent project. This requires a deployment hook or manual URL setting.
+
+**Recommendation:** Option A for v1.1 (simpler). Full preview isolation is a v1.2 enhancement.
+
+---
+
+## Environment Variable Summary
+
+### apps/web
+
+| Variable | Required | Scope | Source |
+|----------|----------|-------|--------|
+| `AGENT_SERVICE_URL` | Yes | Server | Vercel project env var |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Client + Server | Supabase Dashboard -> Settings -> API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Client + Server | Supabase Dashboard -> Settings -> API |
+| `AGENT_API_KEY` | Yes | Server | Generate shared secret, set in both projects |
+| `NODE_ENV` | Auto | Server | Set by Vercel |
+
+### apps/agent
+
+| Variable | Required | Scope | Source |
+|----------|----------|-------|--------|
+| `DATABASE_URL` | Yes | Server | Supabase connection string (pooled, port 6543) |
+| `DIRECT_DATABASE_URL` | Yes (migrations) | Server | Supabase connection string (direct, port 5432) |
+| `AGENT_API_KEY` | Yes | Server | Same shared secret as web project |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Yes | Server | Unchanged from v1.0 |
+| `GOOGLE_DRIVE_FOLDER_ID` | Yes | Server | Unchanged |
+| `GOOGLE_TEMPLATE_PRESENTATION_ID` | Yes | Server | Unchanged |
+| `MEET_LUMENALTA_PRESENTATION_ID` | Optional | Server | Unchanged |
+| `CAPABILITY_DECK_PRESENTATION_ID` | Optional | Server | Unchanged |
+| `GOOGLE_CLOUD_PROJECT` | Yes | Server | Unchanged |
+| `GOOGLE_CLOUD_LOCATION` | Yes | Server | Unchanged |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Yes | Server | **PITFALL:** File path does not work on Vercel. Must use inline JSON or Workload Identity Federation. |
+| `MASTRA_PORT` | No | Server | Only for local dev; Vercel assigns port automatically |
 
 ---
 
 ## Sources
 
-- Mastra AI documentation (https://mastra.ai/docs) — MEDIUM confidence (training data; verify current API against live docs)
-- Google Slides API reference (https://developers.google.com/slides/api/reference/rest) — HIGH confidence
-- Google Drive API — service account authorization patterns — HIGH confidence
-- RAG pipeline architecture patterns (LangChain, LlamaIndex, and Mastra RAG documentation) — HIGH confidence on pattern; MEDIUM on Mastra-specific API details
-- Zod v4 structured output integration with LLM providers — MEDIUM confidence (v4 released 2025; verify Mastra integration is current)
-- MCP (Model Context Protocol) for tool-as-service patterns — MEDIUM confidence (rapidly evolving ecosystem)
+- Existing codebase analysis: `apps/agent/prisma/schema.prisma`, `apps/agent/src/mastra/index.ts`, `apps/web/src/lib/api-client.ts`, `apps/web/src/env.ts`, `apps/agent/src/env.ts` -- HIGH confidence (direct code reading)
+- Prisma documentation: PostgreSQL provider, `directUrl` for Supabase -- HIGH confidence (well-documented, stable feature)
+- Supabase Auth: Google OAuth provider, domain restriction patterns -- HIGH confidence (core Supabase feature)
+- `@supabase/ssr`: Next.js App Router integration patterns -- MEDIUM confidence (API was evolving through 2025; verify current package API)
+- Mastra AI: Storage backends, deployment patterns -- MEDIUM confidence (training data; verify `@mastra/pg` package existence)
+- Vercel: Monorepo deployment, serverless function limits -- HIGH confidence (well-documented platform)
+- Next.js middleware: Edge runtime auth patterns -- HIGH confidence (stable since Next.js 13)
 
 ---
 
-*Architecture research for: Agentic sales orchestration — Mastra AI + AtlusAI RAG + Google Workspace output*
-*Researched: 2026-03-03*
+*Architecture research for: v1.1 Infrastructure & Access Control -- Supabase migration, Vercel deployment, Google OAuth*
+*Researched: 2026-03-04*

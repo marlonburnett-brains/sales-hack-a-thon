@@ -1,220 +1,311 @@
 # Pitfalls Research
 
-**Domain:** Agentic AI + Google Slides API + RAG — Sales Orchestration Platform
-**Researched:** 2026-03-03
-**Confidence:** MEDIUM-HIGH (training data for Google Slides API / Gemini API; LOW for Mastra-specific edge cases as it is a relatively new framework; web search unavailable during this session)
+**Domain:** SQLite-to-Supabase migration, Vercel deployment, Google OAuth -- adding infrastructure to existing Next.js 15 + Mastra AI monorepo
+**Researched:** 2026-03-04
+**Confidence:** MEDIUM-HIGH (well-documented problem domains; Prisma migration and Vercel deployment are extremely well-trodden; Supabase Auth patterns are stable; web search unavailable so Mastra-on-Vercel specifics are training-data-only)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Google Slides API Placeholder ID Blindness
+### Pitfall 1: Prisma Migration History is Provider-Locked to SQLite
 
 **What goes wrong:**
-The Google Slides API identifies text boxes and shapes by opaque, auto-generated placeholder IDs (e.g., `p` for title, `i0` for subtitle), not by human-readable names. When you duplicate a template slide or copy a layout, the new slide's placeholder IDs are NOT the same as the template slide's. Code that hardcodes `TITLE`, `BODY`, or sequential IDs breaks silently — the API accepts the request but inserts text into the wrong placeholder or returns a 400 error for a missing object ID.
+The existing `migration_lock.toml` says `provider = "sqlite"`. All four migration files contain SQLite-specific SQL (`DATETIME`, `TEXT NOT NULL PRIMARY KEY` without sequence). Changing the `datasource` provider to `postgresql` in `schema.prisma` causes `prisma migrate dev` to refuse to run: "The migrations have been created for a different provider (sqlite) than the current provider (postgresql)." The migrations directory must be rebuilt from scratch for Postgres.
 
 **Why it happens:**
-Developers inspect a slide in the API response, see a placeholder named `TITLE`, and assume that name is stable across all slides derived from that template. In reality, placeholder `objectId` values are UUID-style strings assigned at creation time. Duplicating a slide creates new UUIDs. The human-readable `type` field (TITLE, BODY, CENTERED_TITLE) is a hint, not an ID.
+Prisma's migration system embeds the provider in a lock file and generates provider-specific SQL. There is no automatic SQLite-to-Postgres migration translation. Developers change the provider in schema.prisma, run `prisma migrate dev`, and hit a hard error they did not expect.
 
 **How to avoid:**
-After every `duplicateObject` or `createSlide` call, immediately call `presentations.get` on the affected slide to fetch the current placeholder `objectId` list. Build a mapping function: `getPlaceholderIdByType(slide, 'TITLE')` that reads the live presentation state before inserting text. Never hardcode objectIds across template duplication operations.
+Do NOT attempt to reuse the existing migrations directory. The correct procedure is:
+1. Archive the current `prisma/migrations/` directory (keep it in git history for reference).
+2. Delete the `migrations/` directory and `migration_lock.toml`.
+3. Change `datasource db { provider = "postgresql" }` in schema.prisma.
+4. Run `prisma migrate dev --name init_postgres` to generate a fresh baseline migration with Postgres-native SQL.
+5. For the Supabase prod database, use `prisma migrate deploy` (not `prisma migrate dev`) in CI/CD.
+6. Migrate existing data separately with a one-time script (see Pitfall 2).
 
 **Warning signs:**
-- `insertTextRequest` returns HTTP 400 with "Invalid requests[0].insertText: The object (TITLE) could not be found."
-- Text appears in the wrong box (usually the first text box in insertion order, not the intended one)
-- Works on the first slide but breaks on slide 3+ after template duplication
+- Error: "The migrations have been created for a different provider"
+- `migration_lock.toml` still says `provider = "sqlite"` after changing schema.prisma
+- Attempting to use `prisma migrate resolve` to skip the provider mismatch -- this does not work
 
 **Phase to address:**
-Phase with Google Slides API integration (deck assembly). Must be addressed in the first working slide-generation spike before any content pipeline is built on top of it.
+Database migration phase (first phase of v1.1). Must be the very first task before any other infrastructure work.
 
 ---
 
-### Pitfall 2: Google Slides batchUpdate Request Ordering Causes Silent Data Corruption
+### Pitfall 2: SQLite-to-Postgres Data Type Mismatches Cause Silent Corruption
 
 **What goes wrong:**
-The Slides API `batchUpdate` endpoint accepts an array of requests and executes them sequentially. Operations that depend on each other (e.g., duplicate a slide, then insert text into that slide's new placeholder) fail when batched in a single call because the objectId from the first operation is not known until the response is received. Developers batch everything for efficiency, and the second operation references an objectId that doesn't exist yet — resulting in a 400 error that rolls back the entire batch.
+The current schema stores JSON as `String` (SQLite TEXT), dates as `DateTime` (SQLite stores as text strings), and uses `@default(cuid())` for IDs. When migrating to Postgres:
+- `DateTime` fields that were stored as ISO strings in SQLite become native `TIMESTAMP` in Postgres. If you do a raw data migration, date strings must be parsed correctly or they silently insert as NULL (if the column is nullable) or throw a cast error.
+- Fields like `payload`, `result`, `tags`, `inputs`, `generatedContent`, `outputRefs`, `secondaryPillars`, `useCases`, `roiFraming`, and `content` are all `String` holding JSON blobs. In Postgres, these should ideally be `Json` type for queryability -- but changing them in the schema alters the Prisma Client API (`string` vs `object`), which breaks every call site.
+- `Boolean` in SQLite is stored as 0/1 integers. Postgres uses native booleans. If any raw data migration sends `0`/`1`, Postgres may reject them.
 
 **Why it happens:**
-The batchUpdate API appears to accept multiple request types, which encourages developers to bundle everything into one round trip. The problem is that the response to step 1 (which contains the new objectId) is needed as input to step 2, but you cannot reference response data within the same batch call.
+Prisma abstracts away these differences at the schema level, making developers think the migration is just "change the provider and go." The Prisma schema itself may migrate cleanly, but the actual data sitting in SQLite needs type-aware transformation.
 
 **How to avoid:**
-Separate dependent operations into sequential batchUpdate calls. Batch only truly independent operations (e.g., replacing text in multiple already-existing slides). The pattern is: Call 1 → duplicate template slide, receive new objectId. Call 2 → insert content using that objectId. Accepting 2–3 round trips per slide is correct behavior.
+1. Keep all JSON-blob fields as `String` for v1.1 to minimize code changes. Do NOT switch them to `Json` type during the migration -- that is a separate, future refactor.
+2. Write a one-time data migration script that: reads from SQLite, transforms each row (parse dates, validate JSON strings, handle nulls), and inserts into Postgres.
+3. Test the migration script against a copy of the production SQLite data first, not just seed data.
+4. Validate row counts and spot-check 5-10 records after migration.
 
 **Warning signs:**
-- Intermittent 400 errors on batchUpdate when building complex decks
-- Works when slides are added one at a time but fails when batched
-- Stack traces pointing to `OBJECT_NOT_FOUND` on objectIds you are certain you created
+- `DateTime` fields showing `NULL` or epoch date after migration
+- JSON fields that were valid in SQLite failing Prisma validation after migration
+- Prisma Client type errors at every call site that touches JSON fields (if you changed to `Json` type)
 
 **Phase to address:**
-Deck assembly phase. Add an integration test that creates a slide, reads back its IDs, and inserts content in a second call — before writing any higher-level abstraction.
+Database migration phase. Must include a data migration validation step -- do not consider the database migration "done" until row counts match and sample records are verified.
 
 ---
 
-### Pitfall 3: Gemini Structured Output Schema Rejections for Complex Zod v4 Schemas
+### Pitfall 3: Mastra LibSQLStore Uses a Separate SQLite Database That Also Needs Migration
 
 **What goes wrong:**
-Gemini's structured output (JSON mode with `responseSchema`) supports a subset of JSON Schema — not the full spec. Specifically: `anyOf`/`oneOf` unions with more than trivial cases, recursive schemas, schemas with `default` values, `additionalProperties: false` at deeply nested levels, and schemas using `$ref` are all problematic. Zod v4 schemas that look correct will generate a JSON Schema representation that Gemini rejects at runtime, often with a non-descriptive `400 Invalid argument` response.
+The codebase has TWO databases: Prisma's `dev.db` (application data) and Mastra's `mastra.db` (workflow execution state, suspend/resume snapshots, traces). The `mastra/index.ts` configures `LibSQLStore` with `url: "file:./prisma/mastra.db"`. When deploying to Vercel, both databases disappear -- Vercel's ephemeral filesystem does not persist SQLite files between invocations. Migrating only the Prisma database to Supabase leaves Mastra's workflow state on an ephemeral local file, which means: every cold start loses all suspended workflows, active HITL checkpoints are orphaned, workflow resume fails with "run not found."
 
 **Why it happens:**
-Gemini's structured output implementation uses a constrained schema validator internally. Zod v4's `z.discriminatedUnion`, `z.lazy` (recursive), `z.brand`, and some `z.transform` patterns produce JSON Schema that violates Gemini's subset constraints. The error message rarely tells you which field caused the rejection.
+Developers focus on migrating the application database and forget that Mastra's internal storage is also SQLite-based. The two-database architecture is documented in a code comment but not in the project infrastructure diagram.
 
 **How to avoid:**
-Test every Zod schema independently against Gemini before integrating it into the agent pipeline. Use flat, non-recursive schemas where possible. Replace `z.discriminatedUnion` with a flat `z.object` with an explicit `type: z.enum(...)` field. Avoid `z.default()` on required fields in structured output contexts — Gemini may not honor defaults. Maintain a `toGeminiSchema()` adapter that strips incompatible annotations before sending to the API.
+Mastra needs its own durable storage backend for Vercel deployment. Options:
+1. **Mastra PostgreSQL storage adapter** (`@mastra/pg`) -- if available, configure it to use the same Supabase Postgres instance (separate schema or tables).
+2. **Turso/LibSQL cloud** -- LibSQL has a cloud offering that replaces the local file URL with a remote URL. This keeps Mastra's internal storage on its own service.
+3. **Verify Mastra supports serverless** -- Mastra's Hono server runs as a persistent process. On Vercel, it must be adapted to run as serverless functions or a dedicated Node.js service (see Pitfall 7).
+
+This is the highest-risk pitfall for v1.1 because it affects whether the agent server can function on Vercel at all.
 
 **Warning signs:**
-- `400 Invalid argument: JSON schema is not supported` on requests that worked with simpler schemas
-- Schema validation passes locally (Zod parse succeeds) but Gemini rejects the schema itself
-- Errors appear only when a specific optional field is populated
+- Workflows start but can never be resumed after a Vercel deployment or cold start
+- `run.resume()` throws "workflow run not found"
+- Local dev works perfectly but deployed version loses state
 
 **Phase to address:**
-Transcript extraction / structured output phase. Validate all core schemas (TranscriptExtraction, SalesBrief, SlideOrder) against live Gemini API in isolation before building agent logic around them.
+Database migration phase AND deployment phase (spans both). The Mastra storage migration must be planned alongside the Prisma migration, not as an afterthought.
 
 ---
 
-### Pitfall 4: Mastra Agent Suspend/Resume State Not Persisted by Default
+### Pitfall 4: Vercel Serverless Function Size Limit Exceeded by Mastra Agent Bundle
 
 **What goes wrong:**
-Mastra's HITL pattern uses `agent.suspend()` to pause execution at a checkpoint and `agent.resume()` with approval data to continue. If the application server restarts, deploys, or crashes between suspend and resume, the in-memory suspension state is lost. The agent cannot be resumed — the workflow is orphaned. For a hackathon demo, this means a server restart between the HITL approval step and deck generation silently drops the job.
+Vercel's serverless function size limit is 250 MB (compressed, including node_modules). The Mastra agent server includes: `@mastra/core`, `@mastra/libsql`, `@prisma/client` (with Postgres binary), `googleapis` (very large -- 30+ MB), `google-auth-library`, and `zod`. The `googleapis` package alone may push the function over the limit. Additionally, Prisma Client generates a native binary for the query engine -- the wrong binary target (e.g., shipping the macOS binary instead of the Linux one) adds 30-40 MB of dead weight.
 
 **Why it happens:**
-Mastra's default execution model is in-process. Suspension state is held in memory (or in a lightweight local store) rather than a durable external store. Developers assume the framework handles persistence because it handles orchestration — but persistence requires explicit configuration of a storage backend.
+Mastra's `mastra build` output bundles everything into a deployable artifact. On Vercel serverless, each API route becomes a separate function, but shared dependencies are included in each function's bundle. The `googleapis` package is notoriously large because it includes types and client code for ALL Google APIs, not just the Slides/Drive/Docs APIs used here.
 
 **How to avoid:**
-Configure Mastra with a durable storage backend for workflow state — even for the hackathon, use a local SQLite or PostgreSQL instance as the Mastra storage adapter. Do not rely on in-memory suspension. Add a workflow status table that tracks: `workflowId`, `status` (pending / suspended / approved / complete / failed), `suspendedAt`, `approvedBy`, `resumePayload`. This makes HITL state survives restarts and is auditable.
+1. Replace `googleapis` with individual API packages: `@googleapis/slides`, `@googleapis/drive`, `@googleapis/docs`. This drops bundle size from ~30 MB to ~3 MB.
+2. Set `binaryTargets = ["native", "rhel-openssl-3.0.x"]` in Prisma's generator config. The `rhel-openssl-3.0.x` target is correct for Vercel's Lambda environment. Remove `native` in production builds to avoid shipping the macOS binary.
+3. If the agent cannot fit in serverless functions, deploy it as a Vercel "standalone" Node.js server or on a separate platform (Railway, Fly.io) and point the web app's `AGENT_SERVICE_URL` to it.
+4. Check bundle size BEFORE deploying: `du -sh .mastra/output` locally.
 
 **Warning signs:**
-- HITL approval endpoint returns 200 but the deck is never generated
-- Server restart between demo steps causes "workflow not found" errors
-- No way to list currently suspended workflows from the UI
+- Vercel build fails with "Function size too large" or "FUNCTION_INVOCATION_FAILED"
+- Build succeeds but function takes 15+ seconds to cold start (bundle too large to load)
+- Import errors for Prisma binary at runtime on Vercel
 
 **Phase to address:**
-HITL workflow phase (Phase 1 infrastructure, before any content pipeline is built). The state persistence model must be established before HITL is wired up, not retrofitted after.
+Deployment phase. Must be validated in the first deployment attempt, not after building the full deployment pipeline.
 
 ---
 
-### Pitfall 5: RAG Chunking at the Deck Level Instead of the Slide Block Level
+### Pitfall 5: Vercel Serverless Function Timeout Kills Long-Running Workflows
 
 **What goes wrong:**
-Content library is indexed as whole decks (one document = one deck) rather than as individual slide blocks. Semantic search returns a deck that "probably has a relevant case study slide somewhere" but cannot surface the specific slide. The assembly agent gets back a 40-slide deck when it needed one capability description slide. Relevance scores are diluted by irrelevant slides in the same deck, causing the wrong blocks to be selected.
+Vercel's Hobby plan has a 10-second timeout; Pro plan has 60 seconds (300 seconds max with streaming). The Touch 4 workflow (transcript extraction + brief generation + slide assembly + compliance check) takes 2-5 minutes end-to-end. A single serverless function invocation cannot host this entire workflow. Even individual steps like "generate 15 slides via Google Slides API" may exceed 60 seconds due to sequential API calls.
 
 **Why it happens:**
-Indexing whole files is the path of least resistance (upload file, done). Slide-level chunking requires pre-processing: extract each slide's content, tag it with metadata (slide index, deck ID, slide type, industry tags, solution pillar), and index each chunk separately. Teams skip this because it feels like over-engineering until the retrieval is demonstrably broken.
+The current architecture runs Mastra as a persistent Hono server on port 4111. Workflows execute as long-running processes with suspend/resume. Vercel serverless functions are designed for request/response cycles under 60 seconds. The paradigm mismatch is fundamental.
 
 **How to avoid:**
-Before loading any content into AtlusAI, define the chunking schema: `{ deckId, slideIndex, slideType, title, bodyText, speakerNotes, tags: { industry[], solutionPillar[], funnelStage, slideCategory } }`. Each slide becomes one retrievable unit. Cross-reference slides back to their source deck for context. For case study slides, chunk at the narrative section level (problem, solution, outcome) if a single slide is too coarse. This must be done before the RAG pipeline is tested.
+The agent server (apps/agent) likely CANNOT run as Vercel serverless functions. Options:
+1. **Vercel with `maxDuration`** -- Pro plan allows up to 300 seconds with `export const maxDuration = 300`. This might be enough for individual workflow steps but NOT for the full pipeline in one request.
+2. **Dedicated compute for agent** -- Deploy the Mastra agent on Railway, Fly.io, Render, or a Vercel-adjacent VPS. The web app stays on Vercel serverless; `AGENT_SERVICE_URL` points to the dedicated agent server.
+3. **Vercel Fluid Compute** -- Vercel's newer compute model allows longer-running functions. Check if the plan supports it.
+4. **Keep the async pattern** -- The current architecture already separates "start workflow" (fast, returns runId) from "poll status" (fast, returns current state). This is compatible with serverless IF the workflow execution itself runs on durable compute, not inside the serverless function.
 
 **Warning signs:**
-- Retrieval returns "a deck" rather than "a slide"
-- The agent prompt has to say "find the relevant slide within this deck" — that logic belongs in the retrieval layer, not the agent
-- Retrieval relevance scores are uniformly low (below 0.6) even for clearly matching content
+- `504 GATEWAY_TIMEOUT` on workflow start or resume endpoints
+- Workflows start but never complete (the function timed out mid-execution)
+- Works locally (no timeout) but fails on Vercel
 
 **Phase to address:**
-Content library population phase (earliest phase). Wrong chunking strategy means re-indexing all 62 subsectors of content — expensive to fix late. Define and validate the chunk schema with 2–3 decks before bulk indexing.
+Deployment architecture phase. This is an architectural decision that must be made BEFORE writing any Vercel configuration. The choice of where the agent runs determines all downstream deployment work.
 
 ---
 
-### Pitfall 6: Google Slides Image Insertion via URL Requires Public Access
+### Pitfall 6: Supabase Auth Token Not Forwarded in Service-to-Service Calls
 
 **What goes wrong:**
-The Google Slides API `createImage` request accepts an image URL, not a binary upload. The URL must be publicly accessible from Google's servers at the time the API call is made. Images stored in Google Drive (even in the service account's Drive) cannot be inserted by Drive URL — Google's image embedding infrastructure does not authenticate against Drive. Inserting a private Drive image URL silently inserts a broken image placeholder in the slide.
+The web app (apps/web) authenticates users via Supabase Auth (Google OAuth). The web app then calls the agent server's API. If the agent server needs to know which user made the request (for audit trails, row-level security), the Supabase JWT must be forwarded from the web app to the agent. But the current `api-client.ts` does not include any `Authorization` header -- it is a simple fetch wrapper. Adding auth to the web app without updating the api-client creates a system where users are authenticated on the web side but the agent accepts unauthenticated requests from anyone who knows the URL.
 
 **Why it happens:**
-Developers assume that because they're using a Google service account with Drive access, Google's own services can read from that Drive. Image embedding in Slides uses a different infrastructure path that does not inherit Drive OAuth.
+Auth is added to the web app first (it has the UI, it is the user-facing surface). The agent server is treated as an "internal service" and left unauthenticated. But once both are deployed to public Vercel URLs, the agent's API is publicly accessible.
 
 **How to avoid:**
-For brand assets and approved image library: host images in a public Google Cloud Storage bucket (with fine-grained ACL) or make them publicly accessible via a signed URL. Alternatively, use the Drive API to get a `webContentLink` that can be temporarily made public. For the hackathon, the simplest pattern is: upload brand images to GCS with public-read ACL during content library setup, store the GCS URLs in AtlusAI, use those URLs in Slides API calls.
+Implement a two-layer auth model:
+1. **Web app** -- Supabase Auth with Google OAuth. Middleware checks for valid session on all routes except `/login` and auth callbacks.
+2. **Agent server** -- API key authentication. The web app includes a shared secret (`AGENT_API_KEY`) in every request to the agent. The agent validates this key in middleware. This is simpler than forwarding Supabase JWTs and sufficient for service-to-service auth.
+3. Update `api-client.ts` to include `Authorization: Bearer ${AGENT_API_KEY}` in all requests.
+4. Store `AGENT_API_KEY` as an environment variable in both Vercel projects, NOT in the codebase.
 
 **Warning signs:**
-- Slide shows a broken image icon or gray placeholder box
-- No error is thrown — the API returns 200 but the slide has an empty image frame
-- Works when using a direct external URL (e.g., Unsplash) but not with internal URLs
+- Agent API is accessible without authentication from any browser
+- No `Authorization` header in the web-to-agent fetch calls
+- Audit trail has no user attribution (all actions appear as "system")
 
 **Phase to address:**
-Content library setup and slide assembly phase. Must be validated with a single image insertion test before building the slide assembly pipeline.
+Auth phase. Must be implemented alongside the Google OAuth login wall, not deferred to a later phase.
 
 ---
 
-### Pitfall 7: HITL Browser-Close Leaves Approval State Ambiguous
+### Pitfall 7: Google OAuth Redirect URL Mismatch Between Environments
 
 **What goes wrong:**
-The seller or SME opens the HITL approval interface, makes edits, and then closes the browser tab before clicking "Approve." The workflow remains in `suspended` state indefinitely. If there is no timeout or re-notification mechanism, the deck is never generated. If there IS an auto-timeout that resumes without approval, the system generates slides without SME sign-off — violating the hard constraint.
+Google OAuth requires exact redirect URI matching. When deploying to Vercel with preview environments (each PR gets a unique URL like `project-abc123.vercel.app`), the redirect URI for OAuth callbacks changes with every preview deployment. Google Cloud Console only accepts pre-registered redirect URIs. Preview deployments fail OAuth with "redirect_uri_mismatch" error because the dynamic Vercel preview URL is not registered in GCP.
 
 **Why it happens:**
-Server-side workflows and browser sessions are decoupled. The browser close event is not reliably communicated to the server (beforeunload is unreliable, especially on mobile). Teams build HITL as "the button sends a POST" without designing what happens when the button is never clicked.
+Developers register `localhost:3000` and `production.vercel.app` in GCP OAuth credentials. They forget that Vercel preview deployments use dynamic URLs. Each preview deployment has a unique subdomain that cannot be pre-registered.
 
 **How to avoid:**
-Design HITL state as a first-class entity with explicit lifecycle: `created → notified → viewed → approved/rejected/expired`. Add: (1) a `viewedAt` timestamp set when the approval link is opened, (2) a configurable expiry (e.g., 48h) that transitions to `expired` and re-notifies, (3) the approval link is a stateless URL that works in any browser session — not a session-bound interaction. Never auto-approve on timeout. Re-notify on expiry, do not auto-proceed.
+1. **Use Supabase as the OAuth intermediary** -- Supabase handles the Google OAuth redirect internally. The redirect URL registered in GCP is Supabase's own callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`), NOT the Vercel app URL. Supabase then redirects back to the app. This means: you register ONE redirect URL in GCP (Supabase's), and Supabase redirects to whatever app URL is configured.
+2. In Supabase, configure the "Redirect URLs" allowlist to include: `http://localhost:3000/**`, `https://your-production.vercel.app/**`, and `https://*-your-team.vercel.app/**` (wildcard for preview deployments).
+3. In the Next.js app, use `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` as environment variables (these are safe to expose client-side).
 
 **Warning signs:**
-- Workflows stuck in `suspended` state in the database with no `approvedAt`
-- No alerting when a HITL checkpoint is not acted on within X hours
-- Approval link fails if the user is in a different browser than when they received the notification
+- OAuth works in local dev but fails on Vercel preview deployments
+- "redirect_uri_mismatch" error from Google
+- OAuth works on production URL but not on preview URLs
 
 **Phase to address:**
-HITL workflow phase. The expiry/re-notification logic must be designed upfront, not added when QA discovers orphaned workflows.
+Auth phase. Must be configured correctly from the first deployment. Wildcard redirect patterns in Supabase must be set up before the first preview deployment test.
 
 ---
 
-### Pitfall 8: Zod v4 `.transform()` on LLM Output Causes Type Inference Collapse
+### Pitfall 8: Supabase Auth Domain Restriction is Client-Side Only
 
 **What goes wrong:**
-Zod v4 schemas that use `.transform()` to post-process LLM output (e.g., normalizing industry names, trimming whitespace, mapping enum values) break Mastra's structured output enforcement. The schema passed to the LLM must be the input type (pre-transform), but the type seen by downstream code is the output type (post-transform). When Mastra serializes the schema for the Gemini API, it uses the Zod schema's JSON Schema representation — if `.transform()` changes the shape, the inferred TypeScript types no longer match what the LLM is asked to produce.
+You want to restrict login to `@lumenalta.com` email addresses only. Supabase Auth does not natively support domain-based login restriction at the provider level. If you only check the domain on the client side (after the OAuth flow completes), a user with a personal Gmail account can complete the OAuth flow, receive a valid Supabase session, and access the app until the client-side check kicks them out. During that window, they have a valid JWT that the agent server would accept.
 
 **Why it happens:**
-`.transform()` is idiomatic Zod and works perfectly for user input validation. LLM structured output is a different contract: the schema serves double duty as (a) the JSON Schema sent to the model and (b) the TypeScript type of the parsed result. Transforms that alter shape violate the assumption that input schema = output schema.
+Google OAuth returns ANY Google account that the user authenticates with. Domain restriction is not a feature of the OAuth flow itself. Developers assume "login with Google" means "login with Google Workspace" but it means "login with any Google account."
 
 **How to avoid:**
-Do NOT use `.transform()` on schemas that will be sent to Gemini for structured output. Use `.transform()` only in a post-parsing step after the raw LLM response is already validated. Pattern: `const rawSchema = z.object({...})` (no transforms) → send this to Gemini → parse the response → apply transforms separately: `const result = applyNormalization(rawSchema.parse(response))`. Keep the "LLM schema" and "application schema" as separate objects.
+Enforce domain restriction at THREE levels:
+1. **Google Cloud Console** -- In the OAuth consent screen, set the app to "Internal" if using Google Workspace. This restricts OAuth to users in the `lumenalta.com` Workspace org. If "Internal" is not possible (e.g., external OAuth app type), this level cannot enforce it.
+2. **Supabase Database Hook or Edge Function** -- Create a Supabase auth hook (or database trigger on `auth.users`) that checks the email domain on sign-up. If the domain is not `@lumenalta.com`, immediately delete the auth record and return an error.
+3. **Next.js Middleware** -- As a defense-in-depth layer, check `user.email.endsWith('@lumenalta.com')` in the Next.js middleware and redirect non-matching users to an "access denied" page.
+
+All three layers are needed. Do not rely on any single layer.
 
 **Warning signs:**
-- TypeScript type errors between the schema definition and the downstream usage
-- Gemini returns valid JSON that fails `schema.parse()` with a transform-related error
-- `.safeParse()` returns `success: false` on output that looks structurally correct
+- A personal Gmail account can complete the OAuth flow and land on the dashboard
+- The Supabase auth.users table contains entries with non-`@lumenalta.com` emails
+- Domain restriction "works" but only because no one has tried a personal account
 
 **Phase to address:**
-Schema definition phase. Establish the raw vs. normalized schema pattern as a team convention before any schemas are written, not as a refactor after.
+Auth phase. The domain restriction must be tested with a non-`@lumenalta.com` Google account as part of acceptance criteria.
 
 ---
 
-### Pitfall 9: Content Library Population Bottleneck Blocks All RAG Testing
+### Pitfall 9: Next.js Middleware Ordering Conflict Between Supabase Auth and Existing Routes
 
 **What goes wrong:**
-The RAG pipeline, HITL flow, and slide assembly pipeline all depend on AtlusAI being populated with real, indexed content. If content ingestion is treated as a prerequisite to be done "before the demo," the team has no ability to test the full pipeline until the last hours. 62 subsectors with case studies, slide blocks, and capability descriptions is a significant indexing job. If the ingestion script fails midway, re-indexing is time-consuming and the indexing job is not idempotent by default.
+Adding Supabase Auth middleware to the Next.js app requires a `middleware.ts` at the app root that intercepts requests, checks for a valid session, and redirects unauthenticated users to login. The current app has NO middleware. Adding one incorrectly can: (1) block API routes that should be public (health checks, webhooks), (2) create an infinite redirect loop on the login page, (3) break the Server Actions that call the agent (Server Actions run server-side but middleware runs on the edge -- the Supabase client behaves differently in each).
 
 **Why it happens:**
-Content library work is perceived as "data entry" rather than engineering. It gets deprioritized or assigned to non-technical team members without building the tooling to make it reliable. The first full pipeline test then happens with incomplete or incorrectly indexed content.
+Next.js middleware runs on the Edge Runtime, which has a limited Node.js API surface. Supabase's `@supabase/ssr` package provides middleware helpers, but they require careful matcher configuration. Developers add middleware that matches all routes (`export const config = { matcher: '/(.*)'}`), which catches the login page itself, creating a redirect loop.
 
 **How to avoid:**
-Treat content ingestion as an engineering deliverable with its own phase: (1) build the ingestion script with idempotency (re-running does not create duplicates), (2) ingest 2–3 subsectors from each of the 11 industries first and validate retrieval quality, (3) only then bulk-ingest remaining content. Build a content inventory manifest (which decks are loaded, which slides extracted, indexed status per chunk) so the team knows exactly what is in AtlusAI at any moment.
+1. Use a precise middleware matcher that EXCLUDES: `/login`, `/auth/callback`, `/_next/`, `/favicon.ico`, and any public API routes.
+2. Pattern: `export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|login|auth).*)'] }`
+3. In middleware, use `@supabase/ssr`'s `createServerClient` with the request/response cookie helpers -- do not use the browser client.
+4. Test the middleware with: (a) unauthenticated user hits dashboard -- should redirect to /login, (b) unauthenticated user hits /login -- should NOT redirect, (c) authenticated user hits dashboard -- should pass through.
 
 **Warning signs:**
-- "We'll load the content this weekend" said in day 3 of a 5-day hackathon
-- No way to query AtlusAI to see what has been indexed
-- The first full pipeline test depends on content being loaded correctly
+- Infinite redirect loop on any page (browser shows "too many redirects")
+- Login page itself requires authentication (redirect loop)
+- Server Actions fail with edge runtime compatibility errors
+- `_next/static` assets blocked by middleware, causing blank pages
 
 **Phase to address:**
-Phase 1 (parallel with infrastructure setup). Content ingestion must start on day 1 so retrieval can be validated on day 2. It is the longest-lead-time item in the pipeline.
+Auth phase. Write the middleware matcher FIRST and test it with a mock session before integrating real Supabase auth.
 
 ---
 
-### Pitfall 10: Google Slides Layout ID Mismatch Between Template and New Presentation
+### Pitfall 10: Vercel Environment Variable Misconfiguration Between Two Projects
 
 **What goes wrong:**
-When a Google Slides deck is created from a template, the `layouts` in the new presentation have different layout IDs than those in the source template. Code that stores "use layout ID `p3`" from the template will fail when applied to the generated presentation. `addSlide` requests that specify a `layoutId` will get a 400 if that layout does not exist in the target presentation's master.
+With two Vercel projects (web + agent), environment variables must be configured independently in each project's Vercel dashboard. Common mistakes: (1) setting `AGENT_SERVICE_URL` in the agent project instead of the web project, (2) setting secrets in "Production" but not "Preview", (3) using `http://localhost:4111` as default in code and forgetting to override it in Vercel, (4) the agent project needs `DATABASE_URL` pointing to Supabase but the web project does not (it has no direct DB access), (5) Google service account credentials (JSON blob) may exceed Vercel's 4KB per-variable limit.
 
 **Why it happens:**
-Google Slides templates use their own master + layout hierarchy. When you copy slides or create a presentation programmatically, the master is carried over but the layout IDs are reassigned in the new presentation's scope. Developers inspect the template, note the layout IDs, and hardcode them — which only works if the generated presentation starts from a copy of that exact template.
+Two separate Vercel projects mean two separate env var dashboards. It is easy to configure one and forget the other. Preview environments inherit from Production unless explicitly overridden, but some variables (like `AGENT_SERVICE_URL`) differ between preview and production.
 
 **How to avoid:**
-The correct pattern for brand-compliant slides is: (1) Copy the entire template presentation using Drive API `files.copy` — this preserves the master and layout IDs in their original mapping. (2) Then add/modify slides within that copy. Do NOT create a blank presentation and try to apply layouts from a separate template. Alternatively, store layout IDs by querying the copied presentation immediately after creation.
+1. Create a canonical env var manifest listing every variable, which project(s) it belongs to, and which environments (Production, Preview, Development) it applies to.
+2. For the Google service account JSON: if it exceeds 4KB, base64-encode it and decode at runtime, or use Vercel's "Sensitive Environment Variables" which support larger values.
+3. Set `AGENT_SERVICE_URL` to the agent project's production URL in the web project's Production env, and the agent's preview URL pattern in the web project's Preview env.
+4. Use `vercel env pull` to validate that the right variables are set before deploying.
 
 **Warning signs:**
-- `addSlide` returns 400 with "Invalid layout" or "Layout not found in master"
-- Works in manual testing against one specific presentation but fails in production
-- Layout IDs in your config look like UUIDs that differ per run
+- Build succeeds but app crashes at runtime with "missing env var" errors
+- Production works but preview deployments fail
+- Web app cannot reach agent server (wrong URL)
+- Google API calls fail with credential errors only on Vercel
 
 **Phase to address:**
-Deck assembly phase. The "copy template first, then modify" pattern must be established in the first API integration spike.
+Deployment phase. Create the env var manifest as the FIRST deployment task, before any `vercel deploy` command.
+
+---
+
+### Pitfall 11: CORS Blocks Web-to-Agent Requests Between Two Vercel Domains
+
+**What goes wrong:**
+The web app (e.g., `web.vercel.app`) makes fetch requests to the agent server (e.g., `agent.vercel.app`). These are cross-origin requests. The agent server (Hono/Mastra) does not have CORS headers configured because in local dev, both run on `localhost` (different ports, but modern browsers handle same-host differently). On Vercel, different domains trigger CORS preflight requests. Without proper `Access-Control-Allow-Origin` headers on the agent, all browser-initiated requests fail with "CORS policy" errors.
+
+**Why it happens:**
+In local development, the web app makes server-side fetch calls (from Server Actions or API routes), which are NOT subject to CORS. On Vercel, if any client-side code calls the agent directly, or if the browser follows redirects to the agent domain, CORS applies. Even server-side fetches from Vercel serverless functions to the agent should work (no CORS for server-to-server), but developers may accidentally expose agent URLs to client-side code.
+
+**How to avoid:**
+1. **All agent calls must go through Server Actions or API routes** -- never call the agent URL from client-side JavaScript. The current architecture already does this correctly (api-client.ts is used in Server Actions).
+2. **Add CORS headers to the Mastra/Hono server anyway** as defense-in-depth: `Access-Control-Allow-Origin: https://web.vercel.app`, `Access-Control-Allow-Methods: GET, POST, OPTIONS`, `Access-Control-Allow-Headers: Content-Type, Authorization`.
+3. Handle `OPTIONS` preflight requests explicitly in the Hono middleware.
+4. For preview environments, use a dynamic CORS origin based on the request's `Origin` header matched against an allowlist.
+
+**Warning signs:**
+- Browser console shows "Access to fetch has been blocked by CORS policy"
+- Requests work from Postman/curl but fail from the browser
+- Works in local dev but fails on Vercel
+
+**Phase to address:**
+Deployment phase. Add CORS middleware to the Mastra server before the first cross-origin deployment test.
+
+---
+
+### Pitfall 12: Prisma Client Connection Pool Exhaustion on Serverless
+
+**What goes wrong:**
+Each Vercel serverless function invocation creates a new Prisma Client instance. Each instance opens a connection to Postgres. Supabase's connection limit depends on the plan (free: 60 connections, Pro: 200-500). Under moderate concurrent load (10+ simultaneous requests), each cold start opens a new connection. The pool is exhausted within minutes, and subsequent requests fail with "too many clients already" or similar connection errors.
+
+**Why it happens:**
+Prisma Client is instantiated at the module level (`const prisma = new PrismaClient()`). In a traditional server, this is fine -- one instance, one connection pool. In serverless, each function instance gets its own Prisma Client with its own pool. Vercel may spin up dozens of instances under load.
+
+**How to avoid:**
+1. **Use Supabase's connection pooler** -- Supabase provides PgBouncer at port 6543 (vs. direct connection at port 5432). Use the pooler URL in `DATABASE_URL` for serverless deployments: `postgresql://user:pass@db.supabase.co:6543/postgres?pgbouncer=true`.
+2. **Add `?pgbouncer=true&connection_limit=1`** to the connection string for serverless. This tells Prisma to use a single connection per instance and rely on PgBouncer for pooling.
+3. **Use the singleton pattern** for Prisma Client in both apps -- check if `globalThis.prisma` exists before creating a new instance.
+4. In `schema.prisma`, add `directUrl` for migrations (migrations need a direct connection, not pooled): `directUrl = env("DIRECT_URL")`.
+
+**Warning signs:**
+- Intermittent "too many connections" errors under load
+- Works with 1-2 concurrent users but fails with 5+
+- Connection errors appear only on Vercel, never locally
+
+**Phase to address:**
+Database migration phase. The connection string must use the pooler URL from day one on Vercel. Do not use the direct connection URL for the application.
 
 ---
 
@@ -222,13 +313,12 @@ Deck assembly phase. The "copy template first, then modify" pattern must be esta
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Hardcoding slide placeholder objectIds from one template inspection | Saves 1 API call per slide | Breaks on any template change or duplication; causes silent wrong-slot inserts | Never — the ID fetch is a 50-line utility function |
-| Indexing full decks rather than individual slides in AtlusAI | Ingestion is trivial (upload file) | Retrieval quality is fundamentally broken; requires full re-index to fix | Never — slide-level chunking is the minimum viable granularity |
-| Using in-memory Mastra workflow state (no durable storage) | Zero setup time | Any server restart orphans all active HITL workflows; catastrophic for demo | Acceptable ONLY for a local demo with no server restart risk |
-| Batching all Slides API operations into one batchUpdate | Saves round trips | 400 errors when any op depends on a previous op's output objectId | Acceptable for updating text in already-existing slides; never for create-then-modify |
-| Sending Zod `.transform()` schemas directly to Gemini | DRY — one schema object | Type drift, Gemini schema rejection, runtime parse failures | Never — maintain separate raw/normalized schema objects |
-| Using Drive file URLs for images in Slides API | No GCS setup needed | Images silently fail to embed; broken placeholders in output slides | Never — Drive URLs are not publicly accessible to Google Slides infrastructure |
-| Single monolithic Gemini prompt for transcript extraction + brief generation | Fewer API calls | Context window contamination; hard to debug which extraction failed; harder to unit test | Split transcript extraction and brief generation into separate, smaller calls |
+| Keeping JSON fields as `String` instead of migrating to Postgres `Json` type | Zero code changes at call sites; faster migration | Cannot use Postgres JSON operators for queries; fields are opaque blobs | Acceptable for v1.1 -- migrate to `Json` type in a future milestone |
+| Using API key auth instead of forwarding Supabase JWTs to agent | Simpler implementation; no JWT verification on agent side | No per-user audit trail on agent; agent cannot enforce row-level security | Acceptable for v1.1 -- upgrade to JWT forwarding when RLS is needed |
+| Hardcoding CORS origin instead of dynamic allowlist | Works immediately for production domain | Breaks on every new preview deployment URL | Never -- use environment-variable-based origin or wildcard matching |
+| Deploying Mastra agent to a non-Vercel platform | Avoids serverless timeout and bundle size issues | Two different hosting platforms to manage; different deployment pipelines | Acceptable and likely NECESSARY -- Mastra as a persistent server is a better fit for Railway/Fly.io |
+| Skipping data migration (starting fresh on Postgres) | No migration script needed; clean slate | Loss of demo data, interaction history, feedback signals, and content sources | Acceptable ONLY if the existing data is purely demo/seed data with no production value |
+| Using Supabase free tier for dev/preview | No cost | 60 connection limit; 500 MB storage; no point-in-time recovery | Acceptable for development; unacceptable for production |
 
 ---
 
@@ -236,15 +326,15 @@ Deck assembly phase. The "copy template first, then modify" pattern must be esta
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Google Slides API | Using `insertText` to set title without first fetching current slide placeholder objectIds | Call `presentations.get` after every slide duplication; map placeholders by `type` field, not by assumed ID |
-| Google Slides API | Creating slides then immediately batching text inserts in the same `batchUpdate` | Separate into: Call 1 = create slide (get objectId from response), Call 2 = insert content using that objectId |
-| Google Slides API | Inserting images from Google Drive URLs | Host images in public GCS bucket; store GCS URLs in AtlusAI; reference those in `createImage` requests |
-| Google Drive API | Forgetting that `files.copy` triggers a "made a copy of X" notification to watchers | Use `supportsAllDrives: true` and confirm the service account has access to the Shared Drive |
-| Gemini API | Sending complex Zod schemas with `anyOf`, `$ref`, or `default` values | Validate every schema against Gemini in isolation; use flat, non-recursive schemas; strip `default` annotations |
-| Gemini API | Using `gemini-flash` for structured output and expecting deterministic JSON | Add `temperature: 0` for structured output calls; even then, build `.safeParse()` + retry logic around every structured call |
-| Mastra | Treating `agent.suspend()` as a durable pause | Configure explicit storage backend (SQLite/Postgres); test suspend/resume across a server restart before demo day |
-| AtlusAI | Assuming semantic search alone is sufficient for slide retrieval | Use hybrid search: semantic + metadata filters (`industry`, `solutionPillar`, `funnelStage`); pure semantic search returns thematically similar but not contextually appropriate slides |
-| AtlusAI | No deduplication strategy during ingestion | Build idempotent ingestion: hash slide content + metadata as a document fingerprint; skip if already indexed |
+| Prisma + Supabase | Using the direct connection URL (port 5432) in serverless | Use the PgBouncer pooler URL (port 6543) with `?pgbouncer=true&connection_limit=1` |
+| Prisma + Supabase | Not setting `directUrl` for migrations | Add `directUrl = env("DIRECT_URL")` in schema.prisma for `prisma migrate deploy` to use direct connection |
+| Supabase Auth + Next.js | Using `@supabase/supabase-js` browser client in Server Components | Use `@supabase/ssr` with `createServerClient` for Server Components and middleware; browser client only in Client Components |
+| Supabase Auth + Google OAuth | Registering the Vercel app URL as the Google OAuth redirect URI | Register SUPABASE's callback URL (`https://<ref>.supabase.co/auth/v1/callback`) as the redirect URI in GCP |
+| Vercel + Monorepo | Not configuring the root directory in Vercel project settings | Each Vercel project must set its "Root Directory" to the correct app (`apps/web` or `apps/agent`) |
+| Vercel + Turborepo | Turborepo caching artifacts not working on Vercel | Enable Vercel's Remote Caching by linking the Vercel project; set `TURBO_TOKEN` and `TURBO_TEAM` env vars |
+| Vercel + Prisma | Prisma Client binary not targeting the correct platform | Add `binaryTargets = ["native", "rhel-openssl-3.0.x"]` to the generator block in schema.prisma |
+| Mastra + Vercel | Assuming `mastra build` output runs on serverless | Mastra generates a Hono HTTP server; it needs persistent compute, not serverless functions |
+| Google Service Account + Vercel | JSON key exceeds 4KB env var limit | Base64-encode the JSON key: `GOOGLE_SA_KEY_BASE64=...`; decode at runtime |
 
 ---
 
@@ -252,11 +342,10 @@ Deck assembly phase. The "copy template first, then modify" pattern must be esta
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Sequential Slides API calls (one HTTP request per slide) | Deck generation takes 3–5 minutes for a 15-slide deck; timeout errors | Batch independent operations (text replacements across multiple existing slides) into single batchUpdate calls | Breaks at ~8 slides on a 30-second demo timeout |
-| Full presentation fetch (`presentations.get`) on every slide operation | API response is 500KB+ for a large deck; adds 800ms per round trip | Cache the presentation object after the initial fetch; only re-fetch after mutations that change objectIds | Breaks at ~5 slides when the presentation has many existing slides |
-| Unthrottled AtlusAI queries during slide assembly (one query per slide) | Rate limit errors from AtlusAI; assembly pipeline stalls | Batch retrieval queries; pre-fetch all needed blocks in one query set before starting slide creation | Breaks at ~10 slides if AtlusAI has per-minute rate limits |
-| Gemini API calls without exponential backoff retry | 429 rate limit errors cause entire workflow to fail; no recovery | Implement retry with jitter for all Gemini calls; Gemini Flash has generous limits but structured output calls are heavier | Breaks during concurrent workflow runs (2+ sellers simultaneously) |
-| Transcript extraction in a single prompt with 50,000-token transcript | Context window is technically sufficient but output quality degrades | Chunk transcripts by speaker turn or time segment; extract fields in passes rather than one mega-prompt | Quality degrades beyond ~10,000 tokens of transcript |
+| Cold start on Prisma + Supabase with large schema | First request takes 3-5 seconds; Prisma Client initialization and connection setup | Use `prisma generate` at build time; connection pooler reduces handshake overhead | Noticeable on every cold start; Vercel Pro's "Keep Warm" helps |
+| Mastra workflows blocking serverless function for minutes | 504 timeout; partial workflow execution | Deploy agent on persistent compute (Railway/Fly.io); keep async start/poll pattern | Immediate on Vercel Hobby (10s); Pro may survive if < 300s with maxDuration |
+| Supabase Auth session refresh hammering the auth endpoint | Rate limiting from Supabase; slow page loads | Cache session in middleware using cookies; only refresh when near expiry | At 20+ concurrent active users |
+| Full Prisma Client generation in Vercel build | Build takes 2+ minutes extra; may timeout | Add `prisma generate` to `postinstall` script; cache Prisma Client in Turborepo | Build timeout on large schemas |
 
 ---
 
@@ -264,11 +353,12 @@ Deck assembly phase. The "copy template first, then modify" pattern must be esta
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Storing Google service account JSON key in the repository | Full Drive/Slides access compromise; can delete all Lumenalta sales assets | Store service account key in environment variables only; add `service-account*.json` to `.gitignore` immediately at project start |
-| Seller-submitted transcripts stored unencrypted in application database | Transcripts contain deal-sensitive, legally discoverable competitive information | Encrypt transcript content at rest; apply field-level encryption on the `rawTranscript` column; define retention policy |
-| AtlusAI API key in frontend JavaScript bundle | Anyone with browser devtools can query your entire content library | AtlusAI queries must only be made from the server-side agent layer; the frontend never calls AtlusAI directly |
-| HITL approval endpoint without authentication | Anyone with the approval URL can approve or reject any workflow | Approval links must be authenticated (short-lived signed token tied to the specific workflow and approver email); never use plain UUID-in-URL |
-| Service account with Editor role on entire Shared Drive | Compromised service account can modify/delete all existing Lumenalta sales materials | Scope service account to a dedicated `AI-Generated` subfolder only; it should never have write access to the canonical template library |
+| Agent server deployed without authentication | Anyone can trigger workflows, read deal data, modify briefs via public URL | Add API key middleware to all Mastra routes; validate `Authorization` header |
+| Supabase `anon` key used for privileged operations | Anon key is public; anyone can call Supabase directly | Use `service_role` key only on server-side; anon key only for client-side auth flows |
+| Domain restriction only in middleware (no server-side enforcement) | Bypassed by directly calling API endpoints or using a modified client | Enforce domain check in Supabase auth hook AND Next.js middleware AND agent API |
+| `AGENT_API_KEY` committed to repository | Key compromise allows full agent API access | Store in Vercel env vars only; add to `.gitignore`; rotate on suspected compromise |
+| Supabase connection string in client-side bundle | Database credentials exposed in browser | `DATABASE_URL` must be server-only env var (no `NEXT_PUBLIC_` prefix); never import Prisma in client code |
+| Google service account JSON in Vercel env without encryption | If Vercel account is compromised, attacker gets full Google API access | Use Vercel's "Sensitive" env var type; consider separate GCP service account per environment |
 
 ---
 
@@ -276,26 +366,27 @@ Deck assembly phase. The "copy template first, then modify" pattern must be esta
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| No progress indicator during the 2–3 minute deck generation pipeline | Seller thinks the UI is broken; refreshes the page; breaks the in-flight workflow | Show a step-by-step pipeline status: "Extracting transcript..." → "Retrieving content blocks..." → "Generating slides..." → "Done." Poll a status endpoint every 3 seconds |
-| HITL approval UI shows raw JSON rather than a formatted brief | SME cannot read the brief; approves without reviewing; defeats the purpose of HITL | Render the SalesBrief as a formatted card UI with labeled fields; never expose raw JSON to end users |
-| Missing fields surfaced as validation errors AFTER the user submits | Seller pastes a 3,000-word transcript, submits, gets "budget not mentioned" error — wastes time | Surface likely missing fields as inline warnings while the transcript is being typed (debounced analysis); confirm before full submission |
-| HITL approval link delivered only via email | SME is in a Slack-first workplace; email sits unread for 4 hours | Deliver approval notifications via both email AND a Slack webhook; include a direct link in both |
-| Deck generation produces a file with the generic name "Untitled Presentation" | Seller cannot find the deck in Drive; cannot tell which deck belongs to which prospect | Auto-name decks: `[CompanyName] - [PrimaryPillar] - [Date]`; set this in the Drive `files.copy` call at creation time |
+| Login page shows "Sign in with Google" but fails for personal Gmail | User confused -- "I have a Google account, why can't I sign in?" | Show message: "Sign in with your @lumenalta.com Google Workspace account" and display clear error for non-org accounts |
+| Auth session expires during long workflow (deck generation takes 2-5 min) | User returns to approval page, session is expired, must re-login, loses context | Set Supabase session duration to 24 hours; use refresh tokens; auto-refresh in middleware |
+| Preview deployment URLs are not human-readable | Team members cannot tell which preview corresponds to which PR | Use Vercel's "Deploy Aliases" to set readable names; include PR number in branch name |
+| Post-migration: existing bookmarks/links to old dev URLs break | Users saved links to `localhost:4111` endpoints during v1.0 | Communicate new URLs to team; update any documentation or Slack pinned messages |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Slide placeholder insertion:** Verify text actually lands in the correct placeholder (title vs. body) by visually inspecting the generated slide — not just checking for 200 response
-- [ ] **Image embedding:** Confirm images render in the slide (not broken placeholders) by opening the generated deck in Google Slides UI before demo
-- [ ] **HITL state persistence:** Restart the application server with a workflow in `suspended` state and confirm it can still be resumed — do not rely on in-memory assumptions
-- [ ] **Structured output Zod validation:** Run every schema against Gemini API independently with a live call before integrating into the agent pipeline
-- [ ] **Content library coverage:** Confirm at least one retrievable slide chunk exists for each of the 11 industries before running end-to-end pipeline tests
-- [ ] **RAG retrieval quality:** Manually verify that a query for "Healthcare digital transformation case study" returns a Healthcare slide, not a loosely related Technology slide
-- [ ] **Service account permissions:** Confirm the service account can create a file in the target Shared Drive folder — not just in its own My Drive
-- [ ] **Talk track and FAQ generation:** These are often treated as "just another prompt" but must also produce structured, brand-approved content — verify they do not hallucinate Lumenalta capabilities not in the content library
-- [ ] **Transcript edge cases:** Test with a transcript that mentions no budget, no timeline, and multiple stakeholders with conflicting priorities — verify the missing-field flagging triggers correctly
-- [ ] **Demo environment parity:** Confirm the demo environment uses the same AtlusAI index as development — not a test index with a handful of slides
+- [ ] **Database migration:** Row counts match between SQLite source and Postgres target -- verify with `SELECT COUNT(*) FROM` each table
+- [ ] **Database migration:** DateTime fields contain valid timestamps in Postgres, not NULL or epoch -- spot-check 5 records
+- [ ] **Database migration:** JSON string fields are valid JSON in Postgres -- run `SELECT id FROM table WHERE payload::json IS NULL` (will error on invalid JSON)
+- [ ] **Auth login wall:** A non-`@lumenalta.com` Google account cannot access ANY page after completing OAuth -- test with a personal Gmail
+- [ ] **Auth login wall:** The agent server rejects requests without a valid API key -- test with curl (no auth header)
+- [ ] **Vercel deployment:** Both web and agent projects build and deploy successfully -- check Vercel dashboard for both
+- [ ] **Vercel deployment:** Preview deployments work (OAuth redirect, env vars, agent URL) -- test on an actual PR preview
+- [ ] **Service-to-service auth:** Web app can reach agent server on Vercel -- test a workflow start from the deployed web app
+- [ ] **Mastra workflow state:** A workflow suspended on the deployed agent can be resumed after a cold start -- test HITL flow end-to-end on Vercel
+- [ ] **Connection pooling:** Under concurrent load (5+ users), no "too many connections" errors -- test with concurrent requests
+- [ ] **CORS:** Browser console shows no CORS errors when using the deployed web app -- check browser DevTools Network tab
+- [ ] **Environment variables:** All env vars are set in both Vercel projects for both Production and Preview -- use `vercel env ls` to verify
 
 ---
 
@@ -303,13 +394,15 @@ Deck assembly phase. The "copy template first, then modify" pattern must be esta
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Wrong chunking strategy (deck-level instead of slide-level) | HIGH | Re-process all source decks through the slide extraction script; delete and re-index all documents in AtlusAI; re-validate retrieval quality on all 11 industries |
-| Hardcoded placeholder IDs break on template change | MEDIUM | Build the `getPlaceholderIdByType()` utility function; refactor all slide-insert code to use it; test against a fresh copy of the template |
-| In-memory HITL state lost after restart | MEDIUM | Configure Mastra storage backend (SQLite); run migration to persist any currently-active workflow state; re-notify stakeholders for orphaned HITL checkpoints |
-| Gemini schema rejection mid-pipeline | MEDIUM | Isolate the failing schema; simplify to a flat object; test independently; update all callers; add a schema validation unit test that runs against the live API |
-| Images not embedding (Drive URL issue) | LOW | Upload brand assets to GCS public bucket (30 min); update AtlusAI image URLs; rerun deck generation |
-| HITL approval links expire before SME reviews | LOW | Extend expiry window; re-trigger notification to SME; resume workflow manually if needed |
-| Content library only partially indexed before demo | HIGH | Prioritize the specific industries/subsectors needed for the demo scenario; run targeted re-ingestion; document what is covered and what is not for the Q&A |
+| Migration lock provider mismatch | LOW | Delete `migrations/` directory; regenerate with `prisma migrate dev --name init_postgres`; archive old migrations in git |
+| Data corruption during migration | MEDIUM | Re-run migration script from SQLite source (which should be preserved read-only); fix transformation bugs; re-validate |
+| Mastra state lost on Vercel | HIGH | Identify orphaned workflows from application database (InteractionRecord with status "generating"); manually re-trigger affected workflows; switch to persistent compute |
+| Function size limit exceeded | MEDIUM | Replace `googleapis` with individual packages; remove unused dependencies; consider separate hosting for agent |
+| Connection pool exhaustion | LOW | Switch to PgBouncer pooler URL; add `connection_limit=1` to connection string; redeploy |
+| OAuth redirect mismatch | LOW | Add the correct redirect URL to Supabase's allowlist; for preview deployments, add wildcard pattern |
+| Non-org user accessed the app | LOW | Delete the user from Supabase auth.users; add domain enforcement hook; audit for any actions taken |
+| CORS blocking web-to-agent calls | LOW | Add CORS middleware to Hono server; redeploy agent; verify with browser DevTools |
+| Env var missing in one environment | LOW | Check `vercel env ls`; add missing variable; redeploy; verify with runtime logs |
 
 ---
 
@@ -317,35 +410,33 @@ Deck assembly phase. The "copy template first, then modify" pattern must be esta
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Placeholder ID blindness | Phase: Slides API integration spike | Test: Insert text into title and body of a duplicated slide; visually confirm correct placement |
-| batchUpdate ordering errors | Phase: Slides API integration spike | Test: Run a create-then-insert sequence and confirm no OBJECT_NOT_FOUND errors |
-| Gemini schema rejections | Phase: Schema definition / structured output | Test: Send each schema to Gemini API in isolation with a minimal prompt; confirm parse succeeds |
-| Mastra HITL state not persisted | Phase: Infrastructure / HITL workflow design | Test: Restart server with suspended workflow; confirm it resumes correctly |
-| RAG chunking at deck level | Phase: Content library ingestion (Phase 1) | Test: Query AtlusAI for a specific slide type; confirm response is a single slide chunk, not a full deck |
-| Image insertion via Drive URLs | Phase: Content library setup + Slides API spike | Test: Insert one brand image into a test slide; open in UI and confirm it renders |
-| HITL browser-close ambiguity | Phase: HITL workflow design | Test: Open approval UI, close browser, wait 1 minute; confirm workflow remains in `suspended`, not `approved` |
-| Zod `.transform()` in LLM schemas | Phase: Schema definition | Test: Run `.safeParse()` on Gemini structured output response; confirm no transform-related errors |
-| Content library bottleneck | Phase: Content ingestion (Day 1 start) | Test: Confirm retrieval returns relevant results for 3 different industries before Day 3 |
-| Layout ID mismatch | Phase: Slides API integration spike | Test: Create presentation from template copy; add slide with layout; confirm no 400 error |
-| Unthrottled AtlusAI queries | Phase: Slide assembly pipeline | Test: Simulate 15-slide deck assembly; confirm no rate limit errors and total time < 60s |
-| Service account scope too broad | Phase: Infrastructure / credentials setup | Test: Confirm service account cannot write to canonical template library folder; only to AI-Generated folder |
+| Migration lock provider mismatch | Database Migration | Fresh `prisma migrate dev` succeeds with `provider = "postgresql"` |
+| SQLite-to-Postgres data type issues | Database Migration | Migration script validates row counts and sample data integrity |
+| Mastra LibSQLStore needs migration | Database Migration + Deployment | Workflow suspend/resume works across server restarts on deployed environment |
+| Serverless function size limit | Deployment | `du -sh` of build output < 250 MB; Vercel build succeeds |
+| Serverless timeout kills workflows | Deployment Architecture | Agent deployed on persistent compute; workflow end-to-end completes |
+| Auth token not forwarded to agent | Auth | Agent rejects requests without valid API key; curl test confirms |
+| OAuth redirect URL mismatch | Auth | OAuth flow completes on both production and preview Vercel deployments |
+| Domain restriction is client-side only | Auth | Non-`@lumenalta.com` Google account is rejected at Supabase level, not just middleware |
+| Middleware ordering conflict | Auth | No infinite redirects; login page accessible; dashboard requires auth |
+| Env var misconfiguration | Deployment | Canonical manifest verified against both Vercel projects; `vercel env ls` matches |
+| CORS between Vercel projects | Deployment | No CORS errors in browser console on deployed web app |
+| Connection pool exhaustion | Database Migration | 10 concurrent requests succeed without connection errors |
 
 ---
 
 ## Sources
 
-- Google Slides API official documentation (batchUpdate, placeholder types, image insertion constraints) — HIGH confidence for API behavior
-- Gemini API structured output documentation (supported JSON Schema subset) — MEDIUM confidence; schema constraint specifics verified from training data as of August 2025
-- Mastra AI framework documentation and GitHub — LOW confidence for specific edge cases; Mastra is actively developed and behavior may have changed post-August 2025
-- General RAG chunking best practices (LlamaIndex, Langchain documentation on structured content chunking) — HIGH confidence for principles; applied to slide domain
-- Google Drive API service account + Shared Drive permission model — HIGH confidence; well-documented and stable
-- HITL state management patterns for agentic workflows — MEDIUM confidence; derived from patterns in durable workflow systems (Temporal, AWS Step Functions) applied to Mastra's model
-- Zod v4 documentation and known LLM integration patterns — MEDIUM confidence; Zod v4 is relatively recent as of knowledge cutoff
+- Prisma documentation: provider-specific migration behavior, SQLite vs. PostgreSQL differences, serverless connection management -- HIGH confidence (stable, well-documented)
+- Vercel documentation: serverless function limits (size, timeout, memory), monorepo configuration, environment variables -- HIGH confidence (well-documented, plan-specific limits are public)
+- Supabase documentation: Auth with Google OAuth, redirect URL configuration, PgBouncer connection pooling, RLS -- HIGH confidence (actively maintained docs)
+- Next.js documentation: middleware configuration, Edge Runtime limitations, Server Actions behavior -- HIGH confidence
+- Google Cloud Console: OAuth consent screen configuration, redirect URI requirements -- HIGH confidence (stable API)
+- Mastra framework: LibSQLStore configuration, build output format, serverless compatibility -- LOW confidence (newer framework, training data may not reflect current capabilities; verify against current docs)
+- General serverless deployment patterns: connection pooling, cold starts, function bundling -- HIGH confidence (well-established patterns)
+
+**Note:** WebSearch, WebFetch, and Bash were unavailable during this research session. All findings are drawn from training data (knowledge cutoff) and direct codebase analysis. Mastra-specific deployment behavior (Pitfalls 3, 4, 5) should be validated against current Mastra documentation before treating as authoritative. The Mastra framework may have added Vercel-specific deployment adapters or PostgreSQL storage options since training data cutoff.
 
 ---
-
-**Note on web search unavailability:** WebSearch and WebFetch were unavailable during this research session. All findings are drawn from training data (knowledge cutoff August 2025) and applied domain reasoning. Mastra-specific pitfalls (Pitfalls 4, 7) should be validated against current Mastra documentation and GitHub issues before treating as authoritative. All Google Slides API and Gemini API pitfalls have HIGH-MEDIUM confidence from stable official documentation patterns.
-
----
-*Pitfalls research for: Agentic AI + Google Slides API + RAG — Sales Orchestration (Lumenalta Hackathon)*
-*Researched: 2026-03-03*
+*Pitfalls research for: SQLite-to-Supabase migration, Vercel deployment, Google OAuth -- Lumenalta v1.1 Infrastructure*
+*Researched: 2026-03-04*

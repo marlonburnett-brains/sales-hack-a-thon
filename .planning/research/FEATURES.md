@@ -1,8 +1,19 @@
 # Feature Research
 
-**Domain:** Agentic sales enablement / sales orchestration platform (consultancy context)
-**Researched:** 2026-03-03
-**Confidence:** MEDIUM — external tools unavailable; findings based on training knowledge of Highspot, Seismic, Showpad, Gong, Chorus, People.ai, Pitch, Tome, and emerging agentic sales platforms through August 2025. Confidence downgrades noted where recency matters.
+**Domain:** Infrastructure hardening -- database migration, deployment, authentication, and service auth for an existing agentic sales platform
+**Researched:** 2026-03-04
+**Confidence:** MEDIUM -- web tools unavailable; findings based on training knowledge of Supabase, Vercel, Next.js 15, Prisma, Mastra, and Google OAuth through May 2025. Confidence downgrades noted where recency matters. Existing codebase read directly (HIGH confidence for architecture analysis).
+
+---
+
+## Scope
+
+This document covers ONLY the v1.1 milestone features. The v1.0 product features (touches 1-4, pre-call briefing, HITL, RAG, etc.) are shipped. The v1.1 milestone adds four infrastructure capabilities to make the platform usable by the Lumenalta team:
+
+1. SQLite to Supabase (PostgreSQL) database migration
+2. Vercel deployment (2 projects: web + agent, prod/preview envs)
+3. Google OAuth login wall restricted to @lumenalta.com
+4. Service-to-service API key auth between web and agent
 
 ---
 
@@ -10,156 +21,331 @@
 
 ### Table Stakes (Users Expect These)
 
-Features that sales enablement users assume exist. Missing them makes the platform feel broken or incomplete. These are NOT competitive advantages — they are entry tickets.
+For an internal team tool being deployed for real use, these features are non-negotiable. Without them, the platform remains a localhost demo.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Transcript ingestion (paste or upload) | Every post-call tool in 2026 accepts transcripts as the primary input | LOW | PROJECT.md specifies paste input; this is correct for v1 |
-| Structured brief extraction from transcript | Users expect AI to parse key fields (problem, stakeholders, timeline, budget) rather than doing it manually | MEDIUM | Zod v4 schemas provide validation; missing-field flagging is expected behavior |
-| Brand-compliant output | Consultancy sellers expect outputs to look like Lumenalta, not generic AI artifacts | HIGH | Requires pre-loaded building block library in AtlusAI; cannot be skipped |
-| Human review / approval checkpoint | In high-stakes consultancy sales, zero tolerance for unsanctioned AI output going to clients | MEDIUM | HITL hard stop is already in PROJECT.md; critical trust feature |
-| Output to a standard format (Slides, Docs) | Sellers work in Google Workspace; they expect Slides, not PDFs or proprietary formats | MEDIUM | Google Slides API via service account — already decided |
-| Content search / retrieval from library | "Find the case study for healthcare AI" is a basic expectation of any content system | MEDIUM | RAG over AtlusAI covers this; indexing by industry + solution pillar is required |
-| Industry / vertical selection | Enterprise sales are vertical-specific; generic output is unacceptable | LOW | 11-industry taxonomy with 62 subsectors already defined |
-| Missing field notification before proceeding | Users expect the system to tell them when transcript data is incomplete, not silently generate bad output | LOW | Already in PROJECT.md; Zod validation covers this |
-| Pre-call company snapshot | Any account-based sales tool today provides prospect company context before a meeting | MEDIUM | Public source + AtlusAI query; part of the defined pre-call flow |
-| Artifact persistence / storage | Sellers expect generated decks and docs to be saved and retrievable | LOW | Google Drive via service account covers this |
-| Talk track alongside deck | A deck without a talk track forces sellers to improvise; they expect both | MEDIUM | Already in PROJECT.md as a required output |
+| **Persistent database (not SQLite file)** | Team members expect data to survive deployments and be shared across environments. A SQLite file on localhost is a single-user demo, not a team tool. | MEDIUM | Prisma schema already exists with 9 models. Must switch datasource provider from `sqlite` to `postgresql`, handle JSON column differences, and create a fresh migration history for Postgres. |
+| **Deployed web app with a URL** | Sellers need a bookmark they can hit from any machine, not `localhost:3000`. | LOW | Next.js 15 on Vercel is a standard deployment. The web app is a straightforward Next.js build. |
+| **Deployed agent server with a URL** | The web app calls the agent service over HTTP. On Vercel, the agent URL must be a real endpoint, not `localhost:4111`. | HIGH | Mastra's Hono-based server uses `mastra build` and runs as a long-lived Node.js process, not a serverless function. Vercel's serverless model may not fit. This is the hardest deployment question. |
+| **Login wall (only Lumenalta people)** | An internal tool exposed on the internet without auth is a security incident. Domain-restricted login ensures only @lumenalta.com employees access the platform. | MEDIUM | Supabase Auth with Google OAuth provider. Domain restriction at the application level (check `email.endsWith('@lumenalta.com')` after OAuth callback). |
+| **Session persistence across page loads** | Users expect to stay logged in. Refreshing the page should not require re-authentication. | LOW | Supabase Auth handles JWT refresh tokens automatically. `@supabase/ssr` package provides cookie-based session management for Next.js. |
+| **Preview deployments for testing** | Developers pushing PRs expect a preview URL to test changes before merging to production. Standard Vercel workflow. | LOW | Vercel provides this automatically. Preview deploys connect to a dev/staging Supabase instance (not production). |
+| **Environment separation (dev/prod databases)** | Data created during development and testing must not pollute production. Two Supabase projects. | LOW | Two Supabase projects: one for dev/preview, one for production. Different `DATABASE_URL` per Vercel environment. |
+| **Protected API routes (agent not publicly callable)** | The agent server exposes endpoints that create database records, trigger AI workflows, and write to Google Drive. Without auth, anyone with the URL can trigger expensive operations. | MEDIUM | API key shared between web and agent. Web sends `Authorization: Bearer <key>` header; agent validates on every request. |
 
-### Differentiators (Competitive Advantage for a Consultancy)
+### Differentiators (What Makes This Setup Better Than Minimum)
 
-These features go beyond what generic sales enablement platforms offer and are specifically valuable for a technology consultancy like Lumenalta selling complex, bespoke engagements.
+These features go beyond "it works" and make the platform genuinely comfortable for the team.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Multi-pillar solution mapping (primary + secondary) | Consultancies sell across multiple capability areas per deal; generic tools output one solution pitch. Identifying which Lumenalta pillars address the buyer's problem gives sellers a more nuanced and accurate proposal. | MEDIUM | Requires structured solution taxonomy in AtlusAI; pillar mapping logic in the brief generation agent |
-| Buyer FAQ + objection handling doc | Sellers preparing for second meetings need to anticipate questions, not just present. This is rarely automated at this fidelity. | MEDIUM | Already in PROJECT.md; requires prompt engineering to generate role-specific objections |
-| HITL at brief stage (before slides) | Most AI deck tools skip directly to output. Gating on brief approval catches strategic errors before wasted generation effort. The brief is also a forcing function for SME alignment. | LOW | Already a hard stop in PROJECT.md; the design decision is the differentiator, not the implementation |
-| Feedback loop from human edits | Capturing what SMEs and marketing correct in the output creates a self-improving system. This is rare in early-stage enterprise AI tools. | HIGH | Requires structured diff capture, edit categorization, and routing to prompt/RAG refinement pipeline; significant complexity |
-| 11-industry + 62-subsector taxonomy with content mapped to each | Deep vertical specificity in content retrieval means case studies and positioning match the buyer's actual industry, not a generic analog. Most tools offer 5-10 generic verticals. | HIGH | Requires all 11 industries populated in AtlusAI before go-live; the content loading phase is the bottleneck |
-| Discovery question generation mapped to Lumenalta solutions | Pre-call question generation tied to specific solutions (not generic SPIN selling) makes Lumenalta sellers sound like domain experts before they've done their homework. | MEDIUM | Requires hypothesis templates per industry/solution; prompt engineering intensive |
-| Role-specific hypotheses (by buyer persona) | A CTO and a CFO need different problem framings. Generating persona-specific hypotheses moves beyond one-size-fits-all briefing. | MEDIUM | Requires persona taxonomy in the system; adds branching logic to pre-call agent |
-| Slide block assembly as structured JSON before rendering | Decoupling the "what slides in what order" decision from rendering allows SME review of structure before any pixel is painted. No other tool in this space works this way. | HIGH | Requires slide block schema, ordering logic, and JSON intermediate layer; already implied in PROJECT.md |
-| ROI framing module | Producing 2-3 quantified business outcome statements per use case is differentiating for consultancy sales where CFO-level justification is required. | MEDIUM | Requires business outcome templates by industry; prompt engineering + structured output |
+| **Automatic preview deploys per PR with staging data** | Every pull request gets its own URL pointing at the dev Supabase instance. QA reviewers can test changes without asking the developer to run anything locally. Accelerates iteration on the platform. | LOW | Vercel provides this for free. Only configuration needed is environment variables on the Vercel project. |
+| **Google OAuth with Supabase (not raw NextAuth)** | Using Supabase Auth means the auth layer is co-located with the database. User records live in the same Supabase project. No separate auth database or provider. Simplifies the stack. | MEDIUM | Supabase Auth is purpose-built for this. Alternatives (NextAuth/Auth.js, Clerk) add a third service. Supabase consolidates auth + database. |
+| **Middleware-based route protection** | Next.js middleware intercepts every request before it reaches a page. Unauthenticated users are redirected to `/login` without loading page code. Fast, secure, no flash of protected content. | LOW | `@supabase/ssr` provides `createServerClient` for use in Next.js middleware. Standard pattern. |
+| **Supabase Row Level Security (RLS) as defense-in-depth** | Even if application auth is bypassed, RLS policies on the database prevent unauthorized data access. Not strictly needed for v1.1 (internal tool, single tenant), but sets up the right foundation. | MEDIUM | Supabase enables RLS by default on new tables. For v1.1, a simple "authenticated users can do everything" policy is sufficient. More granular policies (per-user, per-deal) are v2. |
+| **Mastra internal storage migration (LibSQL to Supabase)** | Currently Mastra uses a local LibSQL file (`mastra.db`) for workflow state. Moving this to a hosted database means workflow suspend/resume state survives deployments and is shared across instances. | MEDIUM | Mastra supports `@mastra/pg` storage adapter as an alternative to `@mastra/libsql`. Switching to the Postgres adapter means both application data and Mastra internal state live in Supabase. |
 
-### Anti-Features (Deliberately NOT Build)
-
-Features that appear useful but create real problems for a consultancy internal tool at this scale. Being explicit about what to exclude prevents scope creep and avoids known failure modes.
+### Anti-Features (Do NOT Build for v1.1)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| CRM (Salesforce) integration | Sellers want deal context auto-populated from Salesforce records | Data hygiene at Lumenalta is not ready; inconsistent field completeness makes AI outputs unreliable. Adds significant integration surface for v1. Already explicitly out of scope in PROJECT.md. | Seller provides context via manual form input; revisit in v2 after data hygiene standards are established |
-| In-call / real-time AI coaching | "Coach me live during the call" sounds powerful | Requires low-latency audio pipeline, very different architecture from transcript-batch processing. Distracts from the core value prop. Zoom/Teams integration adds compliance surface. | Pre-call briefing provides the preparation that in-call coaching would otherwise provide |
-| AI-generated slide layouts (hallucinated) | "Make it look better" or "generate a custom layout" | Produces off-brand output, violates Lumenalta brand guidelines, creates legal/brand review burden, and undermines trust in the system. Pre-approved building blocks are the constraint for a reason. | Use only pre-approved Lumenalta building block library assembled by AI; if a layout doesn't exist, flag it as a content gap |
-| Per-seller Google OAuth / personal Drive output | Sellers want output in their personal Drive | Multiple OAuth tokens, per-user credential management, token refresh complexity, data ownership ambiguity. Not worth the overhead for v1. | Service account to shared Lumenalta Drive; sellers access via Drive sharing |
-| Video upload / Zoom/Firefly API integration | "Can't I just upload the recording?" | Adds video transcription pipeline, storage costs, Zoom API rate limits, and GDPR/recording-consent complexity. Not core to the hackathon demo. | Manual transcript paste works with any meeting tool; Granola/Zoom/Firefly integration is a named v2 item |
-| Fine-tuning or custom model training | "We want our own model" | Fine-tuning requires labeled training data (which doesn't exist yet), is expensive to maintain, and is slower to iterate than prompt engineering. Prompt engineering + few-shot examples achieve 90% of the benefit. | All steering via prompt engineering + few-shot examples in Gemini API calls |
-| Custom analytics dashboard (usage/engagement tracking) | Sales leaders want to see "how many decks were generated" | Adds significant frontend complexity, a database schema for event tracking, and a whole reporting surface. Low value for hackathon; premature optimization. | Google Drive modification timestamps and file counts provide basic tracking; formal analytics is v2 |
-| Mobile app | Sellers want to use the tool on their phones | Web-first is the right call for a tool used at a desk before/after calls. Mobile adds responsive UI complexity that doesn't serve the core workflow. | Responsive web UI that works on mobile without being optimized for it |
-| Automatic email drafting / outreach generation | "While you're at it, draft the follow-up email" | Scope creep. Email sequencing is a different workflow, different compliance considerations (CAN-SPAM, personalization at scale), and would require an entirely separate review/approval flow. | Focus on second-meeting collateral; email copy is seller's responsibility |
-| Real-time collaborative editing of the AI brief | "I want multiple SMEs to edit simultaneously like Google Docs" | Adds operational transform / CRDT complexity, conflict resolution, and session management. Far exceeds hackathon scope. | Sequential HITL review (seller approves → SME approves → marketing signs off); async is acceptable for this workflow |
-| Competitive intelligence auto-generation | "Tell me how Lumenalta compares to Accenture/McKinsey for this deal" | Requires curated, up-to-date competitive content. AI hallucination risk is high. Compliance risk if inaccurate competitive claims reach client-facing materials. | Competitive positioning is a human input; sellers provide their read on competitive context |
+| **Role-based access control (admin/seller/SME roles)** | "Different users should see different things" | Adds a permissions model, role assignment UI, and authorization checks on every endpoint. All current users are Lumenalta employees with equal access needs. Over-engineering for a 20-person team. | All authenticated @lumenalta.com users get full access. RBAC is a v2 feature if the tool scales beyond the sales team. |
+| **User profile management / settings page** | "Users should be able to set their preferences" | Google OAuth provides name, email, and avatar. There is nothing to configure in v1.1. A settings page with nothing in it is worse than no settings page. | Display user name/avatar from Google profile in the nav bar. No editable settings. |
+| **Magic link or email/password auth** | "What if someone doesn't have Google?" | All Lumenalta employees have Google Workspace accounts. Adding email/password creates a password management burden, security liability, and UX fork for zero benefit. | Google OAuth only. No alternative auth methods. |
+| **Multi-tenant / organization support** | "What if we sell this to other companies?" | Adds tenant isolation, data scoping, billing, and onboarding. Premature for an internal tool. Would require rewriting every database query to include tenant filtering. | Single-tenant. Lumenalta only. Re-evaluate if the tool is productized. |
+| **Custom domain (e.g., sales.lumenalta.com)** | "Looks more professional than a .vercel.app URL" | Requires DNS configuration, SSL certificate management, and Vercel custom domain setup. Low priority for an internal team tool. | Use the Vercel-provided URL. Add a custom domain later if desired. |
+| **Database migration of existing SQLite data** | "Can we keep the demo data?" | The existing SQLite data is demo/seed data (Meridian Capital Group fixture). It has no production value. Migrating it adds complexity (data type conversion, ID remapping) for worthless data. | Start fresh with a clean Supabase database. Re-seed the demo scenario with a Prisma seed script targeting Postgres. |
+| **Serverless agent deployment (Vercel Functions)** | "Keep everything on Vercel" | The Mastra agent server is a long-lived Hono HTTP server that needs persistent connections for workflow suspend/resume and LibSQL/Postgres connections. Vercel Functions have a 10s default / 60s max timeout. Workflows that call LLMs and Google APIs run for 30-120 seconds. Serverless is architecturally incompatible. | Deploy the agent on a platform that supports long-lived processes: Railway, Render, Fly.io, or a Vercel-adjacent VPS. Or investigate Mastra's `mastra deploy` if it supports a managed hosting option. |
+| **WebSocket or SSE real-time updates** | "Show workflow progress in real-time" | The current polling pattern (check workflow status every 2s) works and is simple. WebSockets add connection management, reconnection logic, and serverless incompatibility. | Keep the polling pattern. It works. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[AtlusAI Content Library — Loaded + Indexed]
-    └──required-by──> [RAG Retrieval (industry/pillar/stage matching)]
-                          └──required-by──> [Slide Block Assembly (JSON)]
-                                                └──required-by──> [Google Slides Deck Generation]
-                                                └──required-by──> [Talk Track Generation]
-                                                └──required-by──> [Buyer FAQ Generation]
+[Supabase Project Setup (dev + prod)]
+    |
+    +--required-by--> [Prisma Schema Migration (SQLite -> PostgreSQL)]
+    |                      |
+    |                      +--required-by--> [Prisma Seed Script (Postgres-compatible)]
+    |                      |
+    |                      +--required-by--> [Mastra Storage Migration (LibSQL -> @mastra/pg)]
+    |
+    +--required-by--> [Supabase Auth Configuration (Google OAuth provider)]
+                           |
+                           +--required-by--> [Next.js Auth Integration (@supabase/ssr)]
+                           |                      |
+                           |                      +--required-by--> [Middleware Route Protection]
+                           |                      |
+                           |                      +--required-by--> [Login Page UI]
+                           |                      |
+                           |                      +--required-by--> [Auth Callback Route Handler]
+                           |
+                           +--required-by--> [Domain Restriction Logic (@lumenalta.com check)]
 
-[Transcript Ingestion]
-    └──required-by──> [Structured Brief Extraction (Zod)]
-                          └──required-by──> [Missing Field Notification]
-                          └──required-by──> [Multi-Pillar Solution Mapping]
-                                                └──required-by──> [HITL Checkpoint 1: Brief Approval]
-                                                                      └──required-by──> [RAG Retrieval]
+[Vercel Project Setup (web)]
+    |
+    +--required-by--> [Environment Variables Configuration]
+    |                      |
+    |                      +--required-by--> [Preview Deploy Testing]
+    |
+    +--required-by--> [Production Deploy]
 
-[HITL Checkpoint 1: Brief Approval]
-    └──gates──> [All slide/doc generation — hard stop]
+[Agent Hosting Decision (Railway/Render/Fly/other)]
+    |
+    +--required-by--> [Agent Deployment Configuration]
+    |                      |
+    |                      +--required-by--> [AGENT_SERVICE_URL in Vercel env vars]
+    |
+    +--required-by--> [Service-to-Service API Key Auth]
+                           |
+                           +--required-by--> [API Key Middleware on Agent (validate Bearer token)]
+                           |
+                           +--required-by--> [Web App API Client Update (send Authorization header)]
 
-[HITL Checkpoint 2: Final Asset Review]
-    └──enables──> [Feedback Loop / Edit Capture]
-                      └──improves──> [Prompt Engineering Refinement]
-                      └──improves──> [RAG Retrieval Accuracy]
-
-[Industry + Subsector Taxonomy (11/62)]
-    └──required-by──> [Transcript Ingestion UI (selector)]
-    └──required-by──> [RAG Retrieval (content matching)]
-    └──required-by──> [Pre-Call Briefing (role + industry context)]
-
-[Pre-Call Briefing Flow]
-    ──independent-of──> [Post-Call Transcript Flow]
-    (parallel flows; share AtlusAI and taxonomy but do not depend on each other)
-
-[ROI Framing Module]
-    └──enhances──> [Structured Brief Extraction]
-    └──required-by──> [Slide Block Assembly — value hypothesis section]
-
-[Feedback Loop — Edit Capture]
-    └──enhances──> [All AI generation over time]
-    (deferred complexity; not required for v1 demo)
+[Prisma Schema Migration] --must-complete-before--> [Vercel Production Deploy]
+[Supabase Auth Configuration] --must-complete-before--> [Vercel Production Deploy]
+[Agent Hosting Decision] --must-complete-before--> [Vercel Production Deploy]
 ```
 
 ### Dependency Notes
 
-- **AtlusAI Content Library gates everything downstream:** No RAG retrieval, no slide assembly, no deck generation until the library is loaded and indexed. This is the single highest-risk dependency for the hackathon timeline. Content loading must happen before any integration testing of the post-call flow.
+- **Supabase project setup gates everything:** Both the database migration and the auth configuration depend on having Supabase projects created. This is the first action item.
 
-- **HITL Checkpoint 1 gates all generation:** The hard stop design means the brief approval UI must be fully functional before any deck output can be tested end-to-end. The brief approval flow is not optional scaffolding — it is on the critical path.
+- **Prisma schema migration is independent of auth:** The database migration (SQLite to Postgres) and the auth setup (Google OAuth) can proceed in parallel once Supabase projects exist. They converge at production deployment.
 
-- **Industry taxonomy must be settled before content loading:** The 11-industry / 62-subsector taxonomy defines the indexing scheme for AtlusAI. If the taxonomy changes after content is loaded, re-indexing is required. Finalize taxonomy first.
+- **Agent hosting is the critical path question:** The web app deploys trivially on Vercel. The agent server does NOT fit Vercel's serverless model. The hosting decision for the agent must be made early because it determines the `AGENT_SERVICE_URL` that the web app needs, and whether the agent needs its own CI/CD pipeline.
 
-- **Pre-call and post-call flows are independent:** They share AtlusAI and the industry taxonomy but do not depend on each other. They can be developed in parallel. For the hackathon demo, post-call flow is higher priority (it ends with visible output: a Google Slides deck).
+- **Service-to-service auth depends on agent hosting:** The API key auth pattern between web and agent can only be implemented after both services have their deployment targets decided, because the API key must be shared as environment variables on both platforms.
 
-- **Feedback loop is deferred complexity:** Edit capture and refinement pipeline add significant complexity without changing the demo outcome. Build the capture mechanism (log human edits) in v1, but full refinement automation is v1.x.
+- **Domain restriction depends on Supabase Auth:** The @lumenalta.com email check happens in the auth callback handler, after Google OAuth returns the user's email. This is application-level logic, not a Supabase configuration.
 
-- **ROI framing module depends on business outcome templates per industry:** If templates aren't in AtlusAI or in prompts, the module degrades to generic statements. Templates should be built during content library phase.
+- **Mastra storage migration is optional but recommended:** The agent currently uses LibSQL (local file) for Mastra's internal state. This works for development but state is lost on redeployment. Migrating to `@mastra/pg` (using the same Supabase Postgres) makes workflow state persistent across deployments. This is a code change in `apps/agent/src/mastra/index.ts`.
+
+---
+
+## Detailed Feature Descriptions
+
+### 1. SQLite to Supabase (PostgreSQL) Migration
+
+**What the developer does:**
+
+1. Create two Supabase projects: `lumenalta-sales-dev` and `lumenalta-sales-prod`
+2. Change `schema.prisma` datasource provider from `"sqlite"` to `"postgresql"`
+3. Update `DATABASE_URL` from `file:./prisma/dev.db` to the Supabase connection string (`postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres`)
+4. Handle SQLite-to-Postgres schema differences:
+   - `String` fields storing JSON blobs (e.g., `payload`, `tags`, `useCases`) should become `Json` type in Prisma
+   - `DateTime` fields work the same way (Prisma abstracts this)
+   - `@default(cuid())` works identically
+   - `@@index` and `@@unique` constraints translate directly
+5. Delete the existing SQLite migration history (`prisma/migrations/`)
+6. Create a fresh baseline migration for Postgres: `prisma migrate dev --name init-postgres`
+7. Update the seed script to work with Postgres (likely no changes needed)
+
+**What changes in the schema:**
+
+The 9 existing models (WorkflowJob, ImageAsset, ContentSource, Company, Deal, InteractionRecord, FeedbackSignal, Transcript, Brief) move to Postgres. Key changes:
+
+- Fields currently stored as `String` with JSON content (e.g., `payload String`, `tags String`, `useCases String`) can optionally become `Json` type for proper Postgres JSONB storage. This is a quality improvement but not required -- `String` with JSON works in Postgres too.
+- No structural model changes needed. The schema is already well-designed.
+- SQLite's `TEXT` type (used for `rawText` on Transcript) maps to Postgres `TEXT` with no practical limit. No change needed.
+
+**What the user experiences:** Nothing changes. The web UI behaves identically. Data persists across deployments. Multiple team members share the same database.
+
+**Complexity:** MEDIUM. The schema translation is mechanical. The complexity is in: (a) not breaking the seed script, (b) ensuring the Supabase connection string includes the correct pooler URL for serverless contexts, and (c) updating all environment files and CI/CD secrets.
+
+### 2. Vercel Deployment (2 Projects)
+
+**What the deployment topology looks like:**
+
+```
+GitHub Repo: lumenalta-hackathon/
+    |
+    +-- Vercel Project "lumenalta-web"
+    |       Root Directory: apps/web
+    |       Framework: Next.js
+    |       Build Command: (auto-detected or `cd ../.. && npx turbo run build --filter=web`)
+    |       Environments:
+    |           Production: main branch -> lumenalta-web.vercel.app
+    |           Preview: PR branches -> lumenalta-web-pr-123.vercel.app
+    |       Env Vars:
+    |           AGENT_SERVICE_URL = https://agent-host.example.com
+    |           NEXT_PUBLIC_SUPABASE_URL = https://xxx.supabase.co
+    |           NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJ...
+    |           SUPABASE_SERVICE_ROLE_KEY = eyJ...
+    |           AGENT_API_KEY = sk-...
+    |
+    +-- Agent Server (NOT on Vercel)
+            Host: Railway / Render / Fly.io
+            Build: `mastra build`
+            Start: node output
+            Env Vars:
+                DATABASE_URL = postgresql://...
+                GOOGLE_SERVICE_ACCOUNT_KEY = {...}
+                GOOGLE_DRIVE_FOLDER_ID = ...
+                GOOGLE_TEMPLATE_PRESENTATION_ID = ...
+                GOOGLE_CLOUD_PROJECT = ...
+                GOOGLE_CLOUD_LOCATION = ...
+                AGENT_API_KEY = sk-... (same key, validates inbound requests)
+```
+
+**Why 2 projects, not 1:**
+
+The web app (Next.js) and the agent server (Mastra/Hono) have fundamentally different runtime requirements. Next.js is designed for Vercel. Mastra's Hono server is a long-running Node.js process that needs:
+- Persistent connections to Postgres (for Prisma and Mastra storage)
+- Long request timeouts (workflow execution can take 30-120 seconds)
+- File system access during build (for `mastra build`)
+- A stable process for workflow suspend/resume state
+
+Vercel Functions timeout at 10s (Hobby) or 60s (Pro), which is insufficient for LLM + Google API workflow execution.
+
+**What the developer experience looks like:**
+
+1. Push to `main` -> Vercel auto-deploys the web app to production
+2. Push a PR branch -> Vercel creates a preview deploy of the web app
+3. Preview deploys use dev Supabase; production uses prod Supabase
+4. Agent deploys separately on its hosting platform (Railway/Render/Fly)
+5. Agent hosting platform watches the same GitHub repo (or a deploy hook)
+
+**What the user experiences:**
+
+- Production URL: `https://lumenalta-web.vercel.app` (or custom domain)
+- Everything works the same as localhost, but accessible from any browser
+- Preview URLs let QA test changes before they reach production
+
+**Complexity:** LOW for the web app (Vercel + Next.js is trivial). HIGH for the agent server (choosing a host, configuring the build pipeline, ensuring `mastra build` output is deployable, managing environment variables on a second platform).
+
+### 3. Google OAuth Login Wall (@lumenalta.com)
+
+**What the login flow looks like (user perspective):**
+
+1. User navigates to `https://lumenalta-web.vercel.app/`
+2. Next.js middleware checks for a Supabase session cookie
+3. No session found -> redirect to `/login`
+4. `/login` page shows: Lumenalta logo, "Sign in with Google" button, and a note: "Only @lumenalta.com accounts are allowed"
+5. User clicks "Sign in with Google"
+6. Browser redirects to Google's OAuth consent screen
+7. User selects their @lumenalta.com Google account and consents
+8. Google redirects to `/auth/callback` with an authorization code
+9. The callback route handler:
+   a. Exchanges the code for tokens via Supabase Auth
+   b. Gets the user's email from the token
+   c. Checks: does the email end with `@lumenalta.com`?
+   d. If YES: creates/updates the user in Supabase Auth, sets session cookie, redirects to `/`
+   e. If NO: destroys the session, redirects to `/login?error=unauthorized` with message "Only @lumenalta.com accounts can access this application"
+10. User is now on the main app page, logged in. Their name and avatar appear in the navigation.
+11. Subsequent page loads: middleware finds valid session cookie, allows access. No re-authentication.
+12. Session expires (configurable, default 1 hour with refresh): automatic token refresh via `@supabase/ssr`. User stays logged in as long as they have an active browser session.
+
+**What the middleware does:**
+
+```
+Every request to the web app
+    |
+    +-- Is this /login, /auth/callback, or a static asset?
+    |       YES -> Allow through (no auth required)
+    |
+    +-- Does the request have a valid Supabase session cookie?
+    |       YES -> Allow through (user is authenticated)
+    |       NO  -> Redirect to /login
+```
+
+**Technical implementation (Next.js + Supabase):**
+
+- Package: `@supabase/ssr` (replaces the older `@supabase/auth-helpers-nextjs`)
+- Two Supabase client utilities:
+  - `createServerClient` for Server Components and middleware (reads/writes cookies)
+  - `createBrowserClient` for Client Components (reads cookies)
+- Auth callback route: `apps/web/src/app/auth/callback/route.ts` (Route Handler)
+- Middleware: `apps/web/src/middleware.ts` (Next.js Middleware)
+- Login page: `apps/web/src/app/login/page.tsx` (public, shows Google sign-in button)
+
+**Domain restriction approach:**
+
+There are two ways to restrict to @lumenalta.com:
+
+1. **Google Cloud Console -> OAuth consent screen -> restrict to organization** (Google Workspace admin setting). This prevents non-Lumenalta Google accounts from even seeing the consent screen. Requires Google Workspace admin access. The cleanest approach if admin access is available.
+
+2. **Application-level check in the auth callback** (check `user.email.endsWith('@lumenalta.com')`). Works regardless of Google Workspace settings. Defense-in-depth: even if someone bypasses the Google restriction, the app rejects them.
+
+**Recommendation:** Use BOTH. Configure Google OAuth to the organization at the Google Cloud level, AND check the email domain in the callback handler. Belt and suspenders.
+
+**Complexity:** MEDIUM. The auth flow has several moving parts (Supabase project config, Google Cloud Console OAuth client, callback handler, middleware, cookie management), but each piece is well-documented and follows standard patterns.
+
+### 4. Service-to-Service API Key Auth (Web to Agent)
+
+**What this protects:**
+
+The agent server (`apps/agent`) exposes HTTP endpoints that:
+- Create/modify database records (Company, Deal, InteractionRecord, Brief)
+- Trigger AI workflows (LLM calls cost money, Google API calls have quotas)
+- Write to Google Drive (creating presentations, documents)
+
+Without auth, anyone who discovers the agent URL can trigger all of these operations.
+
+**How it works:**
+
+1. Generate a random API key: `openssl rand -hex 32` -> `sk-abc123...`
+2. Store the key as an environment variable on BOTH services:
+   - Web app (Vercel): `AGENT_API_KEY=sk-abc123...`
+   - Agent server (Railway/Render): `AGENT_API_KEY=sk-abc123...`
+3. Web app sends the key on every request to the agent:
+   ```
+   Authorization: Bearer sk-abc123...
+   ```
+4. Agent server validates the key on every incoming request:
+   ```
+   if (request.headers.get('Authorization') !== `Bearer ${process.env.AGENT_API_KEY}`) {
+     return 401 Unauthorized
+   }
+   ```
+
+**What changes in the existing code:**
+
+- `apps/web/src/lib/api-client.ts`: Add `Authorization` header to the `fetchJSON` function
+- `apps/agent/src/mastra/index.ts`: Add auth middleware before all API routes (Hono middleware)
+- `apps/web/src/env.ts`: Add `AGENT_API_KEY` to the env schema
+- `apps/agent/src/env.ts`: Add `AGENT_API_KEY` to the env schema
+
+**What the user experiences:** Nothing. The API key is invisible to end users. It is a backend-to-backend security measure.
+
+**Complexity:** LOW. It is a shared secret with header validation. No token refresh, no JWT, no OAuth. For an internal tool with two services, this is the right level of security.
 
 ---
 
 ## MVP Definition
 
-### Launch With (v1 — Hackathon Demo)
+### Launch With (v1.1)
 
-The minimum that demonstrates the full pipeline end-to-end.
+The minimum to get the platform deployed and accessible to the Lumenalta team with basic security.
 
-- [ ] **Pre-call briefing flow** — company research snapshot + discovery questions generated from seller input; required to show the full platform scope
-- [ ] **Transcript ingestion UI** — paste input with industry/subsector selector; the entry point for all post-call value
-- [ ] **Structured brief extraction with Zod validation** — the intelligence layer that justifies HITL; without it, the HITL checkpoint has nothing to show
-- [ ] **Missing-field notification** — required for seller trust; silently proceeding on incomplete data destroys credibility
-- [ ] **Multi-pillar solution mapping** — the core analytical output that differentiates from generic AI tools
-- [ ] **HITL Checkpoint 1 (brief approval UI)** — non-negotiable hard stop; required by design, required for demo
-- [ ] **AtlusAI RAG retrieval (industry + pillar + stage matching)** — required before any slide assembly; depends on library being loaded
-- [ ] **Slide block assembly as structured JSON** — the intermediate step that makes assembly transparent and reviewable
-- [ ] **Google Slides deck generation via API** — the visible, shareable deliverable; this is what the demo lands on
-- [ ] **Talk track (Google Doc)** — expected alongside the deck; demonstrates completeness
-- [ ] **Buyer FAQ with objection handling (Google Doc)** — differentiating output; third artifact in the package
-- [ ] **HITL Checkpoint 2 (final asset review UI)** — closes the approval loop; required for brand governance story
-- [ ] **AtlusAI content library loaded for 11 industries** — pipeline cannot function without this; must be done before integration testing
+- [ ] **Supabase project setup (dev + prod)** -- foundation for everything else
+- [ ] **Prisma schema migration to PostgreSQL** -- the application database must work on Supabase before anything else can be tested
+- [ ] **Supabase Auth with Google OAuth** -- the login wall is a security requirement, not a nice-to-have
+- [ ] **@lumenalta.com domain restriction** -- both at Google Cloud level and in application callback
+- [ ] **Next.js middleware route protection** -- every page behind auth
+- [ ] **Login page UI** -- simple, branded, Google sign-in button
+- [ ] **Auth callback route handler** -- exchanges code for session, checks domain
+- [ ] **Vercel web app deployment** -- prod + preview environments
+- [ ] **Agent server deployment (Railway/Render/Fly)** -- long-running process, not serverless
+- [ ] **Service-to-service API key auth** -- protects agent endpoints from public access
+- [ ] **Environment variable configuration** -- Supabase URL, keys, API key, agent URL across all environments
+- [ ] **Demo seed data for Postgres** -- re-seed Meridian Capital Group scenario on the new database
 
-### Add After Validation (v1.x)
+### Add After Validation (v1.1.x)
 
-Add once the core pipeline is working and used in real sales cycles.
-
-- [ ] **Feedback loop — structured edit capture** — trigger: sellers are actively using the tool; first edit patterns will reveal what the AI consistently gets wrong
-- [ ] **Prompt refinement from edit history** — trigger: enough edit volume to identify patterns (50+ decks generated)
-- [ ] **ROI framing module** — trigger: sellers report that CFO-level justification is a recurring gap in generated content
-- [ ] **Salesforce integration (read-only)** — trigger: data hygiene standards established; adds deal context without manual form input
-- [ ] **Video/transcript API integration (Granola, Zoom, Firefly)** — trigger: sellers find paste friction is causing them to skip the tool
+- [ ] **Mastra storage migration (LibSQL to @mastra/pg)** -- trigger: workflow state not persisting across agent redeployments
+- [ ] **Supabase RLS policies** -- trigger: concern about direct database access or multi-role access patterns
+- [ ] **Custom domain** -- trigger: team wants a professional URL
+- [ ] **User activity logging** -- trigger: need to know who is using the platform and how often
 
 ### Future Consideration (v2+)
 
-Defer until product-market fit is established and the platform is embedded in Lumenalta's sales process.
-
-- [ ] **In-call coaching** — defer: fundamentally different architecture; pre-call briefing is a better investment for the same outcome
-- [ ] **Usage analytics dashboard** — defer: Google Drive telemetry sufficient for early stage; formal analytics justified only after consistent adoption
-- [ ] **Competitive intelligence module** — defer: high hallucination risk; requires curated, maintained competitive content
-- [ ] **Mobile-optimized UI** — defer: web-first serves the workflow; mobile is not where pre/post-call work happens
-- [ ] **Multi-user collaborative brief editing** — defer: async HITL is adequate; real-time editing adds complexity without proportional value
+- [ ] **Role-based access control** -- defer: all users are equal in v1.1
+- [ ] **User settings/preferences page** -- defer: nothing to configure
+- [ ] **Multi-tenant support** -- defer: not a product, it is an internal tool
+- [ ] **OAuth token-based service auth (JWT)** -- defer: API key is sufficient for two internal services
 
 ---
 
@@ -167,65 +353,209 @@ Defer until product-market fit is established and the platform is embedded in Lu
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Pre-call briefing (company snapshot + discovery questions) | HIGH | MEDIUM | P1 |
-| Transcript ingestion + industry selector | HIGH | LOW | P1 |
-| Structured brief extraction (Zod validation) | HIGH | MEDIUM | P1 |
-| Missing-field notification | HIGH | LOW | P1 |
-| Multi-pillar solution mapping | HIGH | MEDIUM | P1 |
-| HITL Checkpoint 1 (brief approval) | HIGH | MEDIUM | P1 |
-| AtlusAI content library loading (all 11 industries) | HIGH | HIGH | P1 |
-| RAG retrieval (industry + pillar + stage) | HIGH | MEDIUM | P1 |
-| Slide block JSON assembly | HIGH | HIGH | P1 |
-| Google Slides deck generation via API | HIGH | HIGH | P1 |
-| Talk track (Google Doc) | HIGH | MEDIUM | P1 |
-| Buyer FAQ + objection handling (Google Doc) | MEDIUM | MEDIUM | P1 |
-| HITL Checkpoint 2 (final asset review) | HIGH | MEDIUM | P1 |
-| ROI framing module | MEDIUM | MEDIUM | P2 |
-| Feedback loop — edit capture | MEDIUM | HIGH | P2 |
-| Prompt refinement from edits | MEDIUM | HIGH | P2 |
-| Salesforce integration | LOW | HIGH | P3 |
-| Usage analytics dashboard | LOW | HIGH | P3 |
-| In-call coaching | LOW | HIGH | P3 |
-| Competitive intelligence module | LOW | HIGH | P3 |
+| Supabase project setup (dev + prod) | HIGH | LOW | P1 |
+| Prisma schema migration (SQLite -> PostgreSQL) | HIGH | MEDIUM | P1 |
+| Supabase Auth + Google OAuth configuration | HIGH | MEDIUM | P1 |
+| @lumenalta.com domain restriction | HIGH | LOW | P1 |
+| Next.js middleware route protection | HIGH | LOW | P1 |
+| Login page UI | HIGH | LOW | P1 |
+| Auth callback route handler | HIGH | LOW | P1 |
+| Vercel web app deployment (prod + preview) | HIGH | LOW | P1 |
+| Agent server deployment (Railway/Render/Fly) | HIGH | HIGH | P1 |
+| Service-to-service API key auth | HIGH | LOW | P1 |
+| Environment variables across all platforms | HIGH | LOW | P1 |
+| Postgres-compatible seed script | MEDIUM | LOW | P1 |
+| Mastra storage migration (LibSQL -> @mastra/pg) | MEDIUM | MEDIUM | P2 |
+| Supabase RLS policies (defense-in-depth) | LOW | MEDIUM | P2 |
+| Custom domain | LOW | LOW | P3 |
+| User activity logging | LOW | MEDIUM | P3 |
+| Role-based access control | LOW | HIGH | P3 |
 
 **Priority key:**
-- P1: Must have for hackathon demo (v1)
-- P2: Should have, add post-validation (v1.x)
-- P3: Future consideration only (v2+)
+- P1: Must have for v1.1 launch (team can use the deployed platform)
+- P2: Should have, add when v1.1 is stable
+- P3: Nice to have, future consideration
 
 ---
 
-## Competitor Feature Analysis
+## Login Flow UX Description
 
-| Feature | Highspot / Seismic (Enterprise Sales Enablement) | Gong / Chorus (Revenue Intelligence) | Tome / Pitch / Beautiful.ai (AI Deck Tools) | Lumenalta Platform (Our Approach) |
-|---------|------|------|------|------|
-| Pre-call company research | Yes — account intelligence panels, Salesforce-linked | Yes — deal intelligence from CRM + call history | No | Yes — public sources + AtlusAI; no CRM dependency |
-| Transcript ingestion | No (content management focus) | Yes — native call recording and transcription | No | Yes — manual paste; avoids recording-consent complexity |
-| Structured brief from transcript | No | Partial — deal summaries, not proposal briefs | No | Yes — Zod-validated structured output with specific field extraction |
-| HITL approval before output | No — output is immediate | No | No | Yes — hard stop at brief stage; differentiating design choice |
-| Brand-compliant slide assembly | Yes — content templates and content blocks | No | Partial — templates, but AI can deviate | Yes — pre-approved building blocks only; no generated layouts |
-| RAG over internal content library | Yes — content management with semantic search | No | No | Yes — AtlusAI with industry + pillar + stage indexing |
-| Industry vertical specificity | 5-8 generic verticals | Deal-level, not vertical-specific | No | 11 industries + 62 subsectors; deepest taxonomy in this space |
-| Talk track + FAQ as standard output | No | No | No | Yes — three-artifact output package (deck + talk track + FAQ) |
-| Feedback loop from human edits | Partial — content performance analytics | Partial — call coaching feedback | No | Yes — edit capture for prompt and RAG refinement (v1.x) |
-| CRM integration | Yes — core feature | Yes — core feature | No | Explicitly out of scope for v1 |
-| In-call coaching | No (Highspot); No (Seismic) | Yes — core Gong feature | No | Out of scope; pre-call briefing serves the same preparation need |
+### Happy Path
 
-**Key competitive insight:** No existing tool covers the full workflow: pre-call briefing + post-call transcript → HITL-gated → brand-compliant deck + talk track + FAQ. Gong owns revenue intelligence. Highspot/Seismic own content management. AI deck tools (Tome, Pitch) own visual generation but ignore the sales intelligence layer. This platform occupies the gap between those categories and is purpose-built for consultancy sales motions. Confidence: MEDIUM (competitor analysis based on training data through August 2025; specific feature sets may have changed).
+```
+[User opens lumenalta-web.vercel.app]
+    |
+    v
+[Middleware: no session cookie]
+    |
+    v
+[Redirect to /login]
+    |
+    v
+[Login Page]
+    +-- Lumenalta branding (logo, colors)
+    +-- "Sign in to Sales Platform"
+    +-- [Sign in with Google] button (shadcn/ui Button, Google icon)
+    +-- Small text: "Only @lumenalta.com accounts are allowed"
+    |
+    v (user clicks button)
+    |
+[Supabase Auth: redirect to Google OAuth consent screen]
+    |
+    v (user selects their @lumenalta.com account)
+    |
+[Google redirects to /auth/callback?code=...]
+    |
+    v
+[Callback Route Handler]
+    +-- Exchanges code for Supabase session
+    +-- Reads user.email from session
+    +-- Checks: email.endsWith('@lumenalta.com')? YES
+    +-- Sets session cookie
+    +-- Redirects to / (or the URL they originally tried to visit)
+    |
+    v
+[Main App Page -- user sees their name/avatar in nav]
+```
+
+### Rejection Path (Non-Lumenalta Account)
+
+```
+[User tries to log in with a @gmail.com account]
+    |
+    v
+[Google OAuth consent screen -- user selects personal account]
+    |
+    v
+[Callback Route Handler]
+    +-- Exchanges code for session
+    +-- Reads user.email: "user@gmail.com"
+    +-- Checks: email.endsWith('@lumenalta.com')? NO
+    +-- Destroys the Supabase session (sign out)
+    +-- Redirects to /login?error=unauthorized
+    |
+    v
+[Login Page with error banner]
+    +-- Red alert: "Access denied. Only @lumenalta.com accounts can sign in."
+    +-- [Try Again] button
+```
+
+### Session Refresh (Returning User)
+
+```
+[User opens the app hours later]
+    |
+    v
+[Middleware: session cookie exists]
+    +-- Verifies JWT with Supabase
+    +-- Token expired? -> Supabase auto-refreshes using refresh token cookie
+    +-- Refresh successful? -> Update cookies, allow request
+    +-- Refresh failed? -> Redirect to /login (session fully expired)
+```
+
+---
+
+## Deployment Flow Description
+
+### Web App (Vercel)
+
+```
+[Developer pushes to GitHub]
+    |
+    +-- Push to main branch:
+    |       Vercel triggers production build
+    |       Build: turbo run build --filter=web
+    |       Deploy to: lumenalta-web.vercel.app
+    |       Uses: Production env vars (prod Supabase, prod agent URL)
+    |
+    +-- Push to PR branch:
+            Vercel triggers preview build
+            Build: same as production
+            Deploy to: lumenalta-web-<hash>.vercel.app
+            Uses: Preview env vars (dev Supabase, dev/staging agent URL)
+```
+
+### Agent Server (Railway/Render/Fly)
+
+```
+[Developer pushes to GitHub]
+    |
+    v
+[Railway/Render detects push]
+    |
+    v
+[Build]
+    +-- cd apps/agent
+    +-- pnpm install
+    +-- npx prisma generate
+    +-- npx mastra build
+    |
+    v
+[Start]
+    +-- node .mastra/output/index.mjs (or equivalent mastra build output)
+    +-- Listens on PORT (provided by platform)
+    +-- Connects to Supabase Postgres via DATABASE_URL
+    +-- Ready to accept requests from web app
+```
+
+---
+
+## Supabase Migration Path Details
+
+### What changes in the Prisma schema
+
+```prisma
+// BEFORE (SQLite)
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// AFTER (PostgreSQL)
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+```
+
+### SQLite to Postgres differences that affect this schema
+
+| SQLite Pattern | Postgres Equivalent | Affected Models |
+|----------------|---------------------|-----------------|
+| `String` for JSON data | Keep as `String` (works) or upgrade to `Json` type (better) | WorkflowJob.payload, WorkflowJob.result, ImageAsset.tags, InteractionRecord.inputs, InteractionRecord.generatedContent, InteractionRecord.outputRefs, FeedbackSignal.content, Brief.secondaryPillars, Brief.useCases, Brief.roiFraming, ContentSource.touchTypes |
+| `@default(cuid())` | Works identically | All models |
+| `DateTime @default(now())` | Works identically | All models |
+| `@@index` | Works identically | All models |
+| `@@unique` | Works identically | Company, ContentSource, Transcript, Brief |
+| SQLite TEXT (unlimited) | Postgres TEXT (unlimited) | Transcript.rawText |
+
+### Migration strategy
+
+1. **Do NOT try to migrate SQLite data to Postgres.** The existing data is seed/demo data only.
+2. Delete the `prisma/migrations/` directory entirely (4 SQLite migrations).
+3. Change the datasource provider to `postgresql`.
+4. Optionally upgrade JSON `String` fields to `Json` type.
+5. Run `prisma migrate dev --name init-postgres` to create a fresh baseline migration.
+6. Run the seed script to populate the Meridian Capital Group demo data.
+
+This approach follows the project's migration discipline (forward-only migrations) while acknowledging that the SQLite migration history has no value in a Postgres context.
 
 ---
 
 ## Sources
 
-- Training knowledge: Highspot feature set (platform documentation, G2 reviews, product marketing — through August 2025)
-- Training knowledge: Seismic platform features (documentation, analyst reports — through August 2025)
-- Training knowledge: Gong / Chorus revenue intelligence platform capabilities (through August 2025)
-- Training knowledge: Tome, Pitch, Beautiful.ai AI presentation tools (through August 2025)
-- Training knowledge: Emerging agentic sales platforms (Clay, 11x, Amplemarket, AiSDR — through August 2025)
-- PROJECT.md: Lumenalta-specific requirements, constraints, and decisions (authoritative — read directly)
-- Note: External web search tools were unavailable during this research session. All competitor and market claims carry MEDIUM confidence. Verification against current platform documentation is recommended before finalizing roadmap decisions.
+- Codebase analysis: `apps/agent/prisma/schema.prisma` -- 9 models, SQLite datasource, 4 existing migrations (HIGH confidence, read directly)
+- Codebase analysis: `apps/agent/src/mastra/index.ts` -- Mastra configuration with LibSQLStore, Hono-based API routes (HIGH confidence, read directly)
+- Codebase analysis: `apps/web/src/lib/api-client.ts` -- web-to-agent communication pattern, no auth headers currently (HIGH confidence, read directly)
+- Codebase analysis: `apps/web/src/env.ts` and `apps/agent/src/env.ts` -- current environment variable schemas (HIGH confidence, read directly)
+- Training knowledge: Supabase Auth with Google OAuth provider, `@supabase/ssr` for Next.js (MEDIUM confidence -- based on training through May 2025; verify current package names and API)
+- Training knowledge: Vercel monorepo deployment with Turborepo, root directory configuration (MEDIUM confidence -- standard pattern, unlikely to have changed significantly)
+- Training knowledge: Prisma SQLite-to-PostgreSQL migration, datasource provider switching (MEDIUM confidence -- standard Prisma operation)
+- Training knowledge: Mastra `@mastra/pg` storage adapter as alternative to `@mastra/libsql` (LOW confidence -- verify Mastra 1.8 supports this adapter and its configuration)
+- Training knowledge: Railway/Render/Fly.io deployment for Node.js long-running processes (MEDIUM confidence -- all three are established platforms for this use case)
+- Note: Web search and WebFetch tools were unavailable. All non-codebase claims should be verified against current documentation before implementation.
 
 ---
 
-*Feature research for: Lumenalta Agentic Sales Orchestration Platform*
-*Researched: 2026-03-03*
+*Feature research for: v1.1 Infrastructure & Access Control milestone*
+*Researched: 2026-03-04*
