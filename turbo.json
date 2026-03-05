@@ -3,6 +3,12 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build", "^db:generate"],
+      "env": [
+        "AGENT_SERVICE_URL",
+        "AGENT_API_KEY",
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      ],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "dev": {
