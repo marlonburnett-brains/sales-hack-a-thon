@@ -7,10 +7,13 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
+    // Shared API key for service-to-service auth (web <-> agent)
+    AGENT_API_KEY: z.string().min(1),
   },
   client: {},
   runtimeEnv: {
     AGENT_SERVICE_URL: process.env.AGENT_SERVICE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    AGENT_API_KEY: process.env.AGENT_API_KEY,
   },
 });
