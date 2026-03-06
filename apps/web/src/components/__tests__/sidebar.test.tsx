@@ -191,3 +191,95 @@ describe("NAV-02: Collapsible sidebar with localStorage persistence", () => {
     expect(screen.getByLabelText("Close navigation")).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// UI-sidebar-badge: Action Required nav item with badge count
+// ---------------------------------------------------------------------------
+
+describe("UI-sidebar-badge: Action Required nav with badge count", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    state.pathname = "/deals";
+    // Reset fetch mock
+    vi.restoreAllMocks();
+  });
+
+  it("renders Action Required nav link in sidebar", () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ count: 0 }))
+    );
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    expect(desktop.querySelector("a[href='/actions']")).toBeTruthy();
+  });
+
+  it("shows badge with pending count when actions exist", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ count: 5 }))
+    );
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    // Wait for useEffect fetch to resolve and badge to appear
+    // Both desktop and mobile sidebars render the badge, so use getAllBy
+    const badges = await screen.findAllByText("5");
+    expect(badges.length).toBeGreaterThan(0);
+    expect(badges[0].className).toContain("bg-red-500");
+  });
+
+  it("does not show badge when count is 0", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ count: 0 }))
+    );
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    // Give the useEffect a tick to complete
+    await new Promise((r) => setTimeout(r, 50));
+
+    // No red badge should be present
+    const desktop = getDesktopSidebar();
+    const badges = desktop.querySelectorAll(".bg-red-500");
+    expect(badges.length).toBe(0);
+  });
+
+  it("fetches count from /api/actions/count on mount", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ count: 3 }))
+    );
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    // Both desktop and mobile sidebars render, use findAllByText
+    await screen.findAllByText("3");
+
+    expect(fetchSpy).toHaveBeenCalledWith("/api/actions/count");
+  });
+
+  it("shows red dot indicator when sidebar is collapsed and count > 0", async () => {
+    localStorage.setItem("sidebar-collapsed", "true");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ count: 2 }))
+    );
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    // Wait for fetch
+    await new Promise((r) => setTimeout(r, 50));
+
+    const desktop = getDesktopSidebar();
+    // In collapsed mode, the red dot is a small 2x2 circle
+    const redDot = desktop.querySelector(".h-2.w-2.bg-red-500");
+    expect(redDot).toBeTruthy();
+  });
+
+  it("silently handles fetch failure without breaking sidebar", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network error"));
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    // Give the useEffect a tick to complete
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Sidebar should still render normally
+    const desktop = getDesktopSidebar();
+    expect(desktop.querySelector("a[href='/actions']")).toBeTruthy();
+    expect(desktop.querySelector("a[href='/deals']")).toBeTruthy();
+  });
+});

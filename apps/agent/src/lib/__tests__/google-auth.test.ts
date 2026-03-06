@@ -203,6 +203,21 @@ describe("getPooledGoogleAuth", () => {
     });
   });
 
+  it("LIFE-02: OAuth2Client constructor receives GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET from env", async () => {
+    mockFindMany.mockResolvedValue([makeToken()]);
+    mockGetAccessToken.mockResolvedValue({ token: "fresh-access-token" });
+    mockUpdate.mockReturnValue({ catch: vi.fn() });
+    mockCount.mockResolvedValue(5);
+
+    const { getPooledGoogleAuth } = await import("../google-auth");
+    await getPooledGoogleAuth();
+
+    expect(mockOAuth2ClientConstruct).toHaveBeenCalledWith(
+      "test-client-id",
+      "test-client-secret"
+    );
+  });
+
   it("updates lastUsedAt on success (fire-and-forget)", async () => {
     mockFindMany.mockResolvedValue([makeToken()]);
     mockGetAccessToken.mockResolvedValue({ token: "fresh-access-token" });
