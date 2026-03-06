@@ -43,7 +43,7 @@
 
 - [x] **Phase 18: CI/CD Pipeline & pgvector Schema** - Automated deploy pipeline and vector database foundation
 - [x] **Phase 19: Navigation & Template Management** - Side panel navigation and templates CRUD with access awareness (completed 2026-03-05)
-- [ ] **Phase 20: Slide Ingestion Agent** - AI-powered slide extraction, embedding, and classification pipeline
+- [x] **Phase 20: Slide Ingestion Agent** - AI-powered slide extraction, embedding, and classification pipeline (completed 2026-03-06)
 - [ ] **Phase 21: Preview & Review Engine** - Slide preview with classification display, human rating, and similarity search
 
 ## Phase Details
@@ -88,7 +88,7 @@ Plans:
   2. Agent extracts text content from each slide, generates a vector embedding via Vertex AI, and classifies each slide by industry, solution pillar, persona, funnel stage, and content type with a confidence score
   3. All embeddings, classifications, and confidence scores are stored in Supabase pgvector and associated with the correct template and slide index
   4. Ingestion is idempotent -- re-ingesting a template replaces previous slide data without duplicates
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 20-01-PLAN.md -- Schema migration, ingestion pipeline (extract, embed, classify, store), API endpoints
 - [ ] 20-02-PLAN.md -- Progress UI on template cards, auto-trigger on add, background staleness polling
@@ -130,5 +130,5 @@ Phases execute in numeric order: 18 -> 19 -> 20 -> 21
 | 17. Deployment & Go-Live | v1.1 | 1/1 | Complete | 2026-03-05 |
 | 18. CI/CD Pipeline & pgvector Schema | v1.2 | Complete    | 2026-03-05 | 2026-03-05 |
 | 19. Navigation & Template Management | 3/3 | Complete    | 2026-03-05 | - |
-| 20. Slide Ingestion Agent | 1/2 | In Progress|  | - |
+| 20. Slide Ingestion Agent | 2/2 | Complete   | 2026-03-06 | - |
 | 21. Preview & Review Engine | v1.2 | 0/TBD | Not started | - |

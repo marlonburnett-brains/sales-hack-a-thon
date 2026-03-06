@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Templates & Slide Intelligence
 status: in_progress
-stopped_at: Completed 20-01-PLAN.md
-last_updated: "2026-03-06T00:42:30.000Z"
-last_activity: 2026-03-06 -- Completed Phase 20 Plan 01 (slide ingestion pipeline)
+stopped_at: Completed 20-02-PLAN.md
+last_updated: "2026-03-06T00:49:24.000Z"
+last_activity: 2026-03-06 -- Completed Phase 20 Plan 02 (progress UI & staleness polling)
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 7
-  completed_plans: 6
-  percent: 86
+  completed_plans: 7
+  percent: 90
 ---
 
 # Project State
@@ -21,21 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.2 Templates & Slide Intelligence -- Phase 20 in progress (Plan 01 complete)
+**Current focus:** v1.2 Templates & Slide Intelligence -- Phase 20 complete, ready for Phase 21
 
 ## Current Position
 
 Phase: 20 of 21 (Slide Ingestion Agent)
-Plan: 1 of 2 (complete)
-Status: Plan 01 complete, ready for Plan 02
-Last activity: 2026-03-06 -- Completed Phase 20 Plan 01 (slide ingestion pipeline)
+Plan: 2 of 2 (complete)
+Status: Phase 20 complete, ready for Phase 21
+Last activity: 2026-03-06 -- Completed Phase 20 Plan 02 (progress UI & staleness polling)
 
-Progress: [████████░░] 86%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37 (v1.0: 27, v1.1: 6, v1.2: 4)
+- Total plans completed: 38 (v1.0: 27, v1.1: 6, v1.2: 5)
 - Average duration: ~15 min
 - Total execution time: ~8 hours
 
@@ -46,9 +46,10 @@ Progress: [████████░░] 86%
 | 19    | 02   | 2min     | 2     | 2     |
 | 19    | 03   | 8min     | 3     | 12    |
 | 20    | 01   | 7min     | 3     | 9     |
+| 20    | 02   | 5min     | 2     | 7     |
 
 **Recent Trend:**
-- v1.2 Phase 20 Plan 01 in 7 min
+- v1.2 Phase 20 Plan 02 in 5 min
 - Trend: Stable
 
 ## Accumulated Context
@@ -72,6 +73,8 @@ All v1.0-v1.1 decisions logged in PROJECT.md Key Decisions table (21 decisions t
 - **Phase 20-01:** Used db execute + migrate resolve for ingestion migration (0_init drift)
 - **Phase 20-01:** Installed pgvector npm for vector serialization (missing from package.json)
 - **Phase 20-01:** Added confidence score to Gemini structured output response schema (LLM self-assessment)
+- **Phase 20-02:** Extended TemplateForm onSuccess callback to pass template result for auto-trigger ingestion
+- **Phase 20-02:** No manual Re-ingest button -- staleness polling handles re-ingestion automatically
 
 ### Pending Todos
 
@@ -86,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T00:42:30.000Z
-Stopped at: Completed 20-01-PLAN.md
-Resume file: .planning/phases/20-slide-ingestion-agent/20-02-PLAN.md
+Last session: 2026-03-06T00:49:24.000Z
+Stopped at: Completed 20-02-PLAN.md
+Resume file: Phase 20 complete. Next: Phase 21

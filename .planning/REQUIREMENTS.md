@@ -37,7 +37,7 @@ Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roa
 - [x] **SLIDE-04**: Agent generates vector embedding for each slide via Vertex AI text-embedding model
 - [x] **SLIDE-05**: Agent classifies each slide by industry, solution pillar, persona, funnel stage, and content type via LLM structured output
 - [x] **SLIDE-06**: Embeddings and classifications are stored in Supabase pgvector
-- [ ] **SLIDE-07**: User can see real-time progress during multi-slide ingestion (slide N/M)
+- [x] **SLIDE-07**: User can see real-time progress during multi-slide ingestion (slide N/M)
 - [x] **SLIDE-08**: Each classification includes a confidence score (0-100%)
 - [ ] **SLIDE-09**: User can find similar slides across all ingested presentations via vector similarity search
 
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SLIDE-04 | Phase 20 | Complete |
 | SLIDE-05 | Phase 20 | Complete |
 | SLIDE-06 | Phase 20 | Complete |
-| SLIDE-07 | Phase 20 | Pending |
+| SLIDE-07 | Phase 20 | Complete |
 | SLIDE-08 | Phase 20 | Complete |
 | SLIDE-09 | Phase 21 | Pending |
 | PREV-01 | Phase 21 | Pending |
