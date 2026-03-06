@@ -10,6 +10,7 @@ import { touch4Workflow } from "./workflows/touch-4-workflow";
 import { preCallWorkflow } from "./workflows/pre-call-workflow";
 import { getOrCreateDealFolder, makePubliclyViewable } from "../lib/drive-folders";
 import { getDriveClient, getSlidesClient } from "../lib/google-auth";
+import { extractGoogleAuth } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { encryptToken } from "../lib/token-encryption";
@@ -142,7 +143,7 @@ export const mastra = new Mastra({
     cors: {
       origin: env.WEB_APP_URL,
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'x-mastra-client-type'],
+      allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'x-mastra-client-type', 'X-Google-Access-Token', 'X-User-Id'],
       credentials: false,
     },
     apiRoutes: [
@@ -299,7 +300,8 @@ export const mastra = new Mastra({
             }
 
             // Upload file to Drive
-            const drive = getDriveClient();
+            const googleAuth = await extractGoogleAuth(c);
+            const drive = getDriveClient(googleAuth.accessToken ? googleAuth : undefined);
             const buffer = Buffer.from(await file.arrayBuffer());
             const { Readable } = await import("node:stream");
 
@@ -865,8 +867,9 @@ export const mastra = new Mastra({
             let sourceModifiedAt: Date | null = null;
             let serviceAccountEmail: string | null = null;
 
+            const googleAuth = await extractGoogleAuth(c);
             try {
-              const drive = getDriveClient();
+              const drive = getDriveClient(googleAuth.accessToken ? googleAuth : undefined);
               const fileRes = await drive.files.get({
                 fileId: data.presentationId,
                 fields: "id,modifiedTime",
@@ -1031,13 +1034,14 @@ export const mastra = new Mastra({
         method: "POST",
         handler: async (c) => {
           const id = c.req.param("id");
+          const googleAuth = await extractGoogleAuth(c);
           try {
             const template = await prisma.template.findUniqueOrThrow({
               where: { id },
             });
 
             try {
-              const drive = getDriveClient();
+              const drive = getDriveClient(googleAuth.accessToken ? googleAuth : undefined);
               const fileRes = await drive.files.get({
                 fileId: template.presentationId,
                 fields: "id,modifiedTime",
@@ -1146,7 +1150,8 @@ export const mastra = new Mastra({
             orderBy: { slideIndex: "asc" },
             select: { slideObjectId: true, slideIndex: true },
           });
-          const slidesApi = getSlidesClient();
+          const googleAuth = await extractGoogleAuth(c);
+          const slidesApi = getSlidesClient(googleAuth.accessToken ? googleAuth : undefined);
           const thumbnails: Array<{ slideObjectId: string; slideIndex: number; thumbnailUrl: string }> = [];
           for (const slide of slides) {
             if (!slide.slideObjectId) continue;
