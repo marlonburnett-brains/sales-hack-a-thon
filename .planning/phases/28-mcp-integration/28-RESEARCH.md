@@ -1,37 +1,52 @@
 # Phase 28: MCP Integration - Research
 
 **Researched:** 2026-03-06
-**Domain:** @mastra/mcp MCPClient integration with AtlusAI SSE endpoint, search adapter pattern
+**Domain:** @mastra/mcp client lifecycle, AtlusAI SSE/MCP integration, OAuth token pool rotation, LLM-based result mapping
 **Confidence:** HIGH
 
 ## Summary
 
-Phase 28 replaces the Drive API keyword search in `atlusai-search.ts` with MCP semantic search via the `@mastra/mcp` MCPClient (v1.0.2, already installed). The MCPClient class supports HTTP server definitions with a `fetch` callback for dynamic auth injection -- this is the exact mechanism needed for pooled token rotation (MCP-04). The existing `InternalMastraMCPClient` already has built-in session error detection with automatic reconnection via `forceReconnect()`, but the requirements call for a wrapper singleton that adds max-lifetime recycling, health probing via `listTools()`, and SIGTERM graceful shutdown.
+Phase 28 replaces Drive API keyword search with AtlusAI MCP semantic search in all existing workflows. The `@mastra/mcp` v1.0.2 package is already installed and provides `MCPClient` with built-in HTTP/SSE transport, custom `fetch` callback for dynamic auth injection, session error auto-reconnection, and `disconnect()` for graceful shutdown. The MCPClient connects to `https://knowledge-base-api.lumenalta.com/sse` using pooled OAuth 2.0 Bearer tokens.
 
 The search adapter must map MCP `knowledge_base_search_semantic` tool results to the existing `SlideSearchResult` interface using LLM extraction (user decision: always LLM, never raw parsing). Five consumer files import from `atlusai-search.ts` and must remain unchanged. The Drive API search path must be retained behind `ATLUS_USE_MCP` env flag as a degraded fallback with a `source` field on results for transparency.
 
-**Primary recommendation:** Create an `mcp-client.ts` singleton wrapper around `MCPClient` that manages lifecycle (eager connect, health probe, lazy recycle, SIGTERM shutdown), then modify `atlusai-search.ts` to route through MCP with LLM result parsing and Drive fallback -- keeping the public API surface identical.
+The key engineering challenge is the singleton MCPClient wrapper: it must manage eager connection on boot, health checks via `listTools()`, lazy recycling on max lifetime, OAuth token refresh on 401, pool rotation on refresh failure, and graceful SIGTERM shutdown. The `fetch` callback in `@mastra/mcp` is the correct injection point for per-request token rotation -- it receives every HTTP request the transport makes.
+
+**Primary recommendation:** Use `MCPClient` from `@mastra/mcp` with a custom `fetch` callback for token injection, wrap it in a singleton module (`mcp-client.ts`) that manages lifecycle, and swap `searchSlides()` internals to call MCP tools programmatically via the tool objects returned by `listTools()`.
 
 <user_constraints>
 ## User Constraints (from CONTEXT.md)
 
 ### Locked Decisions
-- Silent Drive fallback is NOT acceptable -- user should see a subtle indicator when results come from basic search
-- Search results include a `source: 'mcp' | 'drive'` field (or similar) so UI callers can optionally display an indicator
-- Add optional `relevanceScore: number` to `SlideSearchResult` -- MCP results get the score, Drive results get undefined
-- Always use LLM to parse MCP results into the `SlideSearchResult` model -- every MCP result goes through LLM extraction for consistent quality (batch results in a single call to reduce API overhead)
-- Eager connection on agent boot -- MCPClient connects during startup, pairs with startup health probe
-- Startup health probe via `listTools()` -- log result, pre-set fallback mode if MCP is down so first search isn't slow
-- Lazy recycle on max lifetime -- check connection age before each request, disconnect and recreate with fresh token if expired (no background timer)
+- AtlusAI uses OAuth 2.0 with PKCE. Stored tokens are JSON: `{ access_token, refresh_token }`
+- `getPooledAtlusAuth()` already parses this JSON and returns `{ token, refreshToken, source, userId }`
+- On 401 (expired access_token): try refresh first using stored refresh_token, then rotate to next pool token if refresh fails
+- `refreshAtlusToken()` utility lives in `atlus-auth.ts` (auth concern, not MCP concern) -- called by MCP wrapper on 401
+- Refresh hits `https://knowledge-base-api.lumenalta.com/auth/token` (hardcoded, same as atlus-oauth.ts on web side)
+- On successful refresh: update the encrypted token in DB with new access_token + same refresh_token
+- On refresh failure (revoked/invalid refresh_token): mark token invalid, rotate to next pool token
+- The MCPClient fetch callback stays thin -- injects Bearer header, MCP wrapper handles retry/rotate logic
+- MCP semantic search result schema is unknown at build time
+- Discovery + adaptive prompt: on the first real search call, inspect the raw MCP result shape, build a tailored LLM extraction prompt, and cache it
+- The cached prompt template lives alongside the MCPClient singleton state -- resets when MCPClient recycles
+- No test query at startup -- health check only uses `listTools()`
+- Always use LLM for every MCP result (not as fallback) -- consistency over API cost savings
+- Batch results in a single LLM call to reduce API overhead
+- Search results include a `source: 'mcp' | 'drive'` field
+- Both badge + toast: Sonner toast fires once per session on first fallback
+- Add optional `relevanceScore: number` to `SlideSearchResult`
+- Eager connection on agent boot, lazy recycle on max lifetime
+- Startup health probe via `listTools()` -- pre-set fallback mode if MCP is down
 
 ### Claude's Discretion
-- Indicator placement for degraded search mode (in results response, banner, or other pattern)
-- Total failure handling (ActionRequired vs error toast vs empty results)
+- Total failure handling (both MCP and Drive down): ActionRequired vs error toast vs empty results
 - Whether to preserve or simplify multi-pass retrieval strategy with semantic search
 - Retry count and backoff strategy for MCP health checks
 - ATLUS_USE_MCP kill-switch scope (connection-level vs search-routing-level)
 - MCP-05 max lifetime default value (requirement says 1 hour, adjust if needed)
 - SIGTERM graceful shutdown implementation details
+- Badge placement and exact wording for degraded search indicator
+- Client registration: whether MCPClient needs to dynamically register (like web OAuth) or just use tokens directly
 
 ### Deferred Ideas (OUT OF SCOPE)
 None -- discussion stayed within phase scope
@@ -42,18 +57,18 @@ None -- discussion stayed within phase scope
 
 | ID | Description | Research Support |
 |----|-------------|-----------------|
-| MCP-01 | MCPClient connects to AtlusAI SSE endpoint with pooled auth | `HttpServerDefinition` type supports `url` + `fetch` callback; `getPooledAtlusAuth()` provides tokens |
-| MCP-02 | MCPClient lives ONLY on agent service | All code goes in `apps/agent/src/lib/` -- no web imports |
-| MCP-03 | Singleton wrapper with health check via listTools() | `MCPClient.listTools()` returns tool map; singleton pattern with connection state tracking |
-| MCP-04 | Auth injection via fetch callback for token rotation | `HttpServerDefinition.fetch` is `FetchLike` -- receives `(url, init)`, can inject `Authorization` header from pool |
-| MCP-05 | Max lifetime recycling (configurable, default 1 hour) | `MCPClient.disconnect()` + recreate pattern; lazy check before each request |
-| MCP-06 | Graceful shutdown on SIGTERM | `process.on('SIGTERM', ...)` + `mcp.disconnect()` |
-| SRCH-01 | searchSlides() uses MCP semantic search | Route through `knowledge_base_search_semantic` tool via MCPClient |
-| SRCH-02 | Adapter maps MCP results to SlideSearchResult | LLM extraction batch call; add optional `source` and `relevanceScore` fields |
-| SRCH-03 | searchForProposal() multi-pass logic preserved | Inner `searchSlides()` swapped; outer multi-pass structure stays |
-| SRCH-04 | searchByCapability() uses MCP semantic search | Delegates to searchSlides() which uses MCP |
-| SRCH-05 | Drive API retained as degraded fallback | `ATLUS_USE_MCP=false` routes to existing Drive logic |
-| SRCH-06 | MCP search scoped to ATLUS_PROJECT_ID | Pass project ID in tool arguments or as MCP config |
+| MCP-01 | MCPClient connects to AtlusAI SSE endpoint with pooled auth | MCPClient `HttpServerDefinition` with `url: new URL('https://knowledge-base-api.lumenalta.com/sse')` and `fetch` callback for Bearer token injection |
+| MCP-02 | MCPClient lives ONLY on agent service | Singleton module at `apps/agent/src/lib/mcp-client.ts`, no imports from `apps/web` |
+| MCP-03 | Singleton MCPClient with health check: listTools() probe, disconnect+recreate on failure | `MCPClient.listTools()` returns tool map; on error, call `disconnect()` then recreate instance |
+| MCP-04 | Auth injection via fetch callback for fresh token per request | `HttpServerDefinition.fetch` field accepts `FetchLike` -- inject Bearer header from `getPooledAtlusAuth()` |
+| MCP-05 | Max lifetime with forced recycle | Track `createdAt` timestamp, check age before each request, disconnect+recreate if expired |
+| MCP-06 | Graceful shutdown on SIGTERM | `process.on('SIGTERM', () => mcpClient.disconnect())` -- MCPClient has built-in `disconnect()` |
+| SRCH-01 | searchSlides() uses MCP knowledge_base_search_semantic | Get tool via `listTools()`, call tool's `execute()` with `{ query }`, pipe results through LLM extraction |
+| SRCH-02 | Adapter maps MCP results to SlideSearchResult | LLM extraction prompt maps raw MCP content to `{ slideId, documentTitle, textContent, speakerNotes, metadata }` |
+| SRCH-03 | searchForProposal() multi-pass logic preserved | Only inner `searchSlides()` changes; multi-pass orchestration in `searchForProposal()` stays identical |
+| SRCH-04 | searchByCapability() uses MCP semantic search | Calls `searchSlides()` internally -- already uses correct delegation pattern |
+| SRCH-05 | Drive API retained as degraded fallback behind ATLUS_USE_MCP flag | Rename current `searchSlides` to `searchSlidesDrive`, new `searchSlides` checks flag and routes |
+| SRCH-06 | MCP search scoped to ATLUS_PROJECT_ID | Pass project ID as parameter to MCP tool if supported, or validate in wrapper |
 </phase_requirements>
 
 ## Standard Stack
@@ -61,70 +76,62 @@ None -- discussion stayed within phase scope
 ### Core
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
-| `@mastra/mcp` | 1.0.2 | MCPClient for SSE/HTTP connections | Already installed; provides `MCPClient` class with HTTP transport, fetch callback, auto-reconnect |
-| `@google/genai` | (existing) | LLM for MCP result parsing | Project standard for Vertex AI calls; used in slide-selection.ts and proposal-assembly.ts |
-| `@lumenalta/schemas` | (existing) | Zod schemas for LLM structured output | Project pattern: zodToLlmJsonSchema() for response schemas |
+| `@mastra/mcp` | 1.0.2 | MCP client with SSE/HTTP transport | Already installed in agent package.json; provides MCPClient with fetch callback, auto-reconnect, disconnect |
+| `@google/genai` | ^1.43.0 | LLM calls for result extraction | Already used project-wide for Vertex AI structured output |
+| `@mastra/core` | ^1.8.0 | Base classes, Tool type | MCPClient extends MastraBase; tool objects use Tool<> type |
 
 ### Supporting
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| `@modelcontextprotocol/sdk` | (transitive) | MCP protocol types | Transitive dependency of @mastra/mcp; types for `FetchLike`, `CallToolResult` |
+| `@modelcontextprotocol/sdk` | (transitive) | MCP protocol types (CallToolResultSchema) | Transitively via @mastra/mcp, types only |
+| `zod` | ^4.3.6 | Schema validation for LLM output | Already used for all structured output validation |
 
 ### Alternatives Considered
 | Instead of | Could Use | Tradeoff |
 |------------|-----------|----------|
-| @mastra/mcp MCPClient | Raw @modelcontextprotocol/sdk Client | MCPClient adds tool namespacing, auto-reconnect, session error handling -- no reason to go lower |
-| LLM result parsing | Regex/JSON parsing | User explicitly chose LLM for consistency; MCP results may have variable formats |
+| `@mastra/mcp` MCPClient | Raw `@modelcontextprotocol/sdk` Client | More control but must manage transport, reconnect, tool wrapping manually -- unnecessary since @mastra/mcp already handles all this |
+| LLM extraction | Direct JSON parsing of MCP results | Fragile -- MCP result schema unknown at build time, LLM handles schema drift gracefully |
 
-**Installation:**
-```bash
-# No new packages needed -- @mastra/mcp 1.0.2 already installed
-```
+**Installation:** No new packages needed. All dependencies already installed.
 
 ## Architecture Patterns
 
 ### Recommended Project Structure
 ```
-apps/agent/src/
-├── lib/
-│   ├── mcp-client.ts           # NEW: MCPClient singleton wrapper (MCP-01 through MCP-06)
-│   ├── atlusai-search.ts       # MODIFIED: MCP search + Drive fallback + LLM parsing
-│   ├── atlus-auth.ts           # MODIFIED: detectAtlusAccess() TODO stubs replaced
-│   └── atlusai-client.ts       # UNCHANGED: ingestion logic stays
-├── mastra/
-│   └── index.ts                # MODIFIED: eager MCP boot + SIGTERM handler
-└── env.ts                      # MODIFIED: add ATLUS_USE_MCP, ATLUS_PROJECT_ID, ATLUS_MCP_MAX_LIFETIME_MS
+apps/agent/src/lib/
+  mcp-client.ts          # NEW: MCPClient singleton wrapper with lifecycle
+  atlusai-search.ts      # MODIFIED: searchSlides() routes MCP vs Drive
+  atlus-auth.ts          # MODIFIED: add refreshAtlusToken()
 ```
 
-### Pattern 1: MCPClient Singleton Wrapper
-**What:** A module-level singleton that manages MCPClient lifecycle with health checking, lazy recycling, and graceful shutdown.
-**When to use:** Any time search code needs MCP access.
-
+### Pattern 1: MCPClient Singleton with Lifecycle Management
+**What:** A module-level singleton that wraps `MCPClient`, tracking connection state, creation time, and current auth context. Exposes `getClient()`, `healthCheck()`, `callTool()`, and `shutdown()`.
+**When to use:** Always -- MCP-01 through MCP-06 all depend on this singleton.
+**Example:**
 ```typescript
-// Source: @mastra/mcp dist/client/types.d.ts + configuration.d.ts
+// Source: @mastra/mcp dist/client/types.d.ts (HttpServerDefinition)
 import { MCPClient } from "@mastra/mcp";
 import { getPooledAtlusAuth } from "./atlus-auth";
 
-const ATLUS_SSE_URL = "https://knowledge-base-api.lumenalta.com/sse";
+const ATLUS_SSE_URL = new URL("https://knowledge-base-api.lumenalta.com/sse");
+const MAX_LIFETIME_MS = 60 * 60 * 1000; // 1 hour default
 
-let mcpClient: MCPClient | null = null;
+let client: MCPClient | null = null;
 let createdAt: number = 0;
-let fallbackMode = false; // set true if MCP unreachable at boot
+let currentAuth: { token: string; userId?: string } | null = null;
+let fallbackMode = false;
 
-const MAX_LIFETIME_MS = parseInt(
-  process.env.ATLUS_MCP_MAX_LIFETIME_MS || "3600000", // 1 hour default
-  10
-);
-
-function createMCPClient(): MCPClient {
+function createClient(): MCPClient {
   return new MCPClient({
-    id: "atlus-ai",
+    id: "atlus-mcp",
     servers: {
-      "atlus-ai": {
-        url: new URL(ATLUS_SSE_URL),
+      atlus: {
+        url: ATLUS_SSE_URL,
+        timeout: 30_000,
         fetch: async (url, init) => {
-          const auth = await getPooledAtlusAuth();
-          if (!auth) throw new Error("No AtlusAI token available");
+          // Thin fetch callback -- just injects Bearer header
+          const auth = currentAuth;
+          if (!auth) throw new Error("No AtlusAI auth available");
           return fetch(url, {
             ...init,
             headers: {
@@ -133,298 +140,388 @@ function createMCPClient(): MCPClient {
             },
           });
         },
-        timeout: 15_000,
       },
     },
-    timeout: 15_000,
+    timeout: 30_000,
   });
 }
 
-export async function getMCPClient(): Promise<MCPClient | null> {
+export async function getMcpClient(): Promise<MCPClient | null> {
   if (process.env.ATLUS_USE_MCP === "false") return null;
-  if (fallbackMode) return null;
 
-  // Lazy recycle on max lifetime (MCP-05)
-  if (mcpClient && Date.now() - createdAt > MAX_LIFETIME_MS) {
-    await mcpClient.disconnect().catch(() => {});
-    mcpClient = null;
+  // Lazy recycle on max lifetime
+  if (client && Date.now() - createdAt > MAX_LIFETIME_MS) {
+    await client.disconnect();
+    client = null;
   }
 
-  if (!mcpClient) {
-    mcpClient = createMCPClient();
+  if (!client) {
+    const auth = await getPooledAtlusAuth();
+    if (!auth) return null;
+    currentAuth = { token: auth.token, userId: auth.userId };
+    client = createClient();
     createdAt = Date.now();
   }
 
-  return mcpClient;
+  return client;
 }
 ```
 
-### Pattern 2: MCP Search with LLM Result Parsing
-**What:** Call MCP tool, batch results through LLM for structured parsing into SlideSearchResult.
-**When to use:** Every MCP search result must go through LLM.
-
+### Pattern 2: MCP Tool Invocation (Programmatic, Not Via Agent)
+**What:** Get tool objects from `listTools()`, invoke them directly via their `execute()` method. This is NOT the agent-based pattern (where tools are passed to an Agent) -- this is direct programmatic invocation.
+**When to use:** For `searchSlides()` to call `knowledge_base_search_semantic`.
+**Example:**
 ```typescript
-// Established project pattern from proposal-assembly.ts
+// Source: @mastra/mcp dist/index.js lines 940-1012 (tool wrapping implementation)
+const tools = await client.listTools();
+const searchTool = tools["atlus_knowledge_base_search_semantic"];
+if (!searchTool) throw new Error("MCP search tool not available");
+
+// execute() calls client.callTool() internally with auto-reconnect on session errors
+const result = await searchTool.execute({ query: "healthcare solutions" });
+// result is the raw MCP CallToolResult -- either structuredContent or content array
+```
+
+### Pattern 3: LLM-Based Result Extraction with Adaptive Prompt
+**What:** Use LLM to map unknown MCP result shapes to `SlideSearchResult[]`. On first call, inspect raw result structure, build a tailored extraction prompt, and cache it. Reset cache when MCPClient recycles.
+**When to use:** Every MCP search result mapping (user decision: always LLM, never raw parsing).
+**Example:**
+```typescript
+// Source: Existing pattern from slide-selection.ts lines 255-262
 import { GoogleGenAI } from "@google/genai";
-import { zodToLlmJsonSchema } from "@lumenalta/schemas";
+import { env } from "../env";
 
-// Batch all results in single LLM call to reduce API overhead
-const prompt = `Parse these search results into structured slide records...
-${JSON.stringify(mcpResults)}`;
+let cachedExtractionPrompt: string | null = null;
 
-const ai = new GoogleGenAI({ vertexai: true, project, location });
-const response = await ai.models.generateContent({
-  model: "openai/gpt-oss-120b-maas",
-  contents: prompt,
-  config: {
-    responseMimeType: "application/json",
-    responseJsonSchema: zodToLlmJsonSchema(SlideSearchResultArraySchema),
-  },
-});
-```
-
-### Pattern 3: MCP Tool Invocation via listTools()
-**What:** Get tools from MCPClient, then call a specific tool's execute method.
-**When to use:** Invoking `knowledge_base_search_semantic`.
-
-```typescript
-// MCPClient.listTools() returns Record<string, Tool>
-// Tool names are namespaced as "serverName_toolName"
-const tools = await mcpClient.listTools();
-const searchTool = tools["atlus-ai_knowledge_base_search_semantic"];
-if (!searchTool?.execute) throw new Error("Search tool not available");
-
-const result = await searchTool.execute({ query: "cloud migration healthcare" });
-// result is the parsed tool output (auto-JSON-parsed by MCPClient)
-```
-
-### Pattern 4: Drive Fallback with Source Tagging
-**What:** Try MCP first, fall back to Drive, tag results with source.
-**When to use:** Every search call.
-
-```typescript
-export async function searchSlides(params: SearchParams): Promise<SlideSearchResult[]> {
-  // Try MCP first
-  const mcp = await getMCPClient();
-  if (mcp) {
-    try {
-      const results = await searchViaMCP(mcp, params);
-      return results.map(r => ({ ...r, source: 'mcp' as const }));
-    } catch (err) {
-      console.warn("[search] MCP failed, falling back to Drive:", err);
-    }
-  }
-
-  // Drive fallback
-  const results = await searchViaDrive(params);
-  return results.map(r => ({ ...r, source: 'drive' as const }));
-}
-```
-
-### Anti-Patterns to Avoid
-- **Creating MCPClient per request:** SSE connections are expensive. Always reuse the singleton.
-- **Blocking startup on MCP connection:** If MCP is down, agent should still boot. Set `fallbackMode = true` and log warning.
-- **Parsing MCP results with regex:** User explicitly chose LLM parsing for consistency. Even if results look JSON-like, route through LLM.
-- **Importing MCP in apps/web:** Vercel serverless kills SSE connections. MCP must stay in apps/agent only (MCP-02).
-- **Using background timers for recycling:** User chose lazy recycling -- check age before each request, no setInterval.
-
-## Don't Hand-Roll
-
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| MCP protocol transport | Custom SSE client | `@mastra/mcp` MCPClient | Handles Streamable HTTP + SSE fallback, session errors, reconnection |
-| Session error recovery | Manual reconnection logic | MCPClient's built-in `isSessionError()` + `forceReconnect()` | Already implemented in @mastra/mcp with proper error detection |
-| Tool invocation | Raw HTTP calls to SSE endpoint | `MCPClient.listTools()` + `tool.execute()` | Handles serialization, timeout, error propagation |
-| LLM structured output | Manual JSON parsing of LLM response | `zodToLlmJsonSchema()` + `responseMimeType: "application/json"` | Project-established pattern with Zod validation |
-
-**Key insight:** The `@mastra/mcp` MCPClient already handles the hardest parts (transport negotiation, session management, auto-reconnect on session errors). The wrapper only needs to add: lifecycle management (max lifetime), eager boot, health probe, SIGTERM shutdown, and the env flag kill-switch.
-
-## Common Pitfalls
-
-### Pitfall 1: MCPClient connection blocks agent startup
-**What goes wrong:** If AtlusAI endpoint is down, `MCPClient.listTools()` or `connect()` blocks for the full timeout period, delaying agent availability.
-**Why it happens:** Eager connection at boot without proper timeout/fallback handling.
-**How to avoid:** Set `fallbackMode = true` immediately if health probe fails. Use a short timeout (5s) for the startup probe. Don't await MCP connection in the Mastra constructor -- do it in a fire-and-forget startup function.
-**Warning signs:** Agent takes >10s to start, `/health` endpoint unresponsive during MCP connection attempts.
-
-### Pitfall 2: Token rotation race condition
-**What goes wrong:** Multiple concurrent searches each call `getPooledAtlusAuth()`, get same token, one invalidates it, others fail.
-**Why it happens:** The fetch callback runs per-request; pool iteration is not request-isolated.
-**How to avoid:** The fetch callback pattern is per-transport-request, not per-search-call. Token failures will trigger `isSessionError()` + `forceReconnect()` which creates a new transport with a fresh fetch. This is safe because each reconnect gets a fresh token from the pool.
-**Warning signs:** Rapid cascading 401 errors in logs.
-
-### Pitfall 3: LLM parsing adds latency to every search
-**What goes wrong:** Each search call adds 2-5 seconds for LLM extraction on top of MCP search latency.
-**Why it happens:** User requirement: always LLM parse, batch in single call.
-**How to avoid:** Batch all results from a single search into one LLM call (not per-result). For `searchForProposal()` multi-pass, consider batching all passes' results into a single LLM call at the end rather than per-pass.
-**Warning signs:** Search latency >10s regularly.
-
-### Pitfall 4: SlideSearchResult interface changes break consumers
-**What goes wrong:** Adding `source` and `relevanceScore` as required fields breaks 5 consumer files.
-**Why it happens:** Interface contract violation.
-**How to avoid:** Add `source` and `relevanceScore` as **optional** fields. Consumer files don't need to change. The `source` field is for UI callers to optionally display indicators.
-**Warning signs:** TypeScript compilation errors in consumer files.
-
-### Pitfall 5: SIGTERM handler not cleaning up MCPClient
-**What goes wrong:** Railway sends SIGTERM, agent exits without disconnecting MCPClient, orphaned SSE connection.
-**Why it happens:** No SIGTERM handler registered.
-**How to avoid:** Register `process.on('SIGTERM', async () => { await mcpClient?.disconnect(); process.exit(0); })` early in startup. MCPClient.disconnect() is safe to call multiple times.
-**Warning signs:** AtlusAI server logs showing stale connections.
-
-## Code Examples
-
-### MCPClient HTTP with fetch callback (from @mastra/mcp types)
-```typescript
-// Source: @mastra/mcp dist/client/types.d.ts HttpServerDefinition
-// The fetch callback is called for EVERY HTTP request the transport makes.
-// This is the injection point for dynamic auth.
-const server: HttpServerDefinition = {
-  url: new URL("https://knowledge-base-api.lumenalta.com/sse"),
-  fetch: async (url, init) => {
-    const auth = await getPooledAtlusAuth();
-    if (!auth) throw new Error("No AtlusAI token available");
-    return fetch(url, {
-      ...init,
-      headers: {
-        ...init?.headers,
-        Authorization: `Bearer ${auth.token}`,
-      },
-    });
-  },
-};
-```
-
-### Health probe via listTools()
-```typescript
-// Source: @mastra/mcp MCPClient.listTools()
-// Returns Record<string, Tool> -- non-empty means server is healthy
-try {
-  const tools = await mcpClient.listTools();
-  const toolNames = Object.keys(tools);
-  console.log(`[mcp] Health probe OK: ${toolNames.length} tools available`);
-  // Expected: atlus-ai_knowledge_base_search_semantic, atlus-ai_knowledge_base_search_structured, atlus-ai_discover_documents
-} catch (err) {
-  console.warn("[mcp] Health probe FAILED, entering fallback mode:", err);
-  fallbackMode = true;
-}
-```
-
-### LLM batch result parsing (project pattern)
-```typescript
-// Source: established pattern from proposal-assembly.ts lines 292-334
-import { GoogleGenAI } from "@google/genai";
-import { z } from "zod";
-import { zodToLlmJsonSchema } from "@lumenalta/schemas";
-
-const SlideSearchResultSchema = z.object({
-  slideId: z.string(),
-  documentTitle: z.string(),
-  textContent: z.string(),
-  speakerNotes: z.string(),
-  metadata: z.record(z.unknown()),
-  presentationId: z.string().optional(),
-  slideObjectId: z.string().optional(),
-  relevanceScore: z.number().optional(),
-});
-
-const BatchResultSchema = z.array(SlideSearchResultSchema);
-
-async function parseMCPResults(rawResults: unknown[], query: string): Promise<SlideSearchResult[]> {
+async function extractSlideResults(
+  rawResults: unknown,
+  query: string
+): Promise<SlideSearchResult[]> {
   const ai = new GoogleGenAI({
     vertexai: true,
     project: env.GOOGLE_CLOUD_PROJECT,
     location: env.GOOGLE_CLOUD_LOCATION,
   });
 
+  // Build extraction prompt (with adaptive discovery on first call)
+  const prompt = cachedExtractionPrompt
+    ? `${cachedExtractionPrompt}\n\nQuery: ${query}\n\nRaw results:\n${JSON.stringify(rawResults, null, 2)}`
+    : buildDiscoveryPrompt(rawResults, query);
+
   const response = await ai.models.generateContent({
     model: "openai/gpt-oss-120b-maas",
-    contents: [
-      "Parse these MCP search results into structured slide records.",
-      `Original query: "${query}"`,
-      "For each result, extract slideId, documentTitle, textContent, speakerNotes, metadata, presentationId, slideObjectId.",
-      "Assign a relevanceScore (0-1) based on how well the result matches the query.",
-      "",
-      "Raw results:",
-      JSON.stringify(rawResults, null, 2),
-    ].join("\n"),
+    contents: prompt,
     config: {
       responseMimeType: "application/json",
-      responseJsonSchema: zodToLlmJsonSchema(BatchResultSchema),
     },
   });
 
-  const text = response.text ?? "[]";
-  return BatchResultSchema.parse(JSON.parse(text));
+  const parsed = JSON.parse(response.text ?? "[]");
+  // Cache the prompt template after first successful extraction
+  if (!cachedExtractionPrompt) {
+    cachedExtractionPrompt = buildCachedPromptTemplate(rawResults);
+  }
+  return parsed;
 }
 ```
 
-### SIGTERM graceful shutdown
+### Pattern 4: OAuth Token Refresh Flow
+**What:** On 401 from MCP endpoint, try refresh_token exchange first, then rotate to next pool token if refresh fails.
+**When to use:** In the MCP wrapper's retry logic (not in the thin fetch callback).
+**Example:**
 ```typescript
-// Register in mcp-client.ts module scope
-process.on("SIGTERM", async () => {
-  console.log("[mcp] SIGTERM received, disconnecting MCPClient...");
+// Source: Existing pattern from atlus-oauth.ts (web side) -- adapted for agent side
+const ATLUS_TOKEN_URL = "https://knowledge-base-api.lumenalta.com/auth/token";
+
+export async function refreshAtlusToken(
+  refreshToken: string,
+  clientId: string,
+): Promise<{ access_token: string; refresh_token?: string } | null> {
   try {
-    await mcpClient?.disconnect();
-    console.log("[mcp] MCPClient disconnected cleanly");
-  } catch (err) {
-    console.error("[mcp] Error during MCPClient shutdown:", err);
+    const res = await fetch(ATLUS_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: clientId,
+      }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
   }
-  // Don't call process.exit() here -- let Mastra's own handler finish
+}
+```
+
+### Pattern 5: Search Routing with Fallback
+**What:** `searchSlides()` checks `ATLUS_USE_MCP` flag and MCPClient availability, routes to MCP or Drive, adds `source` field to results.
+**When to use:** The main switchover point for SRCH-01 through SRCH-05.
+**Example:**
+```typescript
+export async function searchSlides(params: {
+  query: string;
+  industry?: string;
+  touchType?: string;
+  limit?: number;
+}): Promise<SlideSearchResult[]> {
+  const useMcp = process.env.ATLUS_USE_MCP !== "false";
+
+  if (useMcp) {
+    try {
+      const results = await searchSlidesMcp(params);
+      return results.map(r => ({ ...r, source: "mcp" as const }));
+    } catch (err) {
+      console.warn("[search] MCP search failed, falling back to Drive:", err);
+      // Fall through to Drive
+    }
+  }
+
+  const results = await searchSlidesDrive(params);
+  return results.map(r => ({ ...r, source: "drive" as const }));
+}
+```
+
+### Anti-Patterns to Avoid
+- **Creating MCPClient per request:** MCPClient manages SSE/HTTP transport with session state. Creating per request wastes connections and loses session continuity. Use singleton.
+- **Putting MCP imports in apps/web:** Vercel serverless kills long-lived SSE connections. MCPClient MUST live only on the Railway-hosted agent service.
+- **Parsing MCP results with regex/JSON.parse:** MCP result schema is unknown and may change. LLM extraction is the user-mandated approach for resilience.
+- **Using listTools() as a search health check:** `listTools()` is for startup probing only. During search, just try the tool call and handle failure -- avoids wasting an MCP round-trip.
+- **Blocking on token refresh in the fetch callback:** The fetch callback should be thin (inject header only). Token refresh/rotation logic belongs in the wrapper's retry layer, not in the per-request fetch.
+
+## Don't Hand-Roll
+
+| Problem | Don't Build | Use Instead | Why |
+|---------|-------------|-------------|-----|
+| SSE/HTTP transport management | Custom EventSource client | `@mastra/mcp` MCPClient | Handles SSE-to-StreamableHTTP upgrade, session management, auto-reconnect on session errors |
+| MCP protocol serialization | Custom JSON-RPC over SSE | `@mastra/mcp` MCPClient (wraps `@modelcontextprotocol/sdk`) | Protocol has many edge cases (initialization, capability negotiation, progress tokens) |
+| Tool invocation with auto-retry | Custom callTool + reconnect | MCPClient's `tools()` method wraps each tool with session error detection + `forceReconnect()` | Already implemented in @mastra/mcp dist/index.js lines 983-1001 |
+| OAuth PKCE flow | Custom crypto + state management | Existing `atlus-oauth.ts` patterns | Already implemented with `generatePKCE()`, `exchangeCodeForTokens()` |
+| Token encryption | Custom AES | Existing `token-encryption.ts` | Already battle-tested with AES-256-GCM |
+
+**Key insight:** The `@mastra/mcp` MCPClient already handles the hardest parts (transport negotiation, session management, auto-reconnect). The custom work is the wrapper that manages lifecycle (max lifetime, token rotation) and the LLM extraction layer.
+
+## Common Pitfalls
+
+### Pitfall 1: SSE Connection Drops Without Detection
+**What goes wrong:** SSE connections can silently die (network change, server restart, Railway deploy) without the client knowing. Next tool call hangs or fails.
+**Why it happens:** SSE is a long-lived HTTP connection; intermediaries (load balancers, proxies) can kill it without sending a close frame.
+**How to avoid:** Use `listTools()` as a health probe before first use and on reconnect. MCPClient's built-in `isSessionError()` detection + `forceReconnect()` handles mid-operation failures. The max lifetime recycle (MCP-05) provides an upper bound on stale connections.
+**Warning signs:** Increasing tool call timeouts, "Not connected" errors in logs.
+
+### Pitfall 2: Token Refresh Race Condition
+**What goes wrong:** Multiple concurrent searches try to refresh the same expired token simultaneously, leading to duplicate DB writes or conflicting token states.
+**Why it happens:** `searchSlides()` is called from multi-pass retrieval (`searchForProposal()`) which fires multiple searches sequentially but could overlap.
+**How to avoid:** Serialize token refresh behind a mutex/promise cache: if a refresh is in-flight, subsequent callers await the same promise. Store the refresh promise alongside the singleton state.
+**Warning signs:** "Token already revoked" errors after a successful refresh, multiple `lastUsedAt` updates in rapid succession.
+
+### Pitfall 3: MCP Tool Name Namespacing
+**What goes wrong:** `MCPClient.listTools()` returns tools namespaced as `serverName_toolName` (e.g., `atlus_knowledge_base_search_semantic`), not the raw tool name.
+**Why it happens:** MCPClient namespaces to prevent conflicts when managing multiple servers.
+**How to avoid:** Use the namespaced name `atlus_knowledge_base_search_semantic` when looking up tools from `listTools()`, not the raw `knowledge_base_search_semantic`.
+**Warning signs:** "Tool not found" errors when using raw tool names.
+
+### Pitfall 4: Eager Boot Blocking Agent Startup
+**What goes wrong:** If MCP connection is slow or fails during agent boot, it blocks all workflows from starting.
+**Why it happens:** Eager connection (user decision) means the boot sequence awaits MCP connection.
+**How to avoid:** Set a short `connectTimeout` (5s), catch connection failures, pre-set `fallbackMode = true` so first search immediately falls back to Drive. Log clearly. Don't throw -- let agent boot succeed.
+**Warning signs:** Agent startup taking > 10 seconds, "connection timeout" in boot logs.
+
+### Pitfall 5: Client Registration for Token Refresh
+**What goes wrong:** The OAuth token refresh requires a `client_id`, but the agent side doesn't have the dynamically registered client ID from the web OAuth flow.
+**Why it happens:** The web side uses `registerAtlusClient()` to get a dynamic `client_id` per OAuth flow, stored only in cookies. The agent doesn't have this.
+**How to avoid:** Two options: (a) store the `client_id` alongside the token in the DB (requires schema change), or (b) register a new client on the agent side for refresh-only use. Option (b) is simpler -- register once at agent boot, cache the `client_id`.
+**Warning signs:** Refresh requests returning "invalid_client" errors.
+
+### Pitfall 6: LLM Extraction Cost Amplification
+**What goes wrong:** Multi-pass retrieval in `searchForProposal()` calls `searchSlides()` 4-6 times, each triggering an LLM extraction call. This can cost 4-6x the LLM API budget per proposal.
+**Why it happens:** Each `searchSlides()` call independently extracts results via LLM.
+**How to avoid:** Accept this cost (user decision: always LLM). Mitigate by batching all results in a single LLM call per `searchSlides()` invocation. Consider reducing multi-pass redundancy if semantic search returns more relevant results than Drive keyword search.
+**Warning signs:** High Vertex AI API costs, slow proposal generation.
+
+## Code Examples
+
+### MCPClient Initialization with Custom Fetch
+```typescript
+// Source: @mastra/mcp dist/client/types.d.ts (HttpServerDefinition.fetch)
+import { MCPClient } from "@mastra/mcp";
+
+const client = new MCPClient({
+  id: "atlus-mcp",
+  servers: {
+    atlus: {
+      url: new URL("https://knowledge-base-api.lumenalta.com/sse"),
+      timeout: 30_000,
+      connectTimeout: 5_000,
+      fetch: async (url, init) => {
+        const token = await getCurrentToken();
+        return fetch(url, {
+          ...init,
+          headers: {
+            ...init?.headers,
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      },
+    },
+  },
+  timeout: 30_000,
 });
+```
+
+### Health Check via listTools()
+```typescript
+// Source: @mastra/mcp dist/client/configuration.d.ts (MCPClient.listTools)
+async function healthCheck(client: MCPClient): Promise<boolean> {
+  try {
+    const tools = await client.listTools();
+    const toolNames = Object.keys(tools);
+    console.log(`[mcp] Health check OK: ${toolNames.length} tools available`);
+    return toolNames.length > 0;
+  } catch (err) {
+    console.error("[mcp] Health check failed:", err);
+    return false;
+  }
+}
+```
+
+### Programmatic Tool Invocation
+```typescript
+// Source: @mastra/mcp dist/index.js lines 940-982 (tool wrapping + execute)
+const tools = await client.listTools();
+const searchTool = tools["atlus_knowledge_base_search_semantic"];
+
+// The tool's execute() method calls client.callTool() internally
+// and handles session error detection + auto-reconnect
+const rawResult = await searchTool.execute({
+  query: "healthcare digital transformation case studies",
+});
+
+// rawResult is CallToolResult: { content: [{type: 'text', text: '...'}], isError?: boolean }
+// or structuredContent if the server supports it
+```
+
+### Graceful Shutdown
+```typescript
+// Source: @mastra/mcp dist/client/configuration.d.ts (MCPClient.disconnect)
+let shutdownInProgress = false;
+
+process.on("SIGTERM", async () => {
+  if (shutdownInProgress) return;
+  shutdownInProgress = true;
+  console.log("[mcp] SIGTERM received, disconnecting...");
+  if (client) {
+    await client.disconnect();
+    console.log("[mcp] Disconnected cleanly");
+  }
+  process.exit(0);
+});
+```
+
+### SlideSearchResult Interface Extension
+```typescript
+// Source: apps/agent/src/lib/atlusai-search.ts (existing interface)
+export interface SlideSearchResult {
+  slideId: string;
+  documentTitle: string;
+  textContent: string;
+  speakerNotes: string;
+  metadata: Record<string, unknown>;
+  presentationId?: string;
+  slideObjectId?: string;
+  // NEW fields (Phase 28)
+  source?: "mcp" | "drive";
+  relevanceScore?: number;
+}
 ```
 
 ## State of the Art
 
 | Old Approach | Current Approach | When Changed | Impact |
 |--------------|------------------|--------------|--------|
-| Drive API fullText search | MCP semantic search | Phase 28 | Semantic relevance vs keyword matching |
-| Direct SSE with static auth | MCPClient with fetch callback | @mastra/mcp 1.0.2 | Dynamic token rotation per request |
-| Raw result parsing | LLM-based extraction | Phase 28 (user decision) | Consistent quality, handles variable MCP output formats |
+| Drive API fullText search | MCP semantic search via AtlusAI | Phase 28 | Much higher relevance for natural language queries; semantic understanding vs keyword matching |
+| Direct API calls for search | MCP protocol with tool abstraction | Phase 28 | Standardized tool interface, server-managed search implementation |
+| Static auth headers | Dynamic fetch callback with token pool rotation | Phase 28 | Handles token expiry gracefully, auto-rotates through pool |
 
-**Important version notes:**
-- `@mastra/mcp` 1.0.2 supports both Streamable HTTP and SSE fallback automatically
-- The MCPClient will try Streamable HTTP first, then fall back to SSE -- this is correct for the AtlusAI endpoint which uses `/sse`
-- `connectTimeout` defaults to 3000ms for transport protocol detection; `timeout` defaults to 60000ms for operations
+**Deprecated/outdated:**
+- Drive API fullText search: Retained only as degraded fallback behind `ATLUS_USE_MCP=false`
+- `discoverAtlusAITools()` in `atlusai-client.ts`: Was a static documentation function; replaced by actual `listTools()` calls via MCPClient
 
 ## Open Questions
 
-1. **MCP tool input schema for project scoping (SRCH-06)**
-   - What we know: The `knowledge_base_search_semantic` tool schema in `atlusai-client.ts` shows only `query` as input. ATLUS_PROJECT_ID env var exists but unclear how it maps to MCP tool arguments.
-   - What's unclear: Does the MCP endpoint scope by project based on auth token, URL path, or tool argument?
-   - Recommendation: Try passing `project_id` as an additional tool argument first. If that fails, check if the SSE URL can include project scoping (e.g., `/projects/{id}/sse`). Fall back to assuming the auth token implicitly scopes to a project.
+1. **Client ID for token refresh on agent side**
+   - What we know: Web side dynamically registers a client per OAuth flow. Agent needs a `client_id` to refresh tokens.
+   - What's unclear: Whether the agent can use a pre-registered static client ID, or must dynamically register like the web side.
+   - Recommendation: Try registering once at agent boot and caching the `client_id`. If AtlusAI requires per-redirect-URI registration, store the `client_id` alongside the token (small schema addition).
 
-2. **MCP result format**
-   - What we know: MCP tools return `CallToolResult` with `content` array of text/blob items. The `InternalMastraMCPClient` auto-parses JSON text content.
-   - What's unclear: Exact structure of `knowledge_base_search_semantic` results -- fields, relevance scoring, document IDs.
-   - Recommendation: The LLM parsing approach handles this well regardless of format. First invocation should log raw results for debugging.
+2. **MCP tool input schema for project scoping**
+   - What we know: The known tool `knowledge_base_search_semantic` has `{ query: string }` as input schema (from `atlusai-client.ts` discovery). SRCH-06 requires project scoping via `ATLUS_PROJECT_ID`.
+   - What's unclear: Whether the MCP tool accepts a `project_id` parameter, or if project scoping is handled server-side based on the auth token's project associations.
+   - Recommendation: Discover actual tool schema via `listTools()` at runtime. If no `project_id` param exists, project scoping is implicit (server-side based on token). Document finding.
 
-3. **Multi-pass simplification with semantic search**
-   - What we know: `searchForProposal()` has 3 passes + 3-tier fallback because keyword search is imprecise. Semantic search may return better results in fewer passes.
-   - What's unclear: Whether semantic search quality eliminates the need for multi-pass.
-   - Recommendation: Keep multi-pass structure initially (preserve existing behavior). Mark as a follow-up optimization after measuring MCP result quality.
+3. **MCP result shape**
+   - What we know: Result is `CallToolResult` with `content: [{type: 'text', text: '...'}]` or `structuredContent`. Actual document structure unknown.
+   - What's unclear: Exact fields, nesting, whether results include relevance scores.
+   - Recommendation: User decision already covers this -- discovery + adaptive prompt on first real call. Log raw result shape on first search for debugging.
+
+## Validation Architecture
+
+### Test Framework
+| Property | Value |
+|----------|-------|
+| Framework | vitest ^4.0.18 |
+| Config file | apps/agent/vitest.config.ts (if exists) or default |
+| Quick run command | `cd apps/agent && npx vitest run --reporter=verbose` |
+| Full suite command | `cd apps/agent && npx vitest run` |
+
+### Phase Requirements to Test Map
+| Req ID | Behavior | Test Type | Automated Command | File Exists? |
+|--------|----------|-----------|-------------------|-------------|
+| MCP-01 | MCPClient connects to SSE endpoint | integration (manual-only) | N/A -- requires live AtlusAI endpoint | N/A |
+| MCP-02 | No MCP imports in apps/web | smoke | `grep -r "@mastra/mcp" apps/web/` should return empty | Wave 0 |
+| MCP-03 | Health check via listTools(), reconnect on failure | unit (mock) | `npx vitest run src/lib/__tests__/mcp-client.test.ts` | Wave 0 |
+| MCP-04 | Fetch callback injects Bearer token | unit (mock) | `npx vitest run src/lib/__tests__/mcp-client.test.ts` | Wave 0 |
+| MCP-05 | Max lifetime recycle | unit | `npx vitest run src/lib/__tests__/mcp-client.test.ts` | Wave 0 |
+| MCP-06 | SIGTERM graceful shutdown | unit (mock) | `npx vitest run src/lib/__tests__/mcp-client.test.ts` | Wave 0 |
+| SRCH-01 | searchSlides uses MCP semantic search | unit (mock) | `npx vitest run src/lib/__tests__/atlusai-search.test.ts` | Wave 0 |
+| SRCH-02 | MCP results mapped to SlideSearchResult | unit | `npx vitest run src/lib/__tests__/atlusai-search.test.ts` | Wave 0 |
+| SRCH-05 | Drive fallback behind ATLUS_USE_MCP flag | unit | `npx vitest run src/lib/__tests__/atlusai-search.test.ts` | Wave 0 |
+
+### Sampling Rate
+- **Per task commit:** `cd apps/agent && npx vitest run --reporter=verbose`
+- **Per wave merge:** Full suite
+- **Phase gate:** Full suite green + manual integration test against live endpoint
+
+### Wave 0 Gaps
+- [ ] `apps/agent/src/lib/__tests__/mcp-client.test.ts` -- covers MCP-03, MCP-04, MCP-05, MCP-06
+- [ ] `apps/agent/src/lib/__tests__/atlusai-search.test.ts` -- covers SRCH-01, SRCH-02, SRCH-05
+- [ ] Vitest config verification (may need to create if not present)
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `@mastra/mcp` v1.0.2 type definitions -- `dist/client/types.d.ts`, `dist/client/configuration.d.ts`, `dist/client/client.d.ts`
-- `@mastra/mcp` v1.0.2 implementation -- `dist/index.js` (tool wrapping, session error handling, reconnect logic)
-- Existing codebase: `atlusai-search.ts`, `atlus-auth.ts`, `atlusai-client.ts`, `mastra/index.ts`, `proposal-assembly.ts`, `slide-selection.ts`
-- `.claude/settings.local.json` -- whitelisted MCP tool names
+- `@mastra/mcp` v1.0.2 installed package -- `dist/client/types.d.ts`, `dist/client/client.d.ts`, `dist/client/configuration.d.ts` (MCPClient API, HttpServerDefinition with fetch callback, connect/disconnect/listTools/tools methods)
+- `@mastra/mcp` v1.0.2 implementation -- `dist/index.js` lines 940-1012 (tool wrapping with session error auto-reconnect, callTool invocation)
+- Existing codebase: `apps/agent/src/lib/atlusai-search.ts` (SlideSearchResult interface, searchSlides/searchForProposal/searchByCapability implementations, 5 consumer files)
+- Existing codebase: `apps/agent/src/lib/atlus-auth.ts` (getPooledAtlusAuth, parseStoredToken, detectAtlusAccess, upsertActionRequired)
+- Existing codebase: `apps/web/src/lib/atlus-oauth.ts` (OAuth endpoints, PKCE flow, token exchange, client registration)
+- Existing codebase: `apps/agent/src/lib/slide-selection.ts` (LLM invocation pattern via GoogleGenAI + Vertex AI)
 
 ### Secondary (MEDIUM confidence)
-- `atlusai-client.ts` tool schema documentation (documented during Phase 27 discovery, may be incomplete)
+- `@mastra/mcp` dist/client/types.d.ts comments and JSDoc (fetch callback usage pattern, connectTimeout behavior)
 
 ### Tertiary (LOW confidence)
-- MCP tool argument schema for project scoping -- not verified against live endpoint
+- MCP tool input schema for `knowledge_base_search_semantic` -- based on `atlusai-client.ts` static discovery, not verified via live `listTools()` call. Actual schema may differ.
+- AtlusAI token refresh endpoint behavior -- inferred from web-side `exchangeCodeForTokens()` pattern, not tested with `grant_type=refresh_token`
 
 ## Metadata
 
 **Confidence breakdown:**
-- Standard stack: HIGH - @mastra/mcp already installed, types verified from source
-- Architecture: HIGH - MCPClient API surface fully mapped from type definitions and implementation
-- Pitfalls: HIGH - Based on actual code analysis of MCPClient internals and project patterns
-- MCP result format: MEDIUM - Tool schemas documented but not verified against live endpoint
-- Project scoping: LOW - ATLUS_PROJECT_ID mapping to MCP unclear
+- Standard stack: HIGH - All libraries already installed, API surface verified from dist type declarations
+- Architecture: HIGH - Patterns derived from actual @mastra/mcp implementation code and existing project patterns
+- Pitfalls: MEDIUM - Some pitfalls (client registration, result shape) require runtime validation
+- Token refresh: MEDIUM - Inferred from web OAuth flow, not tested against agent-side refresh
 
 **Research date:** 2026-03-06
-**Valid until:** 2026-04-06 (stable -- @mastra/mcp API unlikely to change within minor version)
+**Valid until:** 2026-03-20 (14 days -- @mastra/mcp is pinned at 1.0.2, AtlusAI API stable)
