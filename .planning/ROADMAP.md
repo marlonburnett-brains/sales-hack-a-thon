@@ -80,13 +80,14 @@
   3. Background processes obtain a valid AtlusAI token from the pool (ordered by last used), with automatic invalidation on failure and env var fallback when the pool is empty
   4. When a user lacks an AtlusAI account or project access, a specific ActionRequired item appears in the sidebar with resolution guidance -- and resolving one tier immediately re-checks the next
   5. The system logs a warning when fewer than 3 valid AtlusAI tokens remain in the pool
-**Plans**: 4 plans
+**Plans**: 5 plans
 
 Plans:
-- [ ] 27-01-PLAN.md -- UserAtlusToken model, ActionRequired schema extensions, action type constants, token CRUD helpers
-- [ ] 27-02-PLAN.md -- Token pool rotation (getPooledAtlusAuth) with env var fallback
-- [ ] 27-03-PLAN.md -- 3-tier access detection cascade and agent route updates (silence, badge count)
-- [ ] 27-04-PLAN.md -- ActionRequired UX overhaul (Silence replacing Dismiss, dimming, AtlusAI icons)
+- [x] 27-01-PLAN.md -- UserAtlusToken model, ActionRequired schema extensions, action type constants, token CRUD helpers
+- [x] 27-02-PLAN.md -- Token pool rotation (getPooledAtlusAuth) with env var fallback
+- [x] 27-03-PLAN.md -- 3-tier access detection cascade and agent route updates (silence, badge count)
+- [x] 27-04-PLAN.md -- ActionRequired UX overhaul (Silence replacing Dismiss, dimming, AtlusAI icons)
+- [ ] 27-05-PLAN.md -- Gap closure: AtlusAI credential submission web form (ATLS-04)
 
 ### Phase 28: MCP Integration
 **Goal**: AtlusAI semantic search replaces Drive API keyword search in all existing workflows, with Drive retained as a degraded fallback
@@ -156,6 +157,6 @@ Phases execute in numeric order: 27 -> 28 -> 29
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 25. Integration Verification & Cutover | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 26. Tech Debt Cleanup | v1.3 | 1/1 | Complete | 2026-03-06 |
-| 27. Auth Foundation | 4/4 | Complete   | 2026-03-06 | - |
+| 27. Auth Foundation | v1.4 | 4/5 | Gap closure | - |
 | 28. MCP Integration | v1.4 | 0/3 | Not started | - |
 | 29. Discovery UI | v1.4 | 0/4 | Not started | - |
