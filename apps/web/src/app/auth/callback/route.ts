@@ -41,7 +41,6 @@ export async function GET(request: Request) {
           const response = NextResponse.redirect(redirectUrl.toString());
           response.cookies.set("google-token-status", "valid", {
             maxAge: 3600,
-            httpOnly: true,
             sameSite: "lax",
             path: "/",
           });

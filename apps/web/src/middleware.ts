@@ -103,7 +103,6 @@ export async function middleware(request: NextRequest) {
               // Token exists — set cache cookie and proceed
               supabaseResponse.cookies.set("google-token-status", "valid", {
                 maxAge: 3600,
-                httpOnly: true,
                 sameSite: "lax",
                 path: "/",
               });
@@ -111,7 +110,6 @@ export async function middleware(request: NextRequest) {
               // No token — set cache cookie, sign out, redirect to re-consent
               supabaseResponse.cookies.set("google-token-status", "missing", {
                 maxAge: 3600,
-                httpOnly: true,
                 sameSite: "lax",
                 path: "/",
               });
