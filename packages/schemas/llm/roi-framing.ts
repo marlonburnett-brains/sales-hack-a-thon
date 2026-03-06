@@ -5,7 +5,7 @@
  * identified use case. Used to enrich the sales brief and inform
  * deck content personalization.
  *
- * Gemini-safe: flat/shallow object, no transforms, no optionals, no unions.
+ * LLM-safe: flat/shallow object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

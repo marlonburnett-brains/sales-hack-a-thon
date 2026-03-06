@@ -5,7 +5,7 @@
  * Includes capability area filtering to narrow the content library
  * search scope before slide selection.
  *
- * Gemini-safe: flat object, no transforms, no optionals, no unions.
+ * LLM-safe: flat object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

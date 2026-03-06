@@ -1,11 +1,11 @@
 /**
  * ProposalCopyLlmSchema — Per-Slide Copy Generation
  *
- * Defines the structure for per-slide copy generation output from Gemini.
+ * Defines the structure for per-slide copy generation output from LLM.
  * Used when rewriting retrieved slide content to connect capabilities
  * to a specific customer's needs and context.
  *
- * Gemini-safe: no transforms, no optionals, no unions.
+ * LLM-safe: no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

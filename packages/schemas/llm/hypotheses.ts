@@ -5,7 +5,7 @@
  * connecting evidence from research to Lumenalta solutions. Used
  * to prepare sellers for discovery conversations.
  *
- * Gemini-safe: flat/shallow object, no transforms, no optionals, no unions.
+ * LLM-safe: flat/shallow object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

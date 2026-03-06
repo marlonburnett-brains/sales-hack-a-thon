@@ -13,11 +13,7 @@ export function mapToFriendlyError(raw: string): string {
     return "We couldn't save the file to Google Drive. Please try again.";
   }
 
-  if (
-    lower.includes("gemini") ||
-    lower.includes("api") ||
-    lower.includes("model")
-  ) {
+  if (lower.includes("api") || lower.includes("model")) {
     return "AI generation encountered an issue. Please try again.";
   }
 

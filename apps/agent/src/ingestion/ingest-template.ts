@@ -65,7 +65,7 @@ async function updateProgress(
  * Steps:
  * 1. Extract text from all slides via Google Slides API
  * 2. Smart merge: compare with existing embeddings by content hash
- * 3. For new/changed slides: classify via Gemini + embed via Vertex AI
+ * 3. For new/changed slides: classify via LLM + embed via Vertex AI
  * 4. Store in SlideEmbedding via raw SQL (pgvector)
  * 5. Archive removed slides
  * 6. Update template metadata

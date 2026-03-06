@@ -5,7 +5,7 @@
  * Signals are used to improve LLM prompts and content selection
  * over time (positive reinforcement, negative signals, overrides).
  *
- * App schema: NOT sent to Gemini. May use records, optionals, etc.
+ * App schema: NOT sent to LLM. May use records, optionals, etc.
  */
 
 import { z } from "zod";

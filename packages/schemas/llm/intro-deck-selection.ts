@@ -5,7 +5,7 @@
  * a personalized introductory deck. References AtlusAI content
  * block IDs for slide retrieval.
  *
- * Gemini-safe: flat object, no transforms, no optionals, no unions.
+ * LLM-safe: flat object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

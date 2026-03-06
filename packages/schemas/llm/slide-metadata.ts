@@ -8,7 +8,7 @@
  * Schema shape is IDENTICAL to the Phase 2 original:
  * same field names, same enum arrays, same required fields.
  *
- * Gemini-safe: flat object with enum arrays, no transforms, no optionals.
+ * LLM-safe: flat object with enum arrays, no transforms, no optionals.
  */
 
 import { z } from "zod";
@@ -19,7 +19,7 @@ import {
   SLIDE_CATEGORIES,
   BUYER_PERSONAS,
   TOUCH_TYPES,
-} from "../constants";
+} from "../constants.ts";
 
 export const SlideMetadataSchema = z.object({
   industries: z.array(z.enum(INDUSTRIES)),

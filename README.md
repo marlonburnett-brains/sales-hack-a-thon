@@ -1,6 +1,6 @@
 # Lumenalta Agentic Sales Orchestration
 
-An AI-powered sales enablement platform that covers all four touch points in Lumenalta's 2026 GTM strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals. The system eliminates the 24-hour to 5-day bottleneck between discovery calls and polished, brand-compliant collateral by orchestrating Gemini AI, Google Workspace APIs, and the AtlusAI knowledge base through automated workflows with human-in-the-loop checkpoints.
+An AI-powered sales enablement platform that covers all four touch points in Lumenalta's 2026 GTM strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals. The system eliminates the 24-hour to 5-day bottleneck between discovery calls and polished, brand-compliant collateral by orchestrating LLM-powered AI, Google Workspace APIs, and the AtlusAI knowledge base through automated workflows with human-in-the-loop checkpoints.
 
 ## Architecture
 
@@ -28,8 +28,8 @@ An AI-powered sales enablement platform that covers all four touch points in Lum
                               ┌──────────┘       │       └──────────┐
                               ▼                  ▼                  ▼
                     ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-                    │  Gemini 2.5  │   │   Google      │   │   AtlusAI    │
-                    │  Flash API   │   │   Workspace   │   │   Knowledge  │
+                    │  LLM Service │   │   Google      │   │   AtlusAI    │
+                    │  (Vertex AI) │   │   Workspace   │   │   Knowledge  │
                     │              │   │   (Slides,    │   │   Base (MCP) │
                     │  Structured  │   │    Docs,      │   │              │
                     │  outputs     │   │    Drive)     │   │  Semantic &  │
@@ -38,7 +38,7 @@ An AI-powered sales enablement platform that covers all four touch points in Lum
                     └──────────────┘   └──────────────┘   └──────────────┘
 ```
 
-**Communication flow:** The Next.js frontend calls the Mastra agent service over REST via a typed fetch wrapper. The agent service orchestrates AI generation (Gemini), document creation (Google Workspace APIs), and content retrieval (AtlusAI MCP). Workflows support suspend/resume for human-in-the-loop checkpoints.
+**Communication flow:** The Next.js frontend calls the Mastra agent service over REST via a typed fetch wrapper. The agent service orchestrates AI generation (LLM via Vertex AI), document creation (Google Workspace APIs), and content retrieval (AtlusAI MCP). Workflows support suspend/resume for human-in-the-loop checkpoints.
 
 ## Tech Stack
 
@@ -47,7 +47,7 @@ An AI-powered sales enablement platform that covers all four touch points in Lum
 | **Language** | TypeScript 5.7 |
 | **Frontend** | Next.js 15 (App Router), React 19, TailwindCSS, shadcn/ui, Radix UI |
 | **AI orchestration** | Mastra 1.3 |
-| **LLM** | Gemini 2.5 Flash (`@google/genai`) |
+| **LLM** | LLM via Vertex AI (`@google/genai`) |
 | **Knowledge base** | AtlusAI (MCP-connected semantic search) |
 | **Database** | Supabase PostgreSQL via Prisma ORM |
 | **Document generation** | Google Slides API, Google Docs API, Google Drive API |
@@ -107,7 +107,7 @@ lumenalta-hackathon/
 ## Key Features
 
 ### Touch 1 — First Contact (1-2 Pager)
-Seller inputs company name, industry, and context. Gemini generates a branded pager (headline, value prop, capabilities, CTA). Seller approves or overrides — overrides are captured as learning signals.
+Seller inputs company name, industry, and context. LLM generates a branded pager (headline, value prop, capabilities, CTA). Seller approves or overrides — overrides are captured as learning signals.
 
 ### Touch 2 — Intro Conversation (Meet Lumenalta Deck)
 AI selects the most relevant slides from a pre-made "Meet Lumenalta" deck based on industry and context, then assembles them into a Google Slides presentation with salesperson and customer customizations.
@@ -118,7 +118,7 @@ Seller selects 1-2 capability areas. AI retrieves and assembles relevant slides 
 ### Touch 4 — Solution Proposal (Transcript-to-Deck)
 The heaviest workflow — a multi-step pipeline:
 1. Seller pastes a raw meeting transcript and selects industry/subsector
-2. Gemini extracts structured fields (Customer Context, Business Outcomes, Constraints, Stakeholders, Timeline, Budget)
+2. LLM extracts structured fields (Customer Context, Business Outcomes, Constraints, Stakeholders, Timeline, Budget)
 3. **HITL Checkpoint 1:** Seller reviews and approves the generated brief
 4. System retrieves relevant content from AtlusAI, assembles slide JSON, and generates a Google Slides deck + Talk Track (Google Doc) + Buyer FAQ (Google Doc)
 5. **HITL Checkpoint 2:** Seller reviews final assets before delivery
@@ -170,7 +170,8 @@ The list of managed secret files is defined in `secrets.yml`.
 | `GOOGLE_SERVICE_ACCOUNT_KEY` | Yes | Google service account credentials JSON string |
 | `GOOGLE_DRIVE_FOLDER_ID` | Yes | Google Drive folder ID for generated assets |
 | `GOOGLE_TEMPLATE_PRESENTATION_ID` | Yes | Lumenalta branded Google Slides template ID |
-| `GEMINI_API_KEY` | Yes | Google Gemini API key ([get one here](https://aistudio.google.com/apikey)) |
+| `GOOGLE_CLOUD_PROJECT` | Yes | Google Cloud project ID for Vertex AI |
+| `GOOGLE_CLOUD_LOCATION` | No | Google Cloud region for Vertex AI (default: `us-central1`) |
 | `MEET_LUMENALTA_PRESENTATION_ID` | No | Source presentation ID for Touch 2 intro decks |
 | `CAPABILITY_DECK_PRESENTATION_ID` | No | Source presentation ID for Touch 3 capability decks |
 | `MASTRA_PORT` | No | Mastra HTTP server port (default: `4111`) |

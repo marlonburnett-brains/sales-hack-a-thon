@@ -6,7 +6,7 @@
  * content block ID for traceability.
  *
  * Max 2 levels of nesting: object with array of objects.
- * Gemini-safe: no transforms, no optionals, no unions.
+ * LLM-safe: no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

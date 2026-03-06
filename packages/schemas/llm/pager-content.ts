@@ -5,7 +5,7 @@
  * personalized overview of Lumenalta's value proposition for the
  * target company.
  *
- * Gemini-safe: flat object, no transforms, no optionals, no unions.
+ * LLM-safe: flat object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

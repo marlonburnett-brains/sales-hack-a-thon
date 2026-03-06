@@ -5,7 +5,7 @@
  * All 6 fields are required strings — empty string if not found in transcript.
  * Phase 5 flags empty strings as missing fields for HITL review.
  *
- * Gemini-safe: flat object, no transforms, no optionals, no unions.
+ * LLM-safe: flat object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

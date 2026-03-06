@@ -5,7 +5,7 @@
  * Provides context on the target company's initiatives, news,
  * and financial position to inform the sales conversation.
  *
- * Gemini-safe: flat object, no transforms, no optionals, no unions.
+ * LLM-safe: flat object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

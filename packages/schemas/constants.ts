@@ -78,7 +78,7 @@ export const TOUCH_TYPES = [
  * SUBSECTORS — Industry-specific subsector taxonomy
  *
  * 62 subsectors across all 11 industries. Used for transcript processing
- * (Touch 4) to refine Gemini extraction and pillar mapping with
+ * (Touch 4) to refine LLM extraction and pillar mapping with
  * domain-specific context.
  *
  * Single source of truth: consumed by web form (cascading dropdown)
@@ -174,7 +174,7 @@ export const SUBSECTORS: Record<string, string[]> = {
 /**
  * SOLUTION_PILLARS — Lumenalta's 6 primary service categories
  *
- * Used in brief generation prompts so Gemini maps transcript content
+ * Used in brief generation prompts so LLM maps transcript content
  * to Lumenalta-specific pillars rather than generic categories.
  */
 export const SOLUTION_PILLARS = [

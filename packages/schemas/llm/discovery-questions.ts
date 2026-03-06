@@ -3,9 +3,9 @@
  *
  * Generates prioritized discovery questions for a sales call,
  * each mapped to a Lumenalta solution area. Priority is a string
- * value ("high", "medium", "low") — not an enum — for Gemini safety.
+ * value ("high", "medium", "low") — not an enum — for LLM safety.
  *
- * Gemini-safe: flat/shallow object, no transforms, no optionals, no unions.
+ * LLM-safe: flat/shallow object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";

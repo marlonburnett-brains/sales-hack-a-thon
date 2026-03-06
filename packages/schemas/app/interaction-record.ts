@@ -5,7 +5,7 @@
  * reviews, approves, edits, or overrides LLM-generated content.
  * Used for feedback loops and audit trails.
  *
- * App schema: NOT sent to Gemini. May use records, optionals, etc.
+ * App schema: NOT sent to LLM. May use records, optionals, etc.
  */
 
 import { z } from "zod";

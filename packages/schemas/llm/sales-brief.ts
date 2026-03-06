@@ -6,7 +6,7 @@
  * enum-constrained) — downstream validation against AtlusAI-known pillar
  * list happens in later phases.
  *
- * Gemini-safe: flat/shallow object, no transforms, no optionals, no unions.
+ * LLM-safe: flat/shallow object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";
