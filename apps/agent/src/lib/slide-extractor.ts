@@ -12,7 +12,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { getSlidesClient } from "./google-auth";
+import { getSlidesClient, type GoogleAuthOptions } from "./google-auth";
 import type { slides_v1 } from "googleapis";
 
 // ────────────────────────────────────────────────────────────
@@ -142,9 +142,10 @@ function extractSpeakerNotes(slide: slides_v1.Schema$Page): string {
 export async function extractSlidesFromPresentation(
   presentationId: string,
   presentationName: string,
-  folderPath: string
+  folderPath: string,
+  authOptions?: GoogleAuthOptions
 ): Promise<ExtractedSlide[]> {
-  const slides = getSlidesClient();
+  const slides = getSlidesClient(authOptions);
 
   // Single API call to get ALL slides including notes pages
   const response = await slides.presentations.get({

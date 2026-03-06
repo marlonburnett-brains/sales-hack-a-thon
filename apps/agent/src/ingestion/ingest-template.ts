@@ -11,6 +11,7 @@
 import { PrismaClient } from "@prisma/client";
 import { toSql } from "pgvector";
 import { extractSlidesFromPresentation } from "../lib/slide-extractor";
+import type { GoogleAuthOptions } from "../lib/google-auth";
 import { classifySlide } from "./classify-metadata";
 import { generateEmbedding } from "./embed-slide";
 import {
@@ -72,7 +73,8 @@ async function updateProgress(
  * 6. Update template metadata
  */
 export async function ingestTemplate(
-  templateId: string
+  templateId: string,
+  authOptions?: GoogleAuthOptions
 ): Promise<IngestResult> {
   try {
     // 1. Fetch template
@@ -100,7 +102,8 @@ export async function ingestTemplate(
     const slides = await extractSlidesFromPresentation(
       template.presentationId,
       template.name,
-      ""
+      "",
+      authOptions
     );
     console.log(`[ingest] Extracted ${slides.length} slides`);
 

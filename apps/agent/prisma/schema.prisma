@@ -265,3 +265,26 @@ model UserGoogleToken {
   @@index([isValid, lastUsedAt])
   @@index([email])
 }
+
+// ────────────────────────────────────────────────────────────
+// Phase 24: ActionRequired — tracks manual user actions needed
+// (e.g., re-auth, share with SA, drive access)
+// ────────────────────────────────────────────────────────────
+
+model ActionRequired {
+  id           String    @id @default(cuid())
+  userId       String?   // null for org-wide actions (e.g., share with SA)
+  actionType   String    // "reauth_needed" | "share_with_sa" | "drive_access"
+  title        String    // Human-readable title
+  description  String    // Detailed guidance for resolution
+  resourceId   String?   // Template ID, file ID, etc.
+  resourceName String?   // Human-readable resource name
+  resolved     Boolean   @default(false)
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([resolved])
+  @@index([userId])
+  @@index([actionType])
+}
