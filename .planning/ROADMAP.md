@@ -78,11 +78,12 @@
 - `apps/agent/src/lib/token-encryption.ts` — new: AES-256-GCM encrypt/decrypt
 - `apps/agent/src/mastra/index.ts` — new: token storage API route
 
-**Plans:** 2 plans
+**Plans:** 3 plans
 
 Plans:
 - [ ] 22-01-PLAN.md — Agent-side token encryption, UserGoogleToken model, and token API routes
 - [ ] 22-02-PLAN.md — Web-side OAuth scope expansion, callback token capture, middleware re-consent
+- [ ] 22-03-PLAN.md — Token status badge and Connect Google button in user nav
 
 ---
 
@@ -188,7 +189,7 @@ Plans:
 | 19. Navigation & Template Management | v1.2 | 3/3 | Complete | 2026-03-05 |
 | 20. Slide Ingestion Agent | v1.2 | 2/2 | Complete | 2026-03-06 |
 | 21. Preview & Review Engine | v1.2 | 3/3 | Complete | 2026-03-06 |
-| 22. OAuth Scope Expansion & Token Storage | v1.3 | 0/2 | Pending | — |
+| 22. OAuth Scope Expansion & Token Storage | v1.3 | 0/3 | Pending | — |
 | 23. User-Delegated API Clients & Token Passthrough | v1.3 | 0/2 | Pending | — |
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 0/2 | Pending | — |
 | 25. Integration Verification & Cutover | v1.3 | 0/1 | Pending | — |
