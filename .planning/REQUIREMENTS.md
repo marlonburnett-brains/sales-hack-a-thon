@@ -37,17 +37,17 @@
 
 ### Token Pool (Background Jobs)
 
-- [ ] **POOL-01**: Background jobs (staleness polling, scheduled re-ingestion) draw from a pool of stored refresh tokens ordered by `lastUsedAt` descending
-- [ ] **POOL-02**: Token pool tries up to 5 tokens with automatic fallback when a token fails (revoked/expired)
-- [ ] **POOL-03**: Failed tokens are marked `isValid: false` with `revokedAt` timestamp
-- [ ] **POOL-04**: Successful token usage updates `lastUsedAt` to keep the pool fresh
-- [ ] **POOL-05**: System logs a warning when the valid token pool drops below 2 tokens
+- [x] **POOL-01**: Background jobs (staleness polling, scheduled re-ingestion) draw from a pool of stored refresh tokens ordered by `lastUsedAt` descending
+- [x] **POOL-02**: Token pool tries up to 5 tokens with automatic fallback when a token fails (revoked/expired)
+- [x] **POOL-03**: Failed tokens are marked `isValid: false` with `revokedAt` timestamp
+- [x] **POOL-04**: Successful token usage updates `lastUsedAt` to keep the pool fresh
+- [x] **POOL-05**: System logs a warning when the valid token pool drops below 2 tokens
 
 ### Refresh Token Lifecycle
 
-- [ ] **LIFE-01**: When Google issues a new refresh token during token refresh, the stored token is updated
-- [ ] **LIFE-02**: Token refresh uses `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars on the agent service
-- [ ] **LIFE-03**: Users who re-login update their stored token (upsert on `userId`)
+- [x] **LIFE-01**: When Google issues a new refresh token during token refresh, the stored token is updated
+- [x] **LIFE-02**: Token refresh uses `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars on the agent service
+- [x] **LIFE-03**: Users who re-login update their stored token (upsert on `userId`)
 
 ### Integration Verification
 
@@ -100,14 +100,14 @@
 | PASS-02 | Phase 23 | Complete |
 | PASS-03 | Phase 23 | Complete |
 | PASS-04 | Phase 23 | Complete |
-| POOL-01 | Phase 24 | Pending |
-| POOL-02 | Phase 24 | Pending |
-| POOL-03 | Phase 24 | Pending |
-| POOL-04 | Phase 24 | Pending |
-| POOL-05 | Phase 24 | Pending |
-| LIFE-01 | Phase 24 | Pending |
-| LIFE-02 | Phase 24 | Pending |
-| LIFE-03 | Phase 24 | Pending |
+| POOL-01 | Phase 24 | Complete |
+| POOL-02 | Phase 24 | Complete |
+| POOL-03 | Phase 24 | Complete |
+| POOL-04 | Phase 24 | Complete |
+| POOL-05 | Phase 24 | Complete |
+| LIFE-01 | Phase 24 | Complete |
+| LIFE-02 | Phase 24 | Complete |
+| LIFE-03 | Phase 24 | Complete |
 | INTG-01 | Phase 25 | Pending |
 | INTG-02 | Phase 25 | Pending |
 | INTG-03 | Phase 25 | Pending |
