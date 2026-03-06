@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import type { ActionRequiredItem } from "@/lib/api-client";
 import {
   silenceActionAction,
-  submitAtlusCredentialsAction,
+  recheckAtlusAccessAction,
 } from "@/lib/actions/action-required-actions";
 
 function getActionIcon(actionType: string) {
@@ -60,16 +60,13 @@ function isAtlusActionType(actionType: string): boolean {
 
 interface ActionsClientProps {
   initialActions: ActionRequiredItem[];
-  userId: string;
-  email: string;
 }
 
-export function ActionsClient({ initialActions, userId, email }: ActionsClientProps) {
+export function ActionsClient({ initialActions }: ActionsClientProps) {
   const [actions, setActions] = useState(initialActions);
   const [isPending, startTransition] = useTransition();
   const [silencingId, setSilencingId] = useState<string | null>(null);
-  const [atlusToken, setAtlusToken] = useState("");
-  const [submittingCredentials, setSubmittingCredentials] = useState(false);
+  const [recheckingId, setRecheckingId] = useState<string | null>(null);
 
   const pendingActions = actions.filter((a) => !a.resolved);
   const activeBadgeCount = pendingActions.filter((a) => !a.silenced).length;
@@ -96,28 +93,13 @@ export function ActionsClient({ initialActions, userId, email }: ActionsClientPr
     });
   }
 
-  async function handleSubmitCredentials() {
-    if (!atlusToken.trim()) return;
-    setSubmittingCredentials(true);
-    try {
-      const result = await submitAtlusCredentialsAction(userId, email, atlusToken.trim());
-      if (result.accessResult === "full_access") {
-        toast.success("AtlusAI credentials saved and access confirmed!");
-        // Remove resolved AtlusAI action cards from the list
-        setActions((prev) => prev.filter(
-          (a) => a.actionType !== "atlus_account_required" && a.actionType !== "atlus_project_required"
-        ));
-      } else if (result.accessResult === "no_project") {
-        toast.info("Credentials saved. You still need project access -- see updated action items.");
-      } else {
-        toast.warning("Credentials saved but authentication failed. Please verify your token is correct.");
-      }
-      setAtlusToken("");
-    } catch {
-      toast.error("Failed to submit AtlusAI credentials. Please try again.");
-    } finally {
-      setSubmittingCredentials(false);
-    }
+  function handleRecheckAccess(actionId: string) {
+    // TODO(phase-28): Wire googleAccessToken from OAuth session -- may need provider_token from Supabase auth callback
+    // The Google OAuth provider_token is only available at the moment of the OAuth callback,
+    // not from the browser-side Supabase session. This button is disabled until phase-28 wires
+    // the token capture flow.
+    void actionId;
+    toast.error("Re-check Access requires OAuth token wiring (coming in Phase 28)");
   }
 
   return (
@@ -164,38 +146,26 @@ export function ActionsClient({ initialActions, userId, email }: ActionsClientPr
                 <p className="mt-1 text-xs text-slate-400">
                   {formatDate(action.updatedAt)}
                 </p>
-
-                {/* AtlusAI credential submission form */}
-                {isAtlusActionType(action.actionType) && !action.silenced && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="password"
-                        value={atlusToken}
-                        onChange={(e) => setAtlusToken(e.target.value)}
-                        placeholder="Paste your AtlusAI API token"
-                        className="w-full rounded-md border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-100 transition-colors duration-150"
-                        aria-label="AtlusAI API token"
-                        disabled={submittingCredentials}
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleSubmitCredentials()}
-                      disabled={!atlusToken.trim() || submittingCredentials}
-                      className="inline-flex items-center rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-150"
-                      aria-label="Submit AtlusAI credentials"
-                    >
-                      {submittingCredentials ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Submit"
-                      )}
-                    </button>
-                  </div>
-                )}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex items-center gap-2">
+                {/* Re-check Access button for AtlusAI action types */}
+                {isAtlusActionType(action.actionType) && !action.silenced && (
+                  <button
+                    onClick={() => handleRecheckAccess(action.id)}
+                    disabled={true}
+                    title="Available after next login"
+                    className="inline-flex cursor-not-allowed items-center rounded-md bg-purple-50 px-3 py-1.5 text-sm font-medium text-purple-600 opacity-60 transition-colors duration-150"
+                    aria-label="Re-check AtlusAI access"
+                  >
+                    <RefreshCw
+                      className={`mr-1.5 h-4 w-4${
+                        recheckingId === action.id ? " animate-spin" : ""
+                      }`}
+                    />
+                    Re-check Access
+                  </button>
+                )}
+
                 {/* Silence / Silenced indicator */}
                 {action.silenced ? (
                   <VolumeX className="h-4 w-4 text-slate-300" />

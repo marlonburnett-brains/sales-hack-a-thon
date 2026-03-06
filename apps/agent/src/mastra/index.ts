@@ -13,7 +13,7 @@ import { extractGoogleAuth } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { encryptToken } from "../lib/token-encryption";
-import { upsertAtlusToken, detectAtlusAccess } from "../lib/atlus-auth";
+import { detectAtlusAccess } from "../lib/atlus-auth";
 import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
@@ -1422,37 +1422,6 @@ export const mastra = new Mastra({
       // ────────────────────────────────────────────────────────────
       // Phase 27: AtlusAI Access Detection
       // ────────────────────────────────────────────────────────────
-
-      // POST /atlus/credentials -- User submits AtlusAI API token via web form
-      registerApiRoute("/atlus/credentials", {
-        method: "POST",
-        handler: async (c) => {
-          try {
-            const body = await c.req.json();
-            const data = z
-              .object({
-                userId: z.string().min(1),
-                email: z.string().email(),
-                token: z.string().min(1),
-              })
-              .parse(body);
-
-            // Store the encrypted AtlusAI token (upsert -- re-submit updates existing record)
-            await upsertAtlusToken(data.userId, data.email, data.token);
-
-            // Run 3-tier access detection with the submitted token
-            const accessResult = await detectAtlusAccess(data.userId, data.email, data.token);
-
-            return c.json({ success: true, accessResult });
-          } catch (err) {
-            if (err instanceof z.ZodError) {
-              return c.json({ error: "Invalid request body", details: err.issues }, 400);
-            }
-            console.error("[atlus-credentials] Failed to store AtlusAI credentials:", err);
-            return c.json({ error: "Failed to store credentials" }, 500);
-          }
-        },
-      }),
 
       // POST /atlus/detect -- On-demand AtlusAI access re-check
       registerApiRoute("/atlus/detect", {
