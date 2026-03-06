@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { SlidePreview } from "@/components/slide-viewer/slide-preview";
 import { ThumbnailStrip } from "@/components/slide-viewer/thumbnail-strip";
 import { ClassificationPanel } from "@/components/slide-viewer/classification-panel";
-import type { SlideData, SlideThumbnail } from "@/lib/actions/slide-actions";
+import { SimilarityResults } from "@/components/slide-viewer/similarity-results";
+import {
+  findSimilarSlidesAction,
+} from "@/lib/actions/slide-actions";
+import type { SlideData, SlideThumbnail, SimilarSlide } from "@/lib/actions/slide-actions";
 
 interface SlideViewerClientProps {
   templateId: string;
@@ -25,6 +29,9 @@ export function SlideViewerClient({
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slides, setSlides] = useState<SlideData[]>(initialSlides);
+  const [similarResults, setSimilarResults] = useState<SimilarSlide[] | null>(null);
+  const [isFindingSimilar, setIsFindingSimilar] = useState(false);
+  const [searchingSlideId, setSearchingSlideId] = useState<string | null>(null);
 
   // Build a map from slideIndex to thumbnailUrl
   const thumbnailMap = useMemo(() => {
@@ -96,6 +103,41 @@ export function SlideViewerClient({
     []
   );
 
+  // Find Similar handler
+  const handleFindSimilar = useCallback(async (slideId: string) => {
+    setSearchingSlideId(slideId);
+    setIsFindingSimilar(true);
+    setSimilarResults([]);
+    try {
+      const { results } = await findSimilarSlidesAction(slideId, 8);
+      setSimilarResults(results);
+    } catch {
+      setSimilarResults([]);
+    } finally {
+      setIsFindingSimilar(false);
+    }
+  }, []);
+
+  const closeSimilarity = useCallback(() => {
+    setSimilarResults(null);
+    setSearchingSlideId(null);
+  }, []);
+
+  // Build a slideObjectId -> thumbnailUrl map for SimilarityResults
+  const thumbnailObjectIdMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of initialThumbnails) {
+      map.set(t.slideObjectId, t.thumbnailUrl);
+    }
+    return map;
+  }, [initialThumbnails]);
+
+  // Template names map (only this template since we're in per-template viewer)
+  const templateNamesMap = useMemo(
+    () => new Map([[templateId, templateName]]),
+    [templateId, templateName]
+  );
+
   const currentThumbnailUrl = currentSlide
     ? thumbnailMap.get(currentSlide.slideIndex)
     : undefined;
@@ -164,6 +206,8 @@ export function SlideViewerClient({
               slide={currentSlide}
               templateId={templateId}
               onUpdated={handleSlideUpdated}
+              onFindSimilar={handleFindSimilar}
+              isFindingSimilar={isFindingSimilar}
             />
           )}
         </div>
@@ -183,6 +227,18 @@ export function SlideViewerClient({
           }
         }}
       />
+
+      {/* Similarity Results Dialog */}
+      {similarResults !== null && (
+        <SimilarityResults
+          results={similarResults}
+          sourceSlideId={searchingSlideId ?? ""}
+          thumbnails={thumbnailObjectIdMap}
+          templateNames={templateNamesMap}
+          onClose={closeSimilarity}
+          isLoading={isFindingSimilar}
+        />
+      )}
     </div>
   );
 }
