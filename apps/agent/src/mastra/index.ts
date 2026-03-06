@@ -9,7 +9,7 @@ import { touch3Workflow } from "./workflows/touch-3-workflow";
 import { touch4Workflow } from "./workflows/touch-4-workflow";
 import { preCallWorkflow } from "./workflows/pre-call-workflow";
 import { getOrCreateDealFolder, makePubliclyViewable } from "../lib/drive-folders";
-import { getDriveClient } from "../lib/google-auth";
+import { getDriveClient, getSlidesClient } from "../lib/google-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { env } from "../env";
@@ -1099,6 +1099,150 @@ export const mastra = new Mastra({
               500
             );
           }
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Phase 21: Preview & Review Engine (PREV-01 through PREV-05, SLIDE-09)
+      // ────────────────────────────────────────────────────────────
+
+      // GET /templates/:id/slides -- List all active slides with classifications for a template
+      registerApiRoute("/templates/:id/slides", {
+        method: "GET",
+        handler: async (c) => {
+          const templateId = c.req.param("id");
+          const slides = await prisma.slideEmbedding.findMany({
+            where: { templateId, archived: false },
+            orderBy: { slideIndex: "asc" },
+            select: {
+              id: true,
+              slideIndex: true,
+              slideObjectId: true,
+              contentText: true,
+              classificationJson: true,
+              confidence: true,
+              needsReReview: true,
+              reviewStatus: true,
+              industry: true,
+              solutionPillar: true,
+              persona: true,
+              funnelStage: true,
+              contentType: true,
+            },
+          });
+          return c.json(slides);
+        },
+      }),
+
+      // GET /templates/:id/thumbnails -- Batch fetch all slide thumbnail URLs from Google Slides API
+      registerApiRoute("/templates/:id/thumbnails", {
+        method: "GET",
+        handler: async (c) => {
+          const templateId = c.req.param("id");
+          const template = await prisma.template.findUniqueOrThrow({ where: { id: templateId } });
+          const slides = await prisma.slideEmbedding.findMany({
+            where: { templateId, archived: false },
+            orderBy: { slideIndex: "asc" },
+            select: { slideObjectId: true, slideIndex: true },
+          });
+          const slidesApi = getSlidesClient();
+          const thumbnails: Array<{ slideObjectId: string; slideIndex: number; thumbnailUrl: string }> = [];
+          for (const slide of slides) {
+            if (!slide.slideObjectId) continue;
+            try {
+              const result = await slidesApi.presentations.pages.getThumbnail({
+                presentationId: template.presentationId,
+                pageObjectId: slide.slideObjectId,
+                "thumbnailProperties.thumbnailSize": "LARGE",
+              });
+              thumbnails.push({
+                slideObjectId: slide.slideObjectId,
+                slideIndex: slide.slideIndex,
+                thumbnailUrl: result.data.contentUrl ?? "",
+              });
+            } catch (err) {
+              console.error(`[thumbnails] Failed for slide ${slide.slideObjectId}:`, err);
+            }
+          }
+          return c.json({ thumbnails });
+        },
+      }),
+
+      // POST /slides/:id/update-classification -- Update a slide's classification tags and review status
+      registerApiRoute("/slides/:id/update-classification", {
+        method: "POST",
+        handler: async (c) => {
+          const slideId = c.req.param("id");
+          const body = await c.req.json();
+          const data = z.object({
+            reviewStatus: z.enum(["approved", "needs_correction"]),
+            correctedTags: z.object({
+              industries: z.array(z.string()),
+              solutionPillars: z.array(z.string()),
+              buyerPersonas: z.array(z.string()),
+              funnelStages: z.array(z.string()),
+              contentType: z.string(),
+              slideCategory: z.string(),
+              subsectors: z.array(z.string()).optional(),
+              touchType: z.array(z.string()).optional(),
+            }).optional(),
+          }).parse(body);
+
+          if (data.reviewStatus === "approved") {
+            // Thumbs up -- mark as approved, no tag changes
+            await prisma.slideEmbedding.update({
+              where: { id: slideId },
+              data: { reviewStatus: "approved", needsReReview: false },
+            });
+          } else {
+            // Thumbs down with corrections -- update tags + classificationJson via raw SQL
+            const tags = data.correctedTags!;
+            await prisma.$executeRaw`
+              UPDATE "SlideEmbedding"
+              SET
+                industry = ${tags.industries[0] ?? null},
+                "solutionPillar" = ${tags.solutionPillars[0] ?? null},
+                persona = ${tags.buyerPersonas[0] ?? null},
+                "funnelStage" = ${tags.funnelStages[0] ?? null},
+                "contentType" = ${tags.contentType},
+                "classificationJson" = ${JSON.stringify(tags)},
+                "reviewStatus" = 'needs_correction',
+                "needsReReview" = false,
+                "updatedAt" = NOW()
+              WHERE id = ${slideId}
+            `;
+          }
+          return c.json({ success: true });
+        },
+      }),
+
+      // POST /slides/:id/similar -- Find similar slides by vector cosine distance
+      registerApiRoute("/slides/:id/similar", {
+        method: "POST",
+        handler: async (c) => {
+          const slideId = c.req.param("id");
+          const body = await c.req.json();
+          const limit = body.limit ?? 10;
+
+          const sourceRows = await prisma.$queryRaw<Array<{ embedding: string }>>`
+            SELECT embedding::text FROM "SlideEmbedding" WHERE id = ${slideId}
+          `;
+          if (sourceRows.length === 0) {
+            return c.json({ error: "Slide not found" }, 404);
+          }
+          const embedding = sourceRows[0].embedding;
+
+          const similar = await prisma.$queryRaw`
+            SELECT id, "templateId", "slideIndex", "slideObjectId",
+                   "contentText", "classificationJson", confidence, "reviewStatus",
+                   1 - (embedding <=> ${embedding}::vector) AS similarity
+            FROM "SlideEmbedding"
+            WHERE archived = false
+              AND id != ${slideId}
+            ORDER BY embedding <=> ${embedding}::vector
+            LIMIT ${limit}
+          `;
+          return c.json({ results: similar });
         },
       }),
     ],

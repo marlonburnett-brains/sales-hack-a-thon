@@ -208,12 +208,14 @@ model SlideEmbedding {
   archived                   Boolean  @default(false)
   needsReReview              Boolean  @default(false)
   previousClassificationJson String?
+  reviewStatus               String   @default("unreviewed") // "unreviewed" | "approved" | "needs_correction"
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
 
   @@unique([templateId, contentHash])
   @@index([templateId])
   @@index([archived])
+  @@index([reviewStatus])
   @@index([embedding], name: "SlideEmbedding_embedding_idx")
 }
 
