@@ -601,7 +601,7 @@ export interface SlideData {
   slideIndex: number;
   slideObjectId: string | null;
   contentText: string;
-  classificationJson: string | null;
+  classificationJson: string | null; // JSON string — parse on read
   confidence: number | null;
   needsReReview: boolean;
   reviewStatus: string; // "unreviewed" | "approved" | "needs_correction"
