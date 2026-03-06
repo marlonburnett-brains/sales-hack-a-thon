@@ -239,7 +239,7 @@ export function SlideLibraryClient({
                   {/* Confidence */}
                   {slide.confidence != null && (
                     <span className="text-xs text-slate-500">
-                      {Math.round(slide.confidence * 100)}% confidence
+                      {Math.round(slide.confidence)}% confidence
                     </span>
                   )}
 

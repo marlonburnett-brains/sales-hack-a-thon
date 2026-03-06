@@ -102,7 +102,7 @@ export function ClassificationPanel({
   const [isSaving, setIsSaving] = useState(false);
 
   const classification = useMemo(() => parseClassification(slide), [slide]);
-  const confidencePercent = slide.confidence != null ? Math.round(slide.confidence * 100) : null;
+  const confidencePercent = slide.confidence != null ? Math.round(slide.confidence) : null;
 
   // Reset editing mode when slide changes
   const slideId = slide.id;

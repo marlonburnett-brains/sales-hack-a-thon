@@ -14,7 +14,7 @@ export interface EnrichedSlide extends SlideData {
 }
 
 export default async function SlideLibraryPage() {
-  let allSlides: EnrichedSlide[] = [];
+  const allSlides: EnrichedSlide[] = [];
   let allThumbnails: SlideThumbnail[] = [];
   const templateNames = new Map<string, string>();
 
