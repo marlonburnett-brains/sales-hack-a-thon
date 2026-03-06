@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: "Google API Auth: User-Delegated Credentials"
-status: executing
-stopped_at: Completed 22-03-PLAN.md
-last_updated: "2026-03-06T16:18:18.047Z"
-last_activity: 2026-03-06 — Plan 22-01 complete (token encryption + storage routes)
+status: "Executing Phase 22"
+stopped_at: "Completed 22-02-PLAN.md (awaiting human-verify checkpoint)"
+last_updated: "2026-03-06T16:19:02Z"
+last_activity: "2026-03-06 — Plan 22-02 tasks 1-3 complete (OAuth web flow); awaiting human verification"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
   completed_plans: 2
-  percent: 33
+  percent: 67
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 22 (OAuth Scope Expansion & Token Storage)
-Plan: 1 of 3 complete
-Status: Executing Phase 22
-Last activity: 2026-03-06 — Plan 22-01 complete (token encryption + storage routes)
+Plan: 2 of 3 complete
+Status: Executing Phase 22 (22-02 awaiting human verification)
+Last activity: 2026-03-06 — Plan 22-02 tasks 1-3 complete; awaiting human-verify checkpoint
 
-Progress: [###-------] 33%
+Progress: [######----] 67%
 
 ## Performance Metrics
 
@@ -45,7 +45,8 @@ Progress: [###-------] 33%
 All decisions logged in PROJECT.md Key Decisions table (26 decisions total with outcomes).
 - [22-01] Used manual migration + resolve --applied for drift recovery (CLAUDE.md compliance)
 - [22-01] GOOGLE_TOKEN_ENCRYPTION_KEY optional in env.ts; validated at encryption call time
-- [Phase 22]: Cookie-driven UI state: GoogleTokenBadge reads middleware-set cookie for instant tokenless detection
+- [22-02] Cookie cache TTL 1h for google-token-status; 3s timeout on middleware agent fetch
+- [22-02] Auth callback sets google-token-status=valid cookie to avoid immediate re-check
 
 ### Pending Todos
 
@@ -61,6 +62,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T16:18:18.044Z
-Stopped at: Completed 22-03-PLAN.md
-Next action: Execute 22-02-PLAN.md
+Last session: 2026-03-06T16:19:02Z
+Stopped at: Completed 22-02-PLAN.md (awaiting human-verify checkpoint Task 4)
+Next action: Human verifies OAuth flow end-to-end, then execute 22-03-PLAN.md

@@ -50,7 +50,7 @@
 
 ### v1.3 Google API Auth: User-Delegated Credentials (Phases 22-25)
 
-- [ ] Phase 22: OAuth Scope Expansion & Token Storage
+- [x] Phase 22: OAuth Scope Expansion & Token Storage (completed 2026-03-06)
 - [ ] Phase 23: User-Delegated API Clients & Token Passthrough
 - [ ] Phase 24: Token Pool & Refresh Lifecycle
 - [ ] Phase 25: Integration Verification & Cutover
@@ -78,7 +78,7 @@
 - `apps/agent/src/lib/token-encryption.ts` — new: AES-256-GCM encrypt/decrypt
 - `apps/agent/src/mastra/index.ts` — new: token storage API route
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 22-01-PLAN.md — Agent-side token encryption, UserGoogleToken model, and token API routes
@@ -189,7 +189,7 @@ Plans:
 | 19. Navigation & Template Management | v1.2 | 3/3 | Complete | 2026-03-05 |
 | 20. Slide Ingestion Agent | v1.2 | 2/2 | Complete | 2026-03-06 |
 | 21. Preview & Review Engine | v1.2 | 3/3 | Complete | 2026-03-06 |
-| 22. OAuth Scope Expansion & Token Storage | 2/3 | In Progress|  | — |
+| 22. OAuth Scope Expansion & Token Storage | 3/3 | Complete   | 2026-03-06 | — |
 | 23. User-Delegated API Clients & Token Passthrough | v1.3 | 0/2 | Pending | — |
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 0/2 | Pending | — |
 | 25. Integration Verification & Cutover | v1.3 | 0/1 | Pending | — |
