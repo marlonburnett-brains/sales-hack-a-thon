@@ -59,7 +59,10 @@
       "Bash(gh run list --limit 5)",
       "Bash(gh run watch 22740195391)",
       "Bash(gh run view 22740195391 --json status,conclusion,jobs)",
-      "Bash(gh run view 22740195391 --json status,conclusion)"
+      "Bash(gh run view 22740195391 --json status,conclusion)",
+      "Bash(vercel project ls)",
+      "Bash(vercel inspect lumenalta-hackathon)",
+      "Bash(npx vercel inspect lumenalta-hackathon)"
     ]
   },
   "enableAllProjectMcpServers": true,

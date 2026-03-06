@@ -72,21 +72,12 @@ jobs:
       - run:
           name: Pull Vercel environment
           command: vercel pull --yes --environment=production --token=$VERCEL_TOKEN
-          environment:
-            VERCEL_ORG_ID: ${VERCEL_ORG_ID}
-            VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
       - run:
           name: Build with Vercel
           command: vercel build --prod --token=$VERCEL_TOKEN
-          environment:
-            VERCEL_ORG_ID: ${VERCEL_ORG_ID}
-            VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
       - run:
           name: Deploy to Vercel
           command: vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
-          environment:
-            VERCEL_ORG_ID: ${VERCEL_ORG_ID}
-            VERCEL_PROJECT_ID: ${VERCEL_PROJECT_ID}
 
 workflows:
   deploy:
