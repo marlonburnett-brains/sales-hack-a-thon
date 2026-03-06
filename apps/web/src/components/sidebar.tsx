@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Briefcase,
+  Layers,
   LayoutTemplate,
   Menu,
   PanelLeft,
@@ -23,6 +24,7 @@ const STORAGE_KEY = "sidebar-collapsed";
 const navItems = [
   { href: "/deals", label: "Deals", icon: Briefcase },
   { href: "/templates", label: "Templates", icon: LayoutTemplate },
+  { href: "/slides", label: "Slide Library", icon: Layers },
 ];
 
 export function Sidebar({ user, children }: SidebarProps) {
