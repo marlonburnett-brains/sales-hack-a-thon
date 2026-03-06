@@ -102,7 +102,11 @@ Plans:
   2. User can rate a slide classification as correct (thumbs up) or incorrect (thumbs down), and when rating incorrect, can correct individual tags via inline editing
   3. Corrections update pgvector metadata immediately so the next page load reflects the change
   4. User can find similar slides across all ingested presentations via vector similarity search
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 21-01-PLAN.md -- Schema migration (reviewStatus), agent API endpoints, web api-client + server actions
+- [ ] 21-02-PLAN.md -- Per-template slide viewer UI (preview, navigation, classification, rating, tag editing)
+- [ ] 21-03-PLAN.md -- Slide Library page, sidebar nav, similarity search results
 
 ## Progress
 
@@ -131,4 +135,4 @@ Phases execute in numeric order: 18 -> 19 -> 20 -> 21
 | 18. CI/CD Pipeline & pgvector Schema | v1.2 | Complete    | 2026-03-05 | 2026-03-05 |
 | 19. Navigation & Template Management | 3/3 | Complete    | 2026-03-05 | - |
 | 20. Slide Ingestion Agent | 2/2 | Complete    | 2026-03-06 | - |
-| 21. Preview & Review Engine | v1.2 | 0/TBD | Not started | - |
+| 21. Preview & Review Engine | v1.2 | 0/3 | Not started | - |
