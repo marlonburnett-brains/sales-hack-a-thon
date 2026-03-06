@@ -1,9 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AlertTriangle, Share2, FolderOpen, CheckCircle2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Share2,
+  FolderOpen,
+  CheckCircle2,
+  KeyRound,
+  ShieldCheck,
+  BellOff,
+  VolumeX,
+  RefreshCw,
+} from "lucide-react";
+import { toast } from "sonner";
 import type { ActionRequiredItem } from "@/lib/api-client";
-import { resolveActionAction } from "@/lib/actions/action-required-actions";
+import {
+  silenceActionAction,
+  recheckAtlusAccessAction,
+} from "@/lib/actions/action-required-actions";
 
 function getActionIcon(actionType: string) {
   switch (actionType) {
@@ -13,6 +27,10 @@ function getActionIcon(actionType: string) {
       return <Share2 className="h-5 w-5 shrink-0 text-amber-500" />;
     case "drive_access":
       return <FolderOpen className="h-5 w-5 shrink-0 text-blue-500" />;
+    case "atlus_account_required":
+      return <KeyRound className="h-5 w-5 shrink-0 text-purple-500" />;
+    case "atlus_project_required":
+      return <ShieldCheck className="h-5 w-5 shrink-0 text-indigo-500" />;
     default:
       return <AlertTriangle className="h-5 w-5 shrink-0 text-slate-400" />;
   }
@@ -33,6 +51,13 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString();
 }
 
+function isAtlusActionType(actionType: string): boolean {
+  return (
+    actionType === "atlus_account_required" ||
+    actionType === "atlus_project_required"
+  );
+}
+
 interface ActionsClientProps {
   initialActions: ActionRequiredItem[];
 }
@@ -40,34 +65,50 @@ interface ActionsClientProps {
 export function ActionsClient({ initialActions }: ActionsClientProps) {
   const [actions, setActions] = useState(initialActions);
   const [isPending, startTransition] = useTransition();
-  const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [silencingId, setSilencingId] = useState<string | null>(null);
+  const [recheckingId, setRecheckingId] = useState<string | null>(null);
 
   const pendingActions = actions.filter((a) => !a.resolved);
+  const activeBadgeCount = pendingActions.filter((a) => !a.silenced).length;
 
-  function handleDismiss(id: string) {
-    setDismissingId(id);
-    // Optimistic removal
-    setActions((prev) => prev.filter((a) => a.id !== id));
+  function handleSilence(id: string) {
+    setSilencingId(id);
+    // Optimistic update: mark as silenced (do NOT remove from list)
+    setActions((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, silenced: true } : a))
+    );
 
     startTransition(async () => {
       try {
-        await resolveActionAction(id);
+        await silenceActionAction(id);
       } catch {
         // Revert on error
-        setActions(initialActions);
+        setActions((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, silenced: false } : a))
+        );
+        toast.error("Failed to silence action");
       } finally {
-        setDismissingId(null);
+        setSilencingId(null);
       }
     });
+  }
+
+  function handleRecheckAccess(actionId: string) {
+    // TODO(phase-28): Wire googleAccessToken from OAuth session -- may need provider_token from Supabase auth callback
+    // The Google OAuth provider_token is only available at the moment of the OAuth callback,
+    // not from the browser-side Supabase session. This button is disabled until phase-28 wires
+    // the token capture flow.
+    void actionId;
+    toast.error("Re-check Access requires OAuth token wiring (coming in Phase 28)");
   }
 
   return (
     <div>
       <div className="mb-6 flex items-center gap-3">
         <h1 className="text-2xl font-bold text-slate-900">Action Required</h1>
-        {pendingActions.length > 0 && (
+        {activeBadgeCount > 0 && (
           <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-2 text-xs font-medium text-white">
-            {pendingActions.length}
+            {activeBadgeCount}
           </span>
         )}
       </div>
@@ -87,7 +128,9 @@ export function ActionsClient({ initialActions }: ActionsClientProps) {
           {pendingActions.map((action) => (
             <div
               key={action.id}
-              className="flex items-start gap-4 rounded-lg border border-slate-200 bg-white p-4"
+              className={`flex items-start gap-4 rounded-lg border border-slate-200 bg-white p-4 transition-opacity duration-200${
+                action.silenced ? " opacity-50" : ""
+              }`}
             >
               <div className="mt-0.5">{getActionIcon(action.actionType)}</div>
               <div className="min-w-0 flex-1">
@@ -101,17 +144,43 @@ export function ActionsClient({ initialActions }: ActionsClientProps) {
                   </p>
                 )}
                 <p className="mt-1 text-xs text-slate-400">
-                  {formatDate(action.createdAt)}
+                  {formatDate(action.updatedAt)}
                 </p>
               </div>
-              <button
-                onClick={() => handleDismiss(action.id)}
-                disabled={dismissingId === action.id || isPending}
-                className="cursor-pointer text-sm text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label={`Dismiss action: ${action.title}`}
-              >
-                Dismiss
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Re-check Access button for AtlusAI action types */}
+                {isAtlusActionType(action.actionType) && !action.silenced && (
+                  <button
+                    onClick={() => handleRecheckAccess(action.id)}
+                    disabled={true}
+                    title="Available after next login"
+                    className="inline-flex cursor-not-allowed items-center rounded-md bg-purple-50 px-3 py-1.5 text-sm font-medium text-purple-600 opacity-60 transition-colors duration-150"
+                    aria-label="Re-check AtlusAI access"
+                  >
+                    <RefreshCw
+                      className={`mr-1.5 h-4 w-4${
+                        recheckingId === action.id ? " animate-spin" : ""
+                      }`}
+                    />
+                    Re-check Access
+                  </button>
+                )}
+
+                {/* Silence / Silenced indicator */}
+                {action.silenced ? (
+                  <VolumeX className="h-4 w-4 text-slate-300" />
+                ) : (
+                  <button
+                    onClick={() => handleSilence(action.id)}
+                    disabled={silencingId === action.id || isPending}
+                    className="cursor-pointer rounded-md p-1.5 text-slate-400 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Silence this action"
+                    title="Silence"
+                  >
+                    <BellOff className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
