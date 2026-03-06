@@ -46,6 +46,11 @@ export const env = createEnv({
 
     // Web app origin URL for CORS restriction (default: http://localhost:3000)
     WEB_APP_URL: z.string().url().default('http://localhost:3000'),
+
+    // AES-256-GCM encryption key for Google refresh tokens (64 hex chars = 32 bytes)
+    // Generate with: openssl rand -hex 32
+    // Optional: server starts without it; encryption module validates at call time
+    GOOGLE_TOKEN_ENCRYPTION_KEY: z.string().length(64).optional(),
   },
   runtimeEnv: process.env,
 })

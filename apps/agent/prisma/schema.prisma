@@ -242,3 +242,26 @@ model Template {
 
   @@index([accessStatus])
 }
+
+// ────────────────────────────────────────────────────────────
+// Phase 22: Encrypted Google Refresh Token Storage (TOKS-01)
+// Stores AES-256-GCM encrypted per-user refresh tokens for
+// user-delegated Google API access (Drive, Slides, Docs)
+// ────────────────────────────────────────────────────────────
+
+model UserGoogleToken {
+  id               String    @id @default(cuid())
+  userId           String    @unique // Supabase Auth user ID
+  email            String // User email for logging/debugging
+  encryptedRefresh String // AES-256-GCM encrypted refresh token
+  iv               String // Base64-encoded initialization vector
+  authTag          String // Base64-encoded GCM authentication tag
+  lastUsedAt       DateTime  @default(now())
+  isValid          Boolean   @default(true)
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([isValid, lastUsedAt])
+  @@index([email])
+}
