@@ -80,13 +80,13 @@
   3. Background processes obtain a valid AtlusAI token from the pool (ordered by last used), with automatic invalidation on failure and env var fallback when the pool is empty
   4. When a user lacks an AtlusAI account or project access, a specific ActionRequired item appears in the sidebar with resolution guidance -- and resolving one tier immediately re-checks the next
   5. The system logs a warning when fewer than 3 valid AtlusAI tokens remain in the pool
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 27-01: Auth discovery, UserAtlusToken model, and token encryption
-- [ ] 27-02: Token pool rotation and env var fallback
-- [ ] 27-03: 3-tier access detection and ActionRequired integration
-- [ ] 27-04: Token capture web UI and re-trigger on credential update
+- [ ] 27-01-PLAN.md -- UserAtlusToken model, ActionRequired schema extensions, action type constants, token CRUD helpers
+- [ ] 27-02-PLAN.md -- Token pool rotation (getPooledAtlusAuth) with env var fallback
+- [ ] 27-03-PLAN.md -- 3-tier access detection cascade and agent route updates (silence, badge count)
+- [ ] 27-04-PLAN.md -- ActionRequired UX overhaul (Silence replacing Dismiss, dimming, AtlusAI icons)
 
 ### Phase 28: MCP Integration
 **Goal**: AtlusAI semantic search replaces Drive API keyword search in all existing workflows, with Drive retained as a degraded fallback
