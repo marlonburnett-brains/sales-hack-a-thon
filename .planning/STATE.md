@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Templates & Slide Intelligence
 status: completed
-stopped_at: Completed 20-02-PLAN.md
-last_updated: "2026-03-06T00:54:23.092Z"
+stopped_at: Phase 21 context gathered
+last_updated: "2026-03-06T12:11:34.094Z"
 last_activity: 2026-03-06 -- Completed Phase 20 Plan 02 (progress UI & staleness polling)
 progress:
   total_phases: 4
@@ -89,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T00:49:24.000Z
-Stopped at: Completed 20-02-PLAN.md
-Resume file: Phase 20 complete. Next: Phase 21
+Last session: 2026-03-06T12:11:34.086Z
+Stopped at: Phase 21 context gathered
+Resume file: .planning/phases/21-preview-review-engine/21-CONTEXT.md
