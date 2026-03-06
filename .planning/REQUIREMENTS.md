@@ -39,15 +39,15 @@ Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roa
 - [x] **SLIDE-06**: Embeddings and classifications are stored in Supabase pgvector
 - [x] **SLIDE-07**: User can see real-time progress during multi-slide ingestion (slide N/M)
 - [x] **SLIDE-08**: Each classification includes a confidence score (0-100%)
-- [ ] **SLIDE-09**: User can find similar slides across all ingested presentations via vector similarity search
+- [x] **SLIDE-09**: User can find similar slides across all ingested presentations via vector similarity search
 
 ### Preview & Review
 
-- [ ] **PREV-01**: User can preview slides at presentation size in the viewport with navigation between slides
-- [ ] **PREV-02**: Each slide displays AI-assigned classification tags (industry, pillar, persona, stage) alongside the preview
-- [ ] **PREV-03**: User can rate a slide classification as correct (thumbs up) or incorrect (thumbs down)
-- [ ] **PREV-04**: User can correct individual classification tags via inline editing when rating as incorrect
-- [ ] **PREV-05**: Corrections update pgvector metadata immediately (real-time improvement)
+- [x] **PREV-01**: User can preview slides at presentation size in the viewport with navigation between slides
+- [x] **PREV-02**: Each slide displays AI-assigned classification tags (industry, pillar, persona, stage) alongside the preview
+- [x] **PREV-03**: User can rate a slide classification as correct (thumbs up) or incorrect (thumbs down)
+- [x] **PREV-04**: User can correct individual classification tags via inline editing when rating as incorrect
+- [x] **PREV-05**: Corrections update pgvector metadata immediately (real-time improvement)
 
 ## Future Requirements
 
@@ -105,12 +105,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SLIDE-06 | Phase 20 | Complete |
 | SLIDE-07 | Phase 20 | Complete |
 | SLIDE-08 | Phase 20 | Complete |
-| SLIDE-09 | Phase 21 | Pending |
-| PREV-01 | Phase 21 | Pending |
-| PREV-02 | Phase 21 | Pending |
-| PREV-03 | Phase 21 | Pending |
-| PREV-04 | Phase 21 | Pending |
-| PREV-05 | Phase 21 | Pending |
+| SLIDE-09 | Phase 21 | Complete |
+| PREV-01 | Phase 21 | Complete |
+| PREV-02 | Phase 21 | Complete |
+| PREV-03 | Phase 21 | Complete |
+| PREV-04 | Phase 21 | Complete |
+| PREV-05 | Phase 21 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 27 total
