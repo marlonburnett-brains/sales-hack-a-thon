@@ -55,7 +55,9 @@
 - [x] Phase 23: User-Delegated API Clients & Token Passthrough (2/2 plans) -- completed 2026-03-06
 - [x] Phase 24: Token Pool & Refresh Lifecycle (2/2 plans) -- completed 2026-03-06
 - [x] Phase 25: Integration Verification & Cutover (2/2 plans) -- completed 2026-03-06
-- [ ] Phase 26: Tech Debt Cleanup — httpOnly Fix & Documentation (0/1 plan)
+- [ ] Phase 26: Tech Debt Cleanup — httpOnly Fix & Documentation (1 plan)
+  Plans:
+  - [ ] 26-01-PLAN.md — httpOnly cookie fix & SUMMARY frontmatter population
 
 </details>
 
