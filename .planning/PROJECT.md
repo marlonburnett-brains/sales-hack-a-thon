@@ -112,7 +112,16 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ### Active
 
-(No active requirements -- next milestone not yet defined)
+## Current Milestone: v1.4 AtlusAI Authentication & Discovery
+
+**Goal:** Direct AtlusAI integration via Mastra MCP client with token pool auth, access detection, and a discovery UI for browsing/searching/ingesting AtlusAI content.
+
+**Target features:**
+- Auth & Token Pool -- UserAtlusToken model, AES-256-GCM encryption, pool rotation, 3-tier access detection
+- Mastra MCP Client -- Wire @mastra/mcp to AtlusAI SSE endpoint with pooled auth credentials
+- Replace Drive Fallback -- Swap atlusai-search.ts Drive-based search with direct MCP semantic search
+- Action Required Integration -- New action types (atlus_account_required, atlus_project_required) in existing ActionRequired model
+- Discovery UI -- New AtlusAI sidebar page with browse, semantic search, and selective ingestion into SlideEmbedding pipeline
 
 ### Out of Scope
 
@@ -132,7 +141,7 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ## Context
 
-**Current state:** v1.3 shipped. ~30,203 LOC TypeScript/TSX. 26 phases, 53 plans across 4 milestones over 4 days (2026-03-03 → 2026-03-06). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
+**Current state:** v1.4 started. ~30,203 LOC TypeScript/TSX. 26 phases, 53 plans across 4 milestones over 4 days (2026-03-03 → 2026-03-06). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
 
 **Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI (RAG + knowledge base), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications).
 
@@ -161,7 +170,7 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 |----------|-----------|---------|
 | General LLM via API over fine-tuning | Large context window for noisy transcripts; prompt engineering steers behavior faster | ✓ Good — switched from Gemini to GPT-OSS 120b on Vertex AI for cost/performance |
 | Mastra AI as agent orchestration | Structured output enforcement, native Zod v4 integration, suspend/resume for HITL | ✓ Good — suspend/resume pattern works well for both HITL checkpoints |
-| AtlusAI as RAG + knowledge base | Already available as MCP-connected service; avoids building retrieval infra | ⚠️ Revisit — MCP auth requires Claude Code; used Drive API fallback for standalone scripts |
+| AtlusAI as RAG + knowledge base | Already available as MCP-connected service; avoids building retrieval infra | ⚠️ Revisit — v1.4 replacing Drive fallback with direct Mastra MCP client |
 | Service account for Google Drive | Shared Lumenalta Drive vs. per-seller OAuth; simpler for hackathon | ✓ Good — works for all output types (Slides, Docs, Drive folders) |
 | Salesforce out of scope for v1 | Data hygiene requirements not met | ✓ Good — kept scope manageable |
 | Transcript input by paste | Reduces integration surface; works with any meeting tool | ✓ Good — simple and universal |
@@ -190,4 +199,4 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | DEPLOY.md as environment setup reference | Practical new-environment guide vs. scattered env var notes | ✓ Good — single source of truth for all deployment config |
 
 ---
-*Last updated: 2026-03-06 after v1.3 milestone*
+*Last updated: 2026-03-06 after v1.4 milestone start*
