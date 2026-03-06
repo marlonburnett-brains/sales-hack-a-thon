@@ -188,21 +188,32 @@ model Brief {
 // ────────────────────────────────────────────────────────────
 
 model SlideEmbedding {
-  id             String   @id @default(cuid())
-  templateId     String
-  slideIndex     Int
-  contentText    String
-  embedding      Unsupported("vector(768)")
-  industry       String?
-  solutionPillar String?
-  persona        String?
-  funnelStage    String?
-  contentType    String?
-  confidence     Float?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                         String   @id @default(cuid())
+  templateId                 String
+  slideIndex                 Int
+  slideObjectId              String?
+  contentText                String
+  speakerNotes               String?
+  embedding                  Unsupported("vector(768)")
+  // Single-value columns (backward compat, populated with primary value)
+  industry                   String?
+  solutionPillar             String?
+  persona                    String?
+  funnelStage                String?
+  contentType                String?
+  // Multi-value classification (source of truth)
+  classificationJson         String?
+  confidence                 Float?
+  contentHash                String?
+  archived                   Boolean  @default(false)
+  needsReReview              Boolean  @default(false)
+  previousClassificationJson String?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
+  @@unique([templateId, contentHash])
   @@index([templateId])
+  @@index([archived])
   @@index([embedding], name: "SlideEmbedding_embedding_idx")
 }
 
@@ -213,17 +224,19 @@ model SlideEmbedding {
 // ────────────────────────────────────────────────────────────
 
 model Template {
-  id               String    @id @default(cuid())
-  name             String
-  presentationId   String    @unique
-  googleSlidesUrl  String
-  touchTypes       String    // JSON array: ["touch_1", "touch_2"]
-  accessStatus     String    @default("not_checked") // "accessible" | "not_accessible" | "not_checked"
-  lastIngestedAt   DateTime?
-  sourceModifiedAt DateTime?
-  slideCount       Int       @default(0)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  name              String
+  presentationId    String    @unique
+  googleSlidesUrl   String
+  touchTypes        String    // JSON array: ["touch_1", "touch_2"]
+  accessStatus      String    @default("not_checked") // "accessible" | "not_accessible" | "not_checked"
+  lastIngestedAt    DateTime?
+  sourceModifiedAt  DateTime?
+  slideCount        Int       @default(0)
+  ingestionStatus   String    @default("idle") // "idle" | "queued" | "ingesting" | "failed"
+  ingestionProgress String?   // JSON: { current, total, phase, skipped }
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([accessStatus])
 }
