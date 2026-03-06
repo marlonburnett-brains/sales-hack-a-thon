@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 function GoogleLogo() {
   return (
@@ -37,15 +38,25 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const next = searchParams.get("next") ?? "/deals";
+  const needsConsent = searchParams.get("reconsent") === "1";
+
+  useEffect(() => {
+    if (searchParams.get("token_error") === "1") {
+      toast.warning("Drive access setup incomplete. Sign out and back in to retry.");
+    }
+  }, [searchParams]);
 
   async function handleGoogleSignIn() {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
+        scopes: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/documents",
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         queryParams: {
           hd: "lumenalta.com",
+          access_type: "offline",
+          prompt: needsConsent ? "consent" : "select_account",
         },
       },
     });
@@ -66,6 +77,13 @@ function LoginContent() {
             Agentic Sales Orchestration
           </p>
         </div>
+
+        {/* Re-consent message */}
+        {needsConsent && (
+          <p className="max-w-sm text-center text-sm text-blue-600">
+            We&apos;ve upgraded Drive access. Please sign in again to continue.
+          </p>
+        )}
 
         {/* Error messages */}
         {error === "domain" && (
