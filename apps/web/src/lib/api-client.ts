@@ -746,6 +746,8 @@ export interface ActionRequiredItem {
   resourceName: string | null;
   resolved: boolean;
   resolvedAt: string | null;
+  silenced: boolean;
+  seenAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
