@@ -39,7 +39,7 @@ async function openDialog() {
   ) || triggers[0]!;
   await user.click(trigger);
   await waitFor(() => {
-    expect(screen.getByText("Display Name")).toBeInTheDocument();
+    expect(screen.getByText("Google Slides URL")).toBeInTheDocument();
   });
   return user;
 }
@@ -67,12 +67,11 @@ describe("TMPL-01: Add template dialog with URL validation", () => {
 
     await openDialog();
 
-    expect(screen.getByText("Display Name")).toBeInTheDocument();
     expect(screen.getByText("Google Slides URL")).toBeInTheDocument();
     expect(screen.getByText("Touch Types")).toBeInTheDocument();
   });
 
-  it("shows form fields: name, URL, and touch type chips", async () => {
+  it("shows form fields: URL and touch type chips", async () => {
     render(
       <TemplateForm>
         <button>Add Template</button>
@@ -81,7 +80,6 @@ describe("TMPL-01: Add template dialog with URL validation", () => {
 
     await openDialog();
 
-    expect(screen.getByPlaceholderText("e.g. Q1 Proposal Deck")).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText("https://docs.google.com/presentation/d/...")
     ).toBeInTheDocument();
@@ -98,10 +96,6 @@ describe("TMPL-01: Add template dialog with URL validation", () => {
 
     const user = await openDialog();
 
-    await user.type(
-      screen.getByPlaceholderText("e.g. Q1 Proposal Deck"),
-      "My Deck"
-    );
     await user.type(
       screen.getByPlaceholderText("https://docs.google.com/presentation/d/..."),
       "https://example.com/not-slides"
@@ -130,10 +124,6 @@ describe("TMPL-01: Add template dialog with URL validation", () => {
     const user = await openDialog();
 
     await user.type(
-      screen.getByPlaceholderText("e.g. Q1 Proposal Deck"),
-      "My Deck"
-    );
-    await user.type(
       screen.getByPlaceholderText("https://docs.google.com/presentation/d/..."),
       "https://docs.google.com/presentation/d/abc123xyz/edit"
     );
@@ -143,7 +133,6 @@ describe("TMPL-01: Add template dialog with URL validation", () => {
 
     await waitFor(() => {
       expect(mockCreateTemplateAction).toHaveBeenCalledWith({
-        name: "My Deck",
         googleSlidesUrl:
           "https://docs.google.com/presentation/d/abc123xyz/edit",
         presentationId: "abc123xyz",
@@ -166,10 +155,6 @@ describe("TMPL-01: Add template dialog with URL validation", () => {
 
     const user = await openDialog();
 
-    await user.type(
-      screen.getByPlaceholderText("e.g. Q1 Proposal Deck"),
-      "Deck"
-    );
     await user.type(
       screen.getByPlaceholderText("https://docs.google.com/presentation/d/..."),
       "https://docs.google.com/presentation/d/abc123/edit"
@@ -236,10 +221,6 @@ describe("TMPL-04: Touch type chip assignment", () => {
     const user = await openDialog();
 
     await user.type(
-      screen.getByPlaceholderText("e.g. Q1 Proposal Deck"),
-      "Deck"
-    );
-    await user.type(
       screen.getByPlaceholderText("https://docs.google.com/presentation/d/..."),
       "https://docs.google.com/presentation/d/abc123/edit"
     );
@@ -248,7 +229,6 @@ describe("TMPL-04: Touch type chip assignment", () => {
 
     await waitFor(() => {
       expect(mockCreateTemplateAction).toHaveBeenCalledWith({
-        name: "Deck",
         googleSlidesUrl: "https://docs.google.com/presentation/d/abc123/edit",
         presentationId: "abc123",
         touchTypes: [],
@@ -271,10 +251,6 @@ describe("TMPL-04: Touch type chip assignment", () => {
     const user = await openDialog();
 
     await user.type(
-      screen.getByPlaceholderText("e.g. Q1 Proposal Deck"),
-      "Multi Touch Deck"
-    );
-    await user.type(
       screen.getByPlaceholderText("https://docs.google.com/presentation/d/..."),
       "https://docs.google.com/presentation/d/xyz789/edit"
     );
@@ -286,7 +262,6 @@ describe("TMPL-04: Touch type chip assignment", () => {
 
     await waitFor(() => {
       expect(mockCreateTemplateAction).toHaveBeenCalledWith({
-        name: "Multi Touch Deck",
         googleSlidesUrl: "https://docs.google.com/presentation/d/xyz789/edit",
         presentationId: "xyz789",
         touchTypes: ["touch_2", "touch_3"],

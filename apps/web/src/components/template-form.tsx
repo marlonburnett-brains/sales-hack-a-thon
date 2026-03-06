@@ -31,7 +31,6 @@ import {
 import { createTemplateAction } from "@/lib/actions/template-actions";
 
 const templateFormSchema = z.object({
-  name: z.string().min(1, "Display name is required"),
   googleSlidesUrl: z
     .string()
     .min(1, "Google Slides URL is required")
@@ -54,7 +53,6 @@ export function TemplateForm({ children, onSuccess }: TemplateFormProps) {
   const form = useForm<TemplateFormValues>({
     resolver: zodResolver(templateFormSchema),
     defaultValues: {
-      name: "",
       googleSlidesUrl: "",
       touchTypes: [],
     },
@@ -86,7 +84,6 @@ export function TemplateForm({ children, onSuccess }: TemplateFormProps) {
       }
 
       const result = await createTemplateAction({
-        name: values.name,
         googleSlidesUrl: values.googleSlidesUrl,
         presentationId,
         touchTypes: values.touchTypes,
@@ -136,20 +133,6 @@ export function TemplateForm({ children, onSuccess }: TemplateFormProps) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Display Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. Q1 Proposal Deck" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <FormField
               control={form.control}
               name="googleSlidesUrl"

@@ -13,14 +13,19 @@ import { getGoogleAccessToken } from "@/lib/supabase/google-token";
 const BASE_URL = env.AGENT_SERVICE_URL;
 
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.AGENT_API_KEY}`,
-      ...init?.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${env.AGENT_API_KEY}`,
+        ...init?.headers,
+      },
+    });
+  } catch {
+    throw new Error("Agent service is unreachable. Please try again later.");
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -570,7 +575,6 @@ export async function listTemplates(): Promise<Template[]> {
 }
 
 export async function createTemplate(data: {
-  name: string;
   googleSlidesUrl: string;
   presentationId: string;
   touchTypes: string[];

@@ -23,7 +23,6 @@ export async function listTemplatesAction(): Promise<Template[]> {
 }
 
 export async function createTemplateAction(data: {
-  name: string;
   googleSlidesUrl: string;
   presentationId: string;
   touchTypes: string[];
