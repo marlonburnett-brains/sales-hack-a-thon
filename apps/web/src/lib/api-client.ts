@@ -683,3 +683,24 @@ export async function findSimilarSlides(
     }
   );
 }
+
+// ────────────────────────────────────────────────────────────
+// Google Token Storage (Phase 22 -- OAuth Scope Expansion)
+// ────────────────────────────────────────────────────────────
+
+export async function storeGoogleToken(data: {
+  userId: string;
+  email: string;
+  refreshToken: string;
+}): Promise<{ success: boolean; tokenId: string }> {
+  return fetchJSON<{ success: boolean; tokenId: string }>("/tokens", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function checkGoogleToken(
+  userId: string
+): Promise<{ hasToken: boolean }> {
+  return fetchJSON<{ hasToken: boolean }>(`/tokens/check/${userId}`);
+}
