@@ -6,13 +6,26 @@ export function extractPresentationId(url: string): string | null {
   return match ? match[1] : null;
 }
 
-export type TemplateStatus = "ready" | "no_access" | "not_ingested" | "stale";
+export type TemplateStatus =
+  | "ready"
+  | "no_access"
+  | "not_ingested"
+  | "stale"
+  | "ingesting"
+  | "queued"
+  | "failed";
 
 export function getTemplateStatus(template: {
   accessStatus: string;
   lastIngestedAt: string | null;
   sourceModifiedAt: string | null;
+  ingestionStatus?: string;
 }): TemplateStatus {
+  // Check ingestion status first (takes priority during active ingestion)
+  if (template.ingestionStatus === "ingesting") return "ingesting";
+  if (template.ingestionStatus === "queued") return "queued";
+  if (template.ingestionStatus === "failed") return "failed";
+
   if (template.accessStatus === "not_accessible") return "no_access";
   if (!template.lastIngestedAt) return "not_ingested";
   if (template.sourceModifiedAt && template.lastIngestedAt) {
@@ -49,5 +62,17 @@ export const STATUS_CONFIG: Record<
   stale: {
     label: "Stale",
     className: "bg-orange-100 text-orange-800 border-orange-200",
+  },
+  ingesting: {
+    label: "Ingesting...",
+    className: "bg-indigo-100 text-indigo-800 border-indigo-200 animate-pulse",
+  },
+  queued: {
+    label: "Queued",
+    className: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  },
+  failed: {
+    label: "Failed",
+    className: "bg-red-100 text-red-800 border-red-200",
   },
 };

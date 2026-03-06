@@ -43,7 +43,7 @@ type TemplateFormValues = z.infer<typeof templateFormSchema>;
 
 interface TemplateFormProps {
   children: React.ReactNode;
-  onSuccess?: () => void;
+  onSuccess?: (result?: { template: { id: string; accessStatus: string } }) => void;
 }
 
 export function TemplateForm({ children, onSuccess }: TemplateFormProps) {
@@ -99,7 +99,7 @@ export function TemplateForm({ children, onSuccess }: TemplateFormProps) {
         toast.success("Template added successfully");
         form.reset();
         setOpen(false);
-        onSuccess?.();
+        onSuccess?.({ template: result.template });
       }
     } catch (error) {
       toast.error(

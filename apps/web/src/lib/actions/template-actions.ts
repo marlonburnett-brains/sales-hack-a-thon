@@ -6,11 +6,14 @@ import {
   listTemplates,
   deleteTemplate,
   checkTemplateStaleness,
+  triggerIngestion,
+  getIngestionProgress,
 } from "@/lib/api-client";
 import type {
   Template,
   CreateTemplateResult,
   StalenessCheckResult,
+  IngestionProgress,
 } from "@/lib/api-client";
 
 export type { Template, CreateTemplateResult, StalenessCheckResult };
@@ -42,4 +45,18 @@ export async function checkStalenessAction(
   id: string
 ): Promise<StalenessCheckResult> {
   return checkTemplateStaleness(id);
+}
+
+export async function triggerIngestionAction(
+  templateId: string
+): Promise<{ queued: boolean }> {
+  const result = await triggerIngestion(templateId);
+  revalidatePath("/templates");
+  return result;
+}
+
+export async function getIngestionProgressAction(
+  templateId: string
+): Promise<IngestionProgress> {
+  return getIngestionProgress(templateId);
 }

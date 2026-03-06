@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
   MoreVertical,
@@ -28,14 +28,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { TemplateStatusBadge } from "@/components/template-status-badge";
 import { getTemplateStatus, type TemplateStatus } from "@/lib/template-utils";
-import { deleteTemplateAction } from "@/lib/actions/template-actions";
+import {
+  deleteTemplateAction,
+  getIngestionProgressAction,
+} from "@/lib/actions/template-actions";
 import type { Template } from "@/lib/api-client";
 
 interface TemplateCardProps {
   template: Template;
   onDeleted?: () => void;
+  onRefresh?: () => void;
 }
 
 function parseTouchTypes(touchTypes: string): string[] {
@@ -53,9 +58,17 @@ const TOUCH_LABEL_MAP: Record<string, string> = {
   touch_4: "T4+",
 };
 
-export function TemplateCard({ template, onDeleted }: TemplateCardProps) {
+export function TemplateCard({
+  template,
+  onDeleted,
+  onRefresh,
+}: TemplateCardProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [progress, setProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
 
   const status: TemplateStatus = getTemplateStatus(template);
   const touchTypes = parseTouchTypes(template.touchTypes);
@@ -64,6 +77,44 @@ export function TemplateCard({ template, onDeleted }: TemplateCardProps) {
         addSuffix: true,
       })
     : "Never";
+
+  // Poll ingestion progress when status is "ingesting"
+  useEffect(() => {
+    if (status !== "ingesting") {
+      setProgress(null);
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const p = await getIngestionProgressAction(template.id);
+        if (p && p.current > 0) {
+          setProgress({ current: p.current, total: p.total });
+        }
+        if (!p || p.status === "idle" || p.status === "failed") {
+          clearInterval(interval);
+          setProgress(null);
+          onRefresh?.();
+          if (p?.status === "idle") {
+            const skipped = p.skipped ?? 0;
+            if (skipped > 0) {
+              toast.success(
+                `${template.name} ingested (${p.total - skipped} of ${p.total} slides, ${skipped} skipped)`
+              );
+            } else {
+              toast.success(
+                `${template.name} ingested (${p.total} slides)`
+              );
+            }
+          }
+        }
+      } catch {
+        // Silently fail on poll errors
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [status, template.id, template.name, onRefresh]);
 
   async function handleDelete() {
     setIsDeleting(true);
@@ -142,6 +193,38 @@ export function TemplateCard({ template, onDeleted }: TemplateCardProps) {
               <span className="text-red-700">
                 Share file to enable ingestion
               </span>
+            </div>
+          )}
+
+          {status === "queued" && (
+            <div className="rounded-md border border-yellow-200 bg-yellow-50 p-2 text-xs text-yellow-700">
+              Queued for ingestion...
+            </div>
+          )}
+
+          {status === "ingesting" && (
+            <div className="space-y-1.5">
+              {progress ? (
+                <>
+                  <Progress
+                    value={(progress.current / progress.total) * 100}
+                    className="h-1.5"
+                  />
+                  <p className="text-xs text-indigo-600">
+                    Slide {progress.current} of {progress.total}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-indigo-600">
+                  Extracting slides...
+                </p>
+              )}
+            </div>
+          )}
+
+          {status === "failed" && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+              Ingestion failed
             </div>
           )}
         </CardContent>

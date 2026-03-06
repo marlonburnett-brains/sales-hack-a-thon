@@ -18,6 +18,7 @@ import { getTemplateStatus, type TemplateStatus } from "@/lib/template-utils";
 import {
   listTemplatesAction,
   checkStalenessAction,
+  triggerIngestionAction,
 } from "@/lib/actions/template-actions";
 import type { Template } from "@/lib/api-client";
 
@@ -66,6 +67,23 @@ export function TemplatesPageClient({
       // silently fail
     }
   }, []);
+
+  const handleTemplateCreated = useCallback(
+    async (result?: { template: { id: string; accessStatus: string } }) => {
+      await refreshTemplates();
+      // Auto-trigger ingestion if the template has confirmed access
+      if (result?.template.accessStatus === "accessible") {
+        try {
+          await triggerIngestionAction(result.template.id);
+          // Refresh again to pick up queued status
+          await refreshTemplates();
+        } catch {
+          // Ingestion trigger failed silently -- user can still see the template
+        }
+      }
+    },
+    [refreshTemplates]
+  );
 
   async function handleRefreshStatus() {
     setIsRefreshing(true);
@@ -157,7 +175,7 @@ export function TemplatesPageClient({
             </>
           )}
 
-          <TemplateForm onSuccess={refreshTemplates}>
+          <TemplateForm onSuccess={handleTemplateCreated}>
             <Button className="cursor-pointer gap-2">
               <Plus className="h-4 w-4" />
               Add Template
@@ -176,7 +194,7 @@ export function TemplatesPageClient({
           <p className="mt-1 text-sm text-slate-500">
             Add your first Google Slides template to get started
           </p>
-          <TemplateForm onSuccess={refreshTemplates}>
+          <TemplateForm onSuccess={handleTemplateCreated}>
             <Button className="mt-4 cursor-pointer gap-2">
               <Plus className="h-4 w-4" />
               Add Template
@@ -205,6 +223,7 @@ export function TemplatesPageClient({
                   key={template.id}
                   template={template}
                   onDeleted={refreshTemplates}
+                  onRefresh={refreshTemplates}
                 />
               ))}
             </div>
