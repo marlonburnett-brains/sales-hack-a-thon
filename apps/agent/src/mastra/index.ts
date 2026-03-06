@@ -11,6 +11,7 @@ import { preCallWorkflow } from "./workflows/pre-call-workflow";
 import { getOrCreateDealFolder, makePubliclyViewable } from "../lib/drive-folders";
 import { getDriveClient } from "../lib/google-auth";
 import { ingestDocument } from "../lib/atlusai-client";
+import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { env } from "../env";
 
 /**
@@ -46,6 +47,11 @@ const auth = new SimpleAuth({
   },
   public: publicPaths,
 });
+
+// Clear stale ingestion states on startup (crash recovery)
+void clearStaleIngestions().catch((err) =>
+  console.error("[startup] Failed to clear stale ingestions:", err)
+);
 
 export const mastra = new Mastra({
   storage: new PostgresStore({
@@ -855,6 +861,96 @@ export const mastra = new Mastra({
             console.error("[templates/delete] Error:", err);
             return c.json(
               { error: "Template deletion failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Slide Ingestion (Phase 20 -- SLIDE-02/03/04/05/06/08)
+      // ────────────────────────────────────────────────────────────
+
+      // POST /templates/:id/ingest -- Enqueue template for ingestion
+      registerApiRoute("/templates/:id/ingest", {
+        method: "POST",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const template = await prisma.template.findUniqueOrThrow({
+              where: { id },
+              select: { accessStatus: true, ingestionStatus: true },
+            });
+
+            if (template.accessStatus !== "accessible") {
+              return c.json(
+                { error: "Template is not accessible. Grant access first." },
+                400
+              );
+            }
+
+            if (
+              template.ingestionStatus === "queued" ||
+              template.ingestionStatus === "ingesting"
+            ) {
+              return c.json(
+                { error: "Ingestion already in progress" },
+                409
+              );
+            }
+
+            // Set status to queued
+            await prisma.template.update({
+              where: { id },
+              data: { ingestionStatus: "queued" },
+            });
+
+            // Fire and forget
+            ingestionQueue.enqueue(id);
+
+            return c.json({ queued: true });
+          } catch (err) {
+            console.error("[templates/ingest] Error:", err);
+            return c.json(
+              { error: "Ingestion trigger failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
+      // GET /templates/:id/progress -- Get ingestion progress
+      registerApiRoute("/templates/:id/progress", {
+        method: "GET",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const template = await prisma.template.findUniqueOrThrow({
+              where: { id },
+              select: {
+                ingestionProgress: true,
+                ingestionStatus: true,
+                slideCount: true,
+              },
+            });
+
+            if (!template.ingestionProgress) {
+              return c.json({
+                status: template.ingestionStatus,
+                current: 0,
+                total: 0,
+              });
+            }
+
+            const progress = JSON.parse(template.ingestionProgress);
+            return c.json({
+              status: template.ingestionStatus,
+              ...progress,
+            });
+          } catch (err) {
+            console.error("[templates/progress] Error:", err);
+            return c.json(
+              { error: "Progress fetch failed", details: String(err) },
               500
             );
           }

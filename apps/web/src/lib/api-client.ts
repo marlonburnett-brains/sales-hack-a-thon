@@ -520,6 +520,8 @@ export interface Template {
   lastIngestedAt: string | null;
   sourceModifiedAt: string | null;
   slideCount: number;
+  ingestionStatus: string; // "idle" | "queued" | "ingesting" | "failed"
+  ingestionProgress: string | null; // JSON string
   createdAt: string;
   updatedAt: string;
 }
@@ -562,4 +564,30 @@ export async function checkTemplateStaleness(id: string): Promise<StalenessCheck
   return fetchJSON<StalenessCheckResult>(`/templates/${id}/check-staleness`, {
     method: "POST",
   });
+}
+
+// ────────────────────────────────────────────────────────────
+// Ingestion (Phase 20 -- SLIDE-02/03/04/05/06/08)
+// ────────────────────────────────────────────────────────────
+
+export interface IngestionProgress {
+  status: string;
+  phase?: string;
+  current: number;
+  total: number;
+  skipped?: number;
+}
+
+export async function triggerIngestion(
+  templateId: string
+): Promise<{ queued: boolean }> {
+  return fetchJSON<{ queued: boolean }>(`/templates/${templateId}/ingest`, {
+    method: "POST",
+  });
+}
+
+export async function getIngestionProgress(
+  templateId: string
+): Promise<IngestionProgress> {
+  return fetchJSON<IngestionProgress>(`/templates/${templateId}/progress`);
 }
