@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import {
   MoreVertical,
   Trash2,
+  Eye,
   AlertTriangle,
   Layers,
   Clock,
@@ -63,6 +65,7 @@ export function TemplateCard({
   onDeleted,
   onRefresh,
 }: TemplateCardProps) {
+  const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [progress, setProgress] = useState<{
@@ -134,7 +137,10 @@ export function TemplateCard({
 
   return (
     <>
-      <Card className="cursor-pointer shadow-sm transition-shadow duration-200 hover:shadow-md">
+      <Card
+        className="cursor-pointer shadow-sm transition-shadow duration-200 hover:shadow-md"
+        onClick={() => router.push(`/templates/${template.id}/slides`)}
+      >
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
           <h3 className="line-clamp-1 text-sm font-semibold text-slate-900">
             {template.name}
@@ -146,11 +152,19 @@ export function TemplateCard({
                 size="icon"
                 className="h-8 w-8 cursor-pointer"
                 aria-label="Template actions"
+                onClick={(e) => e.stopPropagation()}
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => router.push(`/templates/${template.id}/slides`)}
+                className="cursor-pointer"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View Slides
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setDeleteOpen(true)}
                 className="cursor-pointer text-red-600 focus:text-red-600"
