@@ -111,37 +111,40 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 23-01-PLAN.md — Agent-side dual-mode factories, token cache, request-auth helper, and route wiring
-- [ ] 23-02-PLAN.md — Web-side fetchWithGoogleAuth wrapper and Server Action passthrough
+- [x] 23-01-PLAN.md — Agent-side dual-mode factories, token cache, request-auth helper, and route wiring
+- [x] 23-02-PLAN.md — Web-side fetchWithGoogleAuth wrapper and Server Action passthrough
 
 ---
 
 ### Phase 24: Token Pool & Refresh Lifecycle
 
-**Goal:** Implement background job token pool with ordered fallback and refresh token lifecycle management.
+**Goal:** Implement background job token pool with ordered fallback, refresh token lifecycle management, and Action Required UI for surfacing manual user actions.
 
 **Requirements:** POOL-01, POOL-02, POOL-03, POOL-04, POOL-05, LIFE-01, LIFE-02, LIFE-03
 
 **Success criteria:**
-- Background jobs select most recently active valid token from pool
-- Pool tries up to 5 tokens with automatic fallback on failure
+- Background jobs draw from pool of user tokens ordered by lastUsedAt DESC, fallback to service account
+- Pool tries ALL valid tokens with automatic fallback on failure
 - Failed tokens marked `isValid: false` with `revokedAt`
 - Successful usage updates `lastUsedAt`
-- Warning logged when valid pool < 2 tokens
+- Warning logged when valid pool < 3 tokens
 - Token rotation handled (new refresh token from Google updates stored token)
 - Re-login updates existing token (upsert on userId)
-- New env vars on agent: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- ActionRequired model tracks manual user interventions (re-auth, sharing, Drive access)
+- Action Required page and sidebar badge in web app
 
 **Key files:**
 - `apps/agent/src/lib/google-auth.ts` — `getPooledGoogleAuth()` function
-- `apps/agent/src/lib/token-encryption.ts` — token retrieval helpers
-- Background job callers (staleness polling, scheduled tasks) — switch to pooled auth
+- `apps/agent/prisma/schema.prisma` — `ActionRequired` model
+- `apps/agent/src/mastra/index.ts` — background job wiring + ActionRequired CRUD routes
+- `apps/web/src/app/(authenticated)/actions/page.tsx` — Action Required page
+- `apps/web/src/components/sidebar.tsx` — Action Required nav item with badge
 
 **Plans:** 2 plans
 
 Plans:
-- [ ] 22-01-PLAN.md — Agent-side token encryption, UserGoogleToken model, and token API routes
-- [ ] 22-02-PLAN.md — Web-side OAuth scope expansion, callback token capture, middleware re-consent
+- [ ] 24-01-PLAN.md — Token pool core, ActionRequired model, background job wiring, CRUD routes
+- [ ] 24-02-PLAN.md — Action Required web UI with sidebar badge and full-page listing
 
 ---
 
@@ -190,6 +193,6 @@ Plans:
 | 20. Slide Ingestion Agent | v1.2 | 2/2 | Complete | 2026-03-06 |
 | 21. Preview & Review Engine | v1.2 | 3/3 | Complete | 2026-03-06 |
 | 22. OAuth Scope Expansion & Token Storage | v1.3 | 3/3 | Complete | 2026-03-06 |
-| 23. User-Delegated API Clients & Token Passthrough | 2/2 | Complete    | 2026-03-06 | -- |
+| 23. User-Delegated API Clients & Token Passthrough | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 0/2 | Pending | -- |
 | 25. Integration Verification & Cutover | v1.3 | 0/1 | Pending | -- |
