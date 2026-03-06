@@ -16,11 +16,11 @@
 
 ### AtlusAI Token Pool
 
-- [ ] **POOL-01**: `getPooledAtlusAuth()` iterates valid `UserAtlusToken` records ordered by `lastUsedAt` descending
-- [ ] **POOL-02**: Failed tokens are marked `isValid: false` with `revokedAt` timestamp
-- [ ] **POOL-03**: Successful token usage updates `lastUsedAt` to keep the pool fresh
-- [ ] **POOL-04**: System logs a warning when the valid AtlusAI token pool drops below 3 tokens
-- [ ] **POOL-05**: Optional `ATLUS_API_TOKEN` env var serves as fallback when the pool is empty
+- [x] **POOL-01**: `getPooledAtlusAuth()` iterates valid `UserAtlusToken` records ordered by `lastUsedAt` descending
+- [x] **POOL-02**: Failed tokens are marked `isValid: false` with `revokedAt` timestamp
+- [x] **POOL-03**: Successful token usage updates `lastUsedAt` to keep the pool fresh
+- [x] **POOL-04**: System logs a warning when the valid AtlusAI token pool drops below 3 tokens
+- [x] **POOL-05**: Optional `ATLUS_API_TOKEN` env var serves as fallback when the pool is empty
 
 ### 3-Tier Access Detection
 
@@ -99,11 +99,11 @@
 | ATLS-03 | Phase 27 | Complete |
 | ATLS-04 | Phase 27 | Pending |
 | ATLS-05 | Phase 27 | Complete |
-| POOL-01 | Phase 27 | Pending |
-| POOL-02 | Phase 27 | Pending |
-| POOL-03 | Phase 27 | Pending |
-| POOL-04 | Phase 27 | Pending |
-| POOL-05 | Phase 27 | Pending |
+| POOL-01 | Phase 27 | Complete |
+| POOL-02 | Phase 27 | Complete |
+| POOL-03 | Phase 27 | Complete |
+| POOL-04 | Phase 27 | Complete |
+| POOL-05 | Phase 27 | Complete |
 | TIER-01 | Phase 27 | Pending |
 | TIER-02 | Phase 27 | Pending |
 | TIER-03 | Phase 27 | Pending |
