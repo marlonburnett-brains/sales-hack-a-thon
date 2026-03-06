@@ -30,10 +30,10 @@
 
 ### Token Passthrough (Interactive Requests)
 
-- [ ] **PASS-01**: `api-client.ts` `fetchJSON` accepts an optional Google access token and sends it as `X-Google-Access-Token` header
+- [x] **PASS-01**: `api-client.ts` `fetchJSON` accepts an optional Google access token and sends it as `X-Google-Access-Token` header
 - [x] **PASS-02**: Agent API routes extract `X-Google-Access-Token` header and pass it to Google API client factories
-- [ ] **PASS-03**: Server Actions that trigger Google API operations retrieve the user's Google token from the Supabase session
-- [ ] **PASS-04**: Template ingestion, staleness checks, and slide operations use the user's Google token when available
+- [x] **PASS-03**: Server Actions that trigger Google API operations retrieve the user's Google token from the Supabase session
+- [x] **PASS-04**: Template ingestion, staleness checks, and slide operations use the user's Google token when available
 
 ### Token Pool (Background Jobs)
 
@@ -96,10 +96,10 @@
 | GAPI-02 | Phase 23 | Complete |
 | GAPI-03 | Phase 23 | Complete |
 | GAPI-04 | Phase 23 | Complete |
-| PASS-01 | Phase 23 | Pending |
+| PASS-01 | Phase 23 | Complete |
 | PASS-02 | Phase 23 | Complete |
-| PASS-03 | Phase 23 | Pending |
-| PASS-04 | Phase 23 | Pending |
+| PASS-03 | Phase 23 | Complete |
+| PASS-04 | Phase 23 | Complete |
 | POOL-01 | Phase 24 | Pending |
 | POOL-02 | Phase 24 | Pending |
 | POOL-03 | Phase 24 | Pending |

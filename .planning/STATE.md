@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: "Google API Auth: User-Delegated Credentials"
-status: executing
-stopped_at: Completed 23-01-PLAN.md
-last_updated: "2026-03-06T17:05:39.507Z"
-last_activity: "2026-03-06 — Plan 23-01 complete: dual-mode Google API factories + token passthrough"
+status: completed
+stopped_at: Completed 23-02-PLAN.md
+last_updated: "2026-03-06T17:10:22.427Z"
+last_activity: "2026-03-06 — Plan 23-02 complete: fetchWithGoogleAuth wrapper + web-side token passthrough"
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
-  percent: 93
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 23 (User-Delegated API Clients & Token Passthrough)
-Plan: 1 of 2 complete
-Status: Executing Phase 23 (23-01 complete)
-Last activity: 2026-03-06 — Plan 23-01 complete: dual-mode Google API factories + token passthrough
+Plan: 2 of 2 complete
+Status: Phase 23 complete
+Last activity: 2026-03-06 — Plan 23-02 complete: fetchWithGoogleAuth wrapper + web-side token passthrough
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -50,6 +50,10 @@ All decisions logged in PROJECT.md Key Decisions table (26 decisions total with 
 - [23-01] Used minimal RequestContext interface instead of importing hono directly (pnpm resolution)
 - [23-01] Background staleness polling left on service account (no request context)
 - [23-01] Workflow start routes unchanged (Phase 24 scope)
+- [23-02] Server Actions need no changes -- api-client.ts internals handle passthrough transparently
+- [23-02] Only Google-triggering functions use fetchWithGoogleAuth; CRUD operations stay on fetchJSON
+- [Phase 23]: Server Actions need no changes -- api-client.ts internals handle passthrough transparently
+- [Phase 23]: Only Google-triggering functions use fetchWithGoogleAuth; CRUD operations stay on fetchJSON
 
 ### Pending Todos
 
@@ -65,6 +69,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T17:05:39.504Z
-Stopped at: Completed 23-01-PLAN.md
-Next action: Execute 23-02-PLAN.md (web-side fetchWithGoogleAuth + server action integration)
+Last session: 2026-03-06T17:10:18.151Z
+Stopped at: Completed 23-02-PLAN.md
+Next action: Phase 23 complete. Next phase in milestone v1.3.
