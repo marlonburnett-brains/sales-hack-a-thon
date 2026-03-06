@@ -13,7 +13,12 @@ import { extractGoogleAuth } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { encryptToken } from "../lib/token-encryption";
-import { detectAtlusAccess } from "../lib/atlus-auth";
+import {
+  detectAtlusAccess,
+  upsertAtlusToken,
+  resolveActionsByType,
+} from "../lib/atlus-auth";
+import { ACTION_TYPES } from "@lumenalta/schemas";
 import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
@@ -1422,6 +1427,58 @@ export const mastra = new Mastra({
       // ────────────────────────────────────────────────────────────
       // Phase 27: AtlusAI Access Detection
       // ────────────────────────────────────────────────────────────
+
+      // POST /atlus/oauth/store-token -- Store AtlusAI OAuth tokens after web OAuth flow
+      registerApiRoute("/atlus/oauth/store-token", {
+        method: "POST",
+        handler: async (c) => {
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                userId: z.string().min(1),
+                email: z.string().email(),
+                accessToken: z.string().min(1),
+                refreshToken: z.string().optional(),
+              })
+              .parse(body);
+
+            // Store the OAuth tokens as JSON (encrypted at rest)
+            const tokenPayload = JSON.stringify({
+              access_token: data.accessToken,
+              refresh_token: data.refreshToken ?? null,
+            });
+            await upsertAtlusToken(data.userId, data.email, tokenPayload);
+
+            // OAuth success means the user has an AtlusAI account — auto-resolve
+            await resolveActionsByType(
+              data.userId,
+              ACTION_TYPES.ATLUS_ACCOUNT_REQUIRED,
+            );
+
+            // Run access detection with the new token to check project access
+            const accessResult = await detectAtlusAccess(
+              data.userId,
+              data.email,
+              data.accessToken,
+            );
+
+            return c.json({ success: true, accessResult });
+          } catch (err) {
+            if (err instanceof z.ZodError) {
+              return c.json(
+                { error: "Invalid request body", details: err.issues },
+                400,
+              );
+            }
+            console.error(
+              "[atlus-oauth] Failed to store AtlusAI OAuth tokens:",
+              err,
+            );
+            return c.json({ error: "Failed to store OAuth tokens" }, 500);
+          }
+        },
+      }),
 
       // POST /atlus/detect -- On-demand AtlusAI access re-check
       registerApiRoute("/atlus/detect", {

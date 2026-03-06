@@ -10,14 +10,13 @@ import {
   ShieldCheck,
   BellOff,
   VolumeX,
-  RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import type { ActionRequiredItem } from "@/lib/api-client";
-import {
-  silenceActionAction,
-  recheckAtlusAccessAction,
-} from "@/lib/actions/action-required-actions";
+import { silenceActionAction } from "@/lib/actions/action-required-actions";
 
 function getActionIcon(actionType: string) {
   switch (actionType) {
@@ -66,7 +65,7 @@ export function ActionsClient({ initialActions }: ActionsClientProps) {
   const [actions, setActions] = useState(initialActions);
   const [isPending, startTransition] = useTransition();
   const [silencingId, setSilencingId] = useState<string | null>(null);
-  const [recheckingId, setRecheckingId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   const pendingActions = actions.filter((a) => !a.resolved);
   const activeBadgeCount = pendingActions.filter((a) => !a.silenced).length;
@@ -93,14 +92,20 @@ export function ActionsClient({ initialActions }: ActionsClientProps) {
     });
   }
 
-  function handleRecheckAccess(actionId: string) {
-    // TODO(phase-28): Wire googleAccessToken from OAuth session -- may need provider_token from Supabase auth callback
-    // The Google OAuth provider_token is only available at the moment of the OAuth callback,
-    // not from the browser-side Supabase session. This button is disabled until phase-28 wires
-    // the token capture flow.
-    void actionId;
-    toast.error("Re-check Access requires OAuth token wiring (coming in Phase 28)");
-  }
+  // Show toast feedback from AtlusAI OAuth redirect
+  useEffect(() => {
+    const success = searchParams.get("atlus_success");
+    const error = searchParams.get("atlus_error");
+    if (success === "connected") {
+      toast.success("AtlusAI connected successfully!");
+    } else if (success === "no_project") {
+      toast.info(
+        "AtlusAI account connected, but you still need project access.",
+      );
+    } else if (error) {
+      toast.error(`AtlusAI connection failed: ${error.replace(/_/g, " ")}`);
+    }
+  }, [searchParams]);
 
   return (
     <div>
@@ -148,22 +153,16 @@ export function ActionsClient({ initialActions }: ActionsClientProps) {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {/* Re-check Access button for AtlusAI action types */}
+                {/* Connect to AtlusAI via OAuth */}
                 {isAtlusActionType(action.actionType) && !action.silenced && (
-                  <button
-                    onClick={() => handleRecheckAccess(action.id)}
-                    disabled={true}
-                    title="Available after next login"
-                    className="inline-flex cursor-not-allowed items-center rounded-md bg-purple-50 px-3 py-1.5 text-sm font-medium text-purple-600 opacity-60 transition-colors duration-150"
-                    aria-label="Re-check AtlusAI access"
+                  <a
+                    href="/auth/atlus/connect"
+                    className="inline-flex cursor-pointer items-center rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                    aria-label="Connect to AtlusAI"
                   >
-                    <RefreshCw
-                      className={`mr-1.5 h-4 w-4${
-                        recheckingId === action.id ? " animate-spin" : ""
-                      }`}
-                    />
-                    Re-check Access
-                  </button>
+                    <ExternalLink className="mr-1.5 h-4 w-4" />
+                    Connect to AtlusAI
+                  </a>
                 )}
 
                 {/* Silence / Silenced indicator */}

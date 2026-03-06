@@ -783,3 +783,18 @@ export async function recheckAtlusAccess(userId: string, email: string, googleAc
     body: JSON.stringify({ userId, email, googleAccessToken }),
   });
 }
+
+export async function storeAtlusOAuthToken(
+  userId: string,
+  email: string,
+  accessToken: string,
+  refreshToken?: string,
+): Promise<{ success: boolean; accessResult: string }> {
+  return fetchJSON<{ success: boolean; accessResult: string }>(
+    "/atlus/oauth/store-token",
+    {
+      method: "POST",
+      body: JSON.stringify({ userId, email, accessToken, refreshToken }),
+    },
+  );
+}
