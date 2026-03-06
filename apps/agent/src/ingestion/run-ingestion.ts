@@ -11,7 +11,7 @@
  *
  * Phases:
  *   A - Discovery and extraction (Drive folder traversal + Slides API)
- *   B - Classification (Gemini metadata tagging)
+ *   B - Classification (LLM metadata tagging)
  *   C - Manifest generation (content-manifest.json + coverage-report.json)
  *   D - Bulk ingestion (Google Drive Docs creation for AtlusAI indexing)
  *   E - Verification queries (semantic search validation)
@@ -154,7 +154,7 @@ function applyContentTypeOverrides(slides: ClassifiedSlide[]): ClassifiedSlide[]
       }
     }
 
-    // No override -- keep Gemini classification as-is
+    // No override -- keep LLM classification as-is
     return slide;
   });
 }
@@ -182,7 +182,7 @@ async function phaseA(): Promise<{
         console.log(`  - ${p}`);
       }
     } else {
-      console.log("  (empty -- Gemini classification will use free-text pillars)");
+      console.log("  (empty -- LLM classification will use free-text pillars)");
     }
   } catch {
     console.warn("  WARNING: Could not read solution-pillars.json. Using empty list.");
@@ -251,8 +251,8 @@ async function phaseB(
   console.log("Phase B: Metadata Classification");
   console.log("========================================\n");
 
-  const geminiApiKey = env.GOOGLE_CLOUD_PROJECT;
-  if (!geminiApiKey) {
+  const cloudProject = env.GOOGLE_CLOUD_PROJECT;
+  if (!cloudProject) {
     console.error("ERROR: GOOGLE_CLOUD_PROJECT is required for classification.");
     console.error("Set it in apps/agent/.env for Vertex AI authentication.");
     process.exit(1);
@@ -268,8 +268,8 @@ async function phaseB(
   }
 
   // Classify all slides
-  console.log(`Classifying ${slides.length} slides with Gemini...`);
-  const classified = await classifyAllSlides(slides, solutionPillars, geminiApiKey);
+  console.log(`Classifying ${slides.length} slides with LLM...`);
+  const classified = await classifyAllSlides(slides, solutionPillars, cloudProject);
 
   // Apply content type overrides
   console.log("\nApplying content type overrides based on known presentation names...");

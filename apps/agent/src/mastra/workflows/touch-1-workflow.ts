@@ -1,7 +1,7 @@
 /**
  * Touch 1 Pager Generation Workflow
  *
- * Full workflow: Generate pager content via Gemini -> Suspend for seller approval ->
+ * Full workflow: Generate pager content via LLM -> Suspend for seller approval ->
  * Assemble Google Slides deck from approved content -> Record interaction + feedback.
  *
  * Uses Mastra suspend/resume for the seller review step.
@@ -14,7 +14,7 @@ import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
 import {
   PagerContentLlmSchema,
-  zodToGeminiSchema,
+  zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
 import { assembleFromTemplate } from "../../lib/slide-assembly";
 import { getOrCreateDealFolder } from "../../lib/drive-folders";
@@ -23,7 +23,7 @@ import { prisma } from "../../lib/db";
 import { env } from "../../env";
 
 // ────────────────────────────────────────────────────────────
-// Step 1: Generate pager content via Gemini
+// Step 1: Generate pager content via LLM
 // ────────────────────────────────────────────────────────────
 
 const generateContent = createStep({
@@ -66,7 +66,7 @@ Keep the tone professional but engaging. Focus on the company's likely challenge
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToGeminiSchema(PagerContentLlmSchema) as Record<string, unknown>,
+        responseSchema: zodToLlmJsonSchema(PagerContentLlmSchema) as Record<string, unknown>,
       },
     });
 

@@ -1,10 +1,10 @@
 /**
- * validate-schemas.ts — Gemini Round-Trip Schema Validation
+ * validate-schemas.ts -- LLM Round-Trip Schema Validation
  *
- * Validates all 10 LLM schemas against the live Gemini 2.5 Flash API:
- * 1. Convert Zod schema to JSON Schema via zodToGeminiSchema()
- * 2. Send realistic domain prompt with responseJsonSchema to Gemini
- * 3. Parse Gemini's JSON response through Zod .parse()
+ * Validates all 10 LLM schemas against the live LLM API:
+ * 1. Convert Zod schema to JSON Schema via zodToLlmJsonSchema()
+ * 2. Send realistic domain prompt with responseJsonSchema to LLM
+ * 3. Parse LLM's JSON response through Zod .parse()
  * 4. Report PASS/FAIL per schema, exit 0 if all pass, exit 1 if any fail
  *
  * Run: pnpm validate-schemas (from apps/agent)
@@ -14,7 +14,7 @@ import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { env } from "../env";
 import {
-  zodToGeminiSchema,
+  zodToLlmJsonSchema,
   TranscriptFieldsLlmSchema,
   SalesBriefLlmSchema,
   SlideAssemblyLlmSchema,
@@ -188,7 +188,7 @@ Focus on uncovering technical requirements, architecture preferences, and decisi
 // --- Execution loop ---
 
 async function main(): Promise<void> {
-  console.log("=== Gemini Round-Trip Schema Validation ===\n");
+  console.log("=== LLM Round-Trip Schema Validation ===\n");
   console.log(`Model: openai/gpt-oss-120b-maas`);
   console.log(`Schemas to validate: ${tests.length}\n`);
 
@@ -197,10 +197,10 @@ async function main(): Promise<void> {
 
   for (const test of tests) {
     try {
-      // Convert Zod schema to Gemini-compatible JSON Schema
-      const jsonSchema = zodToGeminiSchema(test.schema);
+      // Convert Zod schema to LLM-compatible JSON Schema
+      const jsonSchema = zodToLlmJsonSchema(test.schema);
 
-      // Call Gemini with responseJsonSchema
+      // Call LLM with responseJsonSchema
       const response = await ai.models.generateContent({
         model: "openai/gpt-oss-120b-maas",
         contents: test.prompt,
@@ -212,7 +212,7 @@ async function main(): Promise<void> {
 
       const text = response.text ?? "{}";
 
-      // Round-trip: parse Gemini's JSON response through Zod
+      // Round-trip: parse LLM's JSON response through Zod
       const parsed = JSON.parse(text);
       test.schema.parse(parsed);
 
@@ -226,12 +226,12 @@ async function main(): Promise<void> {
         // Zod parse failure — log raw response for debugging
         console.error(`FAIL: ${test.name} - Zod validation error: ${err.message}`);
       } else {
-        // Gemini API error or JSON parse error
+        // LLM API error or JSON parse error
         console.error(`FAIL: ${test.name} - ${err.message}`);
       }
     }
 
-    // Rate limit protection: 500ms delay between Gemini calls
+    // Rate limit protection: 500ms delay between LLM calls
     if (tests.indexOf(test) < tests.length - 1) {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }

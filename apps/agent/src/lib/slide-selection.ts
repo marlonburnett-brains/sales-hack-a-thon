@@ -1,7 +1,7 @@
 /**
  * AI-Driven Slide Selection Engine
  *
- * Uses Gemini 2.5 Flash to select and order slides from AtlusAI content
+ * Uses LLM to select and order slides from AtlusAI content
  * for Touch 2 (intro deck) and Touch 3 (capability alignment deck) flows.
  *
  * This module is Touch-agnostic: it accepts a touchType parameter and
@@ -10,15 +10,15 @@
  *
  * Flow:
  *   1. Search AtlusAI content via atlusai-search.ts (Drive API fallback)
- *   2. Feed search results + deal context to Gemini 2.5 Flash
- *   3. Gemini selects and orders slides using the appropriate schema
+ *   2. Feed search results + deal context to LLM
+ *   3. LLM selects and orders slides using the appropriate schema
  *   4. Return selected slide IDs, ordering, and personalization notes
  */
 
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import {
-  zodToGeminiSchema,
+  zodToLlmJsonSchema,
   IntroDeckSelectionLlmSchema,
   CapabilityDeckSelectionLlmSchema,
 } from "@lumenalta/schemas";
@@ -183,7 +183,7 @@ function buildTouch3Prompt(
  * Select and order slides for a deck using AI-driven content selection.
  *
  * 1. Searches AtlusAI content via Drive API fallback
- * 2. Passes candidates to Gemini 2.5 Flash with the appropriate schema
+ * 2. Passes candidates to LLM with the appropriate schema
  * 3. Returns selected + ordered slide IDs with personalization notes
  *
  * @param params - Selection parameters including touch type, company, industry
@@ -242,7 +242,7 @@ export async function selectSlidesForDeck(
 }
 
 /**
- * Touch 2: Intro deck slide selection via Gemini + IntroDeckSelectionLlmSchema
+ * Touch 2: Intro deck slide selection via LLM + IntroDeckSelectionLlmSchema
  */
 async function selectForTouch2(
   ai: GoogleGenAI,
@@ -250,7 +250,7 @@ async function selectForTouch2(
   candidates: SlideSearchResult[]
 ): Promise<SlideSelectionResult> {
   const prompt = buildTouch2Prompt(params, candidates);
-  const responseSchema = zodToGeminiSchema(IntroDeckSelectionLlmSchema);
+  const responseSchema = zodToLlmJsonSchema(IntroDeckSelectionLlmSchema);
 
   const response = await ai.models.generateContent({
     model: "openai/gpt-oss-120b-maas",
@@ -275,7 +275,7 @@ async function selectForTouch2(
 }
 
 /**
- * Touch 3: Capability deck slide selection via Gemini + CapabilityDeckSelectionLlmSchema
+ * Touch 3: Capability deck slide selection via LLM + CapabilityDeckSelectionLlmSchema
  */
 async function selectForTouch3(
   ai: GoogleGenAI,
@@ -283,7 +283,7 @@ async function selectForTouch3(
   candidates: SlideSearchResult[]
 ): Promise<SlideSelectionResult> {
   const prompt = buildTouch3Prompt(params, candidates);
-  const responseSchema = zodToGeminiSchema(CapabilityDeckSelectionLlmSchema);
+  const responseSchema = zodToLlmJsonSchema(CapabilityDeckSelectionLlmSchema);
 
   const response = await ai.models.generateContent({
     model: "openai/gpt-oss-120b-maas",

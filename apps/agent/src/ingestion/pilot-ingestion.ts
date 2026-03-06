@@ -10,7 +10,7 @@
  * 2. Extract solution pillar taxonomy from Master Solutions + GTM Solutions decks
  * 3. Select 2-3 pilot decks
  * 4. Extract all slides from pilot decks
- * 5. Classify metadata using Gemini
+ * 5. Classify metadata using LLM
  * 6. Write pilot manifest to manifest/pilot-manifest.json
  * 7. Ingest into AtlusAI (via Google Drive folder-based approach)
  * 8. Verify ingestion via semantic search
@@ -51,7 +51,7 @@ const PILOT_DECK_PATTERNS = [
 
 async function extractSolutionPillars(
   taxonomyDecks: DrivePresentation[],
-  _geminiApiKey?: string
+  _legacyApiKey?: string
 ): Promise<string[]> {
   console.log("\n=== Step 2: Extracting Solution Pillar Taxonomy ===");
 
@@ -64,7 +64,7 @@ async function extractSolutionPillars(
   const allTaxonomySlides = await extractAllSlides(taxonomyDecks);
   console.log(`  Extracted ${allTaxonomySlides.length} slides from ${taxonomyDecks.length} taxonomy decks`);
 
-  // Combine all text content for Gemini analysis
+  // Combine all text content for LLM analysis
   const combinedText = allTaxonomySlides
     .map(
       (s) =>
@@ -110,7 +110,7 @@ Return a JSON array of pillar name strings.`,
       pillars = [];
     }
   } catch {
-    console.warn("  Failed to parse pillar list from Gemini. Using empty list.");
+    console.warn("  Failed to parse pillar list from LLM. Using empty list.");
     pillars = [];
   }
 

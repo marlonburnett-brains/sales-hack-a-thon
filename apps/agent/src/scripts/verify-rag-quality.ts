@@ -14,7 +14,7 @@
 import {
   SlideMetadataSchema,
   SlideAssemblyLlmSchema,
-  zodToGeminiSchema,
+  zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
 import { searchForProposal } from "../lib/atlusai-search";
 import { filterByMetadata } from "../lib/proposal-assembly";
@@ -41,8 +41,8 @@ function testSchemaRoundTrip(): boolean {
   console.log("=== Schema Round-Trip Test ===\n");
 
   try {
-    // Test extended SlideAssemblyLlmSchema with zodToGeminiSchema
-    const jsonSchema = zodToGeminiSchema(SlideAssemblyLlmSchema);
+    // Test extended SlideAssemblyLlmSchema with zodToLlmJsonSchema
+    const jsonSchema = zodToLlmJsonSchema(SlideAssemblyLlmSchema);
     console.log("SlideAssemblyLlmSchema -> JSON Schema: OK");
 
     // Verify the JSON schema contains the new fields

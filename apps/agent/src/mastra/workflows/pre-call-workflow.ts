@@ -2,7 +2,7 @@
  * Pre-Call Briefing Workflow
  *
  * End-to-end pipeline that prepares sellers for discovery calls:
- * 1. Researches the target company via Gemini
+ * 1. Researches the target company via LLM
  * 2. Queries AtlusAI for relevant case studies
  * 3. Generates role-specific value hypotheses
  * 4. Generates prioritized discovery questions
@@ -21,7 +21,7 @@ import {
   CompanyResearchLlmSchema,
   HypothesesLlmSchema,
   DiscoveryQuestionsLlmSchema,
-  zodToGeminiSchema,
+  zodToLlmJsonSchema,
   SOLUTION_PILLARS,
 } from "@lumenalta/schemas";
 import { searchSlides } from "../../lib/atlusai-search";
@@ -71,7 +71,7 @@ const docOutputSchema = questionsOutputSchema.extend({
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 1: Research Company via Gemini 2.5 Flash
+// Step 1: Research Company via LLM 2.5 Flash
 // ────────────────────────────────────────────────────────────
 
 const researchCompany = createStep({
@@ -88,7 +88,7 @@ const researchCompany = createStep({
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToGeminiSchema(
+        responseSchema: zodToLlmJsonSchema(
           CompanyResearchLlmSchema
         ) as Record<string, unknown>,
       },
@@ -154,7 +154,7 @@ const queryCaseStudies = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 3: Generate Value Hypotheses via Gemini
+// Step 3: Generate Value Hypotheses via LLM
 // ────────────────────────────────────────────────────────────
 
 const generateHypotheses = createStep({
@@ -178,7 +178,7 @@ const generateHypotheses = createStep({
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToGeminiSchema(HypothesesLlmSchema) as Record<
+        responseSchema: zodToLlmJsonSchema(HypothesesLlmSchema) as Record<
           string,
           unknown
         >,
@@ -197,7 +197,7 @@ const generateHypotheses = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 4: Generate Discovery Questions via Gemini
+// Step 4: Generate Discovery Questions via LLM
 // ────────────────────────────────────────────────────────────
 
 const generateDiscoveryQuestions = createStep({
@@ -228,7 +228,7 @@ const generateDiscoveryQuestions = createStep({
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToGeminiSchema(
+        responseSchema: zodToLlmJsonSchema(
           DiscoveryQuestionsLlmSchema
         ) as Record<string, unknown>,
       },

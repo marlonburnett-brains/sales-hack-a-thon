@@ -4,7 +4,7 @@
  * Post-retrieval processing for proposal deck generation:
  *   - filterByMetadata(): Narrows candidates by industry and pillar match
  *   - buildSlideJSON(): Assembles the SlideJSON intermediate representation
- *   - generateSlideCopy(): Per-slide copy generation via Gemini
+ *   - generateSlideCopy(): Per-slide copy generation via LLM
  *
  * These are pure business logic functions -- NOT Mastra Agents.
  * Called from workflow steps in the Touch 4 proposal workflow.
@@ -13,7 +13,7 @@
 import { GoogleGenAI } from "@google/genai";
 import {
   SlideMetadataSchema,
-  zodToGeminiSchema,
+  zodToLlmJsonSchema,
   ProposalCopyLlmSchema,
 } from "@lumenalta/schemas";
 import type {
@@ -250,7 +250,7 @@ function toAssemblySlide(
 // ────────────────────────────────────────────────────────────
 
 /**
- * Per-slide copy generation via Gemini 2.5 Flash.
+ * Per-slide copy generation via LLM.
  *
  * Rewrites retrieved slide content to connect capabilities to the customer's
  * specific needs. Uses brand voice guidelines and explicit grounding constraints.
@@ -319,7 +319,7 @@ export async function generateSlideCopy(params: {
     "3. Generate fresh speaker notes with talking points.",
   ].join("\n");
 
-  const responseSchema = zodToGeminiSchema(ProposalCopyLlmSchema);
+  const responseSchema = zodToLlmJsonSchema(ProposalCopyLlmSchema);
 
   const response = await ai.models.generateContent({
     model: "openai/gpt-oss-120b-maas",

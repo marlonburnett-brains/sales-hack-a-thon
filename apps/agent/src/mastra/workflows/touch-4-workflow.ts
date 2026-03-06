@@ -10,16 +10,16 @@
  *           -> createSlidesDeck -> createTalkTrack -> createBuyerFAQ
  *           -> checkBrandCompliance -> awaitAssetReview (SUSPEND 3) -> finalizeDelivery
  *
- * Step 1: Gemini 2.5 Flash extracts 6 structured fields from the raw transcript
+ * Step 1: LLM extracts 6 structured fields from the raw transcript
  * Step 2: Pure logic validates fields and assigns tiered severity
  * Step 3: Suspends for seller review -- seller edits/fills gaps, then resumes
- * Step 4: Gemini maps transcript to Lumenalta solution pillars and generates sales brief
- * Step 5: Gemini enriches use cases with specific ROI outcome statements
+ * Step 4: LLM maps transcript to Lumenalta solution pillars and generates sales brief
+ * Step 5: LLM enriches use cases with specific ROI outcome statements
  * Step 6: Persists InteractionRecord, Transcript, Brief to database (status: pending_approval)
  * Step 7: Suspends for brief approval -- HITL Checkpoint 1 (hard stop)
  * Step 8: Finalizes approval -- updates Brief/InteractionRecord status, creates FeedbackSignal
  * Step 9: RAG retrieval from AtlusAI (multi-pass: primary pillar, secondary pillars, case studies)
- * Step 10: Assembles SlideJSON with Gemini-powered weighted slide selection
+ * Step 10: Assembles SlideJSON with LLM-powered weighted slide selection
  * Step 11: Generates bespoke copy per retrieved slide, grounded in approved brief
  * Step 12: createSlidesDeck -- Google Slides deck from SlideJSON
  * Step 13: createTalkTrack -- slide-by-slide talk track Google Doc
@@ -37,7 +37,7 @@ import {
   SalesBriefLlmSchema,
   ROIFramingLlmSchema,
   BuyerFaqLlmSchema,
-  zodToGeminiSchema,
+  zodToLlmJsonSchema,
   SOLUTION_PILLARS,
 } from "@lumenalta/schemas";
 import { searchForProposal } from "../../lib/atlusai-search";
@@ -61,7 +61,7 @@ import { env } from "../../env";
 const fieldSeveritySchema = z.record(z.enum(["error", "warning", "ok"]));
 
 // ────────────────────────────────────────────────────────────
-// Step 1: Parse Transcript via Gemini 2.5 Flash
+// Step 1: Parse Transcript via LLM
 // ────────────────────────────────────────────────────────────
 
 const parseTranscript = createStep({
@@ -123,7 +123,7 @@ Extract the following 6 fields:
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToGeminiSchema(TranscriptFieldsLlmSchema) as Record<
+        responseSchema: zodToLlmJsonSchema(TranscriptFieldsLlmSchema) as Record<
           string,
           unknown
         >,
@@ -280,7 +280,7 @@ const awaitFieldReview = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 4: Map Pillars & Generate Brief (Gemini 2.5 Flash)
+// Step 4: Map Pillars & Generate Brief (LLM)
 // ────────────────────────────────────────────────────────────
 
 const mapPillarsAndGenerateBrief = createStep({
@@ -345,7 +345,7 @@ OUTPUT: A complete sales brief with pillar mapping, evidence, and use cases.`;
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToGeminiSchema(SalesBriefLlmSchema) as Record<
+        responseSchema: zodToLlmJsonSchema(SalesBriefLlmSchema) as Record<
           string,
           unknown
         >,
@@ -369,7 +369,7 @@ OUTPUT: A complete sales brief with pillar mapping, evidence, and use cases.`;
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 5: Generate ROI Framing (Gemini 2.5 Flash enrichment)
+// Step 5: Generate ROI Framing (LLM enrichment)
 // ────────────────────────────────────────────────────────────
 
 const generateROIFraming = createStep({
@@ -440,7 +440,7 @@ OUTPUT: ROI framing for each use case with useCaseName matching the brief's use 
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToGeminiSchema(ROIFramingLlmSchema) as Record<
+        responseSchema: zodToLlmJsonSchema(ROIFramingLlmSchema) as Record<
           string,
           unknown
         >,
@@ -785,7 +785,7 @@ const ragRetrieval = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 10: Assemble SlideJSON with Gemini-powered weighted slide selection
+// Step 10: Assemble SlideJSON with LLM-powered weighted slide selection
 // ────────────────────────────────────────────────────────────
 
 const assembleSlideJSON = createStep({
@@ -821,7 +821,7 @@ const assembleSlideJSON = createStep({
       slideObjectId?: string;
     }>;
 
-    // b. Use Gemini 2.5 Flash to select best 8-12 slides from candidates
+    // b. Use LLM to select best 8-12 slides from candidates
     const candidateList = candidates
       .map(
         (c, i) =>
@@ -868,7 +868,7 @@ Provide the selected slide IDs and brief reasoning for your selection.`;
       contents: selectionPrompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToGeminiSchema(selectionSchema) as Record<
+        responseSchema: zodToLlmJsonSchema(selectionSchema) as Record<
           string,
           unknown
         >,
@@ -1075,7 +1075,7 @@ const createSlidesDeck = createStep({
 
 // ────────────────────────────────────────────────────────────
 // Step 13: Create Talk Track Google Doc (speaker notes from Phase 7)
-// No additional Gemini call -- uses speakerNotes already in SlideJSON
+// No additional LLM call -- uses speakerNotes already in SlideJSON
 // ────────────────────────────────────────────────────────────
 
 const createTalkTrack = createStep({
@@ -1164,7 +1164,7 @@ const createTalkTrack = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 14: Create Buyer FAQ Google Doc (Gemini-generated role-specific objections)
+// Step 14: Create Buyer FAQ Google Doc (LLM-generated role-specific objections)
 // Persists all 3 artifact URLs to InteractionRecord.outputRefs
 // ────────────────────────────────────────────────────────────
 
@@ -1204,7 +1204,7 @@ const createBuyerFAQ = createStep({
     const primaryPillar = brief.primaryPillar;
     const dateStr = new Date().toISOString().split("T")[0];
 
-    // b. Generate FAQ via Gemini 2.5 Flash
+    // b. Generate FAQ via LLM
     const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
     const useCaseSummary = JSON.parse(brief.useCases)
@@ -1243,7 +1243,7 @@ EXAMPLES of role-specific objections:
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: zodToGeminiSchema(BuyerFaqLlmSchema) as Record<string, unknown>,
+        responseSchema: zodToLlmJsonSchema(BuyerFaqLlmSchema) as Record<string, unknown>,
       },
     });
 

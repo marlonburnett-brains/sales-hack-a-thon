@@ -1,8 +1,8 @@
 /**
- * Gemini-Powered Metadata Classification
+ * LLM-Powered Metadata Classification
  *
  * Classifies each extracted slide with structured metadata tags
- * using Google Gemini's structured output mode.
+ * using LLM structured output mode.
  *
  * Tags assigned per slide:
  *   - industries (multi-value enum)
@@ -35,11 +35,11 @@ export interface ClassifiedSlide extends ExtractedSlide {
 }
 
 // ────────────────────────────────────────────────────────────
-// Gemini JSON Schema (hand-crafted for Gemini structured output)
+// LLM JSON Schema (hand-crafted for LLM structured output)
 // zod-to-json-schema does not support Zod 4.x
 // ────────────────────────────────────────────────────────────
 
-const GEMINI_RESPONSE_SCHEMA = {
+const LLM_RESPONSE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
     industries: {
@@ -170,20 +170,20 @@ Classify this slide with all applicable tags.`;
 // Single slide classification
 // ────────────────────────────────────────────────────────────
 
-const RATE_LIMIT_DELAY = 300; // ms between Gemini calls
+const RATE_LIMIT_DELAY = 300; // ms between LLM calls
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Classify a single slide using Gemini structured output.
+ * Classify a single slide using LLM structured output.
  */
 export async function classifySlide(
   slide: ExtractedSlide,
   titleSlideText: string,
   solutionPillarList: string[],
-  _geminiApiKey?: string
+  _legacyApiKey?: string
 ): Promise<ClassifiedSlide> {
   const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
@@ -198,7 +198,7 @@ export async function classifySlide(
     contents: prompt,
     config: {
       responseMimeType: "application/json",
-      responseSchema: GEMINI_RESPONSE_SCHEMA,
+      responseSchema: LLM_RESPONSE_SCHEMA,
     },
   });
 
@@ -216,7 +216,7 @@ export async function classifySlide(
     metadata = SlideMetadataSchema.parse(parsed);
   } catch (parseError) {
     console.warn(
-      `  WARNING: Failed to parse Gemini response for slide ${slide.slideIndex} of "${slide.presentationName}". Using defaults.`
+      `  WARNING: Failed to parse LLM response for slide ${slide.slideIndex} of "${slide.presentationName}". Using defaults.`
     );
     console.warn(`  Raw response: ${text.substring(0, 200)}`);
     metadata = {
@@ -244,7 +244,7 @@ export async function classifySlide(
 // ────────────────────────────────────────────────────────────
 
 /**
- * Classify all slides using Gemini.
+ * Classify all slides using LLM.
  *
  * Groups slides by presentation so all slides from the same deck
  * share title slide context. Classifies sequentially with rate limiting.
@@ -252,7 +252,7 @@ export async function classifySlide(
 export async function classifyAllSlides(
   slides: ExtractedSlide[],
   solutionPillarList: string[],
-  _geminiApiKey?: string
+  _legacyApiKey?: string
 ): Promise<ClassifiedSlide[]> {
   // Group slides by presentationId
   const byPresentation = new Map<string, ExtractedSlide[]>();
@@ -315,7 +315,7 @@ export async function classifyAllSlides(
         );
       }
 
-      // Rate limit between Gemini calls
+      // Rate limit between LLM calls
       await delay(RATE_LIMIT_DELAY);
     }
   }
