@@ -9,8 +9,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut } from "lucide-react";
+import { Link2, LogOut } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
+import { createClient } from "@/lib/supabase/client";
+import { GoogleTokenBadge } from "./google-token-badge";
 
 interface UserNavProps {
   user: {
@@ -34,6 +36,7 @@ export function UserNav({ user }: UserNavProps) {
               {user.name ? user.name.charAt(0).toUpperCase() : "U"}
             </AvatarFallback>
           </Avatar>
+          <GoogleTokenBadge />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -45,6 +48,29 @@ export function UserNav({ user }: UserNavProps) {
             </p>
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={async () => {
+            const supabase = createClient();
+            await supabase.auth.signInWithOAuth({
+              provider: "google",
+              options: {
+                scopes:
+                  "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/documents",
+                queryParams: {
+                  hd: "lumenalta.com",
+                  access_type: "offline",
+                  prompt: "consent",
+                },
+                redirectTo: `${window.location.origin}/auth/callback`,
+              },
+            });
+          }}
+        >
+          <Link2 className="mr-2 h-4 w-4" />
+          <span>Connect Google</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer"
