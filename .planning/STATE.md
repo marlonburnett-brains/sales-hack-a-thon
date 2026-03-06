@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: "Google API Auth: User-Delegated Credentials"
 status: executing
-stopped_at: Phase 23 context gathered
-last_updated: "2026-03-06T16:45:27.247Z"
-last_activity: 2026-03-06 — Plan 22-02 tasks 1-3 complete; awaiting human-verify checkpoint
+stopped_at: Completed 23-01-PLAN.md
+last_updated: "2026-03-06T17:05:39.507Z"
+last_activity: "2026-03-06 — Plan 23-01 complete: dual-mode Google API factories + token passthrough"
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 67
+  total_plans: 5
+  completed_plans: 4
+  percent: 93
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 22 (OAuth Scope Expansion & Token Storage)
-Plan: 2 of 3 complete
-Status: Executing Phase 22 (22-02 awaiting human verification)
-Last activity: 2026-03-06 — Plan 22-02 tasks 1-3 complete; awaiting human-verify checkpoint
+Phase: 23 (User-Delegated API Clients & Token Passthrough)
+Plan: 1 of 2 complete
+Status: Executing Phase 23 (23-01 complete)
+Last activity: 2026-03-06 — Plan 23-01 complete: dual-mode Google API factories + token passthrough
 
-Progress: [######----] 67%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -47,6 +47,9 @@ All decisions logged in PROJECT.md Key Decisions table (26 decisions total with 
 - [22-01] GOOGLE_TOKEN_ENCRYPTION_KEY optional in env.ts; validated at encryption call time
 - [22-02] Cookie cache TTL 1h for google-token-status; 3s timeout on middleware agent fetch
 - [22-02] Auth callback sets google-token-status=valid cookie to avoid immediate re-check
+- [23-01] Used minimal RequestContext interface instead of importing hono directly (pnpm resolution)
+- [23-01] Background staleness polling left on service account (no request context)
+- [23-01] Workflow start routes unchanged (Phase 24 scope)
 
 ### Pending Todos
 
@@ -62,6 +65,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T16:45:27.238Z
-Stopped at: Phase 23 context gathered
-Next action: Human verifies OAuth flow end-to-end, then execute 22-03-PLAN.md
+Last session: 2026-03-06T17:05:39.504Z
+Stopped at: Completed 23-01-PLAN.md
+Next action: Execute 23-02-PLAN.md (web-side fetchWithGoogleAuth + server action integration)

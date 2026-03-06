@@ -23,15 +23,15 @@
 
 ### User-Delegated API Clients
 
-- [ ] **GAPI-01**: `google-auth.ts` exports `getSlidesClient()`, `getDriveClient()`, and `getDocsClient()` that accept an optional `accessToken` parameter
-- [ ] **GAPI-02**: When `accessToken` is provided, API clients use `OAuth2Client` with the user's token instead of the service account
-- [ ] **GAPI-03**: When no `accessToken` is provided, API clients fall back to the existing service account behavior
-- [ ] **GAPI-04**: All existing callers of Google API clients (14+ files) continue to work with no changes required (backward compatible)
+- [x] **GAPI-01**: `google-auth.ts` exports `getSlidesClient()`, `getDriveClient()`, and `getDocsClient()` that accept an optional `accessToken` parameter
+- [x] **GAPI-02**: When `accessToken` is provided, API clients use `OAuth2Client` with the user's token instead of the service account
+- [x] **GAPI-03**: When no `accessToken` is provided, API clients fall back to the existing service account behavior
+- [x] **GAPI-04**: All existing callers of Google API clients (14+ files) continue to work with no changes required (backward compatible)
 
 ### Token Passthrough (Interactive Requests)
 
 - [ ] **PASS-01**: `api-client.ts` `fetchJSON` accepts an optional Google access token and sends it as `X-Google-Access-Token` header
-- [ ] **PASS-02**: Agent API routes extract `X-Google-Access-Token` header and pass it to Google API client factories
+- [x] **PASS-02**: Agent API routes extract `X-Google-Access-Token` header and pass it to Google API client factories
 - [ ] **PASS-03**: Server Actions that trigger Google API operations retrieve the user's Google token from the Supabase session
 - [ ] **PASS-04**: Template ingestion, staleness checks, and slide operations use the user's Google token when available
 
@@ -92,12 +92,12 @@
 | TOKS-03 | Phase 22 | Complete |
 | TOKS-04 | Phase 22 | Complete |
 | TOKS-05 | Phase 22 | Complete |
-| GAPI-01 | Phase 23 | Pending |
-| GAPI-02 | Phase 23 | Pending |
-| GAPI-03 | Phase 23 | Pending |
-| GAPI-04 | Phase 23 | Pending |
+| GAPI-01 | Phase 23 | Complete |
+| GAPI-02 | Phase 23 | Complete |
+| GAPI-03 | Phase 23 | Complete |
+| GAPI-04 | Phase 23 | Complete |
 | PASS-01 | Phase 23 | Pending |
-| PASS-02 | Phase 23 | Pending |
+| PASS-02 | Phase 23 | Complete |
 | PASS-03 | Phase 23 | Pending |
 | PASS-04 | Phase 23 | Pending |
 | POOL-01 | Phase 24 | Pending |

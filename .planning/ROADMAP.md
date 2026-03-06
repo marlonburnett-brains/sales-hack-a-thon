@@ -108,7 +108,7 @@ Plans:
 - `apps/web/src/lib/actions/*.ts` — pass Google token from session
 - `apps/agent/src/mastra/index.ts` — extract token from request headers
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 23-01-PLAN.md — Agent-side dual-mode factories, token cache, request-auth helper, and route wiring
@@ -190,6 +190,6 @@ Plans:
 | 20. Slide Ingestion Agent | v1.2 | 2/2 | Complete | 2026-03-06 |
 | 21. Preview & Review Engine | v1.2 | 3/3 | Complete | 2026-03-06 |
 | 22. OAuth Scope Expansion & Token Storage | v1.3 | 3/3 | Complete | 2026-03-06 |
-| 23. User-Delegated API Clients & Token Passthrough | v1.3 | 0/2 | Pending | -- |
+| 23. User-Delegated API Clients & Token Passthrough | 1/2 | In Progress|  | -- |
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 0/2 | Pending | -- |
 | 25. Integration Verification & Cutover | v1.3 | 0/1 | Pending | -- |
