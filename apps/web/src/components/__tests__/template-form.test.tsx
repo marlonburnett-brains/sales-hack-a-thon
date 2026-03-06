@@ -221,7 +221,12 @@ describe("TMPL-04: Touch type chip assignment", () => {
     expect(touch3.className).toContain("bg-blue-100");
   });
 
-  it("requires at least one touch type for submission", async () => {
+  it("submits successfully without selecting any touch type", async () => {
+    mockCreateTemplateAction.mockResolvedValue({
+      template: { id: "t1", accessStatus: "accessible" },
+      serviceAccountEmail: null,
+    });
+
     render(
       <TemplateForm>
         <button>Add Template</button>
@@ -242,9 +247,50 @@ describe("TMPL-04: Touch type chip assignment", () => {
     await user.click(getSubmitButton());
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Select at least one touch type")
-      ).toBeInTheDocument();
+      expect(mockCreateTemplateAction).toHaveBeenCalledWith({
+        name: "Deck",
+        googleSlidesUrl: "https://docs.google.com/presentation/d/abc123/edit",
+        presentationId: "abc123",
+        touchTypes: [],
+      });
+    });
+  });
+
+  it("submits with multiple touch types selected", async () => {
+    mockCreateTemplateAction.mockResolvedValue({
+      template: { id: "t2", accessStatus: "accessible" },
+      serviceAccountEmail: null,
+    });
+
+    render(
+      <TemplateForm>
+        <button>Add Template</button>
+      </TemplateForm>
+    );
+
+    const user = await openDialog();
+
+    await user.type(
+      screen.getByPlaceholderText("e.g. Q1 Proposal Deck"),
+      "Multi Touch Deck"
+    );
+    await user.type(
+      screen.getByPlaceholderText("https://docs.google.com/presentation/d/..."),
+      "https://docs.google.com/presentation/d/xyz789/edit"
+    );
+
+    await user.click(screen.getByText("Touch 2"));
+    await user.click(screen.getByText("Touch 3"));
+
+    await user.click(getSubmitButton());
+
+    await waitFor(() => {
+      expect(mockCreateTemplateAction).toHaveBeenCalledWith({
+        name: "Multi Touch Deck",
+        googleSlidesUrl: "https://docs.google.com/presentation/d/xyz789/edit",
+        presentationId: "xyz789",
+        touchTypes: ["touch_2", "touch_3"],
+      });
     });
   });
 });
