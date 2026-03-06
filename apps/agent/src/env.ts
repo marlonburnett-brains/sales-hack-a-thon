@@ -51,6 +51,11 @@ export const env = createEnv({
     // Generate with: openssl rand -hex 32
     // Optional: server starts without it; encryption module validates at call time
     GOOGLE_TOKEN_ENCRYPTION_KEY: z.string().length(64).optional(),
+
+    // Google OAuth 2.0 client credentials (for refresh token -> access token exchange)
+    // Source: Google Cloud Console -> APIs & Services -> Credentials -> OAuth 2.0 Client IDs
+    GOOGLE_CLIENT_ID: z.string().min(1),
+    GOOGLE_CLIENT_SECRET: z.string().min(1),
   },
   runtimeEnv: process.env,
 })
