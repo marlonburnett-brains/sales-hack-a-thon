@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import {
   fetchActions,
   resolveAction,
+  silenceAction,
+  recheckAtlusAccess,
 } from "@/lib/api-client";
 import type { ActionRequiredItem } from "@/lib/api-client";
 
@@ -15,6 +17,18 @@ export async function listActionsAction(): Promise<ActionRequiredItem[]> {
 
 export async function resolveActionAction(id: string): Promise<ActionRequiredItem> {
   const result = await resolveAction(id);
+  revalidatePath("/actions");
+  return result;
+}
+
+export async function silenceActionAction(id: string): Promise<ActionRequiredItem> {
+  const result = await silenceAction(id);
+  revalidatePath("/actions");
+  return result;
+}
+
+export async function recheckAtlusAccessAction(userId: string, email: string, googleAccessToken: string): Promise<{ result: string }> {
+  const result = await recheckAtlusAccess(userId, email, googleAccessToken);
   revalidatePath("/actions");
   return result;
 }

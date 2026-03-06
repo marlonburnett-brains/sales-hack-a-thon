@@ -766,3 +766,16 @@ export async function resolveAction(id: string): Promise<ActionRequiredItem> {
     method: "PATCH",
   });
 }
+
+export async function silenceAction(id: string): Promise<ActionRequiredItem> {
+  return fetchJSON<ActionRequiredItem>(`/actions/${id}/silence`, {
+    method: "PATCH",
+  });
+}
+
+export async function recheckAtlusAccess(userId: string, email: string, googleAccessToken: string): Promise<{ result: string }> {
+  return fetchJSON<{ result: string }>('/atlus/detect', {
+    method: "POST",
+    body: JSON.stringify({ userId, email, googleAccessToken }),
+  });
+}
