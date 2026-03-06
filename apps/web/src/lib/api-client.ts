@@ -8,6 +8,7 @@ import "server-only";
  */
 
 import { env } from "@/env";
+import { getGoogleAccessToken } from "@/lib/supabase/google-token";
 
 const BASE_URL = env.AGENT_SERVICE_URL;
 
@@ -27,6 +28,32 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+/**
+ * Wrapper around fetchJSON that attaches Google auth headers.
+ *
+ * Use this for requests that trigger Google API calls on the agent side
+ * (e.g. Drive access, Slides API, workflow starts). Non-Google CRUD
+ * operations should continue using fetchJSON directly.
+ */
+export async function fetchWithGoogleAuth<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const { accessToken, userId } = await getGoogleAccessToken();
+
+  const googleHeaders: Record<string, string> = {};
+  if (accessToken) googleHeaders["X-Google-Access-Token"] = accessToken;
+  if (userId) googleHeaders["X-User-Id"] = userId;
+
+  return fetchJSON<T>(path, {
+    ...init,
+    headers: {
+      ...init?.headers,
+      ...googleHeaders,
+    },
+  });
 }
 
 // ────────────────────────────────────────────────────────────
@@ -181,7 +208,7 @@ export async function startTouch1Workflow(
     salespersonName?: string;
   }
 ): Promise<WorkflowStartResult> {
-  return fetchJSON<WorkflowStartResult>(
+  return fetchWithGoogleAuth<WorkflowStartResult>(
     "/api/workflows/touch-1-workflow/start",
     {
       method: "POST",
@@ -240,7 +267,7 @@ export async function startTouch2Workflow(
     priorTouchOutputs?: string[];
   }
 ): Promise<WorkflowStartResult> {
-  return fetchJSON<WorkflowStartResult>(
+  return fetchWithGoogleAuth<WorkflowStartResult>(
     "/api/workflows/touch-2-workflow/start",
     {
       method: "POST",
@@ -276,7 +303,7 @@ export async function startTouch3Workflow(
     priorTouchOutputs?: string[];
   }
 ): Promise<WorkflowStartResult> {
-  return fetchJSON<WorkflowStartResult>(
+  return fetchWithGoogleAuth<WorkflowStartResult>(
     "/api/workflows/touch-3-workflow/start",
     {
       method: "POST",
@@ -312,7 +339,7 @@ export async function startTouch4Workflow(
     additionalNotes?: string;
   }
 ): Promise<WorkflowStartResult> {
-  return fetchJSON<WorkflowStartResult>(
+  return fetchWithGoogleAuth<WorkflowStartResult>(
     "/api/workflows/touch-4-workflow/start",
     {
       method: "POST",
@@ -489,7 +516,7 @@ export async function startPreCallWorkflow(
     meetingContext: string;
   }
 ): Promise<WorkflowStartResult> {
-  return fetchJSON<WorkflowStartResult>(
+  return fetchWithGoogleAuth<WorkflowStartResult>(
     "/api/workflows/pre-call-workflow/start",
     {
       method: "POST",
@@ -548,7 +575,7 @@ export async function createTemplate(data: {
   presentationId: string;
   touchTypes: string[];
 }): Promise<CreateTemplateResult> {
-  return fetchJSON<CreateTemplateResult>("/templates", {
+  return fetchWithGoogleAuth<CreateTemplateResult>("/templates", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -561,7 +588,7 @@ export async function deleteTemplate(id: string): Promise<{ success: boolean }> 
 }
 
 export async function checkTemplateStaleness(id: string): Promise<StalenessCheckResult> {
-  return fetchJSON<StalenessCheckResult>(`/templates/${id}/check-staleness`, {
+  return fetchWithGoogleAuth<StalenessCheckResult>(`/templates/${id}/check-staleness`, {
     method: "POST",
   });
 }
@@ -581,7 +608,7 @@ export interface IngestionProgress {
 export async function triggerIngestion(
   templateId: string
 ): Promise<{ queued: boolean }> {
-  return fetchJSON<{ queued: boolean }>(`/templates/${templateId}/ingest`, {
+  return fetchWithGoogleAuth<{ queued: boolean }>(`/templates/${templateId}/ingest`, {
     method: "POST",
   });
 }
@@ -650,7 +677,7 @@ export async function listSlides(
 export async function getSlideThumbnails(
   templateId: string
 ): Promise<{ thumbnails: SlideThumbnail[] }> {
-  return fetchJSON<{ thumbnails: SlideThumbnail[] }>(
+  return fetchWithGoogleAuth<{ thumbnails: SlideThumbnail[] }>(
     `/templates/${templateId}/thumbnails`
   );
 }
