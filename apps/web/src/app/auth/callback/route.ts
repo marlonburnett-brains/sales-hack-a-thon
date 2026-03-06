@@ -40,6 +40,7 @@ export async function GET(request: Request) {
           const redirectUrl = new URL(`${origin}${next}`);
           const response = NextResponse.redirect(redirectUrl.toString());
           response.cookies.set("google-token-status", "valid", {
+            httpOnly: false,
             maxAge: 3600,
             sameSite: "lax",
             path: "/",
