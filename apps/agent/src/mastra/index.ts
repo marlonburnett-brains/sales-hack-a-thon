@@ -13,6 +13,7 @@ import { extractGoogleAuth } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { encryptToken } from "../lib/token-encryption";
+import { detectAtlusAccess } from "../lib/atlus-auth";
 import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
@@ -1326,6 +1327,12 @@ export const mastra = new Mastra({
               data: { resolved: true, resolvedAt: new Date() },
             }).catch(() => {}); // fire and forget
 
+            // Fire-and-forget: check AtlusAI access using the Google token
+            // The user just logged in or re-authed, so this is the natural trigger point
+            detectAtlusAccess(data.userId, data.email, data.refreshToken).catch((err) => {
+              console.error("[atlus-detect] Failed to check AtlusAI access:", err);
+            });
+
             return c.json({ success: true, tokenId: token.id });
           } catch (err) {
             if (err instanceof z.ZodError) {
@@ -1356,7 +1363,8 @@ export const mastra = new Mastra({
       // Phase 24: ActionRequired CRUD Routes
       // ────────────────────────────────────────────────────────────
 
-      // GET /actions -- List pending (unresolved) actions, ordered by createdAt desc
+      // GET /actions -- List pending (unresolved) actions, ordered by updatedAt desc
+      // so re-surfaced items appear at top
       registerApiRoute("/actions", {
         method: "GET",
         handler: async (c) => {
@@ -1365,18 +1373,18 @@ export const mastra = new Mastra({
           if (userId) where.userId = userId;
           const actions = await prisma.actionRequired.findMany({
             where,
-            orderBy: { createdAt: "desc" },
+            orderBy: { updatedAt: "desc" },
           });
           return c.json(actions);
         },
       }),
 
-      // GET /actions/count -- Return count of unresolved actions
+      // GET /actions/count -- Return count of unresolved, non-silenced actions (badge count)
       registerApiRoute("/actions/count", {
         method: "GET",
         handler: async (c) => {
           const userId = c.req.query("userId");
-          const where: Record<string, unknown> = { resolved: false };
+          const where: Record<string, unknown> = { resolved: false, silenced: false };
           if (userId) where.userId = userId;
           const count = await prisma.actionRequired.count({ where });
           return c.json({ count });
@@ -1393,6 +1401,44 @@ export const mastra = new Mastra({
             data: { resolved: true, resolvedAt: new Date() },
           });
           return c.json(action);
+        },
+      }),
+
+      // PATCH /actions/:id/silence -- Silence an action (hide from badge count)
+      registerApiRoute("/actions/:id/silence", {
+        method: "PATCH",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          const action = await prisma.actionRequired.update({
+            where: { id },
+            data: { silenced: true, seenAt: new Date() },
+          });
+          return c.json(action);
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Phase 27: AtlusAI Access Detection
+      // ────────────────────────────────────────────────────────────
+
+      // POST /atlus/detect -- On-demand AtlusAI access re-check
+      registerApiRoute("/atlus/detect", {
+        method: "POST",
+        handler: async (c) => {
+          const body = await c.req.json();
+          const data = z
+            .object({
+              userId: z.string().min(1),
+              email: z.string().email(),
+              googleAccessToken: z.string().min(1),
+            })
+            .parse(body);
+          const result = await detectAtlusAccess(
+            data.userId,
+            data.email,
+            data.googleAccessToken,
+          );
+          return c.json({ result });
         },
       }),
     ],
