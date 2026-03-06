@@ -9,7 +9,7 @@ import { touch3Workflow } from "./workflows/touch-3-workflow";
 import { touch4Workflow } from "./workflows/touch-4-workflow";
 import { preCallWorkflow } from "./workflows/pre-call-workflow";
 import { getOrCreateDealFolder, makePubliclyViewable } from "../lib/drive-folders";
-import { getDriveClient, getSlidesClient } from "../lib/google-auth";
+import { getDriveClient, getSlidesClient, getPooledGoogleAuth } from "../lib/google-auth";
 import { extractGoogleAuth } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
@@ -43,7 +43,10 @@ function startStalenessPolling() {
         },
       });
 
-      const drive = getDriveClient();
+      const { accessToken, source } = await getPooledGoogleAuth();
+      console.log(`[staleness] Polling with ${source} auth`);
+
+      const drive = getDriveClient(accessToken ? { accessToken } : undefined);
 
       for (const template of templates) {
         try {
@@ -68,7 +71,29 @@ function startStalenessPolling() {
 
           // Rate limit between Drive API calls
           await new Promise((resolve) => setTimeout(resolve, DRIVE_API_DELAY));
-        } catch (err) {
+        } catch (err: unknown) {
+          const errStatus = err && typeof err === "object" && "status" in err
+            ? (err as { status: number }).status
+            : 0;
+
+          // Create ActionRequired for SA permission errors
+          if ((errStatus === 403 || errStatus === 404) && source === "service_account") {
+            const existingAction = await prisma.actionRequired.findFirst({
+              where: { resourceId: template.presentationId, actionType: "share_with_sa", resolved: false },
+            });
+            if (!existingAction) {
+              await prisma.actionRequired.create({
+                data: {
+                  actionType: "share_with_sa",
+                  title: `Share "${template.name}" with service account`,
+                  description: `The template "${template.name}" is not accessible. Please share it with the service account email as a Viewer, or ask an admin to grant access.`,
+                  resourceId: template.presentationId,
+                  resourceName: template.name,
+                },
+              }).catch(() => {});
+            }
+          }
+
           console.error(`[staleness] Error checking template "${template.name}":`, err);
         }
       }
@@ -1291,6 +1316,16 @@ export const mastra = new Mastra({
               },
             });
 
+            // Auto-resolve any reauth_needed actions for this user
+            await prisma.actionRequired.updateMany({
+              where: {
+                userId: data.userId,
+                actionType: "reauth_needed",
+                resolved: false,
+              },
+              data: { resolved: true, resolvedAt: new Date() },
+            }).catch(() => {}); // fire and forget
+
             return c.json({ success: true, tokenId: token.id });
           } catch (err) {
             if (err instanceof z.ZodError) {
@@ -1314,6 +1349,50 @@ export const mastra = new Mastra({
             select: { isValid: true },
           });
           return c.json({ hasToken: !!token?.isValid });
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Phase 24: ActionRequired CRUD Routes
+      // ────────────────────────────────────────────────────────────
+
+      // GET /actions -- List pending (unresolved) actions, ordered by createdAt desc
+      registerApiRoute("/actions", {
+        method: "GET",
+        handler: async (c) => {
+          const userId = c.req.query("userId");
+          const where: Record<string, unknown> = { resolved: false };
+          if (userId) where.userId = userId;
+          const actions = await prisma.actionRequired.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+          });
+          return c.json(actions);
+        },
+      }),
+
+      // GET /actions/count -- Return count of unresolved actions
+      registerApiRoute("/actions/count", {
+        method: "GET",
+        handler: async (c) => {
+          const userId = c.req.query("userId");
+          const where: Record<string, unknown> = { resolved: false };
+          if (userId) where.userId = userId;
+          const count = await prisma.actionRequired.count({ where });
+          return c.json({ count });
+        },
+      }),
+
+      // PATCH /actions/:id/resolve -- Mark an action as resolved
+      registerApiRoute("/actions/:id/resolve", {
+        method: "PATCH",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          const action = await prisma.actionRequired.update({
+            where: { id },
+            data: { resolved: true, resolvedAt: new Date() },
+          });
+          return c.json(action);
         },
       }),
     ],

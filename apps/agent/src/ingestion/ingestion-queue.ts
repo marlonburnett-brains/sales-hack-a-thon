@@ -8,6 +8,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import { ingestTemplate } from "./ingest-template";
+import { getPooledGoogleAuth, type GoogleAuthOptions } from "../lib/google-auth";
 
 const prisma = new PrismaClient();
 
@@ -53,7 +54,10 @@ class IngestionQueue {
 
     console.log(`[queue] Processing template ${templateId}...`);
     try {
-      await ingestTemplate(templateId);
+      const { accessToken, source } = await getPooledGoogleAuth();
+      console.log(`[queue] Processing template ${templateId} with ${source} auth`);
+      const authOptions: GoogleAuthOptions | undefined = accessToken ? { accessToken } : undefined;
+      await ingestTemplate(templateId, authOptions);
       console.log(`[queue] Completed template ${templateId}`);
     } catch (err) {
       console.error(`[queue] Ingestion failed for ${templateId}:`, err);
