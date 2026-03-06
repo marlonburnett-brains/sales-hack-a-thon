@@ -15,11 +15,11 @@
 
 ### Token Storage
 
-- [ ] **TOKS-01**: New `UserGoogleToken` Prisma model stores encrypted refresh tokens per Supabase user ID
-- [ ] **TOKS-02**: Refresh tokens are encrypted at rest using AES-256-GCM with a dedicated encryption key (`GOOGLE_TOKEN_ENCRYPTION_KEY`)
-- [ ] **TOKS-03**: Token encryption/decryption module uses Node.js built-in `crypto` (no new dependencies)
-- [ ] **TOKS-04**: Auth callback stores encrypted refresh token via agent API on successful login with consent
-- [ ] **TOKS-05**: Stored tokens track `lastUsedAt`, `isValid`, and `revokedAt` for pool health management
+- [x] **TOKS-01**: New `UserGoogleToken` Prisma model stores encrypted refresh tokens per Supabase user ID
+- [x] **TOKS-02**: Refresh tokens are encrypted at rest using AES-256-GCM with a dedicated encryption key (`GOOGLE_TOKEN_ENCRYPTION_KEY`)
+- [x] **TOKS-03**: Token encryption/decryption module uses Node.js built-in `crypto` (no new dependencies)
+- [x] **TOKS-04**: Auth callback stores encrypted refresh token via agent API on successful login with consent
+- [x] **TOKS-05**: Stored tokens track `lastUsedAt`, `isValid`, and `revokedAt` for pool health management
 
 ### User-Delegated API Clients
 
@@ -87,11 +87,11 @@
 | OAUTH-02 | Phase 22 | Pending |
 | OAUTH-03 | Phase 22 | Pending |
 | OAUTH-04 | Phase 22 | Pending |
-| TOKS-01 | Phase 22 | Pending |
-| TOKS-02 | Phase 22 | Pending |
-| TOKS-03 | Phase 22 | Pending |
-| TOKS-04 | Phase 22 | Pending |
-| TOKS-05 | Phase 22 | Pending |
+| TOKS-01 | Phase 22 | Complete |
+| TOKS-02 | Phase 22 | Complete |
+| TOKS-03 | Phase 22 | Complete |
+| TOKS-04 | Phase 22 | Complete |
+| TOKS-05 | Phase 22 | Complete |
 | GAPI-01 | Phase 23 | Pending |
 | GAPI-02 | Phase 23 | Pending |
 | GAPI-03 | Phase 23 | Pending |
