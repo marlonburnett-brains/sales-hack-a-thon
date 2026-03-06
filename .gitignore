@@ -31,11 +31,7 @@ apps/agent/.env
 # Encrypted secrets (committed — decrypt via `make pull env`)
 !*.enc
 
-# SQLite databases
-apps/agent/prisma/dev.db
-apps/agent/prisma/mastra.db
-apps/agent/prisma/prisma/dev.db
-apps/agent/prisma/prisma/mastra.db
+# Local database files (legacy SQLite, kept to avoid accidental commits)
 *.db
 *.db-shm
 *.db-wal

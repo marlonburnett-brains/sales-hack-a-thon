@@ -15,7 +15,7 @@ An AI-powered sales enablement platform that covers all four touch points in Lum
 │  │                   │        │                               │  │
 │  │  - Deal dashboard │        │  - Touch 1-4 workflows        │  │
 │  │  - Touch forms    │        │  - Pre-call workflow          │  │
-│  │  - HITL review UI │        │  - Prisma ORM (SQLite)        │  │
+│  │  - HITL review UI │        │  - Prisma ORM (PostgreSQL)    │  │
 │  │  - Timeline view  │        │  - Schema validation          │  │
 │  └──────────────────┘         └───────┬───────┬───────┬───────┘  │
 │                                       │       │       │          │
@@ -49,7 +49,7 @@ An AI-powered sales enablement platform that covers all four touch points in Lum
 | **AI orchestration** | Mastra 1.3 |
 | **LLM** | Gemini 2.5 Flash (`@google/genai`) |
 | **Knowledge base** | AtlusAI (MCP-connected semantic search) |
-| **Database** | SQLite via Prisma ORM |
+| **Database** | Supabase PostgreSQL via Prisma ORM |
 | **Document generation** | Google Slides API, Google Docs API, Google Drive API |
 | **Validation** | Zod v4, `@t3-oss/env-nextjs` / `@t3-oss/env-core` |
 | **Forms** | React Hook Form + `@hookform/resolvers` |
@@ -166,7 +166,7 @@ The list of managed secret files is defined in `secrets.yml`.
 
 | Variable | Required | Description |
 |---|---|---|
-| `DATABASE_URL` | Yes | SQLite file path (default: `file:./prisma/dev.db`) |
+| `DATABASE_URL` | Yes | Supabase PostgreSQL pooled connection string |
 | `GOOGLE_SERVICE_ACCOUNT_KEY` | Yes | Google service account credentials JSON string |
 | `GOOGLE_DRIVE_FOLDER_ID` | Yes | Google Drive folder ID for generated assets |
 | `GOOGLE_TEMPLATE_PRESENTATION_ID` | Yes | Lumenalta branded Google Slides template ID |
@@ -189,7 +189,7 @@ The list of managed secret files is defined in `secrets.yml`.
 pnpm --filter agent db:push
 ```
 
-This pushes the Prisma schema to the SQLite database. For subsequent schema changes:
+This pushes the Prisma schema to the PostgreSQL database. For subsequent schema changes:
 
 ```bash
 pnpm --filter agent db:generate   # Regenerate Prisma client

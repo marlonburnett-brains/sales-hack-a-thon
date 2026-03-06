@@ -137,7 +137,7 @@ model Transcript {
   id              String            @id @default(cuid())
   interactionId   String            @unique
   interaction     InteractionRecord @relation(fields: [interactionId], references: [id])
-  rawText         String            // Full transcript text (SQLite TEXT, no practical limit)
+  rawText         String            // Full transcript text
   additionalNotes String?           // Optional seller-provided meeting notes
   subsector       String            // Selected subsector from SUBSECTORS constant
   // Extracted/reviewed fields (post-seller-edit via field review step)
@@ -159,7 +159,7 @@ model Brief {
   interactionId    String            @unique
   interaction      InteractionRecord @relation(fields: [interactionId], references: [id])
   primaryPillar    String            // Primary Lumenalta solution pillar
-  secondaryPillars String            // JSON array of strings (SQLite has no array type)
+  secondaryPillars String            // JSON array of strings
   evidence         String            // Supporting evidence for pillar mapping
   customerContext  String            // Synthesized from all sources
   businessOutcomes String
