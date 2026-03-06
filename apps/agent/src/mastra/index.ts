@@ -14,6 +14,74 @@ import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { env } from "../env";
 
+// ────────────────────────────────────────────────────────────
+// Background Staleness Polling
+// ────────────────────────────────────────────────────────────
+
+const STALENESS_POLL_INTERVAL = 300_000; // 5 minutes
+const STALENESS_INITIAL_DELAY = 10_000; // 10 seconds after startup
+const DRIVE_API_DELAY = 200; // 200ms between Drive API calls
+
+function startStalenessPolling() {
+  if (!process.env.GOOGLE_CLOUD_PROJECT) {
+    console.log("[staleness] Skipping polling (GOOGLE_CLOUD_PROJECT not configured)");
+    return;
+  }
+
+  console.log("[staleness] Background polling started (interval: 5m)");
+
+  async function pollStaleTemplates() {
+    try {
+      // Only check idle, accessible, previously-ingested templates
+      const templates = await prisma.template.findMany({
+        where: {
+          accessStatus: "accessible",
+          ingestionStatus: "idle",
+          lastIngestedAt: { not: null },
+        },
+      });
+
+      const drive = getDriveClient();
+
+      for (const template of templates) {
+        try {
+          const fileRes = await drive.files.get({
+            fileId: template.presentationId,
+            fields: "modifiedTime",
+            supportsAllDrives: true,
+          });
+
+          const modifiedTime = fileRes.data.modifiedTime;
+          if (modifiedTime && template.lastIngestedAt) {
+            if (new Date(modifiedTime) > new Date(template.lastIngestedAt)) {
+              // Template is stale -- update sourceModifiedAt and enqueue re-ingestion
+              await prisma.template.update({
+                where: { id: template.id },
+                data: { sourceModifiedAt: new Date(modifiedTime) },
+              });
+              ingestionQueue.enqueue(template.id);
+              console.log(`[staleness] Template "${template.name}" is stale, enqueuing re-ingestion`);
+            }
+          }
+
+          // Rate limit between Drive API calls
+          await new Promise((resolve) => setTimeout(resolve, DRIVE_API_DELAY));
+        } catch (err) {
+          console.error(`[staleness] Error checking template "${template.name}":`, err);
+        }
+      }
+    } catch (err) {
+      console.error("[staleness] Polling cycle error:", err);
+    }
+  }
+
+  // First poll after initial delay, then every 5 minutes
+  setTimeout(() => {
+    void pollStaleTemplates();
+    setInterval(() => void pollStaleTemplates(), STALENESS_POLL_INTERVAL);
+  }, STALENESS_INITIAL_DELAY);
+}
+
 /**
  * Single-database architecture with schema isolation:
  *
@@ -1036,3 +1104,6 @@ export const mastra = new Mastra({
     ],
   },
 });
+
+// Start background staleness polling after Mastra is initialized
+startStalenessPolling();
