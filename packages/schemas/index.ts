@@ -15,6 +15,8 @@ export {
   TOUCH_TYPES,
   SUBSECTORS,
   SOLUTION_PILLARS,
+  ACTION_TYPES,
+  type ActionType,
 } from "./constants";
 
 // Helper

@@ -267,6 +267,29 @@ model UserGoogleToken {
 }
 
 // ────────────────────────────────────────────────────────────
+// Phase 27: Encrypted AtlusAI Token Storage (ATLS-01)
+// Stores AES-256-GCM encrypted per-user AtlusAI tokens.
+// Auth mechanism TBD — uses generic encryptedToken field.
+// ────────────────────────────────────────────────────────────
+
+model UserAtlusToken {
+  id             String    @id @default(cuid())
+  userId         String    @unique // Supabase Auth user ID
+  email          String // User email for logging/debugging
+  encryptedToken String // AES-256-GCM encrypted token
+  iv             String // Base64-encoded initialization vector
+  authTag        String // Base64-encoded GCM authentication tag
+  lastUsedAt     DateTime  @default(now())
+  isValid        Boolean   @default(true)
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([isValid, lastUsedAt])
+  @@index([email])
+}
+
+// ────────────────────────────────────────────────────────────
 // Phase 24: ActionRequired — tracks manual user actions needed
 // (e.g., re-auth, share with SA, drive access)
 // ────────────────────────────────────────────────────────────
@@ -281,6 +304,8 @@ model ActionRequired {
   resourceName String?   // Human-readable resource name
   resolved     Boolean   @default(false)
   resolvedAt   DateTime?
+  silenced     Boolean   @default(false)
+  seenAt       DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

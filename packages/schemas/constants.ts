@@ -185,3 +185,18 @@ export const SOLUTION_PILLARS = [
   "Tech Strategy & Advisory",
   "UX & UI Design",
 ] as const;
+
+/**
+ * ACTION_TYPES — Canonical action type identifiers
+ *
+ * Used by ActionRequired records across web and agent.
+ * Single source of truth for action type strings.
+ */
+export const ACTION_TYPES = {
+  REAUTH_NEEDED: 'reauth_needed',
+  SHARE_WITH_SA: 'share_with_sa',
+  DRIVE_ACCESS: 'drive_access',
+  ATLUS_ACCOUNT_REQUIRED: 'atlus_account_required',
+  ATLUS_PROJECT_REQUIRED: 'atlus_project_required',
+} as const;
+export type ActionType = (typeof ACTION_TYPES)[keyof typeof ACTION_TYPES];
