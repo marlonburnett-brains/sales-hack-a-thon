@@ -731,3 +731,36 @@ export async function checkGoogleToken(
 ): Promise<{ hasToken: boolean }> {
   return fetchJSON<{ hasToken: boolean }>(`/tokens/check/${userId}`);
 }
+
+// ────────────────────────────────────────────────────────────
+// Action Required (Phase 24 -- POOL-03/05)
+// ────────────────────────────────────────────────────────────
+
+export interface ActionRequiredItem {
+  id: string;
+  userId: string | null;
+  actionType: string;
+  title: string;
+  description: string;
+  resourceId: string | null;
+  resourceName: string | null;
+  resolved: boolean;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchActions(): Promise<ActionRequiredItem[]> {
+  return fetchJSON<ActionRequiredItem[]>("/actions");
+}
+
+export async function fetchActionCount(): Promise<number> {
+  const result = await fetchJSON<{ count: number }>("/actions/count");
+  return result.count;
+}
+
+export async function resolveAction(id: string): Promise<ActionRequiredItem> {
+  return fetchJSON<ActionRequiredItem>(`/actions/${id}/resolve`, {
+    method: "PATCH",
+  });
+}
