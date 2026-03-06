@@ -143,8 +143,8 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 24-01-PLAN.md — Token pool core, ActionRequired model, background job wiring, CRUD routes
-- [ ] 24-02-PLAN.md — Action Required web UI with sidebar badge and full-page listing
+- [x] 24-01-PLAN.md — Token pool core, ActionRequired model, background job wiring, CRUD routes
+- [x] 24-02-PLAN.md — Action Required web UI with sidebar badge and full-page listing
 
 ---
 
@@ -165,7 +165,11 @@ Plans:
 - Verification across all workflow and template files
 - No new code expected; fixes for any issues discovered
 
-**Estimated plans:** 1
+**Plans:** 2 plans
+
+Plans:
+- [ ] 25-01-PLAN.md — Vitest smoke tests for auth factories, request-auth priority chain, and token pool
+- [ ] 25-02-PLAN.md — Deploy checklist and project documentation updates for v1.3 shipped
 
 ## Progress
 
@@ -194,5 +198,5 @@ Plans:
 | 21. Preview & Review Engine | v1.2 | 3/3 | Complete | 2026-03-06 |
 | 22. OAuth Scope Expansion & Token Storage | v1.3 | 3/3 | Complete | 2026-03-06 |
 | 23. User-Delegated API Clients & Token Passthrough | v1.3 | 2/2 | Complete | 2026-03-06 |
-| 24. Token Pool & Refresh Lifecycle | 1/2 | Complete    | 2026-03-06 | -- |
-| 25. Integration Verification & Cutover | v1.3 | 0/1 | Pending | -- |
+| 24. Token Pool & Refresh Lifecycle | v1.3 | 2/2 | Complete | 2026-03-06 |
+| 25. Integration Verification & Cutover | v1.3 | 0/2 | Pending | -- |
