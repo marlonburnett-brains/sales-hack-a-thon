@@ -85,11 +85,13 @@ describe("getPooledAtlusAuth", () => {
     const { getPooledAtlusAuth } = await import("../atlus-auth");
     const result = await getPooledAtlusAuth();
 
-    expect(result).toEqual({
-      token: "decrypted-atlus-token",
-      source: "pool",
-      userId: "user-123",
-    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        token: "decrypted-atlus-token",
+        source: "pool",
+        userId: "user-123",
+      }),
+    );
 
     // Verify ordered by lastUsedAt desc
     expect(mockFindMany).toHaveBeenCalledWith({
@@ -125,11 +127,13 @@ describe("getPooledAtlusAuth", () => {
     );
 
     // Second token should succeed
-    expect(result).toEqual({
-      token: "good-token",
-      source: "pool",
-      userId: "user-456",
-    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        token: "good-token",
+        source: "pool",
+        userId: "user-456",
+      }),
+    );
   });
 
   it("Test 3: updates lastUsedAt on successful token usage (fire-and-forget)", async () => {

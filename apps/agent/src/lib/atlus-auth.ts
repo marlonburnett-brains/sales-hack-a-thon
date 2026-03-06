@@ -17,8 +17,32 @@ import { ACTION_TYPES } from "@lumenalta/schemas";
 
 export interface PooledAtlusAuthResult {
   token: string;
+  refreshToken?: string;
   source: "pool" | "env";
   userId?: string;
+}
+
+/**
+ * Parse a stored AtlusAI token value.
+ * OAuth tokens are stored as JSON: {"access_token":"...","refresh_token":"..."}
+ * Legacy/env tokens are plain strings.
+ */
+function parseStoredToken(raw: string): {
+  accessToken: string;
+  refreshToken?: string;
+} {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.access_token === "string") {
+      return {
+        accessToken: parsed.access_token,
+        refreshToken: parsed.refresh_token ?? undefined,
+      };
+    }
+  } catch {
+    // Not JSON — treat as plain token string (legacy or env fallback)
+  }
+  return { accessToken: raw };
 }
 
 /**
@@ -127,38 +151,36 @@ export async function resolveActionsByType(
 // 3-Tier AtlusAI Access Detection
 // ────────────────────────────────────────────────────────────
 
-// TODO(phase-28): Replace stub with actual MCP probe once auth mechanism is discovered
 const ATLUS_SSE_ENDPOINT = "https://knowledge-base-api.lumenalta.com/sse";
 const ATLUS_PROBE_TIMEOUT = 5_000; // 5 seconds
 
 /**
  * 3-tier AtlusAI access detection cascade.
  *
- * Tier 1: Auth probe -- can the Google token authenticate with AtlusAI?
+ * Tier 1: Auth probe -- can the token authenticate with AtlusAI SSE endpoint?
  * Tier 2: Project probe -- does the authenticated user have project access?
  * Tier 3: Full access -- store the token for pooled use.
  *
  * Each tier creates/resolves ActionRequired records as appropriate.
  * Resolving a lower tier automatically checks higher tiers (cascading).
  *
- * @param userId           - Supabase Auth user ID
- * @param email            - User email for action descriptions
- * @param googleAccessToken - Google OAuth access token to probe with
+ * @param userId      - Supabase Auth user ID
+ * @param email       - User email for action descriptions
+ * @param accessToken - AtlusAI OAuth access token (or Google token for legacy callers)
  * @returns The detected access level
  */
 export async function detectAtlusAccess(
   userId: string,
   email: string,
-  googleAccessToken: string,
+  accessToken: string,
 ): Promise<"full_access" | "no_account" | "no_project"> {
   // -- Tier 1: Auth probe --
-  // TODO(phase-28): Replace stub with actual MCP probe once auth mechanism is discovered
   let authOk = false;
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), ATLUS_PROBE_TIMEOUT);
     const res = await fetch(ATLUS_SSE_ENDPOINT, {
-      headers: { Authorization: "Bearer " + googleAccessToken },
+      headers: { Authorization: "Bearer " + accessToken },
       signal: controller.signal,
     });
     clearTimeout(timeout);
@@ -173,9 +195,7 @@ export async function detectAtlusAccess(
       userId,
       ACTION_TYPES.ATLUS_ACCOUNT_REQUIRED,
       "AtlusAI account required",
-      "Your Google account does not have access to AtlusAI. Contact your administrator to request an AtlusAI account for " +
-        email +
-        ".",
+      "Your account does not have access to AtlusAI. Click 'Connect to AtlusAI' to authenticate, or contact your administrator for access.",
     );
     return "no_account";
   }
@@ -184,7 +204,6 @@ export async function detectAtlusAccess(
   await resolveActionsByType(userId, ACTION_TYPES.ATLUS_ACCOUNT_REQUIRED);
 
   // -- Tier 2: Project probe --
-  // TODO(phase-28): Replace stub with actual project access check via MCP
   let projectOk = false;
   try {
     const atlusProjectId = process.env.ATLUS_PROJECT_ID;
@@ -192,13 +211,12 @@ export async function detectAtlusAccess(
       // No project configured -- skip project check, treat as ok
       projectOk = true;
     } else {
-      // Stub: attempt to query project tools endpoint
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), ATLUS_PROBE_TIMEOUT);
       const res = await fetch(
         `https://knowledge-base-api.lumenalta.com/projects/${atlusProjectId}/tools`,
         {
-          headers: { Authorization: "Bearer " + googleAccessToken },
+          headers: { Authorization: "Bearer " + accessToken },
           signal: controller.signal,
         },
       );
@@ -223,7 +241,7 @@ export async function detectAtlusAccess(
   await resolveActionsByType(userId, ACTION_TYPES.ATLUS_PROJECT_REQUIRED);
 
   // -- Tier 3: Full access --
-  await upsertAtlusToken(userId, email, googleAccessToken);
+  await upsertAtlusToken(userId, email, accessToken);
   return "full_access";
 }
 
@@ -253,6 +271,7 @@ export async function getPooledAtlusAuth(): Promise<PooledAtlusAuthResult | null
   for (const token of tokens) {
     try {
       const decrypted = decryptToken(token.encryptedToken, token.iv, token.authTag);
+      const { accessToken, refreshToken } = parseStoredToken(decrypted);
 
       // POOL-04: Update lastUsedAt on success (fire-and-forget)
       prisma.userAtlusToken
@@ -272,7 +291,7 @@ export async function getPooledAtlusAuth(): Promise<PooledAtlusAuthResult | null
         );
       }
 
-      return { token: decrypted, source: "pool", userId: token.userId };
+      return { token: accessToken, refreshToken, source: "pool", userId: token.userId };
     } catch {
       // POOL-03: Mark token invalid on failure (fire-and-forget)
       prisma.userAtlusToken
