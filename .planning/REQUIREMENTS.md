@@ -119,4 +119,4 @@
 
 ---
 *Requirements defined: 2026-03-06*
-*Last updated: 2026-03-06 after initial definition*
+*Last updated: 2026-03-06 -- v1.3 shipped, all 28 requirements complete*

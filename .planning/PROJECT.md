@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. Templates can be registered from Google Slides, AI-ingested with vector embeddings and multi-axis classification, previewed with human rating and tag correction, and searched by similarity. All outputs are saved to shared Lumenalta Drive. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
+A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. Templates can be registered from Google Slides, AI-ingested with vector embeddings and multi-axis classification, previewed with human rating and tag correction, and searched by similarity. All outputs are saved to shared Lumenalta Drive. Google API access uses user-delegated OAuth credentials (with service account fallback), providing org-wide file access through authenticated users' permissions. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
 
 ## Core Value
 
@@ -101,28 +101,28 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - ✓ Corrections update pgvector metadata immediately — v1.2
 - ✓ Cross-template vector similarity search with color-coded results — v1.2
 
-## Current Milestone: v1.3 Google API Auth — User-Delegated Credentials
+## Shipped Milestone: v1.3 Google API Auth — User-Delegated Credentials (shipped 2026-03-06)
 
 **Goal:** Replace service account with authenticated user credentials for all Google API access — both interactive requests and background jobs — so the agent inherits org-wide file access naturally.
 
-**Target features:**
+**Shipped features:**
 - OAuth scope expansion (Drive, Docs, Slides) with offline access for refresh tokens
-- Encrypted refresh token storage per user in database
+- Encrypted refresh token storage per user in database (AES-256-GCM)
 - User-delegated Google API client factories in google-auth.ts
-- Web→agent token passthrough for interactive requests
+- Web-to-agent token passthrough for interactive requests
 - Background job token pool with ordered fallback and health alerting
-- Service account demotion (config fallback, no longer primary auth path)
+- Service account remains as permanent fallback
 
-### Active
+### Completed
 
-- [ ] Add Drive, Docs, and Slides OAuth scopes to Supabase Google OAuth config
-- [ ] Request offline access to obtain refresh tokens during login
-- [ ] Store encrypted refresh tokens per user in database
-- [ ] Modify google-auth.ts client factories to accept user access tokens
-- [ ] Web→agent API contract passes user's Google token for interactive requests
-- [ ] Background job token pool with ordered fallback
-- [ ] Health alerting when token pool runs low
-- [ ] Service account remains as fallback configuration
+- [x] Add Drive, Docs, and Slides OAuth scopes to Supabase Google OAuth config
+- [x] Request offline access to obtain refresh tokens during login
+- [x] Store encrypted refresh tokens per user in database
+- [x] Modify google-auth.ts client factories to accept user access tokens
+- [x] Web-to-agent API contract passes user's Google token for interactive requests
+- [x] Background job token pool with ordered fallback
+- [x] Health alerting when token pool runs low
+- [x] Service account remains as fallback configuration
 
 ### Out of Scope
 
@@ -140,7 +140,7 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ## Context
 
-**Current state:** v1.2 shipped. ~28,472 LOC TypeScript/TSX. 21 phases, 43 plans across 4 days (2026-03-03 → 2026-03-06). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
+**Current state:** v1.3 shipped. ~28,472 LOC TypeScript/TSX. 25 phases, 52 plans across 4 days (2026-03-03 → 2026-03-06). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
 
 **Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI (RAG + knowledge base), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications).
 
@@ -193,6 +193,9 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | Gemini structured output for classification | 8-axis classification with confidence score via JSON schema enforcement | ✓ Good — consistent multi-value arrays across all slides |
 | Content hash for idempotent re-ingestion | SHA-256 of slide text determines identity; smart merge handles add/change/archive | ✓ Good — re-ingestion preserves unchanged slides, re-classifies changed ones |
 | Chip+dropdown hybrid for tag editing | shadcn Select only supports single-value; custom MultiTagField for multi-value categories | ✓ Good — intuitive UX for multi-value classification correction |
+| User-delegated Google credentials | Service account can't access all org files; user OAuth tokens inherit org permissions | ✓ Good — transparent fallback chain (user token -> pool -> service account) |
+| Vitest smoke tests for v1.3 verification | Mocked Google APIs verify auth path selection without real API calls | ✓ Good — permanent regression suite for auth priority chain |
+| DEPLOY.md as environment setup reference | Practical new-environment guide vs. scattered env var notes | ✓ Good — single source of truth for all deployment config |
 
 ---
-*Last updated: 2026-03-06 after v1.3 milestone started*
+*Last updated: 2026-03-06 -- v1.3 shipped*
