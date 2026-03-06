@@ -12,6 +12,7 @@ import { getOrCreateDealFolder, makePubliclyViewable } from "../lib/drive-folder
 import { getDriveClient, getSlidesClient } from "../lib/google-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
+import { encryptToken } from "../lib/token-encryption";
 import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
@@ -1243,6 +1244,71 @@ export const mastra = new Mastra({
             LIMIT ${limit}
           `;
           return c.json({ results: similar });
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Phase 22: Google Token Storage
+      // ────────────────────────────────────────────────────────────
+
+      registerApiRoute("/tokens", {
+        method: "POST",
+        handler: async (c) => {
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                userId: z.string().min(1),
+                email: z.string().email(),
+                refreshToken: z.string().min(1),
+              })
+              .parse(body);
+
+            const { encrypted, iv, authTag } = encryptToken(data.refreshToken);
+
+            const token = await prisma.userGoogleToken.upsert({
+              where: { userId: data.userId },
+              update: {
+                encryptedRefresh: encrypted,
+                iv,
+                authTag,
+                email: data.email,
+                isValid: true,
+                revokedAt: null,
+                lastUsedAt: new Date(),
+              },
+              create: {
+                userId: data.userId,
+                email: data.email,
+                encryptedRefresh: encrypted,
+                iv,
+                authTag,
+              },
+            });
+
+            return c.json({ success: true, tokenId: token.id });
+          } catch (err) {
+            if (err instanceof z.ZodError) {
+              return c.json({ error: "Invalid request body", details: err.errors }, 400);
+            }
+            console.error("[tokens] Failed to store token:", err);
+            return c.json(
+              { error: "Failed to store token" },
+              500
+            );
+          }
+        },
+      }),
+
+      registerApiRoute("/tokens/check/:userId", {
+        method: "GET",
+        handler: async (c) => {
+          const userId = c.req.param("userId");
+          const token = await prisma.userGoogleToken.findUnique({
+            where: { userId },
+            select: { isValid: true },
+          });
+          return c.json({ hasToken: !!token?.isValid });
         },
       }),
     ],
