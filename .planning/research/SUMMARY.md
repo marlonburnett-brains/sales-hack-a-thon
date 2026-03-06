@@ -1,167 +1,289 @@
-# Project Research Summary
+# Research Summary: v1.3 Google API Auth — User-Delegated Credentials
 
-**Project:** Lumenalta v1.2 -- Templates & Slide Intelligence
-**Domain:** Agentic sales platform -- template management, AI slide classification, HITL rating, CI/CD automation
-**Researched:** 2026-03-05
+**Project:** Lumenalta Agentic Sales Orchestration
+**Milestone:** v1.3
+**Researched:** 2026-03-06
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The v1.2 milestone transforms the Lumenalta sales platform from a deal-focused tool into an intelligent content management system. It adds six capabilities on top of the shipped v1.0/v1.1 foundation: CI/CD automation via GitHub Actions, a templates management UI with side panel navigation, an AI-powered slide ingestion pipeline that extracts, embeds, and classifies Google Slides content into pgvector, access awareness for Drive file sharing, and a human-in-the-loop rating engine that improves classifications in real time. The existing stack (Next.js 15, Mastra AI, Vertex AI, Prisma 6.19, Supabase PostgreSQL, shadcn/ui) handles nearly everything -- the only new npm dependency is `pgvector` for vector serialization.
+The v1.3 milestone replaces the Google service account with user-delegated credentials for all Google API access. The current architecture uses a service account key (`GOOGLE_SERVICE_ACCOUNT_KEY`) in `apps/agent/src/lib/google-auth.ts` to create Drive, Slides, and Docs clients. This works for files directly shared with the service account but fails for org-wide shared files accessible to any @lumenalta.com user (the majority of content templates).
 
-The recommended approach is to build in four dependency-driven phases: (1) CI/CD pipeline and database schema first, because automated deploys accelerate every subsequent feature and the schema must exist before any data flows; (2) templates CRUD with navigation and access awareness, creating the user-facing surface; (3) the slide ingestion workflow with embeddings and classification, which is the core intelligence; (4) the preview and rating engine that closes the human feedback loop. This ordering follows the strict dependency chain -- each phase produces what the next phase consumes.
+The solution: capture Google OAuth tokens during Supabase login, store encrypted refresh tokens per user, and use those tokens for Google API calls. Interactive requests use the logged-in user's token passed through the web->agent API. Background jobs draw from a pool of stored refresh tokens with ordered fallback.
 
-The top risks are: Prisma's lack of native pgvector support (requiring all vector operations via raw SQL in a dedicated repository layer), Google Slides API rate limits (60 requests/minute/user, demanding careful batching during ingestion), CI/CD migration safety (production migrations must run in isolated GitHub Actions jobs with concurrency guards), and the feedback loop trap (collecting ratings without actually using them to improve classifications). All are well-understood problems with documented prevention strategies.
+## Current Architecture (What Exists)
 
-## Key Findings
+### Google API Auth (agent)
+- `apps/agent/src/lib/google-auth.ts` — single file, 4 exports:
+  - `getGoogleAuth()` — creates `GoogleAuth` from `GOOGLE_SERVICE_ACCOUNT_KEY` env var
+  - `getSlidesClient()`, `getDriveClient()`, `getDocsClient()` — create API clients with service account auth
+  - `verifyGoogleAuth()` — lightweight auth verification
+- Scopes: `presentations`, `drive`, `documents`
+- Used by 14+ files across the agent (workflows, ingestion, lib modules)
 
-### Recommended Stack
+### User Auth (web)
+- Supabase Auth with Google OAuth provider (`signInWithOAuth({ provider: "google" })`)
+- Login page: `apps/web/src/app/login/page.tsx` — no extra scopes requested, no offline access
+- Auth callback: `apps/web/src/app/auth/callback/route.ts` — exchanges code for session, enforces @lumenalta.com domain
+- Middleware: `apps/web/src/middleware.ts` — refreshes auth token, redirects unauthenticated users
 
-The v1.2 milestone requires remarkably few additions to the existing stack. The only new npm dependency is `pgvector` (^0.2.0) for vector serialization in Prisma raw queries. Everything else -- embedding generation, slide extraction, classification, authentication -- reuses existing installed packages.
+### Web->Agent Communication
+- `apps/web/src/lib/api-client.ts` — all requests use `Authorization: Bearer ${env.AGENT_API_KEY}` (service-to-service)
+- No user identity or Google token is passed to the agent
 
-**Core technologies:**
-- **pgvector (Supabase extension):** Vector similarity search on slide embeddings -- Supabase includes it out of the box, enable with one SQL statement in a Prisma migration
-- **`pgvector` npm (^0.2.0):** Serialize/deserialize vectors for Prisma `$queryRaw` / `$executeRaw` -- the only new dependency for the entire milestone
-- **Vertex AI `text-embedding-005` (768 dimensions):** Generate slide embeddings via the existing `@google/genai` package -- same auth, same platform, zero new dependencies
-- **GitHub Actions:** CI/CD orchestration with 3 workflows (ci.yml, deploy-web.yml, deploy-agent.yml) using Vercel CLI and Railway CLI
+### Key Gaps
+1. **No Google scopes on user login** — Supabase OAuth login doesn't request Drive/Slides/Docs scopes
+2. **No offline access** — no refresh tokens captured or stored
+3. **No token passthrough** — web doesn't send user's Google token to agent
+4. **No token storage** — no database model for encrypted refresh tokens
+5. **No token pool** — no mechanism for background jobs to use stored user tokens
 
-**Critical version constraint:** Stay on Prisma 6.19.x. Prisma 7.x has a known regression where migrations fail with `Unsupported("vector")` columns (prisma/prisma#28867).
+## Approach
 
-### Expected Features
+### Phase 1: Supabase OAuth Scope Expansion + Token Capture
 
-**Must have (table stakes -- 10 features for v1.2 launch):**
-- CI/CD pipeline -- eliminates manual deploy bottleneck (224 commits in 3 days)
-- Side panel navigation -- structural prerequisite for templates section
-- Templates CRUD page -- register Google Slides decks with touch type assignment
-- Access awareness -- immediate feedback when files are not shared with service account
-- pgvector setup -- database extension and schema for embeddings
-- Slide ingestion agent -- extract, embed, classify slides into vector store
-- Slide thumbnail preview -- visual grid of ingested slides
-- Classification display -- AI-assigned tags on each slide card
-- Human rating (thumbs up/down + tag correction) -- basic feedback loop
-- Real-time classification improvement -- corrections update pgvector immediately
+**Supabase OAuth scopes** are configured in the Supabase Dashboard (Authentication > Providers > Google), NOT in client code. The `signInWithOAuth` call in the login page can pass `scopes` in options to request additional Google OAuth scopes at login time:
 
-**Should have (add in v1.2.x after validation):**
-- Confidence scores on classification tags -- helps prioritize reviews
-- Template version tracking (staleness detection) -- flags modified source decks
-- Batch ingestion progress tracking -- transparency for large decks
-- Slide similarity search -- find cross-deck duplicates via pgvector cosine similarity
+```typescript
+await supabase.auth.signInWithOAuth({
+  provider: "google",
+  options: {
+    scopes: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/presentations.readonly https://www.googleapis.com/auth/documents.readonly",
+    queryParams: {
+      access_type: "offline",
+      prompt: "consent",  // Force consent screen to get refresh token
+      hd: "lumenalta.com",
+    },
+    redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+  },
+});
+```
 
-**Defer (v2+):**
-- Cross-template deduplication, classification analytics dashboard, Drive webhook auto-re-ingestion, full-text slide content search
-- Drag-and-drop slide reordering, in-browser slide editing, automated nightly re-classification, multi-tenant template libraries (all identified as anti-features)
+**Token capture**: After `exchangeCodeForSession`, Supabase stores the provider token in the session. Access it via:
+```typescript
+const { data: { session } } = await supabase.auth.getSession();
+const providerToken = session?.provider_token;      // Google access token
+const providerRefreshToken = session?.provider_refresh_token;  // Google refresh token (only on first consent)
+```
 
-### Architecture Approach
+**Critical**: `provider_refresh_token` is only returned on the FIRST consent or when `prompt: "consent"` forces re-consent. Store it immediately in the auth callback.
 
-The architecture extends the existing web-agent-database pattern without changing any foundational boundaries. The web app (Next.js on Vercel) gets new `/templates` routes and a side panel layout. The agent (Mastra Hono on Railway) gets template CRUD API routes, a slide ingestion Mastra workflow, and rating endpoints. The database (Supabase PostgreSQL) gets three new Prisma models (Template, TemplateSlide, SlideRating) plus a raw SQL `slide_embeddings` table with pgvector. The critical invariant -- web has zero direct database access, all data flows through the agent API -- remains unchanged.
+### Phase 2: Encrypted Refresh Token Storage
 
-**Major components:**
-1. **Template model + CRUD routes** -- user-managed Google Slides references with touch assignment, extending the existing `ContentSource` pattern
-2. **Slide ingestion workflow** -- Mastra workflow (extract slides, classify via LLM structured output, embed via Vertex AI, store in pgvector) following the same pattern as touch-1 through touch-4 workflows
-3. **Vector store module (`vector-store.ts`)** -- typed wrapper around raw SQL pgvector operations (insert, cosine similarity search), isolating all non-ORM queries
-4. **Embeddings module (`embeddings.ts`)** -- Vertex AI text-embedding-005 integration via existing `@google/genai`
-5. **Preview and rating engine** -- slide thumbnail grid with classification tags and thumbs up/down feedback that updates pgvector metadata in real time
-6. **CI/CD pipeline** -- GitHub Actions workflows for lint, migrate, deploy web (Vercel), deploy agent (Railway)
+New Prisma model:
+```prisma
+model UserGoogleToken {
+  id               String    @id @default(cuid())
+  userId           String    @unique  // Supabase Auth user ID
+  email            String    // User email for pool selection
+  encryptedRefresh String    // AES-256-GCM encrypted refresh token
+  iv               String    // Initialization vector for decryption
+  authTag          String    // GCM auth tag
+  lastUsedAt       DateTime  @default(now())
+  isValid          Boolean   @default(true)
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-### Critical Pitfalls
+  @@index([isValid, lastUsedAt])
+  @@index([email])
+}
+```
 
-1. **Prisma has no native pgvector support** -- all vector operations must use `$queryRaw` / `$executeRaw` wrapped in a typed repository layer. Never attempt Prisma client methods on vector columns. Use `--create-only` for vector migrations and manually add `CREATE EXTENSION IF NOT EXISTS vector`.
+**Encryption**: Use Node.js built-in `crypto` module with AES-256-GCM. Key derived from a new `GOOGLE_TOKEN_ENCRYPTION_KEY` env var (32-byte hex string). No new dependencies needed.
 
-2. **Google Slides API 60 req/min rate limit** -- a 30-slide deck needs 31+ API calls. Use `presentations.get` to fetch ALL slide data in one call. Batch thumbnails with delays. Implement exponential backoff on 429 responses. Make ingestion idempotent for resume-after-failure.
+```typescript
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
-3. **CI/CD migration race conditions** -- use `prisma migrate deploy` (not `migrate dev`) in CI. Run migrations in a dedicated job with a concurrency group before deploying either app. Never run migrations from Vercel build steps or Docker entrypoints.
+const ALGO = 'aes-256-gcm';
+const KEY = Buffer.from(env.GOOGLE_TOKEN_ENCRYPTION_KEY, 'hex'); // 32 bytes
 
-4. **Vercel git integration conflicts with GitHub Actions** -- disable Vercel's automatic GitHub integration before adding GitHub Actions deploy workflows. Otherwise, both trigger simultaneously, creating duplicate deployments.
+export function encryptToken(plaintext: string): { encrypted: string; iv: string; authTag: string } {
+  const iv = randomBytes(16);
+  const cipher = createCipheriv(ALGO, KEY, iv);
+  let encrypted = cipher.update(plaintext, 'utf8', 'base64');
+  encrypted += cipher.final('base64');
+  return { encrypted, iv: iv.toString('base64'), authTag: cipher.getAuthTag().toString('base64') };
+}
 
-5. **HITL feedback stored but never consumed** -- the rating UI and the feedback consumption mechanism must ship in the same phase. Design the consumption path (few-shot example retrieval from verified classifications) before building the storage. Track "% accepted without changes" as the improvement metric.
+export function decryptToken(encrypted: string, iv: string, authTag: string): string {
+  const decipher = createDecipheriv(ALGO, KEY, Buffer.from(iv, 'base64'));
+  decipher.setAuthTag(Buffer.from(authTag, 'base64'));
+  let decrypted = decipher.update(encrypted, 'base64', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+```
 
-## Implications for Roadmap
+### Phase 3: User-Delegated Google API Clients
 
-Based on research, suggested phase structure:
+Modify `google-auth.ts` to support both service account and user token auth:
 
-### Phase 1: Foundation (CI/CD + Database Schema)
-**Rationale:** CI/CD has zero feature dependencies and accelerates deployment of everything that follows. Database schema (Template, TemplateSlide, SlideRating models + pgvector extension + slide_embeddings table) must exist before any feature can write data.
-**Delivers:** Automated lint/deploy pipeline on push to main; complete database schema for all v1.2 features
-**Addresses:** CI/CD pipeline, pgvector setup
-**Avoids:** Migration race conditions (concurrency groups), Vercel double-deploy (disable git integration), shadow database extension conflicts (use `migrate deploy` in CI)
-**Stack:** GitHub Actions, Vercel CLI, Railway CLI, Prisma migrations with `--create-only` for vector columns
+```typescript
+import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
 
-### Phase 2: Template Management (CRUD + Navigation + Access Awareness)
-**Rationale:** The user-facing surface must exist before the ingestion pipeline has anything to process. Templates CRUD, side panel navigation, and access awareness are tightly coupled -- they form a single coherent user experience.
-**Delivers:** Users can register Google Slides templates, assign touch types, see access status, navigate between Deals and Templates sections
-**Addresses:** Templates CRUD page, side panel navigation, access awareness, touch type assignment
-**Avoids:** Side panel breaking existing deal pages (test all existing routes with sidebar present), stale access status (re-check on every ingestion attempt, show `lastCheckedAt`)
-**Uses:** Existing `ContentSource` patterns (borrowed, not extended -- create dedicated `Template` model), shadcn/ui sidebar, Google Drive API `files.get`
+// Existing: service account (now fallback)
+function getServiceAccountAuth() { /* existing code */ }
 
-### Phase 3: Slide Intelligence (Ingestion + Embeddings + Classification)
-**Rationale:** This is the core differentiator and the most complex phase. It depends on Phase 1 (schema) and Phase 2 (template records to process). Should be a single phase because the ingestion pipeline is one continuous flow: extract, embed, classify, store.
-**Delivers:** AI-powered slide ingestion that transforms Google Slides into classified, searchable vector embeddings
-**Addresses:** Slide ingestion agent, slide thumbnail preview, classification display
-**Avoids:** Embedding dimension mismatch (lock on text-embedding-005 at 768 dims, document in migration SQL), Google API rate limits (batch with delays, idempotent processing), raw SQL scattered across codebase (isolate in `vector-store.ts`)
-**Uses:** `pgvector` npm, Vertex AI text-embedding-005, Mastra workflow, Google Slides API `presentations.get` + `getThumbnail`
+// New: user-delegated auth from access token
+function getUserAuth(accessToken: string): OAuth2Client {
+  const oauth2Client = new OAuth2Client();
+  oauth2Client.setCredentials({ access_token: accessToken });
+  return oauth2Client;
+}
 
-### Phase 4: Human Review (Rating + Classification Improvement)
-**Rationale:** The feedback loop requires both visual preview (Phase 3) and classification display (Phase 3) to provide meaningful context for ratings. Must ship feedback collection AND consumption together to avoid the open feedback loop trap.
-**Delivers:** Human-in-the-loop classification review with real-time improvement -- corrections update pgvector metadata immediately and feed into future classifications as few-shot examples
-**Addresses:** Human rating (thumbs up/down + tag correction), real-time classification improvement
-**Avoids:** Feedback stored but never consumed (ship few-shot retriever in same phase), review fatigue (show low-confidence classifications first, auto-accept high-confidence ones)
-**Uses:** SlideRating model, existing FeedbackSignal pattern, pgvector metadata updates
+// New: user-delegated auth from refresh token
+async function getRefreshTokenAuth(refreshToken: string): Promise<OAuth2Client> {
+  const oauth2Client = new OAuth2Client(
+    env.GOOGLE_CLIENT_ID,
+    env.GOOGLE_CLIENT_SECRET,
+  );
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  // Force token refresh to get fresh access token
+  await oauth2Client.getAccessToken();
+  return oauth2Client;
+}
 
-### Phase Ordering Rationale
+// Updated exports: accept optional user token
+export function getSlidesClient(accessToken?: string) {
+  const auth = accessToken ? getUserAuth(accessToken) : getServiceAccountAuth();
+  return google.slides({ version: 'v1', auth });
+}
+// Same pattern for getDriveClient, getDocsClient
+```
 
-- **Strict dependency chain:** Each phase produces what the next consumes. CI/CD and schema enable everything. Templates create the input data. Ingestion processes that data. Rating validates the output.
-- **Risk front-loading:** The hardest integration (Prisma + pgvector + Supabase extensions) is in Phase 1 schema work, surfacing problems before feature code depends on it.
-- **CI/CD first pays compound dividends:** Every feature in Phases 2-4 benefits from automated deployment. At 224 commits in 3 days, manual deploys are already a bottleneck.
-- **Feedback loop closure in Phase 4:** Combining rating collection with consumption prevents the most common HITL pitfall (storing feedback that never improves anything).
+**google-auth-library**: The `OAuth2Client` class is included in the `googleapis` package (transitive dependency via `google-auth-library`). No new installation needed.
 
-### Research Flags
+**Google Client ID/Secret**: Already configured in Supabase Dashboard for OAuth. Need to add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` env vars to the agent service for refresh token exchanges.
 
-Phases likely needing deeper research during planning:
-- **Phase 1 (CI/CD):** Supabase shadow database + pgvector extension interaction needs careful migration testing. The `CREATE EXTENSION IF NOT EXISTS vector SCHEMA public` pattern must be validated against the specific Supabase project configuration.
-- **Phase 3 (Slide Intelligence):** Most complex phase. The ingestion workflow combines Google Slides API, Vertex AI embeddings, LLM classification, and pgvector storage in a single pipeline. Rate limiting strategy and idempotent processing design need detailed phase-level research.
+### Phase 4: Web->Agent Token Passthrough
 
-Phases with standard patterns (skip research-phase):
-- **Phase 2 (Template Management):** Standard CRUD with existing patterns. Side panel navigation is well-documented in shadcn/ui. Access awareness reuses existing `ContentSource.accessStatus` approach.
-- **Phase 4 (Human Review):** Follows the existing FeedbackSignal approve/override pattern from Touch 1. The rating UI is a straightforward form. Few-shot example retrieval is a well-documented LLM prompting technique.
+Modify `api-client.ts` to include the user's Google access token:
 
-## Confidence Assessment
+```typescript
+async function fetchJSON<T>(path: string, init?: RequestInit, googleToken?: string): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${env.AGENT_API_KEY}`,
+  };
+  if (googleToken) {
+    headers["X-Google-Access-Token"] = googleToken;
+  }
+  // ... rest unchanged
+}
+```
 
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Stack | HIGH | Only one new dependency (`pgvector` npm). All other technologies already in use. Version constraints verified against official issue trackers. |
-| Features | HIGH | Feature set derived from direct codebase analysis. Dependency graph is clear. Anti-features well-identified. |
-| Architecture | HIGH | Extends existing patterns (Mastra workflows, API routes, Prisma models) without architectural changes. One discrepancy resolved: ARCHITECTURE.md references 1536-dim vectors but STACK.md correctly recommends 768-dim via `text-embedding-005`. Use 768. |
-| Pitfalls | HIGH | All pitfalls verified against official docs and GitHub issues. Prevention strategies are specific and actionable. |
+The web app retrieves the Google token from the Supabase session:
+```typescript
+const { data: { session } } = await supabase.auth.getSession();
+const googleToken = session?.provider_token;
+```
 
-**Overall confidence:** HIGH
+Agent routes extract from the header and pass to Google API client factories.
 
-### Gaps to Address
+### Phase 5: Background Job Token Pool
 
-- **Embedding dimension discrepancy:** ARCHITECTURE.md references `vector(1536)` in schema examples and scaling notes, while STACK.md recommends `text-embedding-005` at 768 dimensions. Resolution: use 768 dimensions. Update all schema references during implementation.
-- **IVFFlat vs HNSW index choice:** STACK.md recommends IVFFlat (lower memory, faster build at small scale), while ARCHITECTURE.md recommends HNSW (better recall, no training step). Resolution: start with IVFFlat for the initial dataset (hundreds of slides). Add the index in a later migration after data exists, making it easy to switch to HNSW if needed.
-- **Template model vs ContentSource reuse:** ARCHITECTURE.md recommends a dedicated `Template` model, while FEATURES.md notes that `ContentSource` already has most needed fields. Resolution: create a dedicated `Template` model as ARCHITECTURE.md recommends. The concerns are different enough (user-managed CRUD with slide relations vs. offline batch discovery) to warrant separation.
-- **Thumbnail caching strategy:** Not resolved. Google Slides thumbnail URLs expire after 30 minutes. Options: re-fetch on page load (simple, more API calls) or download and store in Supabase Storage (complex, fewer API calls). Decide during Phase 3 implementation based on actual usage patterns.
-- **Prisma migration ordering:** The pgvector extension must be enabled before the `slide_embeddings` table can be created, and the Template/TemplateSlide models must exist before `slide_embeddings` can reference them. This means at least 2-3 sequential migrations in Phase 1. Plan the migration order explicitly.
+For background jobs (staleness polling, scheduled re-ingestion):
 
-## Sources
+```typescript
+async function getPooledGoogleAuth(): Promise<OAuth2Client> {
+  // Get the most recently active valid token
+  const tokens = await prisma.userGoogleToken.findMany({
+    where: { isValid: true },
+    orderBy: { lastUsedAt: 'desc' },
+    take: 5, // Try up to 5 tokens
+  });
 
-### Primary (HIGH confidence)
-- [Supabase pgvector docs](https://supabase.com/docs/guides/database/extensions/pgvector) -- extension setup, vector columns, similarity search
-- [Prisma pgvector issues #18442, #26546](https://github.com/prisma/prisma/issues/18442) -- `Unsupported` type workaround, raw SQL pattern
-- [Prisma 7.x vector regression #28867](https://github.com/prisma/prisma/issues/28867) -- stay on 6.19.x
-- [pgvector-node GitHub](https://github.com/pgvector/pgvector-node) -- `toSql()` / `fromSql()` with Prisma examples
-- [Google Slides API getThumbnail](https://developers.google.com/slides/api/reference/rest/v1/presentations.pages/getThumbnail) -- thumbnail extraction, 30-min TTL
-- [Google Slides API usage limits](https://developers.google.com/workspace/slides/api/limits) -- 60 requests/minute/user
-- [Vertex AI text embeddings docs](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings) -- text-embedding-005, 768 dimensions
-- [Vercel GitHub Actions guide](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel) -- CLI deploy pattern
-- [Railway CLI deploying docs](https://docs.railway.com/cli/deploying) -- CLI flags for CI/CD
-- Codebase analysis: `apps/agent/prisma/schema.prisma`, `apps/web/src/app/(authenticated)/layout.tsx`, `turbo.json`, `apps/agent/src/mastra/index.ts`
+  for (const token of tokens) {
+    try {
+      const refreshToken = decryptToken(token.encryptedRefresh, token.iv, token.authTag);
+      const auth = await getRefreshTokenAuth(refreshToken);
+      // Update lastUsedAt on success
+      await prisma.userGoogleToken.update({
+        where: { id: token.id },
+        data: { lastUsedAt: new Date() },
+      });
+      return auth;
+    } catch (error) {
+      // Mark token as invalid if refresh fails
+      await prisma.userGoogleToken.update({
+        where: { id: token.id },
+        data: { isValid: false, revokedAt: new Date() },
+      });
+    }
+  }
+  throw new Error('No valid Google tokens in pool');
+}
+```
 
-### Secondary (MEDIUM confidence)
-- [Railway GitHub Actions blog](https://blog.railway.com/p/github-actions) -- project tokens, CI deploy
-- [Prisma shadow database extension conflicts #26231](https://github.com/prisma/prisma/issues/26231) -- shadow DB + extensions schema
-- [HITL AI design patterns 2025](https://blog.ideafloats.com/human-in-the-loop-ai-in-2025/) -- review queue UX, feedback types
+**Health alerting**: Log warning when pool drops below 2 valid tokens. Could surface in a future admin UI.
+
+## Key Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| AES-256-GCM via Node `crypto` | Built-in, no new dependencies. GCM provides authenticated encryption. |
+| Refresh tokens over access tokens for storage | Access tokens expire in ~1 hour. Refresh tokens last until revoked. |
+| `X-Google-Access-Token` header for passthrough | Keeps service-to-service auth (`Authorization: Bearer`) separate from user Google token. |
+| Read-only scopes (`drive.readonly`, `presentations.readonly`, `documents.readonly`) | The system reads templates and content; writes go to service account's shared Drive. Start narrow, expand if needed. |
+| `prompt: "consent"` on login | Forces Google consent screen every login to ensure refresh token is returned. Without this, refresh token is only returned on first-ever consent. |
+| Pool with ordered fallback | Simple, predictable. Most recently active user's token is most likely valid. |
+
+## Pitfalls
+
+### 1. Supabase Doesn't Persist Provider Tokens Across Sessions
+Supabase only includes `provider_token` in the session immediately after OAuth login. On subsequent `getSession()` calls, the provider token may not be present if the session was refreshed via Supabase's own refresh mechanism (which refreshes the Supabase JWT, not the Google token).
+
+**Mitigation**: Capture and store the refresh token in the auth callback (one-time). For interactive requests, if `provider_token` is not in the session, use the stored refresh token to get a fresh access token.
+
+### 2. Refresh Token Rotation
+Google may rotate refresh tokens. When a new refresh token is issued during a token refresh, the old one is invalidated. The token pool must handle this by updating the stored token when a new one is received.
+
+**Mitigation**: After every successful token refresh, check if a new refresh token was issued and update the database.
+
+### 3. Scope Consent Changes Require Re-login
+Adding new OAuth scopes means existing users must re-login and re-consent. Existing sessions won't have the new scopes.
+
+**Mitigation**: On first deployment, all users will need to log out and log back in. The auth callback should handle gracefully when no refresh token is present (new scopes not yet consented).
+
+### 4. Google Client ID/Secret for Agent Service
+The agent needs `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to exchange refresh tokens for access tokens. These are the same values configured in Supabase but must be added as env vars to the Railway agent service.
+
+### 5. Write Access Scopes
+Using `drive.readonly` means the system can't write to user's Drive. If deck generation needs to write to user-accessible folders (not just the service account's shared Drive), scopes need to be `drive` (full) or `drive.file`.
+
+**Current assessment**: All writes currently go to the service account's shared Lumenalta Drive. Read-only scopes for user tokens should suffice for accessing org-shared templates.
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `apps/web/src/app/login/page.tsx` | Add Google OAuth scopes + offline access to `signInWithOAuth` |
+| `apps/web/src/app/auth/callback/route.ts` | Capture provider_refresh_token, store encrypted in DB via agent API |
+| `apps/web/src/lib/api-client.ts` | Add `X-Google-Access-Token` header support |
+| `apps/web/src/lib/supabase/server.ts` | Helper to extract provider_token from session |
+| `apps/agent/src/lib/google-auth.ts` | Add user-delegated auth + token pool + refresh token auth |
+| `apps/agent/src/lib/token-encryption.ts` | New: AES-256-GCM encrypt/decrypt |
+| `apps/agent/prisma/schema.prisma` | New: `UserGoogleToken` model |
+| `apps/agent/src/mastra/index.ts` | New: token storage API routes, modify existing routes to accept Google token |
+| All agent files using `getSlidesClient()`/`getDriveClient()`/`getDocsClient()` | Pass optional `accessToken` parameter |
+| Server Actions that call agent API | Pass Google token from session |
+
+## New Environment Variables
+
+| Variable | Service | Purpose |
+|----------|---------|---------|
+| `GOOGLE_TOKEN_ENCRYPTION_KEY` | agent | 32-byte hex key for AES-256-GCM token encryption |
+| `GOOGLE_CLIENT_ID` | agent | Google OAuth client ID (same as Supabase config) for refresh token exchange |
+| `GOOGLE_CLIENT_SECRET` | agent | Google OAuth client secret for refresh token exchange |
+
+## Dependencies
+
+**No new npm dependencies required.** Everything needed is already installed:
+- `googleapis` — includes `google-auth-library` with `OAuth2Client`
+- `crypto` — Node.js built-in for AES-256-GCM encryption
 
 ---
-*Research completed: 2026-03-05*
-*Ready for roadmap: yes*
+*Research completed: 2026-03-06*
+*Ready for requirements: yes*

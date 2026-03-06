@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Google API Auth — User-Delegated Credentials
-status: defining_requirements
-stopped_at: Defining requirements
-last_updated: "2026-03-06T20:00:00Z"
-last_activity: 2026-03-06 -- Milestone v1.3 started
+status: ready
+stopped_at: Roadmap defined, ready for Phase 22
+last_updated: "2026-03-06T21:00:00Z"
+last_activity: 2026-03-06 -- Requirements and roadmap defined for v1.3
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
-  total_plans: 0
+  total_plans: 7
   completed_plans: 0
   percent: 0
 ---
@@ -25,10 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-06 — Milestone v1.3 started
+Phase: 22 (OAuth Scope Expansion & Token Storage)
+Plan: Not started
+Status: Ready for `/gsd:plan-phase 22`
+Last activity: 2026-03-06 — Requirements and roadmap defined
+
+Progress: [----------] 0%
 
 ## Performance Metrics
 
@@ -51,9 +53,11 @@ None.
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
 - Embedding dimension: Use 768 (text-embedding-005), not 1536 as some docs reference
+- New env vars needed: GOOGLE_TOKEN_ENCRYPTION_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET on agent
+- Supabase Dashboard: Google OAuth scopes may need configuration in provider settings
 
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Defining requirements for v1.3
-Next action: Define requirements and create roadmap
+Stopped at: Roadmap defined for v1.3
+Next action: /gsd:plan-phase 22
