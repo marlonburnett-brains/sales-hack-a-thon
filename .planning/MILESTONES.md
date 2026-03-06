@@ -1,5 +1,27 @@
 # Milestones
 
+## v1.2 Templates & Slide Intelligence (Shipped: 2026-03-06)
+
+**Phases:** 4 | **Plans:** 10 | **Commits:** 37 | **Files changed:** 201 | **LOC:** ~28,472 TypeScript/TSX (total)
+**Timeline:** 2 days (2026-03-05 → 2026-03-06)
+**Git range:** `62e84c7..6b273f8`
+
+**Key accomplishments:**
+- Added CI/CD pipeline (CircleCI) with automated lint, build, migrate, and deploy to Vercel + Railway on every push to main
+- Enabled pgvector in Supabase with SlideEmbedding table and HNSW cosine index for vector similarity search
+- Built collapsible sidebar navigation with Deals, Templates, and Slide Library sections plus mobile hamburger drawer
+- Created full template management CRUD with Google Slides URL validation, Drive access awareness, touch type assignment, and staleness detection
+- Built AI-powered slide ingestion pipeline: Google Slides extraction, Vertex AI embedding (768-dim), Gemini classification (8 axes + confidence), smart merge for re-ingestion
+- Shipped preview and review engine: per-template slide viewer with keyboard navigation, classification display, thumbs-up/down rating, inline tag correction, and cross-template similarity search
+
+**Tech debt (accepted):**
+- CI/CD requirement text references "GitHub Actions" but implementation uses CircleCI (functionally equivalent)
+- SUMMARY.md frontmatter `requirements_completed` not populated by executors (tooling gap)
+
+**Archives:** [v1.2-ROADMAP.md](milestones/v1.2-ROADMAP.md) | [v1.2-REQUIREMENTS.md](milestones/v1.2-REQUIREMENTS.md) | [v1.2-MILESTONE-AUDIT.md](milestones/v1.2-MILESTONE-AUDIT.md)
+
+---
+
 ## v1.1 Infrastructure & Access Control (Shipped: 2026-03-05)
 
 **Phases:** 4 | **Plans:** 6 | **Commits:** 55 | **Files changed:** 59 | **LOC:** ~20,665 TypeScript/TSX (total)

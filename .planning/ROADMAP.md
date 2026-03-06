@@ -4,7 +4,7 @@
 
 - v1.0 **Agentic Sales MVP** -- Phases 1-13 (shipped 2026-03-05) -- [Archive](milestones/v1.0-ROADMAP.md)
 - v1.1 **Infrastructure & Access Control** -- Phases 14-17 (shipped 2026-03-05) -- [Archive](milestones/v1.1-ROADMAP.md)
-- v1.2 **Templates & Slide Intelligence** -- Phases 18-21 (in progress)
+- v1.2 **Templates & Slide Intelligence** -- Phases 18-21 (shipped 2026-03-06) -- [Archive](milestones/v1.2-ROADMAP.md)
 
 ## Phases
 
@@ -37,81 +37,17 @@
 
 </details>
 
-### v1.2 Templates & Slide Intelligence (In Progress)
+<details>
+<summary>v1.2 Templates & Slide Intelligence (Phases 18-21) -- SHIPPED 2026-03-06</summary>
 
-**Milestone Goal:** Enable template-based deck assembly with AI slide classification, human-in-the-loop rating, and CI/CD automation.
+- [x] Phase 18: CI/CD Pipeline & pgvector Schema (2/2 plans) -- completed 2026-03-05
+- [x] Phase 19: Navigation & Template Management (3/3 plans) -- completed 2026-03-05
+- [x] Phase 20: Slide Ingestion Agent (2/2 plans) -- completed 2026-03-06
+- [x] Phase 21: Preview & Review Engine (3/3 plans) -- completed 2026-03-06
 
-- [x] **Phase 18: CI/CD Pipeline & pgvector Schema** - Automated deploy pipeline and vector database foundation
-- [x] **Phase 19: Navigation & Template Management** - Side panel navigation and templates CRUD with access awareness (completed 2026-03-05)
-- [x] **Phase 20: Slide Ingestion Agent** - AI-powered slide extraction, embedding, and classification pipeline (completed 2026-03-06)
-- [x] **Phase 21: Preview & Review Engine** - Slide preview with classification display, human rating, and similarity search (completed 2026-03-06)
-
-## Phase Details
-
-### Phase 18: CI/CD Pipeline & pgvector Schema
-**Goal**: Every push to main automatically lints, builds, migrates, and deploys -- and the database is ready for vector operations
-**Depends on**: Phase 17 (deployed infrastructure)
-**Requirements**: CICD-01, CICD-02, CICD-03, CICD-04, SLIDE-01
-**Success Criteria** (what must be TRUE):
-  1. Push to main triggers GitHub Actions that lint, type-check, and build both apps without manual intervention
-  2. Web app deploys to Vercel automatically after checks pass
-  3. Agent deploys to Railway automatically after checks pass
-  4. Pending Prisma migrations run against the target database before either app deploys
-  5. pgvector extension is enabled in Supabase and the slide_embeddings table with HNSW index exists and accepts vector inserts
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 18-01-PLAN.md -- pgvector schema migration (SlideEmbedding table + HNSW index)
-- [x] 18-02-PLAN.md -- GitHub Actions CI/CD pipeline (lint, build, migrate, deploy)
-
-### Phase 19: Navigation & Template Management
-**Goal**: Users can navigate to a Templates section and register, view, and manage Google Slides templates with access awareness
-**Depends on**: Phase 18 (database schema for Template model, CI/CD for deploys)
-**Requirements**: NAV-01, NAV-02, TMPL-01, TMPL-02, TMPL-03, TMPL-04, TMPL-05, TMPL-06, TMPL-07
-**Success Criteria** (what must be TRUE):
-  1. User can switch between Deals and Templates via a persistent, collapsible side panel without breaking any existing routes
-  2. User can add a template by pasting a Google Slides URL with a display name and one or more touch type assignments, and the system validates the URL and extracts the presentation ID
-  3. User can view all registered templates in a list showing status badges (Ready, No Access, Not Ingested, Stale) and can delete templates
-  4. System checks Google Drive access on template add and displays the service account email when a file is not shared
-  5. System detects when a template source file has been modified since last ingestion and shows a staleness indicator
-**Plans:** 3/3 plans complete
-Plans:
-- [ ] 19-01-PLAN.md -- Template Prisma model, agent API routes, and web api-client
-- [ ] 19-02-PLAN.md -- Collapsible sidebar navigation replacing top nav
-- [ ] 19-03-PLAN.md -- Templates management UI (page, cards, table, form, filters, delete)
-
-### Phase 20: Slide Ingestion Agent
-**Goal**: Users can trigger AI-powered ingestion that extracts, embeds, and classifies every slide from a Google Slides template into the vector store
-**Depends on**: Phase 19 (template records to process), Phase 18 (pgvector schema)
-**Requirements**: SLIDE-02, SLIDE-03, SLIDE-04, SLIDE-05, SLIDE-06, SLIDE-07, SLIDE-08
-**Success Criteria** (what must be TRUE):
-  1. User can trigger slide ingestion for any accessible template and see real-time progress (slide N of M) as slides are processed
-  2. Agent extracts text content from each slide, generates a vector embedding via Vertex AI, and classifies each slide by industry, solution pillar, persona, funnel stage, and content type with a confidence score
-  3. All embeddings, classifications, and confidence scores are stored in Supabase pgvector and associated with the correct template and slide index
-  4. Ingestion is idempotent -- re-ingesting a template replaces previous slide data without duplicates
-**Plans:** 2/2 plans complete
-Plans:
-- [ ] 20-01-PLAN.md -- Schema migration, ingestion pipeline (extract, embed, classify, store), API endpoints
-- [ ] 20-02-PLAN.md -- Progress UI on template cards, auto-trigger on add, background staleness polling
-
-### Phase 21: Preview & Review Engine
-**Goal**: Users can visually review AI classifications on ingested slides, provide thumbs-up/down ratings with tag corrections, and find similar slides across all templates
-**Depends on**: Phase 20 (ingested slides with classifications and embeddings)
-**Requirements**: PREV-01, PREV-02, PREV-03, PREV-04, PREV-05, SLIDE-09
-**Success Criteria** (what must be TRUE):
-  1. User can preview slides at presentation size in the viewport with navigation between slides, and AI-assigned classification tags (industry, pillar, persona, stage) displayed alongside each slide
-  2. User can rate a slide classification as correct (thumbs up) or incorrect (thumbs down), and when rating incorrect, can correct individual tags via inline editing
-  3. Corrections update pgvector metadata immediately so the next page load reflects the change
-  4. User can find similar slides across all ingested presentations via vector similarity search
-**Plans:** 3/3 plans complete
-Plans:
-- [ ] 21-01-PLAN.md -- Schema migration (reviewStatus), agent API endpoints, web api-client + server actions
-- [ ] 21-02-PLAN.md -- Per-template slide viewer UI (preview, navigation, classification, rating, tag editing)
-- [ ] 21-03-PLAN.md -- Slide Library page, sidebar nav, similarity search results
+</details>
 
 ## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 18 -> 19 -> 20 -> 21
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -132,7 +68,7 @@ Phases execute in numeric order: 18 -> 19 -> 20 -> 21
 | 15. Service-to-Service Auth | v1.1 | 1/1 | Complete | 2026-03-05 |
 | 16. Google OAuth Login Wall | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 17. Deployment & Go-Live | v1.1 | 1/1 | Complete | 2026-03-05 |
-| 18. CI/CD Pipeline & pgvector Schema | v1.2 | Complete    | 2026-03-05 | 2026-03-05 |
-| 19. Navigation & Template Management | 3/3 | Complete    | 2026-03-05 | - |
-| 20. Slide Ingestion Agent | 2/2 | Complete    | 2026-03-06 | - |
-| 21. Preview & Review Engine | 3/3 | Complete    | 2026-03-06 | - |
+| 18. CI/CD Pipeline & pgvector Schema | v1.2 | 2/2 | Complete | 2026-03-05 |
+| 19. Navigation & Template Management | v1.2 | 3/3 | Complete | 2026-03-05 |
+| 20. Slide Ingestion Agent | v1.2 | 2/2 | Complete | 2026-03-06 |
+| 21. Preview & Review Engine | v1.2 | 3/3 | Complete | 2026-03-06 |

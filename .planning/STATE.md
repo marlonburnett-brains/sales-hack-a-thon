@@ -2,87 +2,47 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Templates & Slide Intelligence
-status: completed
-stopped_at: Completed 21-02-PLAN.md
-last_updated: "2026-03-06T12:42:01.246Z"
-last_activity: 2026-03-06 -- Completed Phase 21 Plan 02 (slide viewer with rating and tag editing)
+status: shipped
+stopped_at: Milestone v1.2 complete
+last_updated: "2026-03-06T18:00:00Z"
+last_activity: 2026-03-06 -- Shipped v1.2 Templates & Slide Intelligence
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 10
   completed_plans: 10
-  percent: 95
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-05)
+See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.2 Templates & Slide Intelligence -- Phase 21 Plan 02 complete
+**Current focus:** v1.2 shipped -- planning next milestone
 
 ## Current Position
 
-Phase: 21 of 21 (Preview & Review Engine)
-Plan: 2 of 3 (complete)
-Status: Phase 21 Plan 02 complete (slide viewer UI with rating and tag editing)
-Last activity: 2026-03-06 -- Completed Phase 21 Plan 02 (slide viewer with rating and tag editing)
+Phase: All complete (21 phases across v1.0-v1.2)
+Status: Milestone v1.2 shipped
+Last activity: 2026-03-06 -- Shipped v1.2 Templates & Slide Intelligence
 
-Progress: [█████████░] 95%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 41 (v1.0: 27, v1.1: 6, v1.2: 8)
-- Average duration: ~15 min
-- Total execution time: ~8 hours
-
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 18    | 01   | 2min     | 2     | 2     |
-| 18    | 02   | 5min     | 2     | 1     |
-| 19    | 02   | 2min     | 2     | 2     |
-| 19    | 03   | 8min     | 3     | 12    |
-| 20    | 01   | 7min     | 3     | 9     |
-| 20    | 02   | 5min     | 2     | 7     |
-| 21    | 01   | 4min     | 2     | 5     |
-| 21    | 02   | 6min     | 2     | 9     |
-
-**Recent Trend:**
-- v1.2 Phase 21 Plan 02 in 6 min
-- Trend: Stable
+- Total plans completed: 43 (v1.0: 27, v1.1: 6, v1.2: 10)
+- v1.2 execution time: ~2 days
+- Total project time: ~4 days (2026-03-03 → 2026-03-06)
 
 ## Accumulated Context
 
 ### Decisions
 
-All v1.0-v1.1 decisions logged in PROJECT.md Key Decisions table (21 decisions total with outcomes).
-
-- **Phase 18-01:** Used raw SQL migration for pgvector HNSW index (Prisma cannot generate natively)
-- **Phase 18-01:** Used Unsupported("vector(768)") Prisma type for embedding column
-- **Phase 18-01:** Applied migration via db execute + migrate resolve to avoid database reset
-- **Phase 18-02:** Sequential deploy order: checks -> migrate -> deploy-agent -> deploy-web
-- **Phase 18-02:** Railway CLI via npm install (not container) for git compatibility
-- **Phase 18-02:** Vercel --prebuilt pattern for reproducible builds
-- **Phase 19-02:** Used title attribute for collapsed sidebar tooltips (no Tooltip component needed)
-- **Phase 19-02:** Shared sidebar content between desktop and mobile views to avoid duplication
-- [Phase 19-01]: Used db execute + migrate resolve for Template migration (0_init drift)
-- [Phase 19-01]: No FK from Template to SlideEmbedding, deferred to Phase 20
-- **Phase 19-03:** Used TemplatesPageClient wrapper to pass server-fetched data to interactive client components
-- **Phase 19-03:** Added shadcn AlertDialog component for delete confirmation flow
-- **Phase 20-01:** Used db execute + migrate resolve for ingestion migration (0_init drift)
-- **Phase 20-01:** Installed pgvector npm for vector serialization (missing from package.json)
-- **Phase 20-01:** Added confidence score to Gemini structured output response schema (LLM self-assessment)
-- **Phase 20-02:** Extended TemplateForm onSuccess callback to pass template result for auto-trigger ingestion
-- **Phase 20-02:** No manual Re-ingest button -- staleness polling handles re-ingestion automatically
-- **Phase 21-01:** Used db execute + migrate resolve for reviewStatus migration (0_init drift)
-- **Phase 21-01:** Used raw SQL ($executeRaw) for atomic multi-column tag updates in update-classification
-- **Phase 21-01:** Cast embedding to text then back to vector for similarity search (Prisma vector limitation)
-- **Phase 21-02:** Created api-client types and slide-actions.ts inline (Rule 3 - Plan 21-01 not yet executed)
-- **Phase 21-02:** Used chip+dropdown hybrid for multi-value tag editing (shadcn Select single-value only)
-- **Phase 21-02:** Optional onFindSimilar prop on ClassificationPanel for forward-compatibility with Plan 21-03
+All decisions logged in PROJECT.md Key Decisions table (26 decisions total with outcomes).
 
 ### Pending Todos
 
@@ -90,13 +50,12 @@ None.
 
 ### Blockers/Concerns
 
-- Research flag: `googleapis` package may need splitting to individual packages for Vercel function size
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
 - Embedding dimension: Use 768 (text-embedding-005), not 1536 as some docs reference
 
 ## Session Continuity
 
-Last session: 2026-03-06T12:33:20Z
-Stopped at: Completed 21-02-PLAN.md
-Resume file: .planning/phases/21-preview-review-engine/21-02-SUMMARY.md
+Last session: 2026-03-06
+Stopped at: Milestone v1.2 complete
+Next action: /gsd:new-milestone

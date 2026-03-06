@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. All outputs are saved to shared Lumenalta Drive. The platform is deployed to Vercel (web) and Railway (agent) with Google OAuth authentication restricted to @lumenalta.com and Supabase PostgreSQL for durable storage.
+A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. Templates can be registered from Google Slides, AI-ingested with vector embeddings and multi-axis classification, previewed with human rating and tag correction, and searched by similarity. All outputs are saved to shared Lumenalta Drive. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
 
 ## Core Value
 
@@ -79,28 +79,31 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - ✓ Web deployed to Vercel with prod/preview environments — v1.1
 - ✓ Agent deployed to Railway with Docker and auto-restart — v1.1
 
-## Current Milestone: v1.2 Templates & Slide Intelligence
+**CI/CD & Vector Infrastructure** — v1.2
+- ✓ CI/CD pipeline (CircleCI) automates lint, build, migrate, and deploy on push to main — v1.2
+- ✓ pgvector enabled in Supabase with SlideEmbedding table and HNSW cosine index — v1.2
 
-**Goal:** Enable template-based deck assembly with AI slide classification, human-in-the-loop rating, and CI/CD automation.
+**Navigation & Template Management** — v1.2
+- ✓ Collapsible sidebar navigation with Deals, Templates, and Slide Library sections — v1.2
+- ✓ Template CRUD with Google Slides URL validation, Drive access awareness, and touch type assignment — v1.2
+- ✓ Template staleness detection via Drive modifiedTime comparison — v1.2
 
-**Target features:**
-- CI/CD pipeline (GitHub Actions → Vercel + Railway + auto Prisma migrations)
-- Side panel navigation (Deals + Templates)
-- Templates management page (Google Slides links, touch assignment)
-- Slide ingestion agent (classify slides into Supabase pgvector)
-- Access awareness (flag unshared Google Slides files)
-- Preview & rating engine (slide classification review + real-time improvement)
+**Slide Intelligence** — v1.2
+- ✓ AI-powered slide ingestion: Google Slides extraction, Vertex AI embedding (768-dim), Gemini classification (8 axes + confidence) — v1.2
+- ✓ Smart merge for idempotent re-ingestion (unchanged preserved, changed re-classified, removed archived) — v1.2
+- ✓ Real-time ingestion progress (slide N of M) with auto-trigger on template add — v1.2
+- ✓ Background staleness polling with auto-re-ingestion every 5 minutes — v1.2
+
+**Preview & Review** — v1.2
+- ✓ Per-template slide viewer with keyboard navigation and thumbnail strip — v1.2
+- ✓ AI classification display (industry, pillar, persona, stage, content type, slide category) — v1.2
+- ✓ Thumbs-up/down rating with inline tag correction via multi-select dropdowns — v1.2
+- ✓ Corrections update pgvector metadata immediately — v1.2
+- ✓ Cross-template vector similarity search with color-coded results — v1.2
 
 ### Active
 
-- [ ] CI/CD pipeline with GitHub Actions deploying web to Vercel, agent to Railway, and auto-running pending migrations
-- [ ] Side panel navigation with Deals and Templates sections
-- [ ] Templates CRUD page with Google Slides link management and touch assignment
-- [ ] Slide ingestion agent processing and classifying each slide into Supabase pgvector
-- [ ] Access awareness flagging files not shared with agent service account
-- [ ] Preview engine for templates with AI slide classification display
-- [ ] Human rating and feedback system for slide classifications
-- [ ] Real-time classification improvement based on human feedback
+(No active requirements — define with `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -111,20 +114,24 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - Video upload / Zoom integration — sellers paste transcripts manually; direct API integration is v2
 - Fine-tuning or custom model training — all steering done via prompt engineering and few-shot examples
 - Automated edit pattern analysis for prompt refinement — deferred to v2
+- Drag-and-drop slide reordering — sellers reorder in Google Slides directly
+- In-browser slide content editing — link to Google Slides for editing
+- Multi-tenant template libraries — single-team tool for ~20 sellers
+- Custom embedding model selection — one model (text-embedding-005) for consistent vector spaces
 
 ## Context
 
-**Current state:** v1.1 shipped. ~20,665 LOC TypeScript/TSX. 17 phases, 33 plans, 224 commits across 3 days. Deployed to production (Vercel + Railway).
+**Current state:** v1.2 shipped. ~28,472 LOC TypeScript/TSX. 21 phases, 43 plans across 4 days (2026-03-03 → 2026-03-06). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
 
-**Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL (data), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI (RAG + knowledge base), Supabase Auth + Google OAuth (user auth), shadcn/ui (components), Sonner (toast notifications).
+**Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI (RAG + knowledge base), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications).
 
-**Architecture:** Two-app monorepo — `apps/web` (Next.js 15 on Vercel with Server Actions) and `apps/agent` (Mastra Hono server on Railway). Shared `packages/schemas` for Zod types and constants. Mastra workflows use suspend/resume for HITL checkpoints. All Google output via service account to shared Lumenalta Drive. Service-to-service auth via shared API key (Authorization: Bearer header). User auth via Supabase Google OAuth restricted to @lumenalta.com.
+**Architecture:** Two-app monorepo — `apps/web` (Next.js 15 on Vercel with Server Actions) and `apps/agent` (Mastra Hono server on Railway). Shared `packages/schemas` for Zod types and constants. Mastra workflows use suspend/resume for HITL checkpoints. All Google output via service account to shared Lumenalta Drive. Service-to-service auth via shared API key (Authorization: Bearer header). User auth via Supabase Google OAuth restricted to @lumenalta.com. pgvector HNSW index for cosine similarity search across slide embeddings.
 
-**Content library status:** 38 slides ingested from 5 accessible presentations. Brand guidelines ingested. 14/17 known Drive sources need Viewer access on target Shared Drives (shortcut container access is insufficient). Case studies and full template set blocked on Drive permissions.
+**Content library status:** 38 slides ingested from 5 accessible presentations in AtlusAI. Brand guidelines ingested. Template management system now enables registering additional Google Slides sources with AI classification. 14/17 known Drive sources need Viewer access on target Shared Drives (shortcut container access is insufficient).
 
 **Demo scenario:** Meridian Capital Group (Financial Services) — seeded company, deal, and Touch 1 interaction. 167-line transcript fixture covering all 6 extraction fields.
 
-**Knowledge growth model:** Every interaction captures inputs, decisions, and outputs. Approved assets become positive examples in AtlusAI; overrides and edits become improvement signals that are re-ingested. Company history accumulates across touch points.
+**Knowledge growth model:** Every interaction captures inputs, decisions, and outputs. Approved assets become positive examples in AtlusAI; overrides and edits become improvement signals that are re-ingested. Company history accumulates across touch points. Slide classification improves via human rating and tag correction.
 
 ## Constraints
 
@@ -134,6 +141,8 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - **HITL hard stop**: Zero slides generated until SME explicitly approves the structured brief
 - **Content library dependency**: RAG quality depends on AtlusAI content coverage (currently partial)
 - **Google Drive access**: 14/17 content sources need Viewer access granted on target Shared Drives
+- **Embedding model**: text-embedding-005 at 768 dimensions — changing models requires re-embedding all slides
+- **Prisma version**: Stay on 6.19.x — Prisma 7.x has vector migration regression (#28867)
 
 ## Key Decisions
 
@@ -159,6 +168,12 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | Route group (authenticated) layout | Nav bar only on authenticated pages, login page is standalone | ✓ Good — clean separation of auth vs public routes |
 | Railway over Oracle Cloud VM | Platform-managed Docker deploys vs manual VM provisioning | ✓ Good — auto-deploy on push, auto-restart, managed HTTPS |
 | Entrypoint credential injection | Writes inline JSON to temp file for GOOGLE_APPLICATION_CREDENTIALS | ✓ Good — zero code changes to application, works in any container runtime |
+| CircleCI over GitHub Actions | CircleCI available for project; GHA initially built then migrated | ✓ Good — same pipeline (lint→migrate→deploy-agent→deploy-web) |
+| pgvector with HNSW index | Cosine similarity for slide embeddings; HNSW for fast approximate search | ✓ Good — sub-millisecond similarity queries at current scale |
+| Raw SQL for vector operations | Prisma doesn't natively support vector types; raw SQL for INSERT/SELECT | ✓ Good — full control over vector casts and distance operators |
+| Gemini structured output for classification | 8-axis classification with confidence score via JSON schema enforcement | ✓ Good — consistent multi-value arrays across all slides |
+| Content hash for idempotent re-ingestion | SHA-256 of slide text determines identity; smart merge handles add/change/archive | ✓ Good — re-ingestion preserves unchanged slides, re-classifies changed ones |
+| Chip+dropdown hybrid for tag editing | shadcn Select only supports single-value; custom MultiTagField for multi-value categories | ✓ Good — intuitive UX for multi-value classification correction |
 
 ---
-*Last updated: 2026-03-05 after v1.2 milestone start*
+*Last updated: 2026-03-06 after v1.2 milestone*
