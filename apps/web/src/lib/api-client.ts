@@ -591,3 +591,95 @@ export async function getIngestionProgress(
 ): Promise<IngestionProgress> {
   return fetchJSON<IngestionProgress>(`/templates/${templateId}/progress`);
 }
+
+// ────────────────────────────────────────────────────────────
+// Slides — Preview & Review (Phase 21)
+// ────────────────────────────────────────────────────────────
+
+export interface SlideData {
+  id: string;
+  slideIndex: number;
+  slideObjectId: string | null;
+  contentText: string;
+  classificationJson: string | null;
+  confidence: number | null;
+  needsReReview: boolean;
+  reviewStatus: string; // "unreviewed" | "approved" | "needs_correction"
+  industry: string | null;
+  solutionPillar: string | null;
+  persona: string | null;
+  funnelStage: string | null;
+  contentType: string | null;
+}
+
+export interface SlideThumbnail {
+  slideObjectId: string;
+  slideIndex: number;
+  thumbnailUrl: string;
+}
+
+export interface SimilarSlide {
+  id: string;
+  templateId: string;
+  slideIndex: number;
+  slideObjectId: string | null;
+  contentText: string;
+  classificationJson: string | null;
+  confidence: number | null;
+  reviewStatus: string;
+  similarity: number;
+}
+
+export interface CorrectedTags {
+  industries: string[];
+  solutionPillars: string[];
+  buyerPersonas: string[];
+  funnelStages: string[];
+  contentType: string;
+  slideCategory: string;
+  subsectors?: string[];
+  touchType?: string[];
+}
+
+export async function listSlides(
+  templateId: string
+): Promise<SlideData[]> {
+  return fetchJSON<SlideData[]>(`/templates/${templateId}/slides`);
+}
+
+export async function getSlideThumbnails(
+  templateId: string
+): Promise<{ thumbnails: SlideThumbnail[] }> {
+  return fetchJSON<{ thumbnails: SlideThumbnail[] }>(
+    `/templates/${templateId}/thumbnails`
+  );
+}
+
+export async function updateSlideClassification(
+  slideId: string,
+  data: {
+    reviewStatus: "approved" | "needs_correction";
+    correctedTags?: CorrectedTags;
+  }
+): Promise<{ success: boolean }> {
+  return fetchJSON<{ success: boolean }>(
+    `/slides/${slideId}/update-classification`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function findSimilarSlides(
+  slideId: string,
+  limit?: number
+): Promise<{ results: SimilarSlide[] }> {
+  return fetchJSON<{ results: SimilarSlide[] }>(
+    `/slides/${slideId}/similar`,
+    {
+      method: "POST",
+      body: JSON.stringify({ limit: limit ?? 10 }),
+    }
+  );
+}
