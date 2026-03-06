@@ -51,9 +51,9 @@
 
 ### Integration Verification
 
-- [ ] **INTG-01**: Existing Touch 1-4 workflows, pre-call briefing, and template ingestion continue to function with service account fallback
-- [ ] **INTG-02**: A user with Google token can access org-shared files that the service account cannot
-- [ ] **INTG-03**: Background staleness polling works with pooled user tokens
+- [x] **INTG-01**: Existing Touch 1-4 workflows, pre-call briefing, and template ingestion continue to function with service account fallback
+- [x] **INTG-02**: A user with Google token can access org-shared files that the service account cannot
+- [x] **INTG-03**: Background staleness polling works with pooled user tokens
 
 ## v2 Requirements
 
@@ -108,9 +108,9 @@
 | LIFE-01 | Phase 24 | Complete |
 | LIFE-02 | Phase 24 | Complete |
 | LIFE-03 | Phase 24 | Complete |
-| INTG-01 | Phase 25 | Pending |
-| INTG-02 | Phase 25 | Pending |
-| INTG-03 | Phase 25 | Pending |
+| INTG-01 | Phase 25 | Complete |
+| INTG-02 | Phase 25 | Complete |
+| INTG-03 | Phase 25 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 28 total

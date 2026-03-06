@@ -165,7 +165,7 @@ Plans:
 - Verification across all workflow and template files
 - No new code expected; fixes for any issues discovered
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 25-01-PLAN.md — Vitest smoke tests for auth factories, request-auth priority chain, and token pool
@@ -199,4 +199,4 @@ Plans:
 | 22. OAuth Scope Expansion & Token Storage | v1.3 | 3/3 | Complete | 2026-03-06 |
 | 23. User-Delegated API Clients & Token Passthrough | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 2/2 | Complete | 2026-03-06 |
-| 25. Integration Verification & Cutover | v1.3 | 0/2 | Pending | -- |
+| 25. Integration Verification & Cutover | 1/2 | In Progress|  | -- |

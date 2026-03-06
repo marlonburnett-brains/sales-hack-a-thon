@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: "Google API Auth: User-Delegated Credentials"
 status: executing
-stopped_at: Phase 25 context gathered
-last_updated: "2026-03-06T17:55:09.383Z"
+stopped_at: Completed 25-01-PLAN.md
+last_updated: "2026-03-06T18:13:23.757Z"
 last_activity: "2026-03-06 — Plan 24-01 complete: pooled user token auth for background jobs + ActionRequired model"
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 8
   percent: 50
 ---
 
@@ -58,6 +58,7 @@ All decisions logged in PROJECT.md Key Decisions table (26 decisions total with 
 - [24-01] getPooledGoogleAuth iterates ALL valid tokens, no cap (per locked decision)
 - [24-01] ActionRequired uses findFirst + create pattern (no unique constraint on compound fields)
 - [24-01] Pool health check runs after successful hit and after exhaustion
+- [Phase 25]: Used class syntax in vi.mock factories for PrismaClient/OAuth2Client constructors
 
 ### Pending Todos
 
@@ -73,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T17:55:09.374Z
-Stopped at: Phase 25 context gathered
+Last session: 2026-03-06T18:13:23.754Z
+Stopped at: Completed 25-01-PLAN.md
 Next action: Execute 24-02-PLAN.md
