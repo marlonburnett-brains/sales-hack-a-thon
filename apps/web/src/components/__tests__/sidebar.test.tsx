@@ -1,0 +1,193 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+
+// Use vi.hoisted so the state object exists before hoisted vi.mock factories run
+const state = vi.hoisted(() => ({ pathname: "/" }));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => state.pathname,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...props }: { href: string; children: React.ReactNode; [key: string]: unknown }) => {
+    const React = require("react");
+    return React.createElement("a", { href, ...props }, children);
+  },
+}));
+
+vi.mock("@/components/user-nav", () => ({
+  UserNav: ({ user }: { user: { name: string } }) => (
+    <div data-testid="user-nav">{user.name}</div>
+  ),
+}));
+
+import { Sidebar } from "../sidebar";
+
+const mockUser = { name: "Test User", email: "test@example.com", avatarUrl: "" };
+
+function getDesktopSidebar() {
+  return document.querySelectorAll("aside")[0]!;
+}
+
+// ---------------------------------------------------------------------------
+// NAV-01: Navigate between Deals and Templates via persistent side panel
+// ---------------------------------------------------------------------------
+
+describe("NAV-01: Navigate between Deals and Templates", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    state.pathname = "/";
+  });
+
+  it("renders Deals and Templates nav links in desktop sidebar", () => {
+    state.pathname = "/deals";
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    expect(desktop.querySelector("a[href='/deals']")).toBeTruthy();
+    expect(desktop.querySelector("a[href='/templates']")).toBeTruthy();
+  });
+
+  it("renders Slide Library nav link", () => {
+    state.pathname = "/deals";
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    expect(desktop.querySelector("a[href='/slides']")).toBeTruthy();
+  });
+
+  it("highlights Deals link when on /deals path", () => {
+    state.pathname = "/deals";
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    const dealsLink = desktop.querySelector("a[href='/deals']")!;
+    expect(dealsLink.className).toContain("bg-slate-100");
+    expect(dealsLink.className).toContain("font-medium");
+  });
+
+  it("highlights Templates link when on /templates path", () => {
+    state.pathname = "/templates";
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    const templatesLink = desktop.querySelector("a[href='/templates']")!;
+    expect(templatesLink.className).toContain("bg-slate-100");
+    expect(templatesLink.className).toContain("font-medium");
+  });
+
+  it("does not highlight inactive links", () => {
+    state.pathname = "/deals";
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    const templatesLink = desktop.querySelector("a[href='/templates']")!;
+    expect(templatesLink.className).not.toContain("bg-slate-100");
+    expect(templatesLink.className).toContain("text-slate-600");
+  });
+
+  it("renders children content in main area", () => {
+    state.pathname = "/deals";
+    render(
+      <Sidebar user={mockUser}>
+        <div data-testid="page-content">Page</div>
+      </Sidebar>
+    );
+
+    expect(screen.getByTestId("page-content")).toBeInTheDocument();
+  });
+
+  it("renders UserNav component", () => {
+    state.pathname = "/deals";
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    expect(screen.getAllByTestId("user-nav").length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NAV-02: Collapsible sidebar with localStorage persistence
+// ---------------------------------------------------------------------------
+
+describe("NAV-02: Collapsible sidebar with localStorage persistence", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    state.pathname = "/deals";
+  });
+
+  it("starts expanded by default (shows text labels)", () => {
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    expect(desktop.className).toContain("w-[240px]");
+  });
+
+  it("collapses when toggle button is clicked", () => {
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    const collapseBtn = desktop.querySelector(
+      'button[aria-label="Collapse sidebar"]'
+    ) as HTMLElement;
+    fireEvent.click(collapseBtn);
+
+    expect(desktop.className).toContain("w-[60px]");
+  });
+
+  it("persists collapsed state to localStorage", () => {
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    const collapseBtn = desktop.querySelector(
+      'button[aria-label="Collapse sidebar"]'
+    ) as HTMLElement;
+    fireEvent.click(collapseBtn);
+
+    expect(localStorage.getItem("sidebar-collapsed")).toBe("true");
+  });
+
+  it("restores collapsed state from localStorage on mount", () => {
+    localStorage.setItem("sidebar-collapsed", "true");
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    expect(desktop.className).toContain("w-[60px]");
+  });
+
+  it("expands when clicking toggle while collapsed", () => {
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+
+    const collapseBtn = desktop.querySelector(
+      'button[aria-label="Collapse sidebar"]'
+    ) as HTMLElement;
+    fireEvent.click(collapseBtn);
+    expect(desktop.className).toContain("w-[60px]");
+
+    const expandBtn = desktop.querySelector(
+      'button[aria-label="Expand sidebar"]'
+    ) as HTMLElement;
+    fireEvent.click(expandBtn);
+
+    expect(desktop.className).toContain("w-[240px]");
+    expect(localStorage.getItem("sidebar-collapsed")).toBe("false");
+  });
+
+  it("shows mobile hamburger button", () => {
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    expect(screen.getByLabelText("Open navigation")).toBeInTheDocument();
+  });
+
+  it("opens mobile drawer when hamburger is clicked", () => {
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const hamburger = screen.getByLabelText("Open navigation");
+    fireEvent.click(hamburger);
+
+    expect(screen.getByLabelText("Close navigation")).toBeInTheDocument();
+  });
+});
