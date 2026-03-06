@@ -11,7 +11,7 @@
 - [x] **ATLS-01**: New `UserAtlusToken` Prisma model stores encrypted AtlusAI credentials per Supabase user ID (mirrors `UserGoogleToken` structure)
 - [x] **ATLS-02**: AtlusAI tokens are encrypted at rest using AES-256-GCM via existing `token-encryption.ts` (reuses `GOOGLE_TOKEN_ENCRYPTION_KEY`)
 - [x] **ATLS-03**: Stored tokens track `lastUsedAt`, `isValid`, and `revokedAt` for pool health management
-- [ ] **ATLS-04**: Users can provide AtlusAI credentials via a web UI form (token/API key input with encrypted storage)
+- [x] **ATLS-04**: Users can provide AtlusAI credentials via a web UI form (token/API key input with encrypted storage)
 - [x] **ATLS-05**: Token upsert on `userId` -- re-submitting credentials updates the existing record
 
 ### AtlusAI Token Pool
@@ -54,7 +54,7 @@
 - [x] **ACTN-02**: New `atlus_project_required` action type with dedicated icon and description in `actions-client.tsx`
 - [x] **ACTN-03**: Action type constants defined in `packages/schemas` for shared use between web and agent
 - [x] **ACTN-04**: ActionRequired items include resolution guidance (description tells user how to fix the issue)
-- [ ] **ACTN-05**: Sidebar badge count includes AtlusAI action types (existing `/api/actions/count` works unchanged)
+- [x] **ACTN-05**: Sidebar badge count includes AtlusAI action types (existing `/api/actions/count` works unchanged)
 
 ### Discovery UI
 
@@ -97,7 +97,7 @@
 | ATLS-01 | Phase 27 | Complete |
 | ATLS-02 | Phase 27 | Complete |
 | ATLS-03 | Phase 27 | Complete |
-| ATLS-04 | Phase 27 | Pending |
+| ATLS-04 | Phase 27 | Complete |
 | ATLS-05 | Phase 27 | Complete |
 | POOL-01 | Phase 27 | Complete |
 | POOL-02 | Phase 27 | Complete |
@@ -113,7 +113,7 @@
 | ACTN-02 | Phase 27 | Complete |
 | ACTN-03 | Phase 27 | Complete |
 | ACTN-04 | Phase 27 | Complete |
-| ACTN-05 | Phase 27 | Pending |
+| ACTN-05 | Phase 27 | Complete |
 | MCP-01 | Phase 28 | Pending |
 | MCP-02 | Phase 28 | Pending |
 | MCP-03 | Phase 28 | Pending |
