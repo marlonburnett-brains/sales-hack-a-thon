@@ -90,4 +90,4 @@
 | 23. User-Delegated API Clients & Token Passthrough | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 25. Integration Verification & Cutover | v1.3 | 2/2 | Complete | 2026-03-06 |
-| 26. Tech Debt Cleanup | 1/1 | Complete   | 2026-03-06 | - |
+| 26. Tech Debt Cleanup | 1/1 | Complete    | 2026-03-06 | - |
