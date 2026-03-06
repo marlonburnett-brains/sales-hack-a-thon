@@ -783,3 +783,10 @@ export async function recheckAtlusAccess(userId: string, email: string, googleAc
     body: JSON.stringify({ userId, email, googleAccessToken }),
   });
 }
+
+export async function submitAtlusCredentials(userId: string, email: string, token: string): Promise<{ success: boolean; accessResult: string }> {
+  return fetchJSON<{ success: boolean; accessResult: string }>('/atlus/credentials', {
+    method: "POST",
+    body: JSON.stringify({ userId, email, token }),
+  });
+}
