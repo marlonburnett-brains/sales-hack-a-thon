@@ -882,7 +882,7 @@ export const mastra = new Mastra({
             const body = await c.req.json();
             const data = z
               .object({
-                name: z.string().min(1),
+                name: z.string().optional(),
                 googleSlidesUrl: z.string().url(),
                 presentationId: z.string().min(1),
                 touchTypes: z.array(z.string()).default([]),
@@ -892,16 +892,18 @@ export const mastra = new Mastra({
             let accessStatus = "not_checked";
             let sourceModifiedAt: Date | null = null;
             let serviceAccountEmail: string | null = null;
+            let templateName = data.name || "Untitled Presentation";
 
             const googleAuth = await extractGoogleAuth(c);
             try {
               const drive = getDriveClient(googleAuth.accessToken ? googleAuth : undefined);
               const fileRes = await drive.files.get({
                 fileId: data.presentationId,
-                fields: "id,modifiedTime",
+                fields: "id,name,modifiedTime",
                 supportsAllDrives: true,
               });
               accessStatus = "accessible";
+              templateName = fileRes.data.name || templateName;
               if (fileRes.data.modifiedTime) {
                 sourceModifiedAt = new Date(fileRes.data.modifiedTime);
               }
@@ -927,7 +929,7 @@ export const mastra = new Mastra({
 
             const template = await prisma.template.create({
               data: {
-                name: data.name,
+                name: templateName,
                 googleSlidesUrl: data.googleSlidesUrl,
                 presentationId: data.presentationId,
                 touchTypes: JSON.stringify(data.touchTypes),
