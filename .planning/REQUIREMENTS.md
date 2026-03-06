@@ -1,0 +1,146 @@
+# Requirements: v1.4 AtlusAI Authentication & Discovery
+
+**Defined:** 2026-03-06
+**Core Value:** Sellers walk into every meeting prepared and walk out with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
+**Milestone Goal:** Direct AtlusAI integration via Mastra MCP client with token pool auth, access detection, and a discovery UI for browsing/searching/ingesting AtlusAI content -- replacing the Drive API fallback with semantic search.
+
+## v1.4 Requirements
+
+### AtlusAI Token Storage
+
+- [ ] **ATLS-01**: New `UserAtlusToken` Prisma model stores encrypted AtlusAI credentials per Supabase user ID (mirrors `UserGoogleToken` structure)
+- [ ] **ATLS-02**: AtlusAI tokens are encrypted at rest using AES-256-GCM via existing `token-encryption.ts` (reuses `GOOGLE_TOKEN_ENCRYPTION_KEY`)
+- [ ] **ATLS-03**: Stored tokens track `lastUsedAt`, `isValid`, and `revokedAt` for pool health management
+- [ ] **ATLS-04**: Users can provide AtlusAI credentials via a web UI form (token/API key input with encrypted storage)
+- [ ] **ATLS-05**: Token upsert on `userId` -- re-submitting credentials updates the existing record
+
+### AtlusAI Token Pool
+
+- [ ] **POOL-01**: `getPooledAtlusAuth()` iterates valid `UserAtlusToken` records ordered by `lastUsedAt` descending
+- [ ] **POOL-02**: Failed tokens are marked `isValid: false` with `revokedAt` timestamp
+- [ ] **POOL-03**: Successful token usage updates `lastUsedAt` to keep the pool fresh
+- [ ] **POOL-04**: System logs a warning when the valid AtlusAI token pool drops below 3 tokens
+- [ ] **POOL-05**: Optional `ATLUS_API_TOKEN` env var serves as fallback when the pool is empty
+
+### 3-Tier Access Detection
+
+- [ ] **TIER-01**: System detects "no AtlusAI account" state (auth attempt returns 401/403) and creates `atlus_account_required` ActionRequired
+- [ ] **TIER-02**: System detects "has account, no project access" state (auth succeeds but project query returns empty/403) and creates `atlus_project_required` ActionRequired
+- [ ] **TIER-03**: System detects "full access" state (auth succeeds + content discoverable) and pools the token without creating ActionRequired
+- [ ] **TIER-04**: Access detection re-triggers when a user provides new credentials (resolving tier 1 immediately checks tiers 2/3)
+- [ ] **TIER-05**: ActionRequired records are de-duplicated per user + actionType (no duplicate records for same issue)
+
+### Mastra MCP Client
+
+- [ ] **MCP-01**: `@mastra/mcp` MCPClient connects to AtlusAI SSE endpoint at `knowledge-base-api.lumenalta.com/sse` with pooled auth credentials
+- [ ] **MCP-02**: MCPClient lives ONLY on the agent service (Railway) -- no MCP imports in `apps/web`
+- [ ] **MCP-03**: Singleton MCPClient wrapper with health check: `listTools()` probe before use, disconnect+recreate on failure
+- [ ] **MCP-04**: Auth injection via `fetch` callback so each request gets a fresh token from the pool (handles token rotation)
+- [ ] **MCP-05**: MCPClient has a max lifetime (configurable, default 1 hour) after which it is forcibly recycled with fresh credentials
+- [ ] **MCP-06**: Graceful shutdown on `SIGTERM` (disconnects MCPClient before Railway kills the container)
+
+### Drive Fallback Replacement
+
+- [ ] **SRCH-01**: `searchSlides()` in `atlusai-search.ts` uses MCP `knowledge_base_search_semantic` tool instead of Drive API fullText search
+- [ ] **SRCH-02**: Adapter maps MCP search results to existing `SlideSearchResult` interface -- all callers (5 files) unchanged
+- [ ] **SRCH-03**: `searchForProposal()` multi-pass retrieval logic (primary, secondary, case study, 3-tier fallback) is preserved -- only inner `searchSlides()` implementation changes
+- [ ] **SRCH-04**: `searchByCapability()` uses MCP semantic search with the same public API
+- [ ] **SRCH-05**: Drive API search is retained as a degraded-mode fallback (behind env flag `ATLUS_USE_MCP=true|false`, default `true`)
+- [ ] **SRCH-06**: MCP search scoped to configured project via `ATLUS_PROJECT_ID` env var
+
+### Action Required Integration
+
+- [ ] **ACTN-01**: New `atlus_account_required` action type with dedicated icon and description in `actions-client.tsx`
+- [ ] **ACTN-02**: New `atlus_project_required` action type with dedicated icon and description in `actions-client.tsx`
+- [ ] **ACTN-03**: Action type constants defined in `packages/schemas` for shared use between web and agent
+- [ ] **ACTN-04**: ActionRequired items include resolution guidance (description tells user how to fix the issue)
+- [ ] **ACTN-05**: Sidebar badge count includes AtlusAI action types (existing `/api/actions/count` works unchanged)
+
+### Discovery UI
+
+- [ ] **DISC-01**: New "AtlusAI" sidebar nav item in `sidebar.tsx` with appropriate icon
+- [ ] **DISC-02**: New `/discovery` route with browse and search views (tab or toggle)
+- [ ] **DISC-03**: Browse view: paginated document inventory from MCP `discover_documents` tool, filtered to configured project
+- [ ] **DISC-04**: Search view: semantic search bar powered by MCP `knowledge_base_search_semantic` with debounced input (300ms)
+- [ ] **DISC-05**: Search results show content previews with relevance scoring
+- [ ] **DISC-06**: Access gating: if user (or no user in pool) lacks AtlusAI access, page shows appropriate Action Required state instead of content
+- [ ] **DISC-07**: Selective ingestion: users can select content from browse/search results and ingest into the local `SlideEmbedding` pipeline
+- [ ] **DISC-08**: Ingestion progress shown per item (polling pattern matching existing template ingestion)
+- [ ] **DISC-09**: Already-ingested content marked in browse/search results to prevent duplicate ingestion
+
+## v1.4+ Requirements (Deferred)
+
+### Enhanced Discovery
+
+- **DISC-10**: Structured search filters (industry, pillar, persona, stage) via MCP `knowledge_base_search_structured`
+- **DISC-11**: Pre-ingestion content preview in a slide-over panel before committing to ingestion
+- **DISC-12**: Ingestion status tracking per AtlusAI document with dedup detection via content hash
+- **DISC-13**: Pool health indicator in Discovery page header (green/yellow/red based on valid token count)
+- **DISC-14**: Cross-source unified search (AtlusAI MCP + local pgvector simultaneously with merged ranking)
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Auto-ingest all AtlusAI content | Floods vector space, degrades retrieval quality, wastes Vertex AI API costs |
+| Persistent SSE keepalive | AtlusAI may rate-limit; searches are user-initiated, not real-time |
+| Token management admin UI | ~20 users; ActionRequired + logs sufficient |
+| AtlusAI write-back | No MCP write tools exist; different auth scopes needed; bidirectional sync is complex |
+| Custom MCP tool wrappers | AtlusAI's MCP tools are sufficient; wrappers add maintenance burden |
+| Real-time AtlusAI content sync | Content changes weekly, not continuously; refresh on navigation is sufficient |
+| Domain-wide AtlusAI delegation | Per-user approach avoids admin involvement |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| ATLS-01 | Phase 27 | Pending |
+| ATLS-02 | Phase 27 | Pending |
+| ATLS-03 | Phase 27 | Pending |
+| ATLS-04 | Phase 27 | Pending |
+| ATLS-05 | Phase 27 | Pending |
+| POOL-01 | Phase 27 | Pending |
+| POOL-02 | Phase 27 | Pending |
+| POOL-03 | Phase 27 | Pending |
+| POOL-04 | Phase 27 | Pending |
+| POOL-05 | Phase 27 | Pending |
+| TIER-01 | Phase 27 | Pending |
+| TIER-02 | Phase 27 | Pending |
+| TIER-03 | Phase 27 | Pending |
+| TIER-04 | Phase 27 | Pending |
+| TIER-05 | Phase 27 | Pending |
+| ACTN-01 | Phase 27 | Pending |
+| ACTN-02 | Phase 27 | Pending |
+| ACTN-03 | Phase 27 | Pending |
+| ACTN-04 | Phase 27 | Pending |
+| ACTN-05 | Phase 27 | Pending |
+| MCP-01 | Phase 28 | Pending |
+| MCP-02 | Phase 28 | Pending |
+| MCP-03 | Phase 28 | Pending |
+| MCP-04 | Phase 28 | Pending |
+| MCP-05 | Phase 28 | Pending |
+| MCP-06 | Phase 28 | Pending |
+| SRCH-01 | Phase 28 | Pending |
+| SRCH-02 | Phase 28 | Pending |
+| SRCH-03 | Phase 28 | Pending |
+| SRCH-04 | Phase 28 | Pending |
+| SRCH-05 | Phase 28 | Pending |
+| SRCH-06 | Phase 28 | Pending |
+| DISC-01 | Phase 29 | Pending |
+| DISC-02 | Phase 29 | Pending |
+| DISC-03 | Phase 29 | Pending |
+| DISC-04 | Phase 29 | Pending |
+| DISC-05 | Phase 29 | Pending |
+| DISC-06 | Phase 29 | Pending |
+| DISC-07 | Phase 29 | Pending |
+| DISC-08 | Phase 29 | Pending |
+| DISC-09 | Phase 29 | Pending |
+
+**Coverage:**
+- v1.4 requirements: 35 total
+- Mapped to phases: 35
+- Unmapped: 0
+
+---
+*Requirements defined: 2026-03-06*
+*Last updated: 2026-03-06 after initial definition*
