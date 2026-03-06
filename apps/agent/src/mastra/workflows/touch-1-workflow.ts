@@ -12,7 +12,6 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
-import { PrismaClient } from "@prisma/client";
 import {
   PagerContentLlmSchema,
   zodToGeminiSchema,
@@ -20,13 +19,8 @@ import {
 import { assembleFromTemplate } from "../../lib/slide-assembly";
 import { getOrCreateDealFolder } from "../../lib/drive-folders";
 import { ingestDocument } from "../../lib/atlusai-client";
+import { prisma } from "../../lib/db";
 import { env } from "../../env";
-
-// ────────────────────────────────────────────────────────────
-// Prisma client singleton
-// ────────────────────────────────────────────────────────────
-
-const prisma = new PrismaClient();
 
 // ────────────────────────────────────────────────────────────
 // Step 1: Generate pager content via Gemini

@@ -1,5 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import { OAuth2Client } from "google-auth-library";
+import { prisma } from "./db";
 import { decryptToken } from "./token-encryption";
 import { env } from "../env";
 
@@ -19,8 +19,6 @@ const cache = new Map<string, CachedToken>();
 
 // Per-userId promise dedup to prevent concurrent refresh races
 const inflightRefreshes = new Map<string, Promise<string | null>>();
-
-const prisma = new PrismaClient();
 
 /**
  * Sweep expired entries when cache exceeds MAX_CACHE_SIZE.

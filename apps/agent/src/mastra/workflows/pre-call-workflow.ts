@@ -17,7 +17,6 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
-import { PrismaClient } from "@prisma/client";
 import {
   CompanyResearchLlmSchema,
   HypothesesLlmSchema,
@@ -29,13 +28,8 @@ import { searchSlides } from "../../lib/atlusai-search";
 import { createGoogleDoc } from "../../lib/doc-builder";
 import type { DocSection } from "../../lib/doc-builder";
 import { getOrCreateDealFolder } from "../../lib/drive-folders";
+import { prisma } from "../../lib/db";
 import { env } from "../../env";
-
-// ────────────────────────────────────────────────────────────
-// Prisma client singleton
-// ────────────────────────────────────────────────────────────
-
-const prisma = new PrismaClient();
 
 // ────────────────────────────────────────────────────────────
 // Shared schemas

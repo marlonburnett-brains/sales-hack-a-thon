@@ -8,10 +8,8 @@
  * to link discovered presentations to their known ContentSource records.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/db";
 import type { DrivePresentation } from "./discover-content";
-
-const prisma = new PrismaClient();
 
 /** Patterns matching CONTENT_TYPE_OVERRIDES in run-ingestion.ts */
 const NAME_PATTERNS: Array<{ pattern: string; sourceName: string }> = [

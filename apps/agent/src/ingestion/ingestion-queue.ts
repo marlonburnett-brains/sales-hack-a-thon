@@ -6,11 +6,9 @@
  * Deduplicates enqueue requests for the same templateId.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/db";
 import { ingestTemplate } from "./ingest-template";
 import { getPooledGoogleAuth, type GoogleAuthOptions } from "../lib/google-auth";
-
-const prisma = new PrismaClient();
 
 class IngestionQueue {
   private queue: string[] = [];

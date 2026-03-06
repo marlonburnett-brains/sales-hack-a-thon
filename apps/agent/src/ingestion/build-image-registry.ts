@@ -13,13 +13,11 @@
  * - Images served from Google Drive URLs (no GCS/public URL setup)
  */
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../lib/db'
 import { getDriveClient } from '../lib/google-auth'
 import { env } from '../env'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
-
-const prisma = new PrismaClient()
 
 // Image mimeTypes we care about
 const IMAGE_MIME_TYPES = new Set([

@@ -8,8 +8,8 @@
  * web app can poll GET /templates/:id/progress for real-time updates.
  */
 
-import { PrismaClient } from "@prisma/client";
 import { toSql } from "pgvector";
+import { prisma } from "../lib/db";
 import { extractSlidesFromPresentation } from "../lib/slide-extractor";
 import type { GoogleAuthOptions } from "../lib/google-auth";
 import { classifySlide } from "./classify-metadata";
@@ -19,8 +19,6 @@ import {
   computeMerge,
   type ExistingSlideData,
 } from "./smart-merge";
-
-const prisma = new PrismaClient();
 
 // ────────────────────────────────────────────────────────────
 // Types

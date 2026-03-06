@@ -1,7 +1,6 @@
 import { Mastra } from "@mastra/core";
 import { registerApiRoute, SimpleAuth } from "@mastra/core/server";
 import { PostgresStore } from "@mastra/pg";
-import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { touch1Workflow } from "./workflows/touch-1-workflow";
 import { touch2Workflow } from "./workflows/touch-2-workflow";
@@ -124,7 +123,8 @@ function startStalenessPolling() {
  * Both schemas coexist in the same Supabase PostgreSQL database.
  */
 
-const prisma = new PrismaClient();
+// PrismaClient singleton imported from shared module
+import { prisma } from "../lib/db";
 
 // Service-to-service auth: require X-API-Key header on all endpoints except /health
 const publicPaths: (string | RegExp)[] = ["/health"];

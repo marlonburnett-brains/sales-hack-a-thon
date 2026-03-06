@@ -1,11 +1,9 @@
 import { google } from 'googleapis'
 import { OAuth2Client } from 'google-auth-library'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from './db'
 import { decryptToken } from './token-encryption'
 import { encryptToken } from './token-encryption'
 import { env } from '../env'
-
-const prisma = new PrismaClient()
 
 // ────────────────────────────────────────────────────────────
 // Dual-mode Google API client factories

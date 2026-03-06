@@ -14,18 +14,12 @@
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
-import { PrismaClient } from "@prisma/client";
 import { selectSlidesForDeck } from "../../lib/slide-selection";
 import { assembleDeckFromSlides } from "../../lib/deck-customizer";
 import { getOrCreateDealFolder } from "../../lib/drive-folders";
 import { ingestGeneratedDeck } from "../../lib/ingestion-pipeline";
+import { prisma } from "../../lib/db";
 import { env } from "../../env";
-
-// ────────────────────────────────────────────────────────────
-// Prisma client singleton
-// ────────────────────────────────────────────────────────────
-
-const prisma = new PrismaClient();
 
 // ────────────────────────────────────────────────────────────
 // Shared schemas
