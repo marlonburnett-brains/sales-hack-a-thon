@@ -99,12 +99,11 @@ Plans:
   3. Each MCP request gets a fresh token from the pool via fetch callback (tokens rotate without breaking existing connections)
   4. searchSlides(), searchForProposal(), and searchByCapability() use MCP semantic search with results mapped to the existing SlideSearchResult interface -- all 5 consumer files unchanged
   5. Setting ATLUS_USE_MCP=false switches back to Drive API search; MCP search is scoped to the configured ATLUS_PROJECT_ID
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 28-01: MCPClient singleton wrapper with health check, lifecycle, and auth injection
-- [ ] 28-02: MCP-to-SlideSearchResult adapter and Drive fallback replacement
-- [ ] 28-03: Agent API routes for search, discover, and token management
+- [ ] 28-01-PLAN.md -- MCPClient singleton wrapper with health check, lifecycle, and auth injection
+- [ ] 28-02-PLAN.md -- MCP-to-SlideSearchResult adapter with LLM parsing and Drive fallback replacement
 
 ### Phase 29: Discovery UI
 **Goal**: Users can browse, search, and selectively ingest AtlusAI content from within the application
@@ -158,5 +157,5 @@ Phases execute in numeric order: 27 -> 28 -> 29
 | 25. Integration Verification & Cutover | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 26. Tech Debt Cleanup | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 27. Auth Foundation | v1.4 | 4/5 | Gap closure | - |
-| 28. MCP Integration | v1.4 | 0/3 | Not started | - |
+| 28. MCP Integration | v1.4 | 0/2 | Not started | - |
 | 29. Discovery UI | v1.4 | 0/4 | Not started | - |
