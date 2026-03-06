@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: AtlusAI Authentication & Discovery
-status: planning
-stopped_at: Phase 27 context gathered
-last_updated: "2026-03-06T20:25:37.032Z"
-last_activity: 2026-03-06 -- v1.4 roadmap created
+status: executing
+stopped_at: Completed 27-01-PLAN.md
+last_updated: "2026-03-06T20:56:22Z"
+last_activity: 2026-03-06 -- Completed plan 27-01 (data models and shared constants)
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 4
+  completed_plans: 1
+  percent: 25
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 27 of 29 (Auth Foundation)
-Plan: 0 of 4 in current phase
-Status: Ready to plan
-Last activity: 2026-03-06 -- v1.4 roadmap created
+Plan: 1 of 4 in current phase
+Status: Executing
+Last activity: 2026-03-06 -- Completed plan 27-01 (data models and shared constants)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -44,6 +44,9 @@ Progress: [░░░░░░░░░░] 0%
 ### Decisions
 
 All decisions logged in PROJECT.md Key Decisions table (28 decisions total).
+
+- Phase 27-01: Used generic `encryptedToken` field name (not `encryptedRefresh`) since AtlusAI auth mechanism is TBD
+- Phase 27-01: Manual migration with `resolve --applied` due to 0_init checksum drift (never reset per project rules)
 
 ### Pending Todos
 
@@ -65,6 +68,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T20:25:37.024Z
-Stopped at: Phase 27 context gathered
-Next action: /gsd:plan-phase 27
+Last session: 2026-03-06T20:56:22Z
+Stopped at: Completed 27-01-PLAN.md
+Next action: /gsd:execute-phase 27-02
