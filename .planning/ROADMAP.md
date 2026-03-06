@@ -190,6 +190,6 @@ Plans:
 | 20. Slide Ingestion Agent | v1.2 | 2/2 | Complete | 2026-03-06 |
 | 21. Preview & Review Engine | v1.2 | 3/3 | Complete | 2026-03-06 |
 | 22. OAuth Scope Expansion & Token Storage | v1.3 | 3/3 | Complete | 2026-03-06 |
-| 23. User-Delegated API Clients & Token Passthrough | 2/2 | Complete   | 2026-03-06 | -- |
+| 23. User-Delegated API Clients & Token Passthrough | 2/2 | Complete    | 2026-03-06 | -- |
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 0/2 | Pending | -- |
 | 25. Integration Verification & Cutover | v1.3 | 0/1 | Pending | -- |
