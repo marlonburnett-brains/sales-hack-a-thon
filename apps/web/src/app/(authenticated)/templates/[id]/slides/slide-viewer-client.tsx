@@ -108,6 +108,41 @@ export function SlideViewerClient({
     );
   }, []);
 
+  // Find Similar handler
+  const handleFindSimilar = useCallback(async (slideId: string) => {
+    setSearchingSlideId(slideId);
+    setIsFindingSimilar(true);
+    setSimilarResults([]);
+    try {
+      const { results } = await findSimilarSlidesAction(slideId, 8);
+      setSimilarResults(results);
+    } catch {
+      setSimilarResults([]);
+    } finally {
+      setIsFindingSimilar(false);
+    }
+  }, []);
+
+  const closeSimilarity = useCallback(() => {
+    setSimilarResults(null);
+    setSearchingSlideId(null);
+  }, []);
+
+  // Build a slideObjectId -> thumbnailUrl map for SimilarityResults
+  const thumbnailObjectIdMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of initialThumbnails) {
+      map.set(t.slideObjectId, t.thumbnailUrl);
+    }
+    return map;
+  }, [initialThumbnails]);
+
+  // Template names map (only this template in per-template viewer)
+  const templateNamesMap = useMemo(
+    () => new Map([[templateId, templateName]]),
+    [templateId, templateName]
+  );
+
   const currentThumbnailUrl = currentSlide
     ? thumbnailMap.get(currentSlide.slideIndex)
     : undefined;
@@ -171,6 +206,8 @@ export function SlideViewerClient({
               slide={currentSlide}
               templateId={templateId}
               onUpdated={handleSlideUpdated}
+              onFindSimilar={handleFindSimilar}
+              isFindingSimilar={isFindingSimilar}
             />
           )}
         </div>
@@ -188,6 +225,18 @@ export function SlideViewerClient({
           }
         }}
       />
+
+      {/* Similarity Results Dialog */}
+      {similarResults !== null && (
+        <SimilarityResults
+          results={similarResults}
+          sourceSlideId={searchingSlideId ?? ""}
+          thumbnails={thumbnailObjectIdMap}
+          templateNames={templateNamesMap}
+          onClose={closeSimilarity}
+          isLoading={isFindingSimilar}
+        />
+      )}
     </div>
   );
 }
