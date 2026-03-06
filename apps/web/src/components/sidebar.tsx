@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  AlertTriangle,
   Briefcase,
   Layers,
   LayoutTemplate,
@@ -25,12 +26,21 @@ const navItems = [
   { href: "/deals", label: "Deals", icon: Briefcase },
   { href: "/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/slides", label: "Slide Library", icon: Layers },
+  { href: "/actions", label: "Action Required", icon: AlertTriangle },
 ];
 
 export function Sidebar({ user, children }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/actions/count")
+      .then((res) => res.json())
+      .then((data: { count?: number }) => setPendingCount(data.count ?? 0))
+      .catch(() => {}); // silent fail
+  }, [pathname]);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -73,7 +83,7 @@ export function Sidebar({ user, children }: SidebarProps) {
               href={href}
               onClick={closeMobile}
               title={collapsed ? label : undefined}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+              className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                 active
                   ? "bg-slate-100 font-medium text-slate-900"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -81,6 +91,18 @@ export function Sidebar({ user, children }: SidebarProps) {
             >
               <Icon className="h-4 w-4 shrink-0" />
               {!collapsed && <span>{label}</span>}
+              {!collapsed &&
+                label === "Action Required" &&
+                pendingCount > 0 && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-medium text-white">
+                    {pendingCount}
+                  </span>
+                )}
+              {collapsed &&
+                label === "Action Required" &&
+                pendingCount > 0 && (
+                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+                )}
             </Link>
           );
         })}
