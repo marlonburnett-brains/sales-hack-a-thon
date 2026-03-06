@@ -885,7 +885,7 @@ export const mastra = new Mastra({
                 name: z.string().min(1),
                 googleSlidesUrl: z.string().url(),
                 presentationId: z.string().min(1),
-                touchTypes: z.array(z.string()).min(1),
+                touchTypes: z.array(z.string()).default([]),
               })
               .parse(body);
 

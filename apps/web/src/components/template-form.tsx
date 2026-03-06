@@ -36,7 +36,7 @@ const templateFormSchema = z.object({
     .string()
     .min(1, "Google Slides URL is required")
     .regex(SLIDES_URL_REGEX, "Must be a valid Google Slides URL"),
-  touchTypes: z.array(z.string()).min(1, "Select at least one touch type"),
+  touchTypes: z.array(z.string()),
 });
 
 type TemplateFormValues = z.infer<typeof templateFormSchema>;
@@ -184,7 +184,7 @@ export function TemplateForm({ children, onSuccess }: TemplateFormProps) {
               name="touchTypes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Touch Types</FormLabel>
+                  <FormLabel>Touch Types <span className="text-sm font-normal text-slate-400">(optional)</span></FormLabel>
                   <div className="flex flex-wrap gap-2">
                     {TOUCH_TYPES.map((type) => {
                       const selected = field.value.includes(type.value);
