@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Templates & Slide Intelligence
-status: completed
-stopped_at: Phase 20 context gathered
-last_updated: "2026-03-05T23:22:20.450Z"
-last_activity: 2026-03-05 -- Completed Phase 19 Plan 03 (template management UI)
+status: in_progress
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-03-06T00:42:30.000Z"
+last_activity: 2026-03-06 -- Completed Phase 20 Plan 01 (slide ingestion pipeline)
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_plans: 7
+  completed_plans: 6
+  percent: 86
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.2 Templates & Slide Intelligence -- Phase 19 in progress (Plan 03 complete)
+**Current focus:** v1.2 Templates & Slide Intelligence -- Phase 20 in progress (Plan 01 complete)
 
 ## Current Position
 
-Phase: 19 of 21 (Navigation & Template Management)
-Plan: 3 of 5 (in progress)
-Status: Plan 03 complete, ready for Plan 04
-Last activity: 2026-03-05 -- Completed Phase 19 Plan 03 (template management UI)
+Phase: 20 of 21 (Slide Ingestion Agent)
+Plan: 1 of 2 (complete)
+Status: Plan 01 complete, ready for Plan 02
+Last activity: 2026-03-06 -- Completed Phase 20 Plan 01 (slide ingestion pipeline)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 86%
 
 ## Performance Metrics
 
@@ -45,11 +45,11 @@ Progress: [██████████] 100%
 | 18    | 02   | 5min     | 2     | 1     |
 | 19    | 02   | 2min     | 2     | 2     |
 | 19    | 03   | 8min     | 3     | 12    |
+| 20    | 01   | 7min     | 3     | 9     |
 
 **Recent Trend:**
-- v1.2 Phase 19 Plan 03 in 8 min
+- v1.2 Phase 20 Plan 01 in 7 min
 - Trend: Stable
-| Phase 19 P01 | 4min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -69,6 +69,9 @@ All v1.0-v1.1 decisions logged in PROJECT.md Key Decisions table (21 decisions t
 - [Phase 19-01]: No FK from Template to SlideEmbedding, deferred to Phase 20
 - **Phase 19-03:** Used TemplatesPageClient wrapper to pass server-fetched data to interactive client components
 - **Phase 19-03:** Added shadcn AlertDialog component for delete confirmation flow
+- **Phase 20-01:** Used db execute + migrate resolve for ingestion migration (0_init drift)
+- **Phase 20-01:** Installed pgvector npm for vector serialization (missing from package.json)
+- **Phase 20-01:** Added confidence score to Gemini structured output response schema (LLM self-assessment)
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T23:22:20.440Z
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-slide-ingestion-agent/20-CONTEXT.md
+Last session: 2026-03-06T00:42:30.000Z
+Stopped at: Completed 20-01-PLAN.md
+Resume file: .planning/phases/20-slide-ingestion-agent/20-02-PLAN.md

@@ -32,13 +32,13 @@ Requirements for milestone v1.2 Templates & Slide Intelligence. Each maps to roa
 ### Slide Intelligence
 
 - [x] **SLIDE-01**: pgvector extension enabled in Supabase with slide embeddings table and HNSW index
-- [ ] **SLIDE-02**: User can trigger slide ingestion for an accessible template
-- [ ] **SLIDE-03**: Agent extracts text content from each slide via Google Slides API
-- [ ] **SLIDE-04**: Agent generates vector embedding for each slide via Vertex AI text-embedding model
-- [ ] **SLIDE-05**: Agent classifies each slide by industry, solution pillar, persona, funnel stage, and content type via LLM structured output
-- [ ] **SLIDE-06**: Embeddings and classifications are stored in Supabase pgvector
+- [x] **SLIDE-02**: User can trigger slide ingestion for an accessible template
+- [x] **SLIDE-03**: Agent extracts text content from each slide via Google Slides API
+- [x] **SLIDE-04**: Agent generates vector embedding for each slide via Vertex AI text-embedding model
+- [x] **SLIDE-05**: Agent classifies each slide by industry, solution pillar, persona, funnel stage, and content type via LLM structured output
+- [x] **SLIDE-06**: Embeddings and classifications are stored in Supabase pgvector
 - [ ] **SLIDE-07**: User can see real-time progress during multi-slide ingestion (slide N/M)
-- [ ] **SLIDE-08**: Each classification includes a confidence score (0-100%)
+- [x] **SLIDE-08**: Each classification includes a confidence score (0-100%)
 - [ ] **SLIDE-09**: User can find similar slides across all ingested presentations via vector similarity search
 
 ### Preview & Review
@@ -98,13 +98,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TMPL-06 | Phase 19 | Complete |
 | TMPL-07 | Phase 19 | Complete |
 | SLIDE-01 | Phase 18 | Complete |
-| SLIDE-02 | Phase 20 | Pending |
-| SLIDE-03 | Phase 20 | Pending |
-| SLIDE-04 | Phase 20 | Pending |
-| SLIDE-05 | Phase 20 | Pending |
-| SLIDE-06 | Phase 20 | Pending |
+| SLIDE-02 | Phase 20 | Complete |
+| SLIDE-03 | Phase 20 | Complete |
+| SLIDE-04 | Phase 20 | Complete |
+| SLIDE-05 | Phase 20 | Complete |
+| SLIDE-06 | Phase 20 | Complete |
 | SLIDE-07 | Phase 20 | Pending |
-| SLIDE-08 | Phase 20 | Pending |
+| SLIDE-08 | Phase 20 | Complete |
 | SLIDE-09 | Phase 21 | Pending |
 | PREV-01 | Phase 21 | Pending |
 | PREV-02 | Phase 21 | Pending |
