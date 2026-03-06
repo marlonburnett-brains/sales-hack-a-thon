@@ -101,16 +101,35 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - ✓ Corrections update pgvector metadata immediately — v1.2
 - ✓ Cross-template vector similarity search with color-coded results — v1.2
 
+## Current Milestone: v1.3 Google API Auth — User-Delegated Credentials
+
+**Goal:** Replace service account with authenticated user credentials for all Google API access — both interactive requests and background jobs — so the agent inherits org-wide file access naturally.
+
+**Target features:**
+- OAuth scope expansion (Drive, Docs, Slides) with offline access for refresh tokens
+- Encrypted refresh token storage per user in database
+- User-delegated Google API client factories in google-auth.ts
+- Web→agent token passthrough for interactive requests
+- Background job token pool with ordered fallback and health alerting
+- Service account demotion (config fallback, no longer primary auth path)
+
 ### Active
 
-(No active requirements — define with `/gsd:new-milestone`)
+- [ ] Add Drive, Docs, and Slides OAuth scopes to Supabase Google OAuth config
+- [ ] Request offline access to obtain refresh tokens during login
+- [ ] Store encrypted refresh tokens per user in database
+- [ ] Modify google-auth.ts client factories to accept user access tokens
+- [ ] Web→agent API contract passes user's Google token for interactive requests
+- [ ] Background job token pool with ordered fallback
+- [ ] Health alerting when token pool runs low
+- [ ] Service account remains as fallback configuration
 
 ### Out of Scope
 
 - Salesforce integration — v1 relies on transcripts, notes, AtlusAI, and public data only; CRM integration is a v2 modular extension
 - Real-time call feedback — focus is pre-call and post-call; in-call AI coaching is a future phase
 - Mobile app — web-first, browser-based interface only
-- OAuth / per-seller Google accounts for Drive — service account to shared Lumenalta Drive (user auth is Supabase OAuth now)
+- ~~OAuth / per-seller Google accounts for Drive~~ — moved to Active for v1.3 (user-delegated credentials)
 - Video upload / Zoom integration — sellers paste transcripts manually; direct API integration is v2
 - Fine-tuning or custom model training — all steering done via prompt engineering and few-shot examples
 - Automated edit pattern analysis for prompt refinement — deferred to v2
@@ -176,4 +195,4 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | Chip+dropdown hybrid for tag editing | shadcn Select only supports single-value; custom MultiTagField for multi-value categories | ✓ Good — intuitive UX for multi-value classification correction |
 
 ---
-*Last updated: 2026-03-06 after v1.2 milestone*
+*Last updated: 2026-03-06 after v1.3 milestone started*
