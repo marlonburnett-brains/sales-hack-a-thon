@@ -5,7 +5,7 @@
 - v1.0 **Agentic Sales MVP** -- Phases 1-13 (shipped 2026-03-05) -- [Archive](milestones/v1.0-ROADMAP.md)
 - v1.1 **Infrastructure & Access Control** -- Phases 14-17 (shipped 2026-03-05) -- [Archive](milestones/v1.1-ROADMAP.md)
 - v1.2 **Templates & Slide Intelligence** -- Phases 18-21 (shipped 2026-03-06) -- [Archive](milestones/v1.2-ROADMAP.md)
-- v1.3 **Google API Auth: User-Delegated Credentials** -- Phases 22-25 (shipped 2026-03-06) -- [Archive](milestones/v1.3-ROADMAP.md)
+- v1.3 **Google API Auth: User-Delegated Credentials** -- Phases 22-26
 
 ## Phases
 
@@ -55,6 +55,7 @@
 - [x] Phase 23: User-Delegated API Clients & Token Passthrough (2/2 plans) -- completed 2026-03-06
 - [x] Phase 24: Token Pool & Refresh Lifecycle (2/2 plans) -- completed 2026-03-06
 - [x] Phase 25: Integration Verification & Cutover (2/2 plans) -- completed 2026-03-06
+- [ ] Phase 26: Tech Debt Cleanup — httpOnly Fix & Documentation (0/1 plan)
 
 </details>
 
@@ -87,3 +88,4 @@
 | 23. User-Delegated API Clients & Token Passthrough | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 25. Integration Verification & Cutover | v1.3 | 2/2 | Complete | 2026-03-06 |
+| 26. Tech Debt Cleanup | v1.3 | 0/1 | Pending | - |
