@@ -1,5 +1,27 @@
 # Milestones
 
+## v1.3 Google API Auth: User-Delegated Credentials (Shipped: 2026-03-06)
+
+**Phases:** 5 (22-26) | **Plans:** 10 | **Commits:** 17 | **Files changed:** 82 | **LOC:** ~30,203 TypeScript/TSX (total)
+**Timeline:** 1 day (2026-03-06)
+**Git range:** `55eddd4..88a6eac`
+
+**Key accomplishments:**
+- AES-256-GCM encrypted refresh token storage per user (UserGoogleToken Prisma model with lastUsedAt/isValid/revokedAt tracking)
+- OAuth scope expansion with Drive, Slides, Docs read-only scopes and offline access for refresh tokens
+- Dual-mode Google API client factories accepting optional accessToken — user OAuth2Client or service account fallback
+- Web-to-agent token passthrough via X-Google-Access-Token header with middleware re-consent detection and cookie caching
+- Background job token pool with ordered fallback, automatic token invalidation, health alerting at <3 valid tokens
+- 52-test regression suite verifying auth priority chain (user token > pool > service account)
+
+**Tech debt (accepted):**
+- `checkGoogleToken` api-client function unused by middleware (Edge runtime uses direct fetch)
+- Workflow steps don't consume user Google tokens (design deferral — service account fallback is intended)
+
+**Archives:** [v1.3-ROADMAP.md](milestones/v1.3-ROADMAP.md) | [v1.3-REQUIREMENTS.md](milestones/v1.3-REQUIREMENTS.md) | [v1.3-MILESTONE-AUDIT.md](milestones/v1.3-MILESTONE-AUDIT.md)
+
+---
+
 ## v1.2 Templates & Slide Intelligence (Shipped: 2026-03-06)
 
 **Phases:** 4 | **Plans:** 10 | **Commits:** 37 | **Files changed:** 201 | **LOC:** ~28,472 TypeScript/TSX (total)

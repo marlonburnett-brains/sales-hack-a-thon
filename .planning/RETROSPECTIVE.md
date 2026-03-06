@@ -2,6 +2,55 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.3 — Google API Auth: User-Delegated Credentials
+
+**Shipped:** 2026-03-06
+**Phases:** 5 | **Plans:** 10 | **Commits:** 17
+
+### What Was Built
+- AES-256-GCM encrypted refresh token storage per user (UserGoogleToken model with isValid/lastUsedAt/revokedAt)
+- OAuth scope expansion with Drive, Slides, Docs read-only scopes and offline access for refresh tokens
+- Dual-mode Google API client factories (user OAuth2Client token or service account fallback)
+- Web-to-agent token passthrough via X-Google-Access-Token header with in-memory token cache (50min TTL)
+- Middleware re-consent detection with 1h cookie cache and conditional consent prompt
+- Background job token pool with ordered fallback, automatic invalidation, and health alerting
+- ActionRequired model and API for re-authentication notifications
+- 52-test regression suite verifying auth priority chain across 4 test files
+
+### What Worked
+- **Single-day milestone:** 5 phases, 10 plans completed in one day — strong familiarity with codebase enabled rapid execution
+- **Dual-mode factory pattern:** GoogleAuthOptions interface cleanly separates user token vs service account paths without breaking any existing callers (14+ files backward compatible)
+- **Token cache with TTL:** In-memory cache avoids redundant refresh-to-access-token exchanges; 50min TTL matches Google's access token lifetime
+- **Fire-and-forget DB updates:** lastUsedAt/isValid updates don't block the API response — async DB writes for non-critical metadata
+- **Vitest mock patterns matured:** vi.mock class syntax for PrismaClient/OAuth2Client constructors, vi.resetModules for singleton isolation — pattern now well-established
+- **Phase 26 gap closure:** Audit identified httpOnly cookie bug and SUMMARY frontmatter gaps; single phase resolved both efficiently
+
+### What Was Inefficient
+- **Workflow token passthrough deferred:** Phase 23 explicitly deferred passing user tokens through workflow steps — fetchWithGoogleAuth headers are sent but never forwarded to step context. Low impact but creates a design asymmetry.
+- **checkGoogleToken unused code:** api-client.ts exports a function that middleware doesn't use (Edge runtime requires direct fetch) — should have been caught during implementation, not audit
+- **Migration drift continues:** Two more `db execute + migrate resolve` workarounds in Phases 22 and 24 — the 0_init baseline drift remains unresolved
+
+### Patterns Established
+- **Dual-mode Google API factory:** Accept optional GoogleAuthOptions; use OAuth2Client with user token when present, fall back to service account
+- **Token cache with Map:** In-memory Map with TTL for caching refresh-to-access-token exchanges
+- **extractGoogleAuth request helper:** Pulls X-Google-Access-Token + X-User-Id headers from request context into typed object
+- **Token pool iteration:** getPooledGoogleAuth iterates ALL valid tokens ordered by lastUsedAt DESC, marks failed tokens invalid
+- **ActionRequired model:** Generic action-needed pattern (type + entityId + metadata) for prompting user re-authentication
+
+### Key Lessons
+1. **User-delegated credentials are the right approach for org-wide file access:** Service account has limited visibility; user OAuth tokens inherit the user's org-wide permissions naturally.
+2. **Cookie httpOnly must be false for client-side JavaScript access:** Learned that `httpOnly: true` prevents `document.cookie` reads needed for client-side token status checks. Safe when cookie contains only status strings, not actual tokens.
+3. **Edge runtime compatibility matters for middleware:** Next.js middleware runs in Edge runtime — can't import Node.js-only packages. Use direct `fetch` instead of Node.js HTTP clients.
+4. **Token pool health alerting is low-cost insurance:** Console warning at <3 valid tokens costs nothing to implement but catches silent pool exhaustion before it becomes an outage.
+5. **Regression test suite should be a mandatory milestone deliverable:** Phase 25's 52-test suite caught integration issues and now serves as permanent regression protection.
+
+### Cost Observations
+- Model mix: ~70% sonnet (executors, verifiers), ~20% haiku (researchers), ~10% opus (orchestration, audit)
+- Sessions: ~6 sessions in 1 day
+- Notable: Quality profile + yolo mode continued to deliver strong verification (28/28 requirements, Nyquist compliant across all 5 phases)
+
+---
+
 ## Milestone: v1.2 — Templates & Slide Intelligence
 
 **Shipped:** 2026-03-06
@@ -158,6 +207,7 @@
 | v1.0 | 169 | 13 | Initial milestone — established GSD workflow patterns |
 | v1.1 | 55 | 4 | Infrastructure hardening — platform deploy, auth, Postgres |
 | v1.2 | 37 | 4 | Template intelligence — pgvector, AI classification, HITL rating |
+| v1.3 | 17 | 5 | User-delegated Google OAuth — token storage, passthrough, pool |
 
 ### Cumulative Quality
 
@@ -166,16 +216,17 @@
 | v1.0 | 13 | 10 | 3 (phases 4, 11, 12) |
 | v1.1 | 4 | 2 | 2 (phases 14, 16 — runtime auth flows) |
 | v1.2 | 4 | 4 | 0 (all passed automated verification) |
+| v1.3 | 5 | 5 | 0 (52 tests, Nyquist compliant) |
 
 ### Cumulative Stats
 
-| Metric | v1.0 | v1.1 | v1.2 | Total |
-|--------|------|------|------|-------|
-| Phases | 13 | 4 | 4 | 21 |
-| Plans | 27 | 6 | 10 | 43 |
-| Commits | 169 | 55 | 37 | 261 |
-| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~28,472 |
-| Days | 2 | 1 | 2 | 4 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | Total |
+|--------|------|------|------|------|-------|
+| Phases | 13 | 4 | 4 | 5 | 26 |
+| Plans | 27 | 6 | 10 | 10 | 53 |
+| Commits | 169 | 55 | 37 | 17 | 278 |
+| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~30,203 |
+| Days | 2 | 1 | 2 | 1 | 4 |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -187,3 +238,5 @@
 6. Choose CI/CD platform before building the pipeline — avoid mid-milestone migrations
 7. SUMMARY.md frontmatter gap is a recurring tooling issue — fix the executor, not the auditor
 8. Prisma + pgvector requires raw SQL escape hatches — accept and design around it
+9. User-delegated OAuth tokens solve org-wide file access without domain-wide delegation
+10. Regression test suites should be a mandatory deliverable for auth/security milestones

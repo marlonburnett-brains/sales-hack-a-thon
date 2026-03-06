@@ -101,50 +101,42 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - ✓ Corrections update pgvector metadata immediately — v1.2
 - ✓ Cross-template vector similarity search with color-coded results — v1.2
 
-## Shipped Milestone: v1.3 Google API Auth — User-Delegated Credentials (shipped 2026-03-06)
+**Google API Auth — User-Delegated Credentials** -- v1.3
+- ✓ OAuth scope expansion with Drive, Slides, Docs read-only scopes and offline access -- v1.3
+- ✓ AES-256-GCM encrypted refresh token storage per user (UserGoogleToken model) -- v1.3
+- ✓ Dual-mode Google API client factories (user token or service account fallback) -- v1.3
+- ✓ Web-to-agent token passthrough via X-Google-Access-Token header -- v1.3
+- ✓ Background job token pool with ordered fallback and health alerting -- v1.3
+- ✓ Middleware re-consent detection with cookie-cached token status -- v1.3
+- ✓ 52-test regression suite for auth priority chain -- v1.3
 
-**Goal:** Replace service account with authenticated user credentials for all Google API access — both interactive requests and background jobs — so the agent inherits org-wide file access naturally.
+### Active
 
-**Shipped features:**
-- OAuth scope expansion (Drive, Docs, Slides) with offline access for refresh tokens
-- Encrypted refresh token storage per user in database (AES-256-GCM)
-- User-delegated Google API client factories in google-auth.ts
-- Web-to-agent token passthrough for interactive requests
-- Background job token pool with ordered fallback and health alerting
-- Service account remains as permanent fallback
-
-### Completed
-
-- [x] Add Drive, Docs, and Slides OAuth scopes to Supabase Google OAuth config
-- [x] Request offline access to obtain refresh tokens during login
-- [x] Store encrypted refresh tokens per user in database
-- [x] Modify google-auth.ts client factories to accept user access tokens
-- [x] Web-to-agent API contract passes user's Google token for interactive requests
-- [x] Background job token pool with ordered fallback
-- [x] Health alerting when token pool runs low
-- [x] Service account remains as fallback configuration
+(No active requirements -- next milestone not yet defined)
 
 ### Out of Scope
 
-- Salesforce integration — v1 relies on transcripts, notes, AtlusAI, and public data only; CRM integration is a v2 modular extension
-- Real-time call feedback — focus is pre-call and post-call; in-call AI coaching is a future phase
-- Mobile app — web-first, browser-based interface only
-- ~~OAuth / per-seller Google accounts for Drive~~ — moved to Active for v1.3 (user-delegated credentials)
-- Video upload / Zoom integration — sellers paste transcripts manually; direct API integration is v2
-- Fine-tuning or custom model training — all steering done via prompt engineering and few-shot examples
-- Automated edit pattern analysis for prompt refinement — deferred to v2
-- Drag-and-drop slide reordering — sellers reorder in Google Slides directly
-- In-browser slide content editing — link to Google Slides for editing
-- Multi-tenant template libraries — single-team tool for ~20 sellers
-- Custom embedding model selection — one model (text-embedding-005) for consistent vector spaces
+- Salesforce integration -- CRM integration is a v2 modular extension
+- Real-time call feedback -- focus is pre-call and post-call; in-call AI coaching is future
+- Mobile app -- web-first, browser-based interface only
+- Video upload / Zoom integration -- sellers paste transcripts manually; direct API integration is v2
+- Fine-tuning or custom model training -- all steering done via prompt engineering and few-shot examples
+- Automated edit pattern analysis for prompt refinement -- deferred to v2
+- Drag-and-drop slide reordering -- sellers reorder in Google Slides directly
+- In-browser slide content editing -- link to Google Slides for editing
+- Multi-tenant template libraries -- single-team tool for ~20 sellers
+- Custom embedding model selection -- one model (text-embedding-005) for consistent vector spaces
+- Token management admin UI -- health alerting via logs sufficient for ~20 users; UI deferred to v2
+- Domain-wide delegation -- user-delegated approach avoids Google Workspace admin involvement
+- Google service account removal -- service account remains as fallback for backward compatibility
 
 ## Context
 
-**Current state:** v1.3 shipped. ~28,472 LOC TypeScript/TSX. 25 phases, 52 plans across 4 days (2026-03-03 → 2026-03-06). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
+**Current state:** v1.3 shipped. ~30,203 LOC TypeScript/TSX. 26 phases, 53 plans across 4 milestones over 4 days (2026-03-03 → 2026-03-06). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
 
 **Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI (RAG + knowledge base), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications).
 
-**Architecture:** Two-app monorepo — `apps/web` (Next.js 15 on Vercel with Server Actions) and `apps/agent` (Mastra Hono server on Railway). Shared `packages/schemas` for Zod types and constants. Mastra workflows use suspend/resume for HITL checkpoints. All Google output via service account to shared Lumenalta Drive. Service-to-service auth via shared API key (Authorization: Bearer header). User auth via Supabase Google OAuth restricted to @lumenalta.com. pgvector HNSW index for cosine similarity search across slide embeddings.
+**Architecture:** Two-app monorepo — `apps/web` (Next.js 15 on Vercel with Server Actions) and `apps/agent` (Mastra Hono server on Railway). Shared `packages/schemas` for Zod types and constants. Mastra workflows use suspend/resume for HITL checkpoints. Google API access uses user-delegated OAuth credentials with service account fallback for background jobs. Service-to-service auth via shared API key (Authorization: Bearer header). User auth via Supabase Google OAuth restricted to @lumenalta.com. pgvector HNSW index for cosine similarity search across slide embeddings.
 
 **Content library status:** 38 slides ingested from 5 accessible presentations in AtlusAI. Brand guidelines ingested. Template management system now enables registering additional Google Slides sources with AI classification. 14/17 known Drive sources need Viewer access on target Shared Drives (shortcut container access is insufficient).
 
@@ -198,4 +190,4 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | DEPLOY.md as environment setup reference | Practical new-environment guide vs. scattered env var notes | ✓ Good — single source of truth for all deployment config |
 
 ---
-*Last updated: 2026-03-06 -- v1.3 shipped*
+*Last updated: 2026-03-06 after v1.3 milestone*
