@@ -6,6 +6,7 @@
 - v1.1 **Infrastructure & Access Control** -- Phases 14-17 (shipped 2026-03-05) -- [Archive](milestones/v1.1-ROADMAP.md)
 - v1.2 **Templates & Slide Intelligence** -- Phases 18-21 (shipped 2026-03-06) -- [Archive](milestones/v1.2-ROADMAP.md)
 - v1.3 **Google API Auth: User-Delegated Credentials** -- Phases 22-26 (shipped 2026-03-06) -- [Archive](milestones/v1.3-ROADMAP.md)
+- v1.4 **AtlusAI Authentication & Discovery** -- Phases 27-29 (in progress)
 
 ## Phases
 
@@ -59,7 +60,73 @@
 
 </details>
 
+### v1.4 AtlusAI Authentication & Discovery (In Progress)
+
+**Milestone Goal:** Direct AtlusAI integration via Mastra MCP client with token pool auth, access detection, and a discovery UI for browsing/searching/ingesting AtlusAI content -- replacing the Drive API fallback with semantic search.
+
+- [ ] **Phase 27: Auth Foundation** - AtlusAI token storage, pool rotation, 3-tier access detection, and ActionRequired integration
+- [ ] **Phase 28: MCP Integration** - MCPClient singleton wired to AtlusAI SSE with Drive fallback replacement
+- [ ] **Phase 29: Discovery UI** - Sidebar nav, browse/search page, and selective ingestion into SlideEmbedding pipeline
+
+## Phase Details
+
+### Phase 27: Auth Foundation
+**Goal**: Users can store AtlusAI credentials and the system detects their access level, surfacing clear guidance when action is needed
+**Depends on**: Phase 26 (v1.3 complete)
+**Requirements**: ATLS-01, ATLS-02, ATLS-03, ATLS-04, ATLS-05, POOL-01, POOL-02, POOL-03, POOL-04, POOL-05, TIER-01, TIER-02, TIER-03, TIER-04, TIER-05, ACTN-01, ACTN-02, ACTN-03, ACTN-04, ACTN-05
+**Success Criteria** (what must be TRUE):
+  1. User can submit AtlusAI credentials via a web form and re-submitting updates the existing record (not duplicates)
+  2. Stored tokens are encrypted at rest (AES-256-GCM) and the system tracks validity, last usage, and revocation per token
+  3. Background processes obtain a valid AtlusAI token from the pool (ordered by last used), with automatic invalidation on failure and env var fallback when the pool is empty
+  4. When a user lacks an AtlusAI account or project access, a specific ActionRequired item appears in the sidebar with resolution guidance -- and resolving one tier immediately re-checks the next
+  5. The system logs a warning when fewer than 3 valid AtlusAI tokens remain in the pool
+**Plans**: TBD
+
+Plans:
+- [ ] 27-01: Auth discovery, UserAtlusToken model, and token encryption
+- [ ] 27-02: Token pool rotation and env var fallback
+- [ ] 27-03: 3-tier access detection and ActionRequired integration
+- [ ] 27-04: Token capture web UI and re-trigger on credential update
+
+### Phase 28: MCP Integration
+**Goal**: AtlusAI semantic search replaces Drive API keyword search in all existing workflows, with Drive retained as a degraded fallback
+**Depends on**: Phase 27
+**Requirements**: MCP-01, MCP-02, MCP-03, MCP-04, MCP-05, MCP-06, SRCH-01, SRCH-02, SRCH-03, SRCH-04, SRCH-05, SRCH-06
+**Success Criteria** (what must be TRUE):
+  1. The MCPClient connects to the AtlusAI SSE endpoint using pooled credentials and lives only on the agent service (no MCP imports in apps/web)
+  2. The MCPClient self-heals: health check via listTools() before use, disconnect and recreate on failure, forced recycle after configurable max lifetime, graceful shutdown on SIGTERM
+  3. Each MCP request gets a fresh token from the pool via fetch callback (tokens rotate without breaking existing connections)
+  4. searchSlides(), searchForProposal(), and searchByCapability() use MCP semantic search with results mapped to the existing SlideSearchResult interface -- all 5 consumer files unchanged
+  5. Setting ATLUS_USE_MCP=false switches back to Drive API search; MCP search is scoped to the configured ATLUS_PROJECT_ID
+**Plans**: TBD
+
+Plans:
+- [ ] 28-01: MCPClient singleton wrapper with health check, lifecycle, and auth injection
+- [ ] 28-02: MCP-to-SlideSearchResult adapter and Drive fallback replacement
+- [ ] 28-03: Agent API routes for search, discover, and token management
+
+### Phase 29: Discovery UI
+**Goal**: Users can browse, search, and selectively ingest AtlusAI content from within the application
+**Depends on**: Phase 28
+**Requirements**: DISC-01, DISC-02, DISC-03, DISC-04, DISC-05, DISC-06, DISC-07, DISC-08, DISC-09
+**Success Criteria** (what must be TRUE):
+  1. "AtlusAI" appears in the sidebar navigation and leads to a /discovery route with browse and search views
+  2. Browse view shows a paginated document inventory from AtlusAI filtered to the configured project; search view returns semantic results with content previews and relevance scoring on debounced input
+  3. If the user (or pool) lacks AtlusAI access, the discovery page shows the appropriate ActionRequired state instead of content
+  4. Users can select items from browse or search results and ingest them into the local SlideEmbedding pipeline, with per-item progress indication
+  5. Already-ingested content is visually marked in results to prevent duplicate ingestion
+**Plans**: TBD
+
+Plans:
+- [ ] 29-01: Sidebar nav, /discovery route, and access gating
+- [ ] 29-02: Browse view with paginated document inventory
+- [ ] 29-03: Search view with semantic search and result previews
+- [ ] 29-04: Selective ingestion with progress tracking and dedup markers
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 27 -> 28 -> 29
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -89,3 +156,6 @@
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 25. Integration Verification & Cutover | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 26. Tech Debt Cleanup | v1.3 | 1/1 | Complete | 2026-03-06 |
+| 27. Auth Foundation | v1.4 | 0/4 | Not started | - |
+| 28. MCP Integration | v1.4 | 0/3 | Not started | - |
+| 29. Discovery UI | v1.4 | 0/4 | Not started | - |
