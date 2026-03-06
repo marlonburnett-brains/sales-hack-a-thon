@@ -1,270 +1,298 @@
 # Pitfalls Research
 
-**Domain:** Adding pgvector, CI/CD, slide intelligence, and HITL classification to existing Lumenalta sales platform
-**Researched:** 2026-03-05
-**Confidence:** HIGH (verified against official docs, GitHub issues, and existing codebase analysis)
+**Domain:** Adding AtlusAI token pool auth, Mastra MCP client, Drive fallback replacement, Action Required extension, and Discovery UI to existing Next.js + Mastra monorepo
+**Researched:** 2026-03-06
+**Confidence:** HIGH (based on existing codebase analysis, Mastra MCP docs, MCP protocol spec, Vercel serverless constraints, and v1.3 token pool implementation patterns)
 
 ## Critical Pitfalls
 
-### Pitfall 1: Prisma Does Not Natively Support pgvector Types -- All Vector Operations Require Raw SQL
+### Pitfall 1: SSE Connection Lifecycle in Vercel Serverless Functions Causes Silent Tool Call Failures
 
 **What goes wrong:**
-Prisma has no native `vector` type. You define the column as `Unsupported("vector(1536)")` in the schema, but then all reads and writes for that column must use raw SQL (`$queryRaw`, `$executeRaw`). Developers who expect to use standard Prisma CRUD for embeddings hit runtime errors or silently get null values. The generated Prisma Client TypeScript types exclude `Unsupported` fields entirely, so `prisma.slideEmbedding.create({ data: { embedding: [...] } })` does not even compile.
+The Mastra `MCPClient` holds a persistent SSE connection to `https://knowledge-base-api.lumenalta.com/sse`. On Vercel, serverless functions have hard timeouts (60s Hobby, 300s Pro). If a web Server Action creates an `MCPClient`, the SSE connection opens, but the function terminates when the response completes -- killing the SSE connection mid-flight if any background work is pending. On subsequent requests, a new function invocation gets a new `MCPClient` with a new SSE connection. If the `MCPClient` is cached at module scope (singleton pattern), Vercel's function recycling means the cached instance may hold a dead SSE connection that silently fails on the next tool call.
 
 **Why it happens:**
-Prisma treats pgvector's `vector` type as `Unsupported`, meaning it exists in the schema for migration purposes but is invisible to the generated TypeScript client. The project's CLAUDE.md mandates `prisma migrate dev --name <name>` for all schema changes (never `db push`), which means every vector column addition goes through the migration pipeline where extension creation must be handled manually.
+Vercel serverless functions are stateless and ephemeral. SSE connections are stateful and persistent. These two paradigms are fundamentally incompatible. The MCP protocol requires an `initialize` handshake on each new SSE session, but a cached `MCPClient` instance does not know its SSE connection has been severed by function recycling. The `MCPClient` auto-connects lazily on first `listTools()` or tool call, but does not detect that the underlying transport died.
 
 **How to avoid:**
-1. Use `--create-only` when adding vector columns. Edit the generated SQL to prepend `CREATE EXTENSION IF NOT EXISTS "vector"` before applying.
-2. Define the model with `embedding Unsupported("vector(1536)")?` in schema.prisma.
-3. Create a dedicated repository layer (e.g., `slide-embedding.repository.ts`) that wraps ALL vector operations in raw SQL. Never attempt Prisma client methods on vector columns.
-4. Use `::text` casting when reading embeddings back: `SELECT embedding::text FROM ...`.
-5. For similarity search, use raw SQL with pgvector operators: `ORDER BY embedding <=> $1::vector LIMIT $2`.
-6. Create HNSW or IVFFlat indexes via raw SQL in the migration file -- Prisma cannot generate these index types.
+1. **Do NOT create MCPClient on Vercel (web app) at all.** All MCP operations must go through the Railway-hosted agent service, which is a long-running process that can hold persistent SSE connections.
+2. The web app should call agent API endpoints (via `fetchWithGoogleAuth` or `fetchJSON`) that internally use the MCPClient on the agent side.
+3. On Railway (agent), create a singleton `MCPClient` at startup with proper reconnect handling. The agent process is long-lived, so SSE connections persist naturally.
+4. Implement a health check that verifies the SSE connection is alive before tool calls: wrap `listTools()` in a try/catch and reconnect (`disconnect()` then re-create) on failure.
+5. Set the MCPClient `timeout` to 30 seconds (not the default 60s) to fail fast on stale connections.
 
 **Warning signs:**
-- `PrismaClientKnownRequestError` mentioning "unsupported" during CRUD operations
-- Migration fails with `type "vector" does not exist`
-- Vector columns return `null` when using `prisma.model.findMany()`
-- TypeScript compilation errors when trying to set vector fields via Prisma Client
+- Tool calls that work in development (long-running Node.js process) but fail in production (Vercel serverless)
+- `ECONNRESET` or `fetch failed` errors from the MCPClient
+- SSE connection established but tool responses never arrive
+- MCPClient `listTools()` returning empty arrays after function recycling
 
 **Phase to address:**
-Slide Ingestion Agent phase -- must be set up correctly before any embedding storage begins.
+Mastra MCP Client phase -- must be an agent-side-only component from the start.
 
 ---
 
-### Pitfall 2: Supabase Shadow Database and Extension Schema Conflicts Block Prisma Migrations
+### Pitfall 2: MCPClient SSE Connection on Railway Dies After Server Restarts Without Reconnect Logic
 
 **What goes wrong:**
-Prisma's `migrate dev` uses a shadow database to detect drift. Supabase enables extensions in a special `extensions` schema, but the shadow database does not have this schema. Running `prisma migrate dev` fails with `schema "extensions" does not exist` in the shadow database. Separately, if someone toggles pgvector on/off via the Supabase dashboard, Prisma detects schema drift and wants to recreate the extension, causing migration history conflicts.
+Railway auto-restarts containers on deploy, health check failure, or OOM. When the agent process restarts, the singleton `MCPClient` is destroyed. If the `MCPClient` is created in a module-level `const`, it initializes lazily on first use after restart -- but the AtlusAI SSE endpoint may take 5-10 seconds to establish, during which incoming requests that need MCP tools will fail. Additionally, if the AtlusAI server itself restarts or has a network blip, the SSE connection drops and `MCPClient` does not auto-reconnect. Per the MCP TypeScript SDK issue #510, "SSEClientTransport doesn't re-establish lifecycle state on disconnect/reconnect" -- reconnecting creates a new session but the client assumes the old initialization state.
 
 **Why it happens:**
-Supabase's architecture puts extensions in a separate schema (`extensions`) for security isolation. Prisma's shadow database is a vanilla Postgres instance that lacks this schema. The project already has a baseline migration (`0_init`) and adding extension management introduces a new class of drift. The project note about the direct DB host vs Supabase pooler ("pooler not ready for newly created projects") adds another variable.
+The MCP SSE transport is session-based. Each SSE connection has a session ID. When the connection drops, the server forgets the session. The client must fully re-initialize (new handshake, new session). But `MCPClient` does not have built-in reconnect with re-initialization -- it reconnects the transport but skips the `initialize` message exchange.
 
 **How to avoid:**
-1. Enable pgvector via the Supabase dashboard first (Settings > Database > Extensions). Do NOT rely on Prisma migrations to create the extension.
-2. In the migration SQL file, use `CREATE EXTENSION IF NOT EXISTS "vector" SCHEMA public` (explicitly `public` schema, not `extensions`). This avoids the shadow database schema issue.
-3. For the shadow database, either configure `shadowDatabaseUrl` in schema.prisma pointing to a second Supabase project, or accept that `migrate dev` may need `--create-only` followed by manual apply with `migrate deploy`.
-4. Never toggle extensions on/off in the Supabase dashboard after initial setup -- this causes drift that Prisma cannot reconcile.
-5. Both dev AND prod Supabase instances need pgvector enabled before running migrations.
+1. Create a wrapper around `MCPClient` that detects connection drops and fully re-creates the client (not just reconnects the transport):
+```typescript
+let mcpClient: MCPClient | null = null;
+
+async function getAtlusAIMCPClient(): Promise<MCPClient> {
+  if (mcpClient) {
+    try {
+      await mcpClient.listTools(); // health check
+      return mcpClient;
+    } catch {
+      await mcpClient.disconnect().catch(() => {});
+      mcpClient = null;
+    }
+  }
+  mcpClient = new MCPClient({ servers: { atlus: { url: new URL(ATLUS_SSE_URL), ... } } });
+  return mcpClient;
+}
+```
+2. Add a `process.on('SIGTERM', ...)` handler to gracefully disconnect before Railway kills the container.
+3. Use the MCPClient `id` parameter to prevent memory leaks: `id: 'atlus-ai-singleton'`. Without this, creating multiple instances with identical config throws an error.
+4. Add startup readiness gating: the agent should not accept MCP-dependent requests until the SSE connection is confirmed alive via `listTools()`.
 
 **Warning signs:**
-- `prisma migrate dev` fails mentioning "extensions" schema
-- Migration history shows drift warnings about vector extension
-- Dev and prod databases have different extension configurations
-- CI/CD migration step fails but local `migrate dev` works
+- MCP tool calls failing immediately after Railway deploys
+- "MCPClient already exists with this configuration" errors (memory leak from re-creation without disconnect)
+- Tools working for hours, then suddenly failing (network blip killed SSE)
+- Agent logs showing SSE connection established but `initialize` handshake never completed
 
 **Phase to address:**
-CI/CD Pipeline phase -- must be resolved before automated migrations run in GitHub Actions.
+Mastra MCP Client phase -- reconnect wrapper must be part of the initial integration.
 
 ---
 
-### Pitfall 3: Running Prisma Migrations in CI/CD Against Production Without Guards
+### Pitfall 3: Two Independent Token Pools (Google + AtlusAI) Create Cascade Failures and Confusing Action Required Items
 
 **What goes wrong:**
-GitHub Actions runs `prisma migrate deploy` against the production Supabase database on every push to main. A bad migration (data-destructive column drop, wrong type change) applies instantly with no rollback. Preview deployments on Vercel with schema changes would mutate the production database if they share the same `DATABASE_URL`. Multiple concurrent deploys could race to apply the same migration.
+The existing `getPooledGoogleAuth()` iterates `UserGoogleToken` records for Google API access. v1.4 adds a second pool (`UserAtlusToken`) for AtlusAI API access. Both pools create `ActionRequired` records with different `actionType` values (`reauth_needed` vs `atlus_account_required`). When a user's Google token expires, the system creates a Google re-auth action. When they also lack an AtlusAI account, they get an AtlusAI action. The Actions page becomes a confusing mix of Google and AtlusAI issues with no clear categorization. Worse, if a background job needs BOTH pools (e.g., search AtlusAI + fetch from Drive), one pool failure causes the whole operation to fail, but only one `ActionRequired` is created -- the user fixes one issue and the job still fails on the other.
 
 **Why it happens:**
-The project has a single `DATABASE_URL` env var per environment. CI/CD pipelines naturally run migrations as part of the deploy step. The project's constraint ("treat dev DB as production, forward-only migrations") is enforced by convention in CLAUDE.md but has no automated gate in CI.
+Two independent pools with independent fallback chains and independent error paths. No coordination between the pools. The Action Required UI treats all actions as a flat list with no grouping. Background jobs that need both APIs do not atomically check both before starting.
 
 **How to avoid:**
-1. Run `prisma migrate deploy` (not `migrate dev`) in CI/CD -- it only applies pending migrations, never creates new ones, and does not use a shadow database.
-2. Use separate `DATABASE_URL` values for preview vs production Vercel deployments.
-3. Add a `prisma migrate status` check step in CI before applying migrations -- if no pending migrations, skip the step entirely.
-4. Sequence the CI/CD pipeline: check migration status -> apply migrations -> deploy agent -> deploy web. Migrations must succeed before either app deploys.
-5. Never run migrations from the Vercel build step. Use a dedicated GitHub Actions job that completes before deploy triggers.
-6. Add a concurrency group in GitHub Actions to prevent parallel migration runs: `concurrency: { group: 'deploy-main', cancel-in-progress: false }`.
+1. Group Action Required items by category in the UI. Add an `actionCategory` field or derive from `actionType`: Google actions vs AtlusAI actions. Show them in separate sections.
+2. For operations requiring both pools, pre-check both pools at the start and create all needed `ActionRequired` records upfront -- do not discover them one at a time.
+3. Keep the pools completely independent in code. Do NOT create a unified "token pool" abstraction -- Google OAuth and AtlusAI auth are different systems with different credentials, different refresh mechanisms, and different scopes. A bad abstraction here causes more bugs than it prevents.
+4. Use distinct `actionType` values that are clearly named: `google_reauth_needed`, `atlus_account_required`, `atlus_project_required` (not generic `reauth_needed` that could mean either).
+5. Add de-duplication: before creating a new `ActionRequired`, check for an existing unresolved record with the same `userId` + `actionType` (the existing Google pool already does this -- replicate for AtlusAI pool).
 
 **Warning signs:**
-- Preview deployments modifying production schema
-- Multiple GitHub Actions runs racing to apply the same migration
-- `prisma migrate deploy` failing mid-flight with partial schema changes
-- Agent deploys with new code before migration has run
+- Users seeing 4+ unresolved actions with unclear categorization
+- Background jobs failing twice -- once for Google, once for AtlusAI -- when both credentials are expired
+- `ActionRequired` table growing with duplicate entries for the same user/issue
 
 **Phase to address:**
-CI/CD Pipeline phase -- this is the first thing to get right before any other automated deployment.
+Auth & Token Pool phase AND Action Required Integration phase -- both phases must coordinate on `actionType` naming and UI grouping.
 
 ---
 
-### Pitfall 4: Google Slides API 60-Request-Per-Minute Quota Exhaustion During Slide Ingestion
+### Pitfall 4: MCP Auth Credential Injection -- Passing AtlusAI Tokens Through requestInit/eventSourceInit Incorrectly
 
 **What goes wrong:**
-When ingesting templates, the slide agent needs to: (1) get presentation metadata, (2) get each slide's content for embedding, (3) optionally get thumbnails. With 12+ presentations of 20-40 slides each, you quickly exceed the 60 requests/minute/user quota. The API returns 429 errors, and without proper retry logic the ingestion job silently drops slides or crashes mid-way, leaving the database in an inconsistent state (some slides ingested, others missing).
+The AtlusAI SSE endpoint (`/sse`) returns 401 without auth. The `MCPClient` needs to pass the AtlusAI access token via request headers. However, the MCPClient has TWO header configuration points: `requestInit` (for the initial Streamable HTTP attempt and subsequent POST requests) and `eventSourceInit` (for the SSE fallback). If you only set `requestInit`, the SSE fallback connection opens without auth headers and gets 401. The MCPClient silently falls back from Streamable HTTP to SSE, then SSE fails with 401, and the error message just says "connection failed" without indicating that SSE auth headers were missing.
 
 **Why it happens:**
-The Google Slides API has a hard 60 requests/minute/user limit. Each `presentations.get` is one request, but `presentations.pages.getThumbnail` per slide adds up fast. A 30-slide deck needing thumbnails requires 31 API calls (1 metadata + 30 thumbnails), consuming half the per-minute budget for a single presentation. The project already has 38 slides from 5 presentations and expects 12+ more presentations once Drive access is granted.
+The MCPClient first tries Streamable HTTP transport (protocol version 2025-03-26), then falls back to legacy SSE (protocol version 2024-11-05). These are two different transports with two different request configurations. The AtlusAI server is an SSE server (legacy protocol), so the Streamable HTTP attempt will always fail. The SSE connection needs auth in `eventSourceInit`, not `requestInit`. Developers set `requestInit` headers assuming it covers all transports.
 
 **How to avoid:**
-1. Use `presentations.get` WITHOUT field masks to get ALL slide data (including page elements, text content) in a single request per presentation. This is one call per deck, not one per slide.
-2. Extract text content for embeddings from the presentation response object server-side -- do not make per-slide API calls for content.
-3. For thumbnails, batch with deliberate delays: process ~40 thumbnails/minute to leave headroom for other API calls.
-4. Implement exponential backoff with jitter on 429 responses (Google's recommended pattern).
-5. Process presentations sequentially, not in parallel.
-6. Cache the full presentation JSON in the database so re-ingestion or re-classification does not require re-fetching from Google.
-7. Make ingestion idempotent -- if interrupted, it should resume from the last successfully processed slide, not restart from scratch.
+1. Set auth headers in BOTH `requestInit` AND `eventSourceInit`:
+```typescript
+const mcpClient = new MCPClient({
+  id: 'atlus-ai',
+  servers: {
+    atlus: {
+      url: new URL('https://knowledge-base-api.lumenalta.com/sse'),
+      requestInit: {
+        headers: { Authorization: `Bearer ${atlusToken}` },
+      },
+      eventSourceInit: {
+        fetch: (url, init) => fetch(url, {
+          ...init,
+          headers: { ...init?.headers, Authorization: `Bearer ${atlusToken}` },
+        }),
+      },
+    },
+  },
+});
+```
+2. Alternatively, use the `fetch` option on the server config which covers ALL transports:
+```typescript
+fetch: async (url, init) => {
+  return fetch(url, {
+    ...init,
+    headers: { ...init?.headers, Authorization: `Bearer ${token}` },
+  });
+}
+```
+3. The `fetch` option is preferred because it provides a single auth injection point that works regardless of which transport the MCPClient selects.
+4. Since the AtlusAI token comes from a pool (rotated per request), use the `fetch` callback pattern so tokens are resolved at request time, not at MCPClient construction time.
 
 **Warning signs:**
-- 429 HTTP responses from Google APIs
-- Ingestion jobs that process some slides but not all
-- Inconsistent slide counts between source presentations and database records
-- Ingestion completes "successfully" but some slides have no embeddings
+- MCPClient connects but all tool calls return 401
+- "Bad credentials" errors after SSE connection appears to establish
+- Auth works in manual `fetch()` test but not through MCPClient
+- MCPClient falls back to SSE silently and then fails
 
 **Phase to address:**
-Slide Ingestion Agent phase -- rate limiting must be built into the agent from day one.
+Mastra MCP Client phase -- auth injection pattern must be correct from the first connection attempt.
 
 ---
 
-### Pitfall 5: batchUpdate Atomicity Means One Bad Object ID Kills an Entire Slide Assembly Operation
+### Pitfall 5: Replacing Drive Fallback Search Without Preserving the Multi-Pass Retrieval Contract
 
 **What goes wrong:**
-Google Slides `batchUpdate` is atomic -- if any single sub-request in the batch is invalid, the entire batch fails and nothing is applied. When building slide assembly operations (copy, reorder, delete unwanted slides), one stale object ID or malformed request kills the entire operation, including all valid changes. The project's copy-and-prune pattern (copy entire source, delete unwanted slides, reorder remaining) is particularly vulnerable because object IDs from the source presentation do not carry over to the copy.
+The existing `atlusai-search.ts` has a carefully designed multi-pass retrieval system: primary pillar search (20 slides), secondary pillar searches (5 each), case study search (5), with three-tier fallback broadening when results are sparse. The `searchForProposal()` function returns `ProposalSearchResult` with per-pass counts for diagnostics. Replacing Drive-based search with MCP-based search seems simple -- swap the underlying `searchSlides()` call -- but the MCP tools (`knowledge_base_search_semantic`, `knowledge_base_search_structured`) return different result shapes, have different pagination, and may not support the same filtering. If the replacement only swaps the search call without preserving the multi-pass logic, fallback tiers, and deduplication, proposal quality degrades silently.
 
 **Why it happens:**
-Object IDs change when presentations are copied via the Drive API. Shape and element IDs can change when slides are manually edited in the Google Slides UI. The batchUpdate API validates all requests atomically before applying any, so there is no partial success.
+The temptation is to rip out `atlusai-search.ts` entirely and replace it with direct MCP calls. But `searchForProposal()` and `searchByCapability()` are consumed by 5 workflow files (`touch-1` through `touch-4` and `pre-call`). Each expects the `SlideSearchResult` interface. The MCP tools return different fields. A naive replacement breaks the contract.
 
 **How to avoid:**
-1. After copying a presentation via Drive API, ALWAYS re-fetch the new presentation to get fresh object IDs. Never assume IDs carry over from the source.
-2. Break large batch operations into smaller, independent batches. Each batch should be self-contained (e.g., all deletes in one batch, all text replacements in another).
-3. Validate that referenced objectIds exist in the current presentation state before building the batchUpdate request.
-4. Implement retry logic that re-fetches presentation state and rebuilds the request on failure.
-5. Log the full batchUpdate request payload on failure for debugging -- the error message from Google often only identifies the first invalid request.
+1. Keep the `SlideSearchResult` interface as the public API contract. The replacement should only change the internal implementation of `searchSlides()`.
+2. Create an adapter that maps MCP `knowledge_base_search_semantic` results to `SlideSearchResult`:
+   - Map MCP document fields to `slideId`, `textContent`, `speakerNotes`, `metadata`
+   - Preserve `presentationId` and `slideObjectId` extraction from MCP metadata
+3. Keep `searchForProposal()` and `searchByCapability()` unchanged -- they orchestrate multiple `searchSlides()` calls and handle deduplication/fallback.
+4. Run a side-by-side comparison: for the same query, compare Drive search results vs MCP search results. Verify that MCP returns equal or better quality before cutting over.
+5. Keep the Drive fallback path available (behind a feature flag) during the transition. If MCP search returns poor results or is down, fall back to Drive search.
 
 **Warning signs:**
-- `batchUpdate` calls failing with "The object (objectId) could not be found"
-- Slides that work in dev but fail in production (different source presentations with different IDs)
-- Partial deck assembly where the entire operation failed and no slides were modified
+- Workflows that previously generated good slide selections now produce irrelevant results
+- `searchForProposal()` returning 0 candidates (MCP search returning empty)
+- Type errors in workflow files after search replacement (interface mismatch)
+- Loss of per-pass count diagnostics (primaryCount, secondaryCount, caseStudyCount)
 
 **Phase to address:**
-Slide Ingestion Agent phase and Templates Management phase -- any phase that modifies Google Slides programmatically.
+Replace Drive Fallback phase -- must be an adapter swap, not a rewrite of the retrieval orchestration.
 
 ---
 
-### Pitfall 6: Embedding Model Dimension Mismatch Silently Corrupts Similarity Search
+### Pitfall 6: Extending ActionRequired Model With New Types Breaks Existing Switch Statements and Icon Mapping
 
 **What goes wrong:**
-The vector column is created with a fixed dimension (e.g., `vector(1536)` for OpenAI `text-embedding-3-small`, or `vector(768)` for Vertex AI `text-embedding-004`). If the embedding model changes, or if different parts of the system use different models, dimensions do not match. Postgres throws a dimension mismatch error on insert, or if the column is defined without dimensions (`vector` instead of `vector(768)`), stores vectors of inconsistent dimensions where cosine similarity produces meaningless results.
+The existing `actions-client.tsx` has a `getActionIcon()` function that switches on `actionType`: `reauth_needed`, `share_with_sa`, `drive_access`. Adding new types (`atlus_account_required`, `atlus_project_required`) without updating this switch falls through to the `default` case (generic gray icon). The agent-side code that creates `ActionRequired` records also has hardcoded type-specific logic (e.g., the Google pool creates `reauth_needed` with specific title/description patterns). Adding new types without updating ALL consumers of `actionType` creates inconsistent behavior.
 
 **Why it happens:**
-The project uses GPT-OSS 120b on Vertex AI as the LLM, but LLMs and embedding models are separate services. The project may need a dedicated embedding endpoint. Different embedding models produce different dimensions: OpenAI text-embedding-3-small (1536), Vertex AI text-embedding-004 (768), Cohere embed-v3 (1024). Choosing wrong or changing later requires re-embedding all stored content.
+The `actionType` field is a plain `String` in Prisma, not an enum. There is no compile-time check when new types are added. The consumers are split across apps: agent creates records, web displays them. Adding a type on the agent side without updating the web side is easy to miss.
 
 **How to avoid:**
-1. Choose the embedding model BEFORE creating the vector column. Document the model name, version, and output dimension as a SQL comment in the migration file.
-2. Specify explicit dimensions in the column definition: `vector(768)` not `vector`. This catches mismatches at insert time rather than producing garbage similarity results.
-3. Store the embedding model identifier alongside each vector (an `embedding_model` text column) so you can detect and handle model changes.
-4. Use a consistent embedding model across ALL content types. Do not mix models.
-5. Since the project already uses Vertex AI, `text-embedding-004` (768 dims) is the natural choice -- same platform, same auth, lower storage cost than 1536-dim alternatives.
-6. Create an abstraction layer for embedding generation so the model can be swapped later (with a re-embedding migration).
+1. Define a shared `ACTION_TYPES` constant in `packages/schemas` that lists all valid action types. Both agent and web import from this single source.
+2. When adding new types, grep for ALL `actionType` references across both apps. Key files to update:
+   - `apps/web/src/app/(authenticated)/actions/actions-client.tsx` -- icon mapping, display logic
+   - `apps/web/src/lib/actions/action-required-actions.ts` -- any type-specific server actions
+   - `apps/agent/src/lib/google-auth.ts` -- existing type creation
+   - `apps/agent/src/mastra/index.ts` -- any route-level type handling
+3. Add an icon and description for every new `actionType` in `getActionIcon()` BEFORE the agent starts creating records with that type.
+4. Consider adding a `resolutionUrl` field to `ActionRequired` so the UI can show a "Fix this" button that navigates to the appropriate page (e.g., AtlusAI login page, Google re-auth page).
 
 **Warning signs:**
-- Similarity search returns irrelevant results for clearly related slides
-- Insert errors mentioning dimension mismatch
-- Different embedding dimensions in code vs database column definition
-- Mixing embedding calls to different providers in the same codebase
+- New action types appearing in the UI with generic gray icons
+- Action descriptions that are confusing because the web app does not know how to format them
+- Users seeing "Action Required" items with no clear resolution path
 
 **Phase to address:**
-Slide Ingestion Agent phase -- must be decided before the first embedding is stored.
+Action Required Integration phase -- shared type definition must ship before either app creates records with new types.
 
 ---
 
-### Pitfall 7: Side Panel Navigation Breaks Existing Authenticated Layout and Deal Pages
+### Pitfall 7: Discovery UI Browse/Search/Ingest State Machine Becomes Spaghetti Without Explicit State Management
 
 **What goes wrong:**
-The current authenticated layout (`apps/web/src/app/(authenticated)/layout.tsx`) renders a sticky top nav bar and a `max-w-7xl` centered content area. Adding a persistent side panel (with Deals and Templates sections) requires restructuring this layout. If done naively: existing deal pages shift right and shrink, the `max-w-7xl` container interacts badly with a fixed-width sidebar, mobile layout breaks entirely, and the sidebar remounts on every page navigation if implemented as a per-page component instead of a layout-level component.
+The Discovery UI has three modes (browse, search, ingest) with complex transitions: browse lists projects/documents, search returns results with selection, ingest takes selected items through a multi-step pipeline (fetch slides, embed, classify, save). Without explicit state management, the component accumulates `useState` hooks for: current mode, search query, search results, selected items, ingestion progress per item, error states per item, and filter state. State interactions become unpredictable -- a user searches, selects items, switches to browse, comes back to search, and the selection is lost. Ingestion progress overwrites search results in the same state variable.
 
 **Why it happens:**
-The existing layout is a simple top-nav-only pattern. The sidebar is a fundamentally different layout paradigm. The content area currently uses `mx-auto max-w-7xl` which centers content -- adding a sidebar means the "center" shifts. All existing deal pages (list, detail, interaction forms) were designed for full-width content and will need responsive adjustments.
+React `useState` works for simple UIs but breaks down for multi-phase flows with intermediate state. The project's existing pattern (see `touch-4-form.tsx` stepper) uses a monotonic set pattern for progress, but the Discovery UI has bidirectional navigation (browse <-> search, select <-> deselect) that monotonic patterns do not support.
 
 **How to avoid:**
-1. Implement the sidebar in the `(authenticated)/layout.tsx` file -- NOT as a per-page component. This prevents remounting on navigation.
-2. Replace the `max-w-7xl mx-auto` pattern with a flex layout: `flex` container with sidebar (fixed width) and content area (flex-1).
-3. Keep the sidebar state (expanded/collapsed) in a cookie so it persists across navigations and survives SSR hydration without flicker.
-4. Use `@media` breakpoints to auto-collapse the sidebar into a hamburger/drawer on screens below 1024px.
-5. Test ALL existing deal pages (deals list, deal detail, all touch interaction forms, briefing flow) with the sidebar present before shipping.
-6. Consider a "mini sidebar" (icons only, ~60px) as the collapsed state rather than fully hiding it.
+1. Use `useReducer` with explicit states and transitions:
+```typescript
+type DiscoveryState =
+  | { mode: 'browse'; projects: Project[]; loading: boolean }
+  | { mode: 'search'; query: string; results: SearchResult[]; selected: Set<string> }
+  | { mode: 'ingesting'; items: IngestItem[]; progress: Map<string, IngestStatus> }
+```
+2. Keep selected items as a `Set<string>` that persists across mode switches (browse and search share the same selection).
+3. Separate data fetching state from UI mode state. Search results and browse data should live in separate state slices, not be mutually exclusive.
+4. For ingestion progress, use a `Map<itemId, status>` where status is `'pending' | 'fetching' | 'embedding' | 'classifying' | 'done' | 'error'`. This maps naturally to a progress UI per item.
+5. Follow the existing polling pattern (used in template ingestion) for long-running operations. Do NOT use SSE from the web app for ingestion progress -- the web app is on Vercel where SSE is unreliable.
 
 **Warning signs:**
-- Existing deal page layouts break or shift when sidebar is added
-- Sidebar remounts/flickers on every page navigation
-- Mobile layout completely breaks (content hidden behind sidebar)
-- Content area width changes cause form elements to reflow unexpectedly
+- More than 8 `useState` hooks in a single component
+- State interactions causing stale renders (search results from previous query appearing during new search)
+- Ingestion progress not updating (state update batching issues)
+- User selections disappearing on mode switch
 
 **Phase to address:**
-Side Panel Navigation phase -- should be done early as Templates page and all subsequent features depend on the navigation structure.
+Discovery UI phase -- `useReducer` state machine must be designed before UI implementation begins.
 
 ---
 
-### Pitfall 8: Vercel Git Integration Conflicts With GitHub Actions Deploy
+### Pitfall 8: MCPClient Token Rotation Creates Stale Credential in SSE Connection
 
 **What goes wrong:**
-Vercel's default git integration automatically deploys on push. If you also set up GitHub Actions to deploy (using `vercel deploy --prebuilt`), both systems trigger simultaneously on the same push, creating duplicate deployments. Worse, the Vercel git integration does not understand monorepo watch paths the same way GitHub Actions does, so it may rebuild apps that have not changed.
+The `MCPClient` is created with an AtlusAI token injected via `fetch` callback or `requestInit`. AtlusAI tokens may expire or rotate (similar to Google OAuth). If the token is captured by closure at MCPClient creation time, the SSE connection continues using the stale token. Eventually the server rejects requests with 401, but the SSE transport connection itself may still be "alive" (EventSource reconnects automatically). The health check (`listTools()`) might pass (server accepts the SSE connection) but tool calls fail (server rejects the tool invocation).
 
 **Why it happens:**
-The project currently deploys via Vercel's automatic git integration (push to main triggers deploy). Adding GitHub Actions CI/CD creates a second deployment trigger. Both compete for the same Vercel project, and the last one to finish "wins" as the production deployment.
+SSE connections are long-lived. The auth token is provided at connection time. If the token expires after the connection is established, different MCP servers handle this differently -- some reject mid-connection, others reject only new tool calls. The `MCPClient`'s `fetch` callback is called for POST requests (tool invocations) but the SSE GET connection was established with the original token.
 
 **How to avoid:**
-1. Disable Vercel's automatic git integration for BOTH projects (web and agent) when switching to GitHub Actions: `vercel project settings > Git > Disable GitHub integration`.
-2. Use `vercel deploy --prebuilt --prod` from GitHub Actions as the sole deployment mechanism.
-3. For Railway, use `railway up` from GitHub Actions or Railway's own GitHub integration (not both).
-4. If keeping Vercel git integration, do NOT add a GitHub Actions Vercel deploy step -- use GitHub Actions only for linting, testing, and migration steps.
+1. Use the `fetch` callback pattern (not `requestInit`) so that every POST request to the MCP server gets a fresh token:
+```typescript
+fetch: async (url, init) => {
+  const freshToken = await getPooledAtlusAuth(); // get fresh token from pool
+  return fetch(url, {
+    ...init,
+    headers: { ...init?.headers, Authorization: `Bearer ${freshToken}` },
+  });
+}
+```
+2. Implement a periodic SSE reconnect (every 30 minutes) that tears down and re-creates the MCPClient with a fresh token. This ensures the SSE connection itself has valid credentials.
+3. On 401 from any tool call, immediately disconnect and re-create the MCPClient with a new pooled token.
+4. Do NOT cache the MCPClient indefinitely. Set a max lifetime (e.g., 1 hour) after which it is forcibly recycled.
 
 **Warning signs:**
-- Duplicate deployments appearing in Vercel dashboard for the same commit
-- Race conditions where migrations run after one deploy but before another
-- Deployments triggered for apps whose code did not change
+- Tool calls returning 401 while `listTools()` succeeds
+- MCPClient working for hours then suddenly failing
+- All tool calls failing simultaneously (token expiry affects all operations)
 
 **Phase to address:**
-CI/CD Pipeline phase -- decide on ONE deployment mechanism before writing any CI config.
+Mastra MCP Client phase and Auth & Token Pool phase -- token freshness and MCPClient lifecycle must be coordinated.
 
 ---
 
-### Pitfall 9: HITL Classification Feedback Stored But Never Actually Used to Improve Results
+### Pitfall 9: AtlusAI 3-Tier Access Detection Creates False Negatives During Pool Initialization
 
 **What goes wrong:**
-The human rating system collects slider ratings and approve/reject signals for slide classifications, stores them in the database, but the classification algorithm never reads them back. The feedback loop is "open" -- data goes in but never comes out. Sellers rate dozens of classifications, see no improvement, and stop providing feedback. The system has all the UX for HITL but none of the actual learning.
+The v1.4 spec calls for 3-tier access detection: (1) has AtlusAI account, (2) has accessible project, (3) can search content. During initial pool setup, if a user has an AtlusAI account but no project access, the system should create an `atlus_project_required` action. But if the detection runs before the user has logged in and stored their AtlusAI token, the detection returns "no account" (tier 1 failure) which masks the actual issue (tier 2 -- no project). When the user creates an account and provides credentials, the system may not re-run detection to discover the tier 2 issue.
 
 **Why it happens:**
-Building the feedback UI is straightforward (form, API endpoint, database table). Building the feedback integration is harder: you need to either (a) fine-tune the classification prompt with few-shot examples drawn from approved classifications, (b) adjust similarity thresholds based on rating data, or (c) maintain a "corrections" table that overrides low-confidence classifications. Developers ship the UI first and plan to "add the learning later," but "later" never comes.
+Access detection is a waterfall: each tier depends on the previous. If tier 1 fails, tiers 2 and 3 are never checked. But the resolution for tier 1 (user creates account) should trigger a re-check of tiers 2 and 3. Without an event-driven re-check, the `ActionRequired` record for tier 1 is resolved (user has account now) but tiers 2 and 3 are never evaluated until the next background job attempts to use AtlusAI.
 
 **How to avoid:**
-1. Design the feedback data model with the consumption path in mind FIRST: how will ratings change future classifications?
-2. Simplest effective approach: maintain a "verified classifications" table. When classifying a new slide, first check for exact or near-exact matches in verified classifications (using embedding similarity). If a verified match exists with high similarity (>0.95), use the verified label directly.
-3. For prompt-based classification: build a few-shot example retriever that pulls the N most relevant verified examples and includes them in the classification prompt.
-4. Define a measurable metric: "% of classifications accepted without changes" tracked over time. If this does not improve after 50+ ratings, the feedback loop is broken.
-5. Show users the impact: "Based on your feedback, X classifications were auto-corrected this week."
+1. When resolving an `atlus_account_required` action (user provides credentials), immediately run the full 3-tier detection again. Create any needed tier 2/3 actions right away.
+2. Store the access detection result alongside the token: a `accessLevel` field on `UserAtlusToken` with values `'none' | 'account_only' | 'project_access' | 'full_access'`.
+3. Re-run detection on token store/update, not just on background job failure.
+4. Show all three tiers in the Action Required UI as a checklist (like an onboarding flow), not as individual disconnected items.
 
 **Warning signs:**
-- Feedback table grows but classification accuracy stays flat
-- No code path reads from the feedback/ratings table
-- Users stop providing ratings (feedback fatigue from seeing no impact)
-- Classification prompt does not reference any historical feedback data
+- User resolves "create AtlusAI account" action but still cannot use AtlusAI features
+- No new `ActionRequired` created after account creation (detection not re-triggered)
+- Users stuck in a loop of resolving one action only to discover another
 
 **Phase to address:**
-Preview and Rating Engine phase -- the feedback consumption mechanism must ship in the SAME phase as the feedback collection UI, not a future phase.
-
----
-
-### Pitfall 10: Access Awareness Check Runs Once on Template Save But Files Become Unshared Later
-
-**What goes wrong:**
-When a user saves a Google Slides template link, the system checks if the service account has access to the presentation. It shows a green checkmark. Three days later, the file owner changes sharing settings, and the service account loses access. The template still shows as "accessible" in the UI, but slide ingestion fails silently or with cryptic Google API errors. Sellers trust the green checkmark and do not understand why their template is not working.
-
-**Why it happens:**
-Access checks are point-in-time. Google Drive sharing permissions are mutable. The existing `ContentSource` model has `accessStatus` and `lastCheckedAt` fields, which shows this problem was anticipated in v1.0 but the periodic re-check may not be implemented. Users do not proactively monitor sharing settings.
-
-**How to avoid:**
-1. Re-check access on every ingestion attempt, not just on template save. Update `accessStatus` and `lastCheckedAt` on each check.
-2. Show `lastCheckedAt` in the UI so users know when the access was last verified.
-3. Add a "re-check access" button per template that forces a fresh check.
-4. When ingestion fails due to access, immediately update the template status to "not_accessible" and show an actionable error: "This file is no longer shared with [service-account-email@project.iam.gserviceaccount.com]. Click to copy the email address."
-5. Consider a scheduled job (hourly or daily) that re-checks access for all templates.
-
-**Warning signs:**
-- Templates showing "accessible" status with `lastCheckedAt` from days ago
-- Ingestion failures with 403/404 Google API errors for templates marked accessible
-- Sellers reporting "it was working yesterday"
-
-**Phase to address:**
-Access Awareness phase -- must include periodic re-check mechanism, not just point-in-time validation.
+Auth & Token Pool phase -- 3-tier detection must be re-triggerable, not one-shot.
 
 ---
 
@@ -272,119 +300,109 @@ Access Awareness phase -- must include periodic re-check mechanism, not just poi
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Storing embeddings via raw SQL without a repository layer | Faster to implement | Raw SQL scattered across codebase, hard to change embedding model, no type safety | Never -- always wrap in a typed repository |
-| Skipping rate limiting on Google API calls | Faster ingestion during dev | Production ingestion failures, dropped slides, 429 cascade | Never -- rate limiting from day one |
-| Using `prisma db push` for vector columns | Avoids migration complexity | Violates CLAUDE.md project rules, no migration history, schema drift | Never (CLAUDE.md explicitly forbids it) |
-| Hardcoding embedding dimensions | One less config value | Model change requires migration + full re-embedding of all content | Only if embedding model choice is absolutely final |
-| Running migrations in Vercel build step | Simpler CI/CD setup | Race conditions with preview deploys, production schema mutations | Never -- use dedicated GitHub Actions migration job |
-| Putting sidebar state in React state only | Quick to implement | Flickers on SSR hydration, resets on every navigation | Only during initial prototyping |
-| Collecting feedback without consuming it | Ships the HITL UI faster | Users lose trust, stop providing feedback, feature becomes dead code | Never -- ship feedback collection and consumption together |
-| One-time access check on template save | Simpler implementation | Stale access status, silent ingestion failures | Only for initial MVP; add periodic re-check in same milestone |
+| Single MCPClient with no reconnect logic | Faster initial integration | Silent failures after network blips, requires agent restart to recover | Never -- reconnect wrapper from day one |
+| Storing AtlusAI token in plaintext (not encrypted) | Faster implementation | Inconsistent with Google token pattern, security liability | Never -- use existing `token-encryption.ts` for consistency |
+| Hardcoding AtlusAI SSE URL in MCPClient config | One less env var | Cannot switch environments (staging/prod AtlusAI) without code change | Only during initial development; extract to env var before merge |
+| Flat ActionRequired list without grouping | Simpler UI component | Users overwhelmed when they have both Google and AtlusAI issues | Acceptable for initial launch; add grouping when > 3 action types exist |
+| Creating MCPClient per request instead of singleton | Avoids stale connection issues | Memory leaks (MCPClient instances accumulate), SSE connection storm on server | Never -- use singleton with health check |
+| Skipping Drive fallback feature flag during MCP cutover | Simpler code path | No rollback if MCP search quality is worse than Drive search | Never -- keep Drive fallback until MCP search is validated |
+| Discovery UI with raw useState (no useReducer) | Faster initial UI prototype | State spaghetti within 2 weeks, hard to add new flows | Only for throwaway prototype; refactor before merge |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Prisma + pgvector | Using `prisma.model.create()` for vector columns | Use `$executeRaw` with explicit `::vector` casting for all vector operations |
-| Prisma + pgvector | Putting `CREATE EXTENSION` in Prisma schema `extensions` array | Enable via Supabase dashboard; add `CREATE EXTENSION IF NOT EXISTS` in migration SQL with `--create-only` |
-| Prisma + pgvector | Creating HNSW index via Prisma schema `@@index` | HNSW/IVFFlat indexes must be raw SQL in migration file: `CREATE INDEX ON ... USING hnsw (embedding vector_cosine_ops)` |
-| Supabase + Prisma migrate | Running `migrate dev` in CI without shadow database config | Use `migrate deploy` in CI (no shadow database needed); reserve `migrate dev` for local development only |
-| Vercel + GitHub Actions | Using Vercel git integration AND GitHub Actions deploy | Disable Vercel git integration; deploy exclusively via `vercel deploy --prebuilt` from GitHub Actions |
-| Railway + GitHub Actions | Not configuring watch paths for monorepo | Set watch paths to `apps/agent/**` and `packages/**` to prevent unnecessary rebuilds |
-| Google Slides API + Copy | Assuming object IDs survive presentation copy | Always re-fetch the copied presentation to get new object IDs |
-| Google Slides API + Thumbnails | Fetching thumbnails one-by-one without rate limiting | Batch with 1-2 second delays between calls; cache results in database |
-| Embedding model + Vertex AI | Assuming the LLM (GPT-OSS 120b) handles embeddings | LLMs and embedding models are separate; need a dedicated embedding model endpoint (e.g., text-embedding-004) |
-| HITL feedback | Storing ratings without a read-back path | Design the consumption path (few-shot retrieval, threshold adjustment) before building the storage |
+| MCPClient + SSE auth | Setting `requestInit` headers only | Set auth in `fetch` callback OR both `requestInit` AND `eventSourceInit` -- SSE uses different config from HTTP |
+| MCPClient + Vercel | Creating MCPClient in web app Server Actions | MCPClient lives only on Railway agent; web calls agent API endpoints that proxy to MCP |
+| MCPClient + singleton | Re-creating without calling `disconnect()` first | Always `disconnect()` before re-creating; use `id` parameter to prevent memory leak errors |
+| AtlusAI token pool + Google token pool | Sharing `ActionRequired` type names | Use distinct, prefixed action types: `google_reauth_needed` vs `atlus_account_required` |
+| MCP search + existing retrieval | Replacing `searchForProposal()` entirely | Only replace the internal `searchSlides()` implementation; keep the multi-pass orchestration unchanged |
+| AtlusAI search results + SlideSearchResult | Assuming MCP returns same fields as Drive search | Build an explicit adapter layer that maps MCP result shape to existing `SlideSearchResult` interface |
+| Discovery UI + ingestion pipeline | Calling ingestion synchronously from the UI | Use the existing `ingestionQueue` pattern -- enqueue items, poll for progress |
+| Two token pools + background jobs | Checking pools sequentially (Google first, then AtlusAI on failure) | Check both pools upfront before starting the operation; create all needed `ActionRequired` records at once |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Unbounded vector similarity search without index | Queries take 500ms+ as embeddings table grows | Add HNSW index on vector column via raw SQL migration; note: Prisma cannot create these | > 5,000 embeddings |
-| Fetching full presentation JSON from Google API on every template list page | Template list page loads 2-5 seconds | Cache presentation metadata in DB; only fetch from Google API on explicit refresh or ingestion | > 10 templates |
-| Re-generating embeddings on every classification review | Unnecessary API calls, latency, and cost | Store embeddings once at ingestion; only regenerate if source slide content changes | Any scale |
-| Loading all slides for a presentation in a single query including embedding vectors | Memory spikes (768+ floats per row * hundreds of rows) | Exclude embedding column from list queries; only fetch embeddings for similarity operations | > 100 slides |
-| Sidebar re-rendering on every Next.js route change | UI jank, flash of content shift | Put sidebar in layout.tsx (not page), use Server Components for static nav items | Immediately noticeable |
-| GitHub Actions running full monorepo build on every push | 5-10 minute CI runs for single-file changes | Use path filters in workflow triggers; leverage Turborepo cache with remote caching | First week of CI/CD setup |
+| Creating new MCPClient per MCP operation | 2-5 second SSE handshake delay per operation; connection storm on AtlusAI server | Singleton with health check wrapper | Immediately noticeable on first use |
+| Searching AtlusAI with broad queries returning 100+ results | MCP tool call takes 10+ seconds; response too large for SSE message frame | Limit results in MCP tool parameters; paginate if supported | > 50 concurrent searches |
+| Discovery UI fetching all AtlusAI projects on page load | Page load takes 5+ seconds; unnecessary API calls when user navigates away | Lazy load projects on first browse tab click; cache in React state | > 100 projects in AtlusAI |
+| Polling ingestion progress too aggressively from Discovery UI | Agent API overwhelmed with status checks; Vercel function invocations spike | Poll every 3-5 seconds (matching existing template ingestion pattern); use exponential backoff when idle | > 5 concurrent ingestions |
+| Two token pools both doing concurrent health checks | Double the database queries per background job cycle | Stagger pool health checks; Google pool checks on even minutes, AtlusAI pool on odd minutes | > 50 background job cycles/hour |
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Exposing `DATABASE_URL` with direct connection string in preview deployment env vars | Preview deploys from forks could read/write production database | Use separate Supabase project for preview environments; production DATABASE_URL only in production env |
-| Not validating Google Slides presentation IDs before API calls | User-supplied presentation IDs could probe files the service account has access to but the user should not see | Validate presentation ID format; confirm the service account has access AND the template belongs to the user's organization |
-| Storing embedding vectors without access control inheritance | Any authenticated user can query all slide embeddings including from templates they should not access | Embeddings should include a `template_id` foreign key; filter similarity queries by accessible templates |
-| Leaking API keys or DATABASE_URL in GitHub Actions logs | Credential exposure in CI logs | Use GitHub Secrets exclusively; add `--silent` flags; never `echo` env vars; use `add-mask` step |
-| GitHub Actions workflow file editable by contributors | PR from fork could modify workflow to exfiltrate secrets | Use `pull_request_target` carefully; restrict workflow permissions; require approval for fork PRs |
+| Logging AtlusAI access tokens in agent debug output | Token leakage in Railway logs; anyone with log access gets AtlusAI credentials | Never log tokens; log only `source: 'pool'` and `userId` without the token value |
+| Storing AtlusAI tokens without encryption | Inconsistent with Google token handling; database compromise exposes all AtlusAI credentials | Use existing `encryptToken` / `decryptToken` from `token-encryption.ts` |
+| Passing AtlusAI tokens from web to agent without HTTPS | MITM interception of credentials | Already mitigated -- both Vercel and Railway enforce HTTPS; verify agent service URL uses `https://` |
+| MCPClient `fetch` callback not checking token expiry before use | Expired token sent to AtlusAI server; 401 error cascade | Check token `expiresAt` before use; refresh if needed; mark invalid if refresh fails |
+| Exposing MCP tool results directly in web API responses | AtlusAI content that should require auth is visible to any authenticated user | Verify user has AtlusAI access before returning MCP results; filter by user's project access |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Showing raw ML classification labels (e.g., "capability_overview_enterprise") | Sellers do not understand taxonomy terms | Display with plain-English descriptions and a representative slide thumbnail |
-| Requiring sellers to rate EVERY slide classification | Review fatigue after 10+ slides leads to random ratings or abandonment | Show only low-confidence classifications for review; auto-accept high-confidence ones (>0.85 threshold) |
-| No progress indicator during slide ingestion | Seller submits template link, sees nothing for 30+ seconds while slides are processed | Stream ingestion progress: "Processing slide X of Y... Classifying... Done" via polling or SSE |
-| Side panel that cannot be collapsed | Reduces content area on smaller laptop screens (13" MacBook) | Collapsible sidebar with keyboard shortcut (Cmd+B), remembers preference via cookie |
-| Showing access errors for unshared files without actionable fix | Seller sees "access denied" but has no idea what to do | Show the specific service account email with a copy button and instructions: "Share your Google Slides file with this email address" |
-| Templates page loads full list without search or filtering | 20+ templates become unmanageable | Add search by name, filter by touch type, sort by last ingested date |
+| Showing AtlusAI connection errors with technical MCP jargon ("SSE transport failed", "initialize handshake timeout") | User has no idea what happened or how to fix it | Show user-friendly message: "AtlusAI is temporarily unavailable. Your search will use local slides instead." with automatic Drive fallback |
+| Discovery UI browse loads entire AtlusAI catalog at once | Slow initial load, overwhelming content list | Paginated browse with folder/project hierarchy; lazy-load children on expand |
+| Ingestion progress showing only "in progress" with no per-slide detail | User cannot tell if ingestion is stuck or just slow | Reuse existing ingestion progress pattern: "Processing slide N of M... Classifying..." |
+| Action Required page showing AtlusAI setup actions to users who do not need AtlusAI | Confusion: "What is AtlusAI and why do I need it?" | Only show AtlusAI actions to users who have attempted to use AtlusAI features (triggered by first Discovery page visit) |
+| Search results from AtlusAI showing raw document metadata instead of formatted previews | Users cannot evaluate result quality before ingesting | Show slide text preview, source presentation name, and classification tags in search results |
+| No clear distinction between "already ingested" and "not yet ingested" AtlusAI content in Discovery UI | Users accidentally re-ingest content, creating duplicates | Mark already-ingested items with a checkmark; show "Re-ingest" instead of "Ingest" with confirmation dialog |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **pgvector setup:** Extension enabled in Supabase AND vector column created via migration AND HNSW index created via raw SQL AND similarity search tested with real embeddings returning relevant results -- all four steps, not just the first
-- [ ] **CI/CD pipeline:** Migrations run before deploy AND preview deploys use separate DB AND concurrency group prevents parallel migration runs AND rollback plan documented for bad migrations
-- [ ] **Slide ingestion:** Rate limiting implemented AND exponential backoff on 429s AND slide count in DB matches source presentation AND ingestion is idempotent (can be re-run without duplicates)
-- [ ] **Template CRUD:** Access check runs on save AND on ingestion AND unshared files show actionable error with service account email AND touch assignment validates against known touch types
-- [ ] **Classification feedback:** Low-confidence threshold defined AND feedback actually changes future classification behavior (not just stored) AND improvement metric is tracked and visible
-- [ ] **Side panel:** Works on mobile (hamburger drawer) AND persists collapsed/expanded state via cookie AND does not break ANY existing deal pages AND active state highlights correct section AND keyboard shortcut works
-- [ ] **Embedding model:** Model name and dimension documented in migration SQL AND dimension matches column definition AND test embeddings produce meaningful similarity scores (not random)
-- [ ] **GitHub Actions:** Workflow uses concurrency groups AND path filters limit unnecessary runs AND secrets are masked AND deploy steps are sequenced (migrate -> deploy agent -> deploy web)
+- [ ] **MCPClient SSE connection:** Connects to AtlusAI AND handles reconnect on disconnect AND handles token rotation AND health check wrapper is tested -- not just "it connected once"
+- [ ] **AtlusAI token pool:** Encrypted storage AND pool iteration AND invalid token marking AND ActionRequired creation AND 3-tier access detection re-triggers on resolution -- not just "tokens are stored"
+- [ ] **Drive fallback replacement:** MCP search adapter returns `SlideSearchResult` interface AND multi-pass retrieval preserved AND fallback tiers work AND side-by-side quality comparison run AND Drive fallback behind feature flag -- not just "MCP calls work"
+- [ ] **Action Required extension:** New types have icons AND descriptions AND resolution URLs AND shared type constants AND UI grouping AND de-duplication -- not just "records are created"
+- [ ] **Discovery UI:** Browse loads lazily AND search debounces AND selection persists across mode switches AND ingestion uses queue (not sync) AND progress polls at correct interval AND already-ingested items are marked -- not just "the page renders"
+- [ ] **Token pool race conditions:** Both pools handle concurrent access without duplicate ActionRequired records AND stale token marking is idempotent AND pool health warnings do not spam logs -- not just "tokens work one at a time"
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Wrong embedding dimensions in vector column | HIGH | Create new column with correct dimensions via migration, re-embed all content (API cost + time), update all queries, drop old column via migration |
-| Migration applied to prod with breaking change | HIGH | Write a corrective forward-only migration (never rollback per CLAUDE.md), deploy hotfix, verify data integrity manually |
-| Google API quota exhaustion during ingestion | LOW | Wait for quota reset (1 minute); resume from last successful slide if ingestion is idempotent; if not, delete partial data and restart |
-| Sidebar breaks existing deal pages | MEDIUM | Revert layout.tsx change, fix responsive breakpoints, re-deploy; keep old top-nav-only layout as fallback via feature flag |
-| Shadow database extension conflict | LOW | Configure `shadowDatabaseUrl` in schema.prisma pointing to second Supabase project; or switch to `--create-only` + `migrate deploy` workflow |
-| batchUpdate failure during slide assembly | MEDIUM | Delete the partially created presentation via Drive API, re-fetch source IDs, rebuild batch request with validated IDs, retry |
-| Feedback collected but never consumed | MEDIUM | Implement few-shot retriever that queries verified classifications table; integrate into classification prompt; backfill from existing ratings |
-| Stale access status on templates | LOW | Run bulk access re-check on all templates; update statuses; add periodic scheduled re-check |
+| MCPClient singleton holds dead SSE connection | LOW | Restart agent service on Railway (auto-restarts clear the singleton); add reconnect wrapper to prevent recurrence |
+| Wrong auth injection pattern (requestInit only, missing eventSourceInit) | LOW | Update MCPClient config to use `fetch` callback; redeploy agent |
+| Drive fallback removed before MCP search validated | MEDIUM | Re-add `atlusai-search.ts` from git history; add feature flag to switch between Drive and MCP search; run quality comparison |
+| ActionRequired type mismatch between agent and web | LOW | Add missing types to `getActionIcon()` switch statement; deploy web; no data migration needed |
+| Discovery UI state spaghetti | MEDIUM | Refactor to `useReducer`; extract state machine; re-test all flows (browse, search, select, ingest, error, retry) |
+| AtlusAI tokens stored unencrypted | MEDIUM | Add encrypted columns via migration; encrypt all existing plaintext tokens; drop plaintext column in subsequent migration |
+| MCPClient memory leak from re-creation without disconnect | LOW | Add `id` parameter to MCPClient constructor; add `disconnect()` call before re-creation; restart agent to clear accumulated instances |
+| Two pools creating duplicate ActionRequired records | LOW | Add unique constraint or upsert logic on `[userId, actionType, resolved: false]`; deduplicate existing records via migration |
 
 ## Pitfall-to-Phase Mapping
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Prisma pgvector type handling | Slide Ingestion Agent | Vector column exists, raw SQL repository works, embeddings insert and query correctly via `$queryRaw` |
-| Shadow database + extension conflicts | CI/CD Pipeline | `prisma migrate deploy` succeeds in GitHub Actions without shadow DB or extension schema errors |
-| Production migration safety | CI/CD Pipeline | Migrations run in isolated job with concurrency group; preview deploys use separate DB; sequence verified |
-| Google API rate limiting | Slide Ingestion Agent | Ingestion of 30+ slide deck completes without 429 errors; rate limiter logs show throttling |
-| batchUpdate atomicity | Templates Management | Deck assembly succeeds with re-fetched object IDs; retry logic handles stale ID gracefully |
-| Embedding dimension mismatch | Slide Ingestion Agent | Embedding model documented in migration; dimension matches column; similarity search returns relevant results |
-| Side panel layout regression | Side Panel Navigation | All existing deal pages render correctly with sidebar; mobile drawer works; no layout shift on navigation |
-| Feedback loop is open (store but never consume) | Preview & Rating Engine | Human ratings stored AND classification prompt includes few-shot examples from verified ratings; accuracy metric tracked |
-| Stale access status | Access Awareness | Periodic re-check runs; templates update status on ingestion failure; actionable error shown in UI |
-| Vercel + GitHub Actions conflict | CI/CD Pipeline | Only one deployment mechanism active; no duplicate deploys in Vercel dashboard |
+| SSE connection lifecycle in serverless (Vercel) | Mastra MCP Client | MCPClient exists ONLY in agent code; no `@mastra/mcp` imports in `apps/web` |
+| SSE reconnect on Railway | Mastra MCP Client | Agent survives `railway restart`; MCPClient reconnects; tool calls succeed within 15 seconds of restart |
+| Two independent token pools cascade | Auth & Token Pool + Action Required | Both pools create distinct, de-duplicated ActionRequired records; UI groups by category |
+| MCP auth credential injection | Mastra MCP Client | Tool calls authenticate successfully via `fetch` callback; token rotation does not break existing connections |
+| Drive fallback replacement contract | Replace Drive Fallback | `searchForProposal()` returns same interface; workflow files unchanged; side-by-side quality comparison passes |
+| ActionRequired type extension | Action Required Integration | All new types have icons, descriptions, and resolution guidance in web UI; shared constants in `packages/schemas` |
+| Discovery UI state management | Discovery UI | `useReducer` manages all state; selections persist across mode switches; ingestion progress tracks per item |
+| MCPClient token rotation | Mastra MCP Client + Auth & Token Pool | `fetch` callback resolves fresh token per request; periodic MCPClient recycling every 30-60 minutes |
+| 3-tier access detection false negatives | Auth & Token Pool | Resolving tier 1 action triggers re-detection; tier 2/3 actions created immediately if needed |
 
 ## Sources
 
-- [Prisma pgvector support issue #18442](https://github.com/prisma/prisma/issues/18442) -- confirms `Unsupported` type is required
-- [Prisma first-class vector support issue #26546](https://github.com/prisma/prisma/issues/26546) -- ongoing, no native support yet
-- [Prisma HNSW index dimension error #21850](https://github.com/prisma/prisma/issues/21850) -- HNSW indexes cannot be created via Prisma schema
-- [Prisma shadow database extensions schema issue #26231](https://github.com/prisma/prisma/issues/26231) -- shadow DB lacks `extensions` schema
-- [Supabase extension toggle causes Prisma drift #33047](https://github.com/supabase/supabase/issues/33047) -- dashboard toggle breaks migration history
-- [Supabase pgvector documentation](https://supabase.com/docs/guides/database/extensions/pgvector) -- extension setup and usage
-- [Supabase Prisma troubleshooting](https://supabase.com/docs/guides/database/prisma/prisma-troubleshooting) -- known integration issues
-- [Prisma deployment with migrations](https://www.prisma.io/docs/orm/prisma-client/deployment/deploy-database-changes-with-prisma-migrate) -- `migrate deploy` vs `migrate dev`
-- [Google Slides API usage limits](https://developers.google.com/workspace/slides/api/limits) -- 60 requests/minute/user
-- [Google Slides API batch requests](https://developers.google.com/workspace/slides/api/guides/batch) -- atomic batch behavior
-- [Google Slides API slide operations](https://developers.google.com/workspace/slides/api/samples/slides) -- slide-level operation examples
-- [Railway monorepo deployment docs](https://docs.railway.com/guides/monorepo) -- watch paths configuration
-- [Vercel GitHub Actions guide](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel) -- `vercel deploy --prebuilt` pattern
-- [HITL best practices and pitfalls](https://parseur.com/blog/hitl-best-practices) -- feedback loop closure importance
-- [Prisma migrate dev vs deploy in CI](https://github.com/prisma/prisma/discussions/11131) -- community discussion on CI migration patterns
+- [Mastra MCPClient Reference](https://mastra.ai/reference/tools/mcp-client) -- constructor parameters, `requestInit` vs `eventSourceInit`, `fetch` callback, `id` parameter, lifecycle methods
+- [MCP SSE Reconnection Issue #510](https://github.com/modelcontextprotocol/typescript-sdk/issues/510) -- SSEClientTransport does not re-establish lifecycle state on disconnect/reconnect
+- [MCP Transport Specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) -- SSE deprecated in favor of Streamable HTTP; session lifecycle requirements
+- [Vercel Serverless Function Duration](https://vercel.com/docs/functions/configuring-functions/duration) -- maxDuration limits per plan (60s Hobby, 300s Pro)
+- [Vercel SSE Timeout Discussion](https://community.vercel.com/t/sse-requests-timing-out/7964) -- SSE connections in serverless functions
+- Existing codebase: `apps/agent/src/lib/google-auth.ts` -- token pool pattern, `getPooledGoogleAuth()`, `PooledAuthResult` interface
+- Existing codebase: `apps/agent/src/lib/atlusai-search.ts` -- multi-pass retrieval, `searchForProposal()`, `SlideSearchResult` interface
+- Existing codebase: `apps/agent/src/lib/atlusai-client.ts` -- SSE endpoint URL, known MCP tools, auth discovery
+- Existing codebase: `apps/web/src/app/(authenticated)/actions/actions-client.tsx` -- `getActionIcon()` switch, Action Required UI
+- Existing codebase: `apps/agent/prisma/schema.prisma` -- `ActionRequired` model, `UserGoogleToken` model
+- Existing codebase: `.mcp.json` -- AtlusAI SSE endpoint configuration
+- v1.3 Phase 24 research: `24-RESEARCH.md` -- token pool patterns, race condition analysis, ActionRequired creation patterns
 
 ---
-*Pitfalls research for: Lumenalta v1.2 Templates & Slide Intelligence*
-*Researched: 2026-03-05*
+*Pitfalls research for: v1.4 AtlusAI Authentication & Discovery*
+*Researched: 2026-03-06*
