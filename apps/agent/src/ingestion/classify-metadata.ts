@@ -31,6 +31,7 @@ import {
 
 export interface ClassifiedSlide extends ExtractedSlide {
   metadata: SlideMetadata;
+  confidence: number;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -98,6 +99,11 @@ const GEMINI_RESPONSE_SCHEMA = {
       description:
         "Which GTM touch type(s) this slide is associated with. touch_1 = First Contact, touch_2 = Intro Conversation, touch_3 = Capability Alignment, touch_4 = Solution Proposal.",
     },
+    confidence: {
+      type: Type.NUMBER,
+      description:
+        "Overall confidence score (0-100) for this classification. 100 = highly confident all tags are correct, 50 = moderate confidence, below 30 = low confidence/ambiguous content.",
+    },
   },
   required: [
     "industries",
@@ -108,6 +114,7 @@ const GEMINI_RESPONSE_SCHEMA = {
     "slideCategory",
     "buyerPersonas",
     "touchType",
+    "confidence",
   ],
 };
 
@@ -197,9 +204,14 @@ export async function classifySlide(
 
   const text = response.text ?? "{}";
   let metadata: SlideMetadata;
+  let confidence = 50;
 
   try {
     const parsed = JSON.parse(text);
+    // Extract confidence before Zod strips it (it's not in SlideMetadata schema)
+    if (typeof parsed.confidence === "number") {
+      confidence = Math.max(0, Math.min(100, Math.round(parsed.confidence)));
+    }
     // Validate with Zod to ensure conformity
     metadata = SlideMetadataSchema.parse(parsed);
   } catch (parseError) {
@@ -217,11 +229,13 @@ export async function classifySlide(
       buyerPersonas: ["General"],
       touchType: [],
     };
+    confidence = 50;
   }
 
   return {
     ...slide,
     metadata,
+    confidence,
   };
 }
 
@@ -290,6 +304,7 @@ export async function classifyAllSlides(
             buyerPersonas: ["General"],
             touchType: [],
           },
+          confidence: 50,
         });
       }
 
