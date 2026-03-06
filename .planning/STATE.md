@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: AtlusAI Authentication & Discovery
 status: executing
-stopped_at: Completed 27-02-PLAN.md
-last_updated: "2026-03-06T21:01:00Z"
-last_activity: 2026-03-06 -- Completed plan 27-02 (token pool rotation)
+stopped_at: Completed 27-03-PLAN.md
+last_updated: "2026-03-06T21:03:00Z"
+last_activity: 2026-03-06 -- Completed plan 27-03 (access detection and actions)
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 50
+  completed_plans: 3
+  percent: 75
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 27 of 29 (Auth Foundation)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing
-Last activity: 2026-03-06 -- Completed plan 27-02 (token pool rotation)
+Last activity: 2026-03-06 -- Completed plan 27-03 (access detection and actions)
 
-Progress: [█████░░░░░] 50%
+Progress: [███████░░░] 75%
 
 ## Performance Metrics
 
@@ -49,6 +49,9 @@ All decisions logged in PROJECT.md Key Decisions table (28 decisions total).
 - Phase 27-01: Manual migration with `resolve --applied` due to 0_init checksum drift (never reset per project rules)
 - Phase 27-02: Cloned getPooledGoogleAuth pattern for AtlusAI -- same ordering, fire-and-forget, health check approach
 - Phase 27-02: No ActionRequired on pool failure -- deferred to Plan 27-03 per spec
+- Phase 27-03: Network errors in AtlusAI probes treated as auth failure (safe default)
+- Phase 27-03: Missing ATLUS_PROJECT_ID skips project check (avoids false positives in dev)
+- Phase 27-03: detectAtlusAccess fires fire-and-forget on POST /tokens to avoid delaying login
 
 ### Pending Todos
 
@@ -70,6 +73,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T21:01:00Z
-Stopped at: Completed 27-02-PLAN.md
-Next action: /gsd:execute-phase 27-03
+Last session: 2026-03-06T21:03:00Z
+Stopped at: Completed 27-03-PLAN.md
+Next action: /gsd:execute-phase 27-04

@@ -24,11 +24,11 @@
 
 ### 3-Tier Access Detection
 
-- [ ] **TIER-01**: System detects "no AtlusAI account" state (auth attempt returns 401/403) and creates `atlus_account_required` ActionRequired
-- [ ] **TIER-02**: System detects "has account, no project access" state (auth succeeds but project query returns empty/403) and creates `atlus_project_required` ActionRequired
-- [ ] **TIER-03**: System detects "full access" state (auth succeeds + content discoverable) and pools the token without creating ActionRequired
-- [ ] **TIER-04**: Access detection re-triggers when a user provides new credentials (resolving tier 1 immediately checks tiers 2/3)
-- [ ] **TIER-05**: ActionRequired records are de-duplicated per user + actionType (no duplicate records for same issue)
+- [x] **TIER-01**: System detects "no AtlusAI account" state (auth attempt returns 401/403) and creates `atlus_account_required` ActionRequired
+- [x] **TIER-02**: System detects "has account, no project access" state (auth succeeds but project query returns empty/403) and creates `atlus_project_required` ActionRequired
+- [x] **TIER-03**: System detects "full access" state (auth succeeds + content discoverable) and pools the token without creating ActionRequired
+- [x] **TIER-04**: Access detection re-triggers when a user provides new credentials (resolving tier 1 immediately checks tiers 2/3)
+- [x] **TIER-05**: ActionRequired records are de-duplicated per user + actionType (no duplicate records for same issue)
 
 ### Mastra MCP Client
 
@@ -50,10 +50,10 @@
 
 ### Action Required Integration
 
-- [ ] **ACTN-01**: New `atlus_account_required` action type with dedicated icon and description in `actions-client.tsx`
-- [ ] **ACTN-02**: New `atlus_project_required` action type with dedicated icon and description in `actions-client.tsx`
+- [x] **ACTN-01**: New `atlus_account_required` action type with dedicated icon and description in `actions-client.tsx`
+- [x] **ACTN-02**: New `atlus_project_required` action type with dedicated icon and description in `actions-client.tsx`
 - [x] **ACTN-03**: Action type constants defined in `packages/schemas` for shared use between web and agent
-- [ ] **ACTN-04**: ActionRequired items include resolution guidance (description tells user how to fix the issue)
+- [x] **ACTN-04**: ActionRequired items include resolution guidance (description tells user how to fix the issue)
 - [ ] **ACTN-05**: Sidebar badge count includes AtlusAI action types (existing `/api/actions/count` works unchanged)
 
 ### Discovery UI
@@ -104,15 +104,15 @@
 | POOL-03 | Phase 27 | Complete |
 | POOL-04 | Phase 27 | Complete |
 | POOL-05 | Phase 27 | Complete |
-| TIER-01 | Phase 27 | Pending |
-| TIER-02 | Phase 27 | Pending |
-| TIER-03 | Phase 27 | Pending |
-| TIER-04 | Phase 27 | Pending |
-| TIER-05 | Phase 27 | Pending |
-| ACTN-01 | Phase 27 | Pending |
-| ACTN-02 | Phase 27 | Pending |
+| TIER-01 | Phase 27 | Complete |
+| TIER-02 | Phase 27 | Complete |
+| TIER-03 | Phase 27 | Complete |
+| TIER-04 | Phase 27 | Complete |
+| TIER-05 | Phase 27 | Complete |
+| ACTN-01 | Phase 27 | Complete |
+| ACTN-02 | Phase 27 | Complete |
 | ACTN-03 | Phase 27 | Complete |
-| ACTN-04 | Phase 27 | Pending |
+| ACTN-04 | Phase 27 | Complete |
 | ACTN-05 | Phase 27 | Pending |
 | MCP-01 | Phase 28 | Pending |
 | MCP-02 | Phase 28 | Pending |
