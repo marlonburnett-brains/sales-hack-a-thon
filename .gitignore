@@ -78,6 +78,7 @@ coverage/
 *.pem
 
 !.claude/
+.claude/settings.local.json
 !.opencode/
 !.cursor/
 !.agent/
