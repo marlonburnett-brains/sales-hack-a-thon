@@ -3,6 +3,7 @@ phase: 23-user-delegated-api-clients-token-passthrough
 plan: 01
 subsystem: auth
 tags: [google-oauth, oauth2client, token-cache, dual-mode-factory, cors, hono]
+requirements_completed: [GAPI-01, GAPI-02, GAPI-03, GAPI-04, PASS-02]
 
 # Dependency graph
 requires:

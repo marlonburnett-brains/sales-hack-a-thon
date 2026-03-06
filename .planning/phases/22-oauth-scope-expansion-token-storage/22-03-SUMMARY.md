@@ -3,6 +3,7 @@ phase: 22-oauth-scope-expansion-token-storage
 plan: 03
 subsystem: ui
 tags: [react, tailwind, oauth, google, supabase, cookie]
+requirements_completed: []
 
 # Dependency graph
 requires:

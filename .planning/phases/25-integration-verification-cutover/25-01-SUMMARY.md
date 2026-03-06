@@ -3,6 +3,7 @@ phase: 25-integration-verification-cutover
 plan: 01
 subsystem: testing
 tags: [vitest, google-auth, oauth2, token-pool, mocking, regression-suite]
+requirements_completed: [INTG-01, INTG-02, INTG-03]
 
 # Dependency graph
 requires:

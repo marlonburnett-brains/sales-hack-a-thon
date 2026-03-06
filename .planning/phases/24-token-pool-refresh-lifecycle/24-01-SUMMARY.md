@@ -3,6 +3,7 @@ phase: 24-token-pool-refresh-lifecycle
 plan: 01
 subsystem: auth
 tags: [google-auth, token-pool, oauth2, prisma, actionrequired, background-jobs]
+requirements_completed: [POOL-01, POOL-02, POOL-03, POOL-04, POOL-05, LIFE-01, LIFE-02, LIFE-03]
 
 # Dependency graph
 requires:

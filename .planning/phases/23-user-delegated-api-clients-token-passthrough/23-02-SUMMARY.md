@@ -3,6 +3,7 @@ phase: 23-user-delegated-api-clients-token-passthrough
 plan: 02
 subsystem: auth
 tags: [google-oauth, supabase, token-passthrough, server-actions, next.js]
+requirements_completed: [PASS-01, PASS-03, PASS-04]
 
 # Dependency graph
 requires:

@@ -3,6 +3,7 @@ phase: 22-oauth-scope-expansion-token-storage
 plan: 02
 subsystem: auth
 tags: [google-oauth, supabase, scopes, refresh-token, middleware, cookie-cache, sonner]
+requirements_completed: [OAUTH-01, OAUTH-02, OAUTH-03, OAUTH-04]
 
 # Dependency graph
 requires:

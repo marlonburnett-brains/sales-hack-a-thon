@@ -3,6 +3,7 @@ phase: 25-integration-verification-cutover
 plan: 02
 subsystem: docs
 tags: [deploy-checklist, documentation, v1.3, milestone-shipped]
+requirements_completed: []
 
 requires:
   - phase: 25-01

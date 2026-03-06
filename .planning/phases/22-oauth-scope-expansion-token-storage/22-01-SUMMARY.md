@@ -3,6 +3,7 @@ phase: 22-oauth-scope-expansion-token-storage
 plan: 01
 subsystem: auth
 tags: [aes-256-gcm, crypto, prisma, encryption, google-oauth, token-storage]
+requirements_completed: [TOKS-01, TOKS-02, TOKS-03, TOKS-04, TOKS-05]
 
 # Dependency graph
 requires: []

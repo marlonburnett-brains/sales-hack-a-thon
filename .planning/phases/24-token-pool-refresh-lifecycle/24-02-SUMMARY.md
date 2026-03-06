@@ -3,6 +3,7 @@ phase: 24-token-pool-refresh-lifecycle
 plan: 02
 subsystem: web-ui
 tags: [action-required, sidebar, badge, next.js, server-actions]
+requirements_completed: []
 
 # Dependency graph
 requires:
