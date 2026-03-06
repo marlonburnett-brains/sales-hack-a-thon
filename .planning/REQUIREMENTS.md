@@ -10,8 +10,8 @@
 
 - [ ] **OAUTH-01**: Google login requests Drive, Slides, and Docs read-only OAuth scopes in addition to existing profile scopes
 - [ ] **OAUTH-02**: Google login requests offline access (`access_type: "offline"`) to obtain a refresh token
-- [ ] **OAUTH-03**: Login page forces consent screen (`prompt: "consent"`) to ensure refresh token is returned on every login
-- [ ] **OAUTH-04**: Auth callback captures `provider_refresh_token` from Supabase session after code exchange
+- [x] **OAUTH-03**: Login page forces consent screen (`prompt: "consent"`) to ensure refresh token is returned on every login
+- [x] **OAUTH-04**: Auth callback captures `provider_refresh_token` from Supabase session after code exchange
 
 ### Token Storage
 
@@ -85,8 +85,8 @@
 |-------------|-------|--------|
 | OAUTH-01 | Phase 22 | Pending |
 | OAUTH-02 | Phase 22 | Pending |
-| OAUTH-03 | Phase 22 | Pending |
-| OAUTH-04 | Phase 22 | Pending |
+| OAUTH-03 | Phase 22 | Complete |
+| OAUTH-04 | Phase 22 | Complete |
 | TOKS-01 | Phase 22 | Complete |
 | TOKS-02 | Phase 22 | Complete |
 | TOKS-03 | Phase 22 | Complete |
