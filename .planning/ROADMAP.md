@@ -52,7 +52,7 @@
 
 - [x] Phase 22: OAuth Scope Expansion & Token Storage (completed 2026-03-06)
 - [x] Phase 23: User-Delegated API Clients & Token Passthrough (completed 2026-03-06)
-- [ ] Phase 24: Token Pool & Refresh Lifecycle
+- [x] Phase 24: Token Pool & Refresh Lifecycle (completed 2026-03-06)
 - [ ] Phase 25: Integration Verification & Cutover
 
 ## Phase Details — v1.3
@@ -140,7 +140,7 @@ Plans:
 - `apps/web/src/app/(authenticated)/actions/page.tsx` — Action Required page
 - `apps/web/src/components/sidebar.tsx` — Action Required nav item with badge
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 24-01-PLAN.md — Token pool core, ActionRequired model, background job wiring, CRUD routes
@@ -194,5 +194,5 @@ Plans:
 | 21. Preview & Review Engine | v1.2 | 3/3 | Complete | 2026-03-06 |
 | 22. OAuth Scope Expansion & Token Storage | v1.3 | 3/3 | Complete | 2026-03-06 |
 | 23. User-Delegated API Clients & Token Passthrough | v1.3 | 2/2 | Complete | 2026-03-06 |
-| 24. Token Pool & Refresh Lifecycle | 1/2 | In Progress|  | -- |
+| 24. Token Pool & Refresh Lifecycle | 1/2 | Complete    | 2026-03-06 | -- |
 | 25. Integration Verification & Cutover | v1.3 | 0/1 | Pending | -- |
