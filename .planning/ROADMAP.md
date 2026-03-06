@@ -78,7 +78,11 @@
 - `apps/agent/src/lib/token-encryption.ts` — new: AES-256-GCM encrypt/decrypt
 - `apps/agent/src/mastra/index.ts` — new: token storage API route
 
-**Estimated plans:** 2
+**Plans:** 2 plans
+
+Plans:
+- [ ] 22-01-PLAN.md — Agent-side token encryption, UserGoogleToken model, and token API routes
+- [ ] 22-02-PLAN.md — Web-side OAuth scope expansion, callback token capture, middleware re-consent
 
 ---
 
@@ -103,7 +107,11 @@
 - `apps/web/src/lib/actions/*.ts` — pass Google token from session
 - `apps/agent/src/mastra/index.ts` — extract token from request headers
 
-**Estimated plans:** 2
+**Plans:** 2 plans
+
+Plans:
+- [ ] 22-01-PLAN.md — Agent-side token encryption, UserGoogleToken model, and token API routes
+- [ ] 22-02-PLAN.md — Web-side OAuth scope expansion, callback token capture, middleware re-consent
 
 ---
 
@@ -128,7 +136,11 @@
 - `apps/agent/src/lib/token-encryption.ts` — token retrieval helpers
 - Background job callers (staleness polling, scheduled tasks) — switch to pooled auth
 
-**Estimated plans:** 2
+**Plans:** 2 plans
+
+Plans:
+- [ ] 22-01-PLAN.md — Agent-side token encryption, UserGoogleToken model, and token API routes
+- [ ] 22-02-PLAN.md — Web-side OAuth scope expansion, callback token capture, middleware re-consent
 
 ---
 
