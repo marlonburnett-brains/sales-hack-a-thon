@@ -62,6 +62,7 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 2 | Prisma Client Singleton Tech Debt | 2026-03-06 | c9fcacc | [2-prisma-client-singleton-tech-debt](./quick/2-prisma-client-singleton-tech-debt/) |
+| 4 | Make Touch Type Selection Optional | 2026-03-06 | bb4803c | [4-make-touch-type-selection-optional-when-](./quick/4-make-touch-type-selection-optional-when-/) |
 
 ### Blockers/Concerns
 
