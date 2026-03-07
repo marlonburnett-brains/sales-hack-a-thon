@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Review Polish & Deck Intelligence
-status: executing
-stopped_at: Completed 32-01-PLAN.md
-last_updated: "2026-03-07T15:56:08.782Z"
-last_activity: 2026-03-07 — Completed 32-01 (Backend thumbnail pipeline + shared UI primitives)
+status: phase-complete
+stopped_at: Completed 32-02-PLAN.md
+last_updated: "2026-03-07T16:09:45.000Z"
+last_activity: 2026-03-07 — Completed 32-02 (Discovery card redesign + optimistic ingestion UI)
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 
 ## Current Position
 
-Phase: 32 of 34 (UX Polish)
-Plan: 1 of 2 in current phase
-Status: executing
-Last activity: 2026-03-07 — Completed 32-01 (Backend thumbnail pipeline + shared UI primitives)
+Phase: 32 of 34 (UX Polish) -- COMPLETE
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: phase-complete
+Last activity: 2026-03-07 — Completed 32-02 (Discovery card redesign + optimistic ingestion UI)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -46,6 +46,8 @@ Progress: [░░░░░░░░░░] 0%
 All decisions logged in PROJECT.md Key Decisions table (40 decisions total).
 - [Phase 32]: Cover thumbnails use fire-and-forget GCS caching pattern (first browse triggers, second browse serves)
 - [Phase 32]: Duplicate ingestion guard: reject ingesting/queued, allow re-ingest for idle
+- [Phase 32]: Local itemStatuses prioritized over server templateData for display status during active ingestion
+- [Phase 32]: Removed large centered DocumentTypeIcon from thumbnail area per user feedback -- corner badge only
 
 ### Pending Todos
 
@@ -64,6 +66,7 @@ None.
 | 8 | Add gpt-oss-120b as Primary Classification | 2026-03-07 | 80f7e1a | [8-add-gpt-oss-120b-as-primary-classificati](./quick/8-add-gpt-oss-120b-as-primary-classificati/) |
 | 9 | Cache Google Slides Thumbnails in GCS | 2026-03-07 | 40fc6d6 | [9-cache-google-slides-thumbnails-in-gcs](./quick/9-cache-google-slides-thumbnails-in-gcs/) |
 | Phase 32 P01 | 4min | 2 tasks | 8 files |
+| Phase 32 P02 | 11min | 3 tasks | 2 files |
 
 ### Blockers/Concerns
 
@@ -72,6 +75,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T15:56:08.779Z
-Stopped at: Completed 32-01-PLAN.md
-Next action: Plan Phase 32 (UX Polish)
+Last session: 2026-03-07T16:09:45.000Z
+Stopped at: Completed 32-02-PLAN.md (Phase 32 complete)
+Next action: Plan Phase 33 (Slide Intelligence Foundation)
