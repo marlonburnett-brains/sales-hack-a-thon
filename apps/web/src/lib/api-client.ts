@@ -935,6 +935,7 @@ export interface DeckStructureDetail {
   confidenceColor: "green" | "yellow" | "red";
   confidenceLabel: string;
   chatMessages: DeckChatMessageData[];
+  slideIdToThumbnail: Record<string, string>;
   inferredAt: string | null;
   lastChatAt: string | null;
 }

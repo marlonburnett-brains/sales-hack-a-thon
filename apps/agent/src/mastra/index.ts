@@ -2573,17 +2573,33 @@ export const mastra = new Mastra({
               confidenceColor: conf.color,
               confidenceLabel: conf.label,
               chatMessages: [],
+              slideIdToThumbnail: {},
               inferredAt: null,
               lastChatAt: null,
             });
           }
 
           const conf = calculateConfidence(record.exampleCount);
-          let structure: unknown;
+          let structure: { sections?: Array<{ slideIds?: string[] }>; sequenceRationale?: string };
           try {
             structure = JSON.parse(record.structureJson);
           } catch {
             structure = { sections: [], sequenceRationale: "" };
+          }
+
+          // Resolve slide IDs to thumbnail URLs
+          const allSlideIds = (structure.sections ?? []).flatMap((s) => s.slideIds ?? []);
+          const slideIdToThumbnail: Record<string, string> = {};
+          if (allSlideIds.length > 0) {
+            const slides = await prisma.slideEmbedding.findMany({
+              where: { id: { in: allSlideIds }, archived: false },
+              select: { id: true, thumbnailUrl: true },
+            });
+            for (const slide of slides) {
+              if (slide.thumbnailUrl) {
+                slideIdToThumbnail[slide.id] = slide.thumbnailUrl;
+              }
+            }
           }
 
           return c.json({
@@ -2594,6 +2610,7 @@ export const mastra = new Mastra({
             confidenceColor: conf.color,
             confidenceLabel: conf.label,
             chatMessages: record.chatMessages.reverse(), // chronological order
+            slideIdToThumbnail,
             inferredAt: record.inferredAt,
             lastChatAt: record.lastChatAt,
           });
