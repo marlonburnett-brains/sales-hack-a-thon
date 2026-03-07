@@ -25,10 +25,10 @@ Requirements for milestone v1.5 Review Polish & Deck Intelligence. Each maps to 
 
 ### Content Classification
 
-- [ ] **CCL-01**: User can classify a presentation as "Template" or "Example"
-- [ ] **CCL-02**: User can bind an "Example" presentation to a specific touch type
-- [ ] **CCL-03**: User sees "Action Required" indicator on unclassified presentations
-- [ ] **CCL-04**: Classification is displayed on template cards and detail views
+- [x] **CCL-01**: User can classify a presentation as "Template" or "Example"
+- [x] **CCL-02**: User can bind an "Example" presentation to a specific touch type
+- [x] **CCL-03**: User sees "Action Required" indicator on unclassified presentations
+- [x] **CCL-04**: Classification is displayed on template cards and detail views
 
 ### Deck Intelligence
 
@@ -79,10 +79,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SLI-03 | Phase 33 | Pending |
 | SLI-04 | Phase 33 | Pending |
 | SLI-05 | Phase 33 | Pending |
-| CCL-01 | Phase 33 | Pending |
-| CCL-02 | Phase 33 | Pending |
-| CCL-03 | Phase 33 | Pending |
-| CCL-04 | Phase 33 | Pending |
+| CCL-01 | Phase 33 | Complete |
+| CCL-02 | Phase 33 | Complete |
+| CCL-03 | Phase 33 | Complete |
+| CCL-04 | Phase 33 | Complete |
 | DKI-01 | Phase 34 | Pending |
 | DKI-02 | Phase 34 | Pending |
 | DKI-03 | Phase 34 | Pending |
