@@ -1,25 +1,16 @@
-import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createEnv } from '@t3-oss/env-core'
 import { z } from 'zod'
 
-// Resolve GOOGLE_APPLICATION_CREDENTIALS to an absolute path before any SDK reads it.
-// mastra dev runs from .mastra/output/ so relative paths like ./vertex-service-account.json
-// won't resolve correctly. Try the original path first, then fall back to the project root.
-if (process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.GOOGLE_APPLICATION_CREDENTIALS.startsWith('/')) {
-  const rel = process.env.GOOGLE_APPLICATION_CREDENTIALS
-  const abs = resolve(rel)
-  if (existsSync(abs)) {
-    process.env.GOOGLE_APPLICATION_CREDENTIALS = abs
-  } else {
-    // Try resolving relative to the agent package root.
-    // process.cwd() works in both CJS and ESM (unlike __dirname).
-    // When mastra dev runs from .mastra/output/, cwd is still the agent root.
-    const fromProjectRoot = resolve(process.cwd(), rel)
-    if (existsSync(fromProjectRoot)) {
-      process.env.GOOGLE_APPLICATION_CREDENTIALS = fromProjectRoot
-    }
-  }
+// Write VERTEX_SERVICE_ACCOUNT_KEY (inline JSON) to a temp file and set
+// GOOGLE_APPLICATION_CREDENTIALS so the @google/genai Vertex SDK can find it.
+// This avoids all relative-path resolution issues with mastra dev.
+if (process.env.VERTEX_SERVICE_ACCOUNT_KEY && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+  const tmpPath = join(tmpdir(), `vertex-sa-${process.pid}.json`)
+  writeFileSync(tmpPath, process.env.VERTEX_SERVICE_ACCOUNT_KEY, 'utf-8')
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = tmpPath
 }
 
 export const env = createEnv({
@@ -55,8 +46,10 @@ export const env = createEnv({
     GOOGLE_CLOUD_PROJECT: z.string().min(1),
     // Google Cloud region for Vertex AI (e.g., us-central1)
     GOOGLE_CLOUD_LOCATION: z.string().min(1),
-    // Note: GOOGLE_APPLICATION_CREDENTIALS is read automatically by
-    // @google/genai when vertexai: true is set. No need to validate here.
+    // Vertex AI service account credentials as inline JSON string.
+    // At startup this is written to a temp file and GOOGLE_APPLICATION_CREDENTIALS
+    // is set so the @google/genai SDK can read it.
+    VERTEX_SERVICE_ACCOUNT_KEY: z.string().min(1),
 
     // Port for the Mastra HTTP server (default 4111)
     MASTRA_PORT: z.string().default('4111'),
