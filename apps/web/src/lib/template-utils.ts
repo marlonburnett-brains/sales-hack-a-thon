@@ -1,3 +1,8 @@
+import {
+  ARTIFACT_TYPE_LABELS,
+  type ArtifactType,
+} from "@lumenalta/schemas";
+
 export const SLIDES_URL_REGEX =
   /^https:\/\/docs\.google\.com\/presentation\/d\/([a-zA-Z0-9_-]+)/;
 
@@ -60,12 +65,16 @@ export type ContentClassification = "template" | "example";
 export function getClassificationLabel(
   classification: string | null | undefined,
   touchTypes?: string[],
+  artifactType?: ArtifactType | null,
 ): string {
   if (!classification) return "Unclassified";
   if (classification === "template") return "Template";
   if (classification === "example") {
     const touches = touchTypes ?? [];
     if (touches.length > 0) {
+      if (touches.length === 1 && touches[0] === "touch_4" && artifactType) {
+        return `Example (Touch 4+ - ${ARTIFACT_TYPE_LABELS[artifactType]})`;
+      }
       const labels = touches.map((t) => TOUCH_LABEL_MAP[t] ?? t);
       return `Example (${labels.join(", ")})`;
     }
