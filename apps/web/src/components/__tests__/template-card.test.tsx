@@ -21,16 +21,19 @@ vi.mock("sonner", () => ({
 
 const mockDeleteTemplateAction = vi.fn();
 const mockGetIngestionProgressAction = vi.fn();
+const mockClassifyTemplateAction = vi.fn();
+const mockTriggerIngestionAction = vi.fn();
+const mockCheckStalenessAction = vi.fn();
 vi.mock("@/lib/actions/template-actions", () => ({
   deleteTemplateAction: (...args: unknown[]) => mockDeleteTemplateAction(...args),
   getIngestionProgressAction: (...args: unknown[]) =>
     mockGetIngestionProgressAction(...args),
-}));
-
-vi.mock("@/components/template-status-badge", () => ({
-  TemplateStatusBadge: ({ status }: { status: string }) => (
-    <span data-testid="status-badge">{status}</span>
-  ),
+  classifyTemplateAction: (...args: unknown[]) =>
+    mockClassifyTemplateAction(...args),
+  triggerIngestionAction: (...args: unknown[]) =>
+    mockTriggerIngestionAction(...args),
+  checkStalenessAction: (...args: unknown[]) =>
+    mockCheckStalenessAction(...args),
 }));
 
 import { TemplateCard } from "../template-card";
@@ -47,6 +50,10 @@ function makeTemplate(overrides: Partial<Template> = {}): Template {
     lastIngestedAt: "2026-03-01T00:00:00Z",
     sourceModifiedAt: "2026-02-28T00:00:00Z",
     slideCount: 10,
+    ingestionStatus: "idle",
+    ingestionProgress: null,
+    contentClassification: null,
+    artifactType: null,
     createdAt: "2026-03-01T00:00:00Z",
     updatedAt: "2026-03-01T00:00:00Z",
     ...overrides,
@@ -61,6 +68,9 @@ describe("TMPL-02: Template card with status badges", () => {
   beforeEach(() => {
     mockDeleteTemplateAction.mockReset();
     mockGetIngestionProgressAction.mockReset();
+    mockClassifyTemplateAction.mockReset();
+    mockTriggerIngestionAction.mockReset();
+    mockCheckStalenessAction.mockReset();
   });
 
   it("renders template name", () => {
@@ -70,8 +80,7 @@ describe("TMPL-02: Template card with status badges", () => {
 
   it("renders status badge with correct status", () => {
     render(<TemplateCard template={makeTemplate()} />);
-    const badges = screen.getAllByTestId("status-badge");
-    expect(badges[0]).toHaveTextContent("ready");
+    expect(screen.getByText("Classify")).toBeInTheDocument();
   });
 
   it("renders touch type chips", () => {
@@ -92,8 +101,7 @@ describe("TMPL-02: Template card with status badges", () => {
       />
     );
 
-    const badges = screen.getAllByTestId("status-badge");
-    expect(badges[0]).toHaveTextContent("no_access");
+    expect(screen.getByText("No Access")).toBeInTheDocument();
     expect(
       screen.getByText("Share file to enable ingestion")
     ).toBeInTheDocument();
@@ -106,8 +114,7 @@ describe("TMPL-02: Template card with status badges", () => {
       />
     );
 
-    const badges = screen.getAllByTestId("status-badge");
-    expect(badges[0]).toHaveTextContent("not_ingested");
+    expect(screen.getByText("Not Ingested")).toBeInTheDocument();
   });
 });
 
@@ -119,6 +126,9 @@ describe("TMPL-03: Delete template with confirmation dialog", () => {
   beforeEach(() => {
     mockDeleteTemplateAction.mockReset();
     mockGetIngestionProgressAction.mockReset();
+    mockClassifyTemplateAction.mockReset();
+    mockTriggerIngestionAction.mockReset();
+    mockCheckStalenessAction.mockReset();
   });
 
   it("shows delete option in kebab menu", async () => {
@@ -177,5 +187,89 @@ describe("TMPL-03: Delete template with confirmation dialog", () => {
     await waitFor(() => {
       expect(mockDeleteTemplateAction).toHaveBeenCalledWith("t1");
     });
+  });
+});
+
+describe("CLSF-01: Template card Touch 4 artifact flow", () => {
+  beforeEach(() => {
+    mockDeleteTemplateAction.mockReset();
+    mockGetIngestionProgressAction.mockReset();
+    mockClassifyTemplateAction.mockReset();
+    mockTriggerIngestionAction.mockReset();
+    mockCheckStalenessAction.mockReset();
+  });
+
+  it("shows artifact radios only for Example Touch 4, blocks save until selected, and renders the saved artifact badge", async () => {
+    mockClassifyTemplateAction.mockResolvedValue({ success: true });
+    const onRefresh = vi.fn();
+    const user = userEvent.setup();
+
+    const { rerender } = render(
+      <TemplateCard template={makeTemplate()} onRefresh={onRefresh} />
+    );
+
+    await user.click(screen.getByLabelText("Template actions"));
+    await user.click(await screen.findByRole("menuitem", { name: /^classify$/i }));
+
+    expect(screen.queryByRole("radiogroup", { name: /artifact type/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Example" }));
+    await user.click(screen.getByRole("radio", { name: /touch 4\+/i }));
+
+    expect(screen.getByRole("radiogroup", { name: /artifact type/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /proposal/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /talk track/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /faq/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(await screen.findByText(/select an artifact type for touch 4 examples/i)).toBeInTheDocument();
+    expect(mockClassifyTemplateAction).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("radio", { name: /proposal/i }));
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(mockClassifyTemplateAction).toHaveBeenCalledWith(
+        "t1",
+        "example",
+        ["touch_4"],
+        "proposal",
+      );
+    });
+
+    rerender(
+      <TemplateCard
+        template={makeTemplate({
+          contentClassification: "example",
+          touchTypes: JSON.stringify(["touch_4"]),
+          artifactType: "proposal",
+        })}
+        onRefresh={onRefresh}
+      />
+    );
+
+    expect(screen.getByText("Example (Touch 4+ - Proposal)")).toBeInTheDocument();
+  });
+
+  it("keeps example touch selection single-choice", async () => {
+    const user = userEvent.setup();
+
+    render(<TemplateCard template={makeTemplate()} />);
+
+    await user.click(screen.getByLabelText("Template actions"));
+    await user.click(await screen.findByRole("menuitem", { name: /^classify$/i }));
+    await user.click(screen.getByRole("button", { name: "Example" }));
+
+    const touch1 = screen.getByRole("radio", { name: /touch 1/i });
+    const touch4 = screen.getByRole("radio", { name: /touch 4\+/i });
+
+    await user.click(touch4);
+    expect(touch4).toBeChecked();
+
+    await user.click(touch1);
+
+    expect(touch1).toBeChecked();
+    expect(touch4).not.toBeChecked();
   });
 });
