@@ -176,6 +176,7 @@ export async function detectAtlusAccess(
   accessToken: string,
 ): Promise<"full_access" | "no_account" | "no_project"> {
   // -- Tier 1: Auth probe --
+  // Verify the token can authenticate with the AtlusAI SSE endpoint.
   let authOk = false;
   try {
     const controller = new AbortController();
@@ -201,47 +202,16 @@ export async function detectAtlusAccess(
     return "no_account";
   }
 
-  // Auth succeeded -- auto-resolve any existing account-required action
+  // Auth succeeded -- auto-resolve any existing account/project-required actions
   await resolveActionsByType(userId, ACTION_TYPES.ATLUS_ACCOUNT_REQUIRED);
-
-  // -- Tier 2: Project probe --
-  let projectOk = false;
-  try {
-    const atlusProjectId = process.env.ATLUS_PROJECT_ID;
-    if (!atlusProjectId) {
-      // No project configured -- skip project check, treat as ok
-      projectOk = true;
-    } else {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), ATLUS_PROBE_TIMEOUT);
-      const res = await fetch(
-        `https://knowledge-base-api.lumenalta.com/projects/${atlusProjectId}/tools`,
-        {
-          headers: { Authorization: "Bearer " + accessToken },
-          signal: controller.signal,
-        },
-      );
-      clearTimeout(timeout);
-      projectOk = res.status !== 403 && res.ok;
-    }
-  } catch {
-    projectOk = false;
-  }
-
-  if (!projectOk) {
-    await upsertActionRequired(
-      userId,
-      ACTION_TYPES.ATLUS_PROJECT_REQUIRED,
-      "AtlusAI project access required",
-      "Your AtlusAI account does not have access to the configured project. Contact your administrator to request project access.",
-    );
-    return "no_project";
-  }
-
-  // Project access succeeded -- auto-resolve any existing project-required action
   await resolveActionsByType(userId, ACTION_TYPES.ATLUS_PROJECT_REQUIRED);
 
-  // -- Tier 3: Full access --
+  // -- Tier 2: Full access --
+  // Note: ATLUS_PROJECT_ID is a filter param for MCP tool calls, not a REST
+  // resource on the AtlusAI server. Project-level access errors surface
+  // naturally when the user invokes MCP tools with the project_id argument.
+  // A previous Tier 2 "project probe" fetched a non-existent REST endpoint
+  // (/projects/{id}/tools → 404), causing all users to get "no_project".
   await upsertAtlusToken(userId, email, accessToken);
   return "full_access";
 }
