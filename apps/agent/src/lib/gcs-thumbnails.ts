@@ -53,7 +53,6 @@ export async function uploadThumbnailToGCS(
   await storage.objects.insert({
     bucket,
     name: key,
-    predefinedAcl: "publicRead",
     requestBody: {
       contentType,
       cacheControl: "public, max-age=604800", // 7 days
