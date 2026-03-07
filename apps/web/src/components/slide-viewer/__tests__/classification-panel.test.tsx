@@ -17,6 +17,11 @@ vi.mock("@/lib/actions/slide-actions", () => ({
   updateSlideClassificationAction: vi.fn(),
 }));
 
+const mockClassifyTemplateAction = vi.fn();
+vi.mock("@/lib/actions/template-actions", () => ({
+  classifyTemplateAction: (...args: unknown[]) => mockClassifyTemplateAction(...args),
+}));
+
 // Mock sonner toast
 vi.mock("sonner", () => ({
   toast: {
@@ -95,6 +100,7 @@ function makeSlide(overrides: Partial<SlideData> = {}): SlideData {
 describe("PREV-02: AI classification tag display", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockClassifyTemplateAction.mockReset();
     cleanup();
   });
 
@@ -185,6 +191,7 @@ describe("PREV-02: AI classification tag display", () => {
 describe("PREV-03: Thumbs up/down rating", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockClassifyTemplateAction.mockReset();
     cleanup();
   });
 
@@ -271,6 +278,7 @@ describe("PREV-03: Thumbs up/down rating", () => {
 describe("PREV-04: Inline tag correction editing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockClassifyTemplateAction.mockReset();
     cleanup();
   });
 
@@ -362,5 +370,76 @@ describe("PREV-04: Inline tag correction editing", () => {
       ? { container: document.body }
       : { container: document.body };
     expect(document.body.textContent).toContain("Technology");
+  });
+});
+
+describe("CLSF-02: Classification panel Touch 4 artifact flow", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockClassifyTemplateAction.mockReset();
+    cleanup();
+  });
+
+  it("shows artifact radios only for Example Touch 4, blocks save until selected, and clears them when switching away", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ClassificationPanel
+        slide={makeSlide()}
+        templateId="tmpl-1"
+        onUpdated={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Example" }));
+    const dialog = screen.getByText("Touch types").closest("div")?.parentElement ?? document.body;
+
+    expect(within(dialog).queryByRole("radiogroup", { name: /artifact type/i })).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("radio", { name: /touch 4\+/i }));
+
+    expect(within(dialog).getByRole("radiogroup", { name: /artifact type/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(await screen.findByText(/select an artifact type for touch 4 examples/i)).toBeInTheDocument();
+    expect(mockClassifyTemplateAction).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("radio", { name: /touch 1/i }));
+
+    await waitFor(() => {
+      expect(within(dialog).queryByRole("radiogroup", { name: /artifact type/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("saves the Touch 4 artifact selection and shows it in the saved badge", async () => {
+    mockClassifyTemplateAction.mockResolvedValue({ success: true });
+    const user = userEvent.setup();
+
+    render(
+      <ClassificationPanel
+        slide={makeSlide()}
+        templateId="tmpl-1"
+        onUpdated={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Example" }));
+
+    const dialog = screen.getByText("Touch types").closest("div")?.parentElement ?? document.body;
+    await user.click(within(dialog).getByRole("radio", { name: /touch 4\+/i }));
+    await user.click(within(dialog).getByRole("radio", { name: /faq/i }));
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => {
+      expect(mockClassifyTemplateAction).toHaveBeenCalledWith(
+        "tmpl-1",
+        "example",
+        ["touch_4"],
+        "faq",
+      );
+    });
+
+    expect(await screen.findByText("Example (Touch 4+ - FAQ)")).toBeInTheDocument();
   });
 });
