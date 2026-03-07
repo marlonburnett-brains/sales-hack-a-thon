@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  slack: circleci/slack@4.13.3
+
 executors:
   node:
     docker:
@@ -148,6 +151,47 @@ jobs:
           name: Deploy to Vercel
           command: vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
 
+  notify-success:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - slack/notify:
+          channel: "${SLACK_CHANNEL:-$SLACK_DEFAULT_CHANNEL}"
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":white_check_mark: *$CIRCLE_PROJECT_REPONAME* deployed successfully on *$CIRCLE_BRANCH*."
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit*\n`$CIRCLE_SHA1`"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Workflow*\n<$CIRCLE_BUILD_URL|Open CircleCI job>"
+                    }
+                  ]
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "Workflow URL: https://app.circleci.com/pipelines/workflows/$CIRCLE_WORKFLOW_ID"
+                    }
+                  ]
+                }
+              ]
+            }
+
 workflows:
   deploy:
     jobs:
@@ -164,3 +208,9 @@ workflows:
       - deploy-web:
           requires:
             - deploy-agent
+      - notify-success:
+          requires:
+            - deploy-web
+          filters:
+            branches:
+              only: main
