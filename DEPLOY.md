@@ -126,7 +126,7 @@ For subsequent deployments, `prisma migrate deploy` applies only new migrations.
 
 The pipeline runs: lint > build > migrate > deploy-agent > deploy-web on push to main.
 
-#### Slack success notifications via Resend email
+#### Slack success notifications via SMTP email
 
 CircleCI now sends one success email after the full deployment workflow finishes. Slack posts that email into the private `atlus-deck` channel through the channel email address you already have, so no Slack admin access or Slack bot install is required.
 
@@ -134,23 +134,27 @@ Add these CircleCI environment variables in Project Settings or a Context:
 
 | Variable | Description | Source |
 |----------|-------------|--------|
-| `RESEND_API_KEY` | API key used to send the notification email | Resend dashboard > API Keys |
-| `RESEND_FROM_EMAIL` | Verified sender address used by Resend, for example `deploys@updates.yourdomain.com` | Resend dashboard > Domains / Verified senders |
+| `SMTP_HOST` | SMTP server hostname | Purelymail SMTP settings (`smtp.purelymail.com`) |
+| `SMTP_PORT` | SMTP port | Purelymail SMTP settings (`465` for SSL/TLS, or `587` for STARTTLS) |
+| `SMTP_SECURE` | Whether to use implicit SSL/TLS | `true` for port `465`, `false` for port `587` |
+| `SMTP_USERNAME` | SMTP login username | Your full Purelymail email address |
+| `SMTP_PASSWORD` | SMTP login password | Your Purelymail mailbox password |
+| `SMTP_FROM` | Optional sender address shown in the email; defaults to `SMTP_USERNAME` | Same mailbox or display-name format such as `AtlusDeck <your-email@domain.com>` |
 | `SLACK_CHANNEL_EMAIL` | Slack channel email target; defaults in config to the current `atlus-deck` email if omitted | Slack channel email address |
 
-Recommended Resend setup:
+Recommended Purelymail setup:
 
-1. Create a Resend account.
-2. Verify a sending domain in Resend, or verify a sender identity if your plan supports it.
-3. Create an API key with permission to send email.
-4. Copy the key into CircleCI as `RESEND_API_KEY`.
-5. Copy your verified sender address into CircleCI as `RESEND_FROM_EMAIL`.
+1. Use `smtp.purelymail.com` as `SMTP_HOST`.
+2. Set `SMTP_PORT=465` and `SMTP_SECURE=true` for the simplest SSL/TLS setup.
+3. Set `SMTP_USERNAME` to your full Purelymail email address.
+4. Set `SMTP_PASSWORD` to that mailbox password.
+5. Optional: set `SMTP_FROM` to the same mailbox or a display-name format like `AtlusDeck <your-email@domain.com>`.
 6. Optional: set `SLACK_CHANNEL_EMAIL` explicitly to `atlus-deck-aaaatjj2cixlodxayed2erpcme@lumenalta.slack.com` so the target is visible in CircleCI settings instead of relying on the config default.
 
 Slack checks:
 
 1. Confirm emails sent to `atlus-deck-aaaatjj2cixlodxayed2erpcme@lumenalta.slack.com` still appear in the `atlus-deck` private channel.
-2. If Slack restricts allowed senders for that channel email integration, allow the same `RESEND_FROM_EMAIL` address or sending domain you configured in Resend.
+2. If Slack restricts allowed senders for that channel email integration, allow the same sender you configured in `SMTP_FROM` or `SMTP_USERNAME`.
 
 Verification flow:
 
@@ -158,7 +162,7 @@ Verification flow:
 2. Push a small commit to `main`.
 3. Wait for the CircleCI workflow to complete successfully.
 4. Confirm exactly one message lands in the `atlus-deck` private channel after `deploy-web` finishes.
-5. If no message appears, check the `notify-success` CircleCI job logs for the Resend API response first, then verify Slack still accepts mail from the configured sender.
+5. If no message appears, check the `notify-success` CircleCI job logs for the SMTP authentication or send error first, then verify Slack still accepts mail from the configured sender.
 
 ---
 

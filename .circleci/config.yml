@@ -155,27 +155,68 @@ jobs:
       - image: cimg/base:stable
     steps:
       - run:
-          name: Email Slack channel via Resend
+          name: Email Slack channel via SMTP
           command: |
             set -eu
 
             RECIPIENT="${SLACK_CHANNEL_EMAIL:-atlus-deck-aaaatjj2cixlodxayed2erpcme@lumenalta.slack.com}"
             WORKFLOW_URL="https://app.circleci.com/pipelines/workflows/$CIRCLE_WORKFLOW_ID"
-            SUBJECT="[Deploy Success] $CIRCLE_PROJECT_REPONAME on $CIRCLE_BRANCH"
+            export RECIPIENT WORKFLOW_URL
 
-            printf '%s\n' \
-              '{' \
-              "  \"from\": \"$RESEND_FROM_EMAIL\"," \
-              "  \"to\": [\"$RECIPIENT\"]," \
-              "  \"subject\": \"$SUBJECT\"," \
-              "  \"text\": \"Hi team, a new AtlusDeck build is ready for testing: https://lumenalta-hackathon.vercel.app\\n\\nCommit: $CIRCLE_SHA1\\nWorkflow: $WORKFLOW_URL\"," \
-              "  \"html\": \"<p>Hi team, a new AtlusDeck build is ready for testing: <a href=\\\"https://lumenalta-hackathon.vercel.app\\\">https://lumenalta-hackathon.vercel.app</a>.</p><p><strong>Commit:</strong> <code>$CIRCLE_SHA1</code><br /><strong>Workflow:</strong> <a href=\\\"$WORKFLOW_URL\\\">Open workflow</a></p>\"" \
-              '}' > /tmp/resend-payload.json
+            python3 - <<'PY'
+            import os
+            import smtplib
+            import ssl
+            from email.message import EmailMessage
 
-            curl --fail --silent --show-error https://api.resend.com/emails \
-              -H "Authorization: Bearer $RESEND_API_KEY" \
-              -H "Content-Type: application/json" \
-              --data @/tmp/resend-payload.json
+            recipient = os.environ["RECIPIENT"]
+            workflow_url = os.environ["WORKFLOW_URL"]
+            smtp_host = os.environ["SMTP_HOST"]
+            smtp_port = int(os.environ.get("SMTP_PORT", "465"))
+            smtp_username = os.environ["SMTP_USERNAME"]
+            smtp_password = os.environ["SMTP_PASSWORD"]
+            smtp_from = os.environ.get("SMTP_FROM", smtp_username)
+            smtp_secure = os.environ.get("SMTP_SECURE", "true").lower() == "true"
+            repo = os.environ["CIRCLE_PROJECT_REPONAME"]
+            branch = os.environ["CIRCLE_BRANCH"]
+            sha = os.environ["CIRCLE_SHA1"]
+
+            text = (
+                "Hi team, a new AtlusDeck build is ready for testing: "
+                "https://lumenalta-hackathon.vercel.app\n\n"
+                f"Commit: {sha}\n"
+                f"Workflow: {workflow_url}"
+            )
+            html = (
+                "<p>Hi team, a new AtlusDeck build is ready for testing: "
+                '<a href="https://lumenalta-hackathon.vercel.app">'
+                "https://lumenalta-hackathon.vercel.app"
+                "</a>.</p>"
+                f"<p><strong>Commit:</strong> <code>{sha}</code><br />"
+                f'<strong>Workflow:</strong> <a href="{workflow_url}">Open workflow</a></p>'
+            )
+
+            message = EmailMessage()
+            message["Subject"] = f"[Deploy Success] {repo} on {branch}"
+            message["From"] = smtp_from
+            message["To"] = recipient
+            message.set_content(text)
+            message.add_alternative(html, subtype="html")
+
+            if smtp_secure:
+                server = smtplib.SMTP_SSL(smtp_host, smtp_port, context=ssl.create_default_context())
+            else:
+                server = smtplib.SMTP(smtp_host, smtp_port)
+                server.starttls(context=ssl.create_default_context())
+
+            try:
+                server.login(smtp_username, smtp_password)
+                server.send_message(message)
+            finally:
+                server.quit()
+
+            print(f"Email sent to {recipient} via {smtp_host}:{smtp_port}")
+            PY
 
 workflows:
   deploy:
