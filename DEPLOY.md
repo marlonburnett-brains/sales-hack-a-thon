@@ -126,6 +126,30 @@ For subsequent deployments, `prisma migrate deploy` applies only new migrations.
 
 The pipeline runs: lint > build > migrate > deploy-agent > deploy-web on push to main.
 
+#### Slack success notifications
+
+CircleCI can post one Slack success notification after the full deployment workflow finishes, including for a private Slack channel, as long as the Slack app or bot is invited to that private channel first.
+
+Add these CircleCI environment variables in Project Settings or a Context:
+
+| Variable | Description | Source |
+|----------|-------------|--------|
+| `SLACK_ACCESS_TOKEN` | Slack bot token used by the CircleCI Slack orb | Slack API app > OAuth & Permissions > Bot User OAuth Token |
+| `SLACK_DEFAULT_CHANNEL` | Default Slack channel ID for notifications | Slack private channel details or copied channel link |
+
+Setup steps:
+
+1. Create or reuse a Slack app that has a bot token.
+2. Invite that Slack app or bot to the target private channel before testing notifications.
+3. Store `SLACK_ACCESS_TOKEN` and `SLACK_DEFAULT_CHANNEL` in CircleCI.
+4. Optional: set `SLACK_CHANNEL` in CircleCI if you need to override the default channel for a specific pipeline or context.
+
+Verification flow:
+
+1. Push a small commit to `main`.
+2. Wait for the CircleCI workflow to complete successfully.
+3. Confirm exactly one success message lands in the target private channel after `deploy-web` finishes.
+
 ---
 
-*Last updated: 2026-03-06 for v1.3 release*
+*Last updated: 2026-03-07 for quick task 12*
