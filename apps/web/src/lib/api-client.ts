@@ -646,7 +646,8 @@ export interface SlideData {
 export interface SlideThumbnail {
   slideObjectId: string;
   slideIndex: number;
-  thumbnailUrl: string;
+  thumbnailUrl: string | null;
+  cached?: boolean;
 }
 
 export interface SimilarSlide {
@@ -680,8 +681,8 @@ export async function listSlides(
 
 export async function getSlideThumbnails(
   templateId: string
-): Promise<{ thumbnails: SlideThumbnail[] }> {
-  return fetchWithGoogleAuth<{ thumbnails: SlideThumbnail[] }>(
+): Promise<{ thumbnails: SlideThumbnail[]; caching?: boolean }> {
+  return fetchWithGoogleAuth<{ thumbnails: SlideThumbnail[]; caching?: boolean }>(
     `/templates/${templateId}/thumbnails`
   );
 }

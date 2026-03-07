@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 interface ThumbnailStripProps {
-  thumbnails: Array<{ slideIndex: number; thumbnailUrl: string }>;
+  thumbnails: Array<{ slideIndex: number; thumbnailUrl: string | null }>;
   currentIndex: number;
   onSelect: (index: number) => void;
 }
@@ -45,12 +45,18 @@ export function ThumbnailStrip({
               aria-label={`Go to slide ${thumb.slideIndex + 1}`}
               aria-current={isActive ? "true" : undefined}
             >
-              <img
-                src={thumb.thumbnailUrl}
-                alt={`Thumbnail for slide ${thumb.slideIndex + 1}`}
-                className="h-[68px] w-[120px] object-cover"
-                draggable={false}
-              />
+              {thumb.thumbnailUrl ? (
+                <img
+                  src={thumb.thumbnailUrl}
+                  alt={`Thumbnail for slide ${thumb.slideIndex + 1}`}
+                  className="h-[68px] w-[120px] object-cover"
+                  draggable={false}
+                />
+              ) : (
+                <div className="flex h-[68px] w-[120px] items-center justify-center bg-slate-100">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                </div>
+              )}
             </button>
           );
         })}

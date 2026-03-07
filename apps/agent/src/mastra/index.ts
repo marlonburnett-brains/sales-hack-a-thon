@@ -1189,7 +1189,9 @@ export const mastra = new Mastra({
         },
       }),
 
-      // GET /templates/:id/thumbnails -- Return cached GCS thumbnail URLs (falls back to live Slides API)
+      // GET /templates/:id/thumbnails -- Return cached GCS thumbnail URLs
+      // Returns whatever is cached immediately; kicks off background caching for missing/stale thumbnails.
+      // The UI should poll this endpoint to pick up newly cached thumbnails.
       registerApiRoute("/templates/:id/thumbnails", {
         method: "GET",
         handler: async (c) => {
@@ -1197,7 +1199,7 @@ export const mastra = new Mastra({
           const template = await prisma.template.findUniqueOrThrow({ where: { id: templateId } });
           const googleAuth = await extractGoogleAuth(c);
 
-          // 1. Query slides with cached thumbnail info
+          // Query slides with cached thumbnail info
           const slides = await prisma.slideEmbedding.findMany({
             where: { templateId, archived: false },
             orderBy: { slideIndex: "asc" },
@@ -1205,87 +1207,33 @@ export const mastra = new Mastra({
           });
 
           const ttlCutoff = new Date(Date.now() - THUMBNAIL_TTL_MS);
-          const allCached = slides.every(
-            (s) => s.thumbnailUrl && s.thumbnailFetchedAt && s.thumbnailFetchedAt > ttlCutoff
+          const needsRefresh = slides.some(
+            (s) => s.slideObjectId && (!s.thumbnailUrl || !s.thumbnailFetchedAt || s.thumbnailFetchedAt < ttlCutoff)
           );
 
-          // 2. If cache HIT: return immediately (no Slides API calls)
-          if (allCached) {
-            const thumbnails = slides
-              .filter((s) => s.slideObjectId)
-              .map((s) => ({
-                slideObjectId: s.slideObjectId!,
-                slideIndex: s.slideIndex,
-                thumbnailUrl: s.thumbnailUrl!,
-              }));
-            return c.json({ thumbnails });
-          }
-
-          // 3. Cache MISS or stale: refresh via GCS caching
-          try {
-            await cacheThumbnailsForTemplate(
+          // Fire-and-forget: cache missing/stale thumbnails in the background
+          if (needsRefresh) {
+            cacheThumbnailsForTemplate(
               templateId,
               template.presentationId,
               googleAuth.accessToken ? googleAuth : undefined
-            );
-          } catch (err) {
-            console.error("[thumbnails] GCS cache refresh failed:", err);
+            ).catch((err) => console.error("[thumbnails] Background GCS cache refresh failed:", err));
           }
 
-          // 4. Re-query after refresh
-          const refreshed = await prisma.slideEmbedding.findMany({
-            where: { templateId, archived: false },
-            orderBy: { slideIndex: "asc" },
-            select: { slideObjectId: true, slideIndex: true, thumbnailUrl: true },
+          // Return whatever is cached right now
+          const thumbnails = slides
+            .filter((s) => s.slideObjectId)
+            .map((s) => ({
+              slideObjectId: s.slideObjectId!,
+              slideIndex: s.slideIndex,
+              thumbnailUrl: s.thumbnailUrl ?? null,
+              cached: !!(s.thumbnailUrl && s.thumbnailFetchedAt && s.thumbnailFetchedAt > ttlCutoff),
+            }));
+
+          return c.json({
+            thumbnails,
+            caching: needsRefresh,
           });
-
-          // 5. Separate cached vs uncached slides
-          const thumbnails: Array<{ slideObjectId: string; slideIndex: number; thumbnailUrl: string }> = [];
-          const uncached = refreshed.filter((s) => s.slideObjectId && !s.thumbnailUrl);
-
-          for (const s of refreshed) {
-            if (!s.slideObjectId) continue;
-            if (s.thumbnailUrl) {
-              thumbnails.push({
-                slideObjectId: s.slideObjectId,
-                slideIndex: s.slideIndex,
-                thumbnailUrl: s.thumbnailUrl,
-              });
-            }
-          }
-
-          // 6. Fall back to live Slides API for any still-uncached slides (backward compat)
-          if (uncached.length > 0) {
-            const slidesApi = getSlidesClient(googleAuth.accessToken ? googleAuth : undefined);
-            const BATCH_SIZE = 5;
-            const BATCH_DELAY_MS = 1500;
-            for (let i = 0; i < uncached.length; i += BATCH_SIZE) {
-              if (i > 0) await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
-              const batch = uncached.slice(i, i + BATCH_SIZE);
-              const results = await Promise.allSettled(
-                batch.map(async (slide) => {
-                  const result = await slidesApi.presentations.pages.getThumbnail({
-                    presentationId: template.presentationId,
-                    pageObjectId: slide.slideObjectId!,
-                    "thumbnailProperties.thumbnailSize": "LARGE",
-                  });
-                  return {
-                    slideObjectId: slide.slideObjectId!,
-                    slideIndex: slide.slideIndex,
-                    thumbnailUrl: result.data.contentUrl ?? "",
-                  };
-                })
-              );
-              for (const r of results) {
-                if (r.status === "fulfilled") thumbnails.push(r.value);
-                else console.error(`[thumbnails] Live fallback failed:`, r.reason?.message ?? r.reason);
-              }
-            }
-          }
-
-          // Sort by slideIndex to maintain consistent order
-          thumbnails.sort((a, b) => a.slideIndex - b.slideIndex);
-          return c.json({ thumbnails });
         },
       }),
 

@@ -9,7 +9,7 @@ import { SlidePreview } from "@/components/slide-viewer/slide-preview";
 import { ThumbnailStrip } from "@/components/slide-viewer/thumbnail-strip";
 import { ClassificationPanel } from "@/components/slide-viewer/classification-panel";
 import { SimilarityResults } from "@/components/slide-viewer/similarity-results";
-import { findSimilarSlidesAction } from "@/lib/actions/slide-actions";
+import { findSimilarSlidesAction, getSlideThumbnailsAction } from "@/lib/actions/slide-actions";
 import type {
   SlideData,
   SlideThumbnail,
@@ -31,32 +31,53 @@ export function SlideViewerClient({
 }: SlideViewerClientProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slides, setSlides] = useState<SlideData[]>(initialSlides);
+  const [thumbnails, setThumbnails] = useState<SlideThumbnail[]>(initialThumbnails);
+  const [isCaching, setIsCaching] = useState(
+    initialThumbnails.some((t) => !t.thumbnailUrl)
+  );
   const [similarResults, setSimilarResults] = useState<SimilarSlide[] | null>(
     null
   );
   const [isFindingSimilar, setIsFindingSimilar] = useState(false);
   const [searchingSlideId, setSearchingSlideId] = useState<string | null>(null);
 
+  // Poll for thumbnails while caching is in progress
+  useEffect(() => {
+    if (!isCaching) return;
+    const interval = setInterval(async () => {
+      try {
+        const result = await getSlideThumbnailsAction(templateId);
+        setThumbnails(result.thumbnails);
+        if (!result.caching) {
+          setIsCaching(false);
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isCaching, templateId]);
+
   // Build a map from slideIndex to thumbnailUrl
   const thumbnailMap = useMemo(() => {
     const map = new Map<number, string>();
-    for (const t of initialThumbnails) {
-      map.set(t.slideIndex, t.thumbnailUrl);
+    for (const t of thumbnails) {
+      if (t.thumbnailUrl) map.set(t.slideIndex, t.thumbnailUrl);
     }
     return map;
-  }, [initialThumbnails]);
+  }, [thumbnails]);
 
   // Sorted thumbnails for the strip
   const sortedThumbnails = useMemo(
     () =>
-      initialThumbnails
+      thumbnails
         .slice()
         .sort((a, b) => a.slideIndex - b.slideIndex)
         .map((t) => ({
           slideIndex: t.slideIndex,
           thumbnailUrl: t.thumbnailUrl,
         })),
-    [initialThumbnails]
+    [thumbnails]
   );
 
   const currentSlide = slides[currentIndex] ?? null;
@@ -131,11 +152,11 @@ export function SlideViewerClient({
   // Build a slideObjectId -> thumbnailUrl map for SimilarityResults
   const thumbnailObjectIdMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const t of initialThumbnails) {
-      map.set(t.slideObjectId, t.thumbnailUrl);
+    for (const t of thumbnails) {
+      if (t.thumbnailUrl) map.set(t.slideObjectId, t.thumbnailUrl);
     }
     return map;
-  }, [initialThumbnails]);
+  }, [thumbnails]);
 
   // Template names map (only this template in per-template viewer)
   const templateNamesMap = useMemo(

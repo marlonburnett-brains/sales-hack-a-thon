@@ -24,7 +24,7 @@ export async function listSlidesAction(
 
 export async function getSlideThumbnailsAction(
   templateId: string
-): Promise<{ thumbnails: SlideThumbnail[] }> {
+): Promise<{ thumbnails: SlideThumbnail[]; caching?: boolean }> {
   return getSlideThumbnails(templateId);
 }
 

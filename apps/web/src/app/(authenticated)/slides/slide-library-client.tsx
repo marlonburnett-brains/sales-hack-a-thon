@@ -68,7 +68,7 @@ export function SlideLibraryClient({
   const thumbnailMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const t of thumbnails) {
-      map.set(t.slideObjectId, t.thumbnailUrl);
+      if (t.thumbnailUrl) map.set(t.slideObjectId, t.thumbnailUrl);
     }
     return map;
   }, [thumbnails]);
@@ -214,8 +214,8 @@ export function SlideLibraryClient({
                       className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-slate-400">
-                      No preview
+                    <div className="flex h-full items-center justify-center">
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
                     </div>
                   )}
                 </Link>
