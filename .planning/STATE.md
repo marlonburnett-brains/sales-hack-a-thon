@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 29 of 29 (Discovery UI)
 Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-07 - Completed quick task 8: Add gpt-oss-120b as primary classification model with Gemini fallback
+Last activity: 2026-03-07 - Completed quick task 9: Cache Google Slides thumbnails in GCS
 
 Progress: [██████████] 95%
 
@@ -83,6 +83,7 @@ None.
 | 6 | Fix Template Re-ingest Auto-Navigation & Add Breadcrumbs | 2026-03-07 | 75256c4 | [6-fix-template-re-ingest-auto-navigation-a](./quick/6-fix-template-re-ingest-auto-navigation-a/) |
 | 7 | Add Re-ingest Option for Failed Templates | 2026-03-07 | 8e900b0 | [7-ingestion-failed-templates-should-have-t](./quick/7-ingestion-failed-templates-should-have-t/) |
 | 8 | Add gpt-oss-120b as Primary Classification | 2026-03-07 | 80f7e1a | [8-add-gpt-oss-120b-as-primary-classificati](./quick/8-add-gpt-oss-120b-as-primary-classificati/) |
+| 9 | Cache Google Slides Thumbnails in GCS | 2026-03-07 | 40fc6d6 | [9-cache-google-slides-thumbnails-in-gcs](./quick/9-cache-google-slides-thumbnails-in-gcs/) |
 | Phase 28 P02 | 9min | 2 tasks | 2 files |
 | Phase 29 P02 | 4min | 2 tasks | 1 files |
 
@@ -97,5 +98,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07T02:33:46.023Z
-Stopped at: Completed quick-8: add gpt-oss-120b as primary classification
+Stopped at: Completed quick-9: cache google slides thumbnails in GCS
 Next action: Execute 29-02-PLAN.md (Browse/Search UI)
