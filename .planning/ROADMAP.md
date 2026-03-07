@@ -68,7 +68,7 @@
 - [x] **Phase 28: MCP Integration** - MCPClient singleton wired to AtlusAI SSE with Drive fallback replacement (completed 2026-03-07)
 - [x] **Phase 29: Discovery UI** - Sidebar nav, browse/search page, and selective ingestion into SlideEmbedding pipeline (completed 2026-03-07)
 - [ ] **Phase 30: Verification & Documentation Reconciliation** - Phase 29 VERIFICATION.md, Nyquist compliance for phases 27-29
-- [ ] **Phase 31: Tech Debt Cleanup** - Persist OAuth client_id, fix MCP truncation, remove dead code
+- [x] **Phase 31: Tech Debt Cleanup** - Persist OAuth client_id, fix MCP truncation, remove dead code (completed 2026-03-07)
 
 ## Phase Details
 
@@ -189,4 +189,4 @@ Phases execute in numeric order: 27 -> 28 -> 29 -> 30 -> 31
 | 28. MCP Integration | 2/2 | Complete    | 2026-03-07 | - |
 | 29. Discovery UI | v1.4 | 3/3 | Complete | 2026-03-07 |
 | 30. Verification & Doc Reconciliation | v1.4 | 0/1 | Pending | - |
-| 31. Tech Debt Cleanup | v1.4 | 0/1 | Pending | - |
+| 31. Tech Debt Cleanup | 1/1 | Complete   | 2026-03-07 | - |

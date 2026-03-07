@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: AtlusAI Authentication & Discovery
 status: executing
-stopped_at: "Completed quick-8: add gpt-oss-120b as primary classification"
-last_updated: "2026-03-07T02:33:50.101Z"
-last_activity: "2026-03-07 - Completed quick task 7: ingestion failed templates should have the re-ingest option available"
+stopped_at: Completed 31-01-PLAN.md (tech debt cleanup)
+last_updated: "2026-03-07T03:19:42.895Z"
+last_activity: "2026-03-07 - Completed quick task 9: Cache Google Slides thumbnails in GCS"
 progress:
-  total_phases: 3
-  completed_phases: 2
-  total_plans: 10
-  completed_plans: 9
+  total_phases: 5
+  completed_phases: 3
+  total_plans: 12
+  completed_plans: 10
   percent: 95
 ---
 
@@ -67,6 +67,8 @@ All decisions logged in PROJECT.md Key Decisions table (28 decisions total).
 - Phase 29-01: Skipped LLM classification in discovery ingest (stores raw metadata, can be enriched later)
 - [Phase 29]: Used slideId-based ingestion check instead of client-side SHA-256 hashing
 - [Phase quick-8]: Fresh OpenAI client per call for gpt-oss (Vertex AI access tokens are short-lived, google-auth-library caches internally)
+- [Phase 31]: Manual migration with resolve --applied due to 0_init checksum drift
+- [Phase 31]: Fire-and-forget persistAtlusClientId to avoid blocking MCP init
 
 ### Pending Todos
 
@@ -86,6 +88,7 @@ None.
 | 9 | Cache Google Slides Thumbnails in GCS | 2026-03-07 | 40fc6d6 | [9-cache-google-slides-thumbnails-in-gcs](./quick/9-cache-google-slides-thumbnails-in-gcs/) |
 | Phase 28 P02 | 9min | 2 tasks | 2 files |
 | Phase 29 P02 | 4min | 2 tasks | 1 files |
+| Phase 31 P01 | 4min | 3 tasks | 7 files |
 
 ### Blockers/Concerns
 
@@ -97,6 +100,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T02:33:46.023Z
-Stopped at: Completed quick-9: cache google slides thumbnails in GCS
+Last session: 2026-03-07T03:19:42.893Z
+Stopped at: Completed 31-01-PLAN.md (tech debt cleanup)
 Next action: Execute 29-02-PLAN.md (Browse/Search UI)
