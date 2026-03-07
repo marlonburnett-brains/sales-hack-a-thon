@@ -8,6 +8,7 @@ import {
   checkTemplateStaleness,
   triggerIngestion,
   getIngestionProgress,
+  classifyTemplate,
 } from "@/lib/api-client";
 import type {
   Template,
@@ -58,4 +59,23 @@ export async function getIngestionProgressAction(
   templateId: string
 ): Promise<IngestionProgress> {
   return getIngestionProgress(templateId);
+}
+
+export async function classifyTemplateAction(
+  templateId: string,
+  classification: "template" | "example",
+  touchTypes?: string[],
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await classifyTemplate(templateId, { classification, touchTypes });
+    revalidatePath("/templates");
+    revalidatePath(`/templates/${templateId}`);
+    revalidatePath(`/templates/${templateId}/slides`);
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Classification failed",
+    };
+  }
 }

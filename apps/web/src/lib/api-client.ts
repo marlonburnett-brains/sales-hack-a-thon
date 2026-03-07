@@ -554,6 +554,7 @@ export interface Template {
   slideCount: number;
   ingestionStatus: string; // "idle" | "queued" | "ingesting" | "failed"
   ingestionProgress: string | null; // JSON string
+  contentClassification: string | null; // null | "template" | "example"
   createdAt: string;
   updatedAt: string;
 }
@@ -594,6 +595,16 @@ export async function deleteTemplate(id: string): Promise<{ success: boolean }> 
 export async function checkTemplateStaleness(id: string): Promise<StalenessCheckResult> {
   return fetchWithGoogleAuth<StalenessCheckResult>(`/templates/${id}/check-staleness`, {
     method: "POST",
+  });
+}
+
+export async function classifyTemplate(
+  id: string,
+  data: { classification: "template" | "example"; touchTypes?: string[] },
+): Promise<Template> {
+  return fetchJSON<Template>(`/templates/${id}/classify`, {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 

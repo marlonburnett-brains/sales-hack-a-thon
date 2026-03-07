@@ -233,7 +233,7 @@ export function TemplateCard({
                   Retry Access
                 </DropdownMenuItem>
               )}
-              {(status === "not_ingested" || status === "stale" || status === "ready" || status === "failed") && (
+              {(status === "not_ingested" || status === "stale" || status === "ready" || status === "failed" || status === "classify") && (
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
@@ -243,7 +243,7 @@ export function TemplateCard({
                   className="cursor-pointer"
                 >
                   <Play className="mr-2 h-4 w-4" />
-                  {status === "ready" || status === "failed" ? "Re-ingest" : "Ingest"}
+                  {status === "ready" || status === "failed" || status === "classify" ? "Re-ingest" : "Ingest"}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem

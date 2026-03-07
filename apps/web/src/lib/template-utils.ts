@@ -13,7 +13,8 @@ export type TemplateStatus =
   | "stale"
   | "ingesting"
   | "queued"
-  | "failed";
+  | "failed"
+  | "classify";
 
 export function getTemplateStatus(template: {
   accessStatus: string;
@@ -21,6 +22,7 @@ export function getTemplateStatus(template: {
   sourceModifiedAt: string | null;
   ingestionStatus?: string;
   slideCount?: number;
+  contentClassification?: string | null;
 }): TemplateStatus {
   // Check ingestion status first (takes priority during active ingestion)
   if (template.ingestionStatus === "ingesting") return "ingesting";
@@ -46,8 +48,38 @@ export function getTemplateStatus(template: {
     const ingested = new Date(template.lastIngestedAt);
     if (modified > ingested) return "stale";
   }
+
+  // Ingested but not yet classified -- prompt user to classify
+  if (template.contentClassification == null) return "classify";
+
   return "ready";
 }
+
+export type ContentClassification = "template" | "example";
+
+export function getClassificationLabel(
+  classification: string | null | undefined,
+  touchTypes?: string[],
+): string {
+  if (!classification) return "Unclassified";
+  if (classification === "template") return "Template";
+  if (classification === "example") {
+    const touches = touchTypes ?? [];
+    if (touches.length > 0) {
+      const labels = touches.map((t) => TOUCH_LABEL_MAP[t] ?? t);
+      return `Example (${labels.join(", ")})`;
+    }
+    return "Example";
+  }
+  return classification;
+}
+
+const TOUCH_LABEL_MAP: Record<string, string> = {
+  touch_1: "Touch 1",
+  touch_2: "Touch 2",
+  touch_3: "Touch 3",
+  touch_4: "Touch 4+",
+};
 
 export const TOUCH_TYPES = [
   { value: "touch_1", label: "Touch 1" },
@@ -87,5 +119,9 @@ export const STATUS_CONFIG: Record<
   failed: {
     label: "Failed",
     className: "bg-red-100 text-red-800 border-red-200",
+  },
+  classify: {
+    label: "Classify",
+    className: "bg-amber-100 text-amber-800 border-amber-200",
   },
 };
