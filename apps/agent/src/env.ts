@@ -78,6 +78,9 @@ export const env = createEnv({
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
 
+    // GCS bucket for cached slide thumbnails (optional — thumbnails served live if unset)
+    GCS_THUMBNAIL_BUCKET: z.string().optional(),
+
     // MCP integration controls
     // Kill switch for MCP search (set to 'false' to disable)
     ATLUS_USE_MCP: z.string().default('true'),

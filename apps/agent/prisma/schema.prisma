@@ -205,6 +205,8 @@ model SlideEmbedding {
   classificationJson         String?
   confidence                 Float?
   contentHash                String?
+  thumbnailUrl               String?
+  thumbnailFetchedAt         DateTime?
   archived                   Boolean  @default(false)
   needsReReview              Boolean  @default(false)
   previousClassificationJson String?
