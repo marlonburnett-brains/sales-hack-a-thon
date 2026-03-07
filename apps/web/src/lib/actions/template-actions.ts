@@ -1,5 +1,6 @@
 "use server";
 
+import type { ArtifactType } from "@lumenalta/schemas";
 import { revalidatePath } from "next/cache";
 import {
   createTemplate,
@@ -65,12 +66,18 @@ export async function classifyTemplateAction(
   templateId: string,
   classification: "template" | "example",
   touchTypes?: string[],
+  artifactType?: ArtifactType | null,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await classifyTemplate(templateId, { classification, touchTypes });
+    await classifyTemplate(templateId, {
+      classification,
+      touchTypes,
+      artifactType,
+    });
     revalidatePath("/templates");
     revalidatePath(`/templates/${templateId}`);
     revalidatePath(`/templates/${templateId}/slides`);
+    revalidatePath("/settings/deck-structures/touch-4");
     return { success: true };
   } catch (error) {
     return {

@@ -21,7 +21,11 @@ import {
   resolveActionsByType,
   getPooledAtlusAuth,
 } from "../lib/atlus-auth";
-import { ACTION_TYPES } from "@lumenalta/schemas";
+import {
+  ACTION_TYPES,
+  ARTIFACT_TYPES,
+  type ArtifactType,
+} from "@lumenalta/schemas";
 import { env } from "../env";
 import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
 import { searchSlides } from "../lib/atlusai-search";
@@ -1394,17 +1398,32 @@ export const mastra = new Mastra({
               .object({
                 classification: z.enum(["template", "example"]),
                 touchTypes: z.array(z.string()).optional(),
+                artifactType: z.enum(ARTIFACT_TYPES).nullable().optional(),
               })
               .parse(body);
 
-            // If classifying as "example", touchTypes must be non-empty
-            if (
-              data.classification === "example" &&
-              (!data.touchTypes || data.touchTypes.length === 0)
-            ) {
+            if (data.classification === "example" && !data.touchTypes) {
               return c.json(
                 { error: "touchTypes must be a non-empty array when classification is 'example'" },
                 400
+              );
+            }
+
+            if (data.classification === "example" && data.touchTypes.length !== 1) {
+              return c.json(
+                { error: "examples must include exactly one touch type" },
+                400,
+              );
+            }
+
+            if (
+              data.classification === "example" &&
+              data.touchTypes[0] === "touch_4" &&
+              !data.artifactType
+            ) {
+              return c.json(
+                { error: "artifactType is required for touch_4 examples" },
+                400,
               );
             }
 
@@ -1413,13 +1432,21 @@ export const mastra = new Mastra({
               return c.json({ error: "Template not found" }, 404);
             }
 
+            const exampleTouchTypes =
+              data.classification === "example" ? data.touchTypes ?? [] : [];
+
             const updateData: Record<string, unknown> = {
               contentClassification: data.classification,
+              artifactType: null,
             };
 
             // Only update touchTypes when classifying as "example"
-            if (data.classification === "example" && data.touchTypes) {
-              updateData.touchTypes = JSON.stringify(data.touchTypes);
+            if (data.classification === "example") {
+              updateData.touchTypes = JSON.stringify(exampleTouchTypes);
+
+              if (exampleTouchTypes[0] === "touch_4") {
+                updateData.artifactType = data.artifactType as ArtifactType;
+              }
             }
 
             const updated = await prisma.template.update({

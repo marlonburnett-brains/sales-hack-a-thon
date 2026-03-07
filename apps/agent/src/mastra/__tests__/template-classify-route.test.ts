@@ -28,10 +28,11 @@ describe("template classify contract", () => {
 
   it("clears stale artifactType for templates and non-touch_4 examples", () => {
     const source = readWorkspaceFile("src/mastra/index.ts");
+    const actionSource = readWorkspaceFile("../web/src/lib/actions/template-actions.ts");
 
     expect(source).toMatch(/artifactType:\s*null/);
-    expect(source).toMatch(/data\.classification === "template"/);
-    expect(source).toMatch(/data\.touchTypes\?\.\[0\] !== "touch_4"/);
-    expect(source).toMatch(/revalidatePath\("\/settings\/deck-structures\/touch-4"\)/);
+    expect(source).toMatch(/const exampleTouchTypes =/);
+    expect(source).toMatch(/if \(exampleTouchTypes\[0\] === "touch_4"\)/);
+    expect(actionSource).toMatch(/revalidatePath\("\/settings\/deck-structures\/touch-4"\)/);
   });
 });

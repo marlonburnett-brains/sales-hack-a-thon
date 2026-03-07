@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { ArtifactType } from "@lumenalta/schemas";
+
 /**
  * Typed Fetch Wrapper for Agent Service
  *
@@ -548,6 +550,7 @@ export interface Template {
   presentationId: string;
   googleSlidesUrl: string;
   touchTypes: string; // JSON array string
+  artifactType: ArtifactType | null;
   accessStatus: string;
   lastIngestedAt: string | null;
   sourceModifiedAt: string | null;
@@ -600,7 +603,11 @@ export async function checkTemplateStaleness(id: string): Promise<StalenessCheck
 
 export async function classifyTemplate(
   id: string,
-  data: { classification: "template" | "example"; touchTypes?: string[] },
+  data: {
+    classification: "template" | "example";
+    touchTypes?: string[];
+    artifactType?: ArtifactType | null;
+  },
 ): Promise<Template> {
   return fetchJSON<Template>(`/templates/${id}/classify`, {
     method: "POST",
