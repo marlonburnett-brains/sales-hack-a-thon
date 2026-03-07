@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { ThumbsUp, ThumbsDown, Search, ChevronDown, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import {
+  TemplateClassificationControls,
+  type TemplateClassificationValues,
+} from "@/components/classification/template-classification-controls";
 import { TagEditor } from "@/components/slide-viewer/tag-editor";
 import { updateSlideClassificationAction } from "@/lib/actions/slide-actions";
 import { classifyTemplateAction } from "@/lib/actions/template-actions";
-import {
-  getClassificationLabel,
-  TOUCH_TYPES,
-} from "@/lib/template-utils";
+import { getClassificationLabel } from "@/lib/template-utils";
 import type { SlideData, CorrectedTags } from "@/lib/actions/slide-actions";
 
 interface ClassificationPanelProps {
@@ -189,30 +189,53 @@ function TemplateClassificationSection({
   touchTypes?: string[];
 }) {
   const [isEditingClassification, setIsEditingClassification] = useState(false);
-  const [classifyType, setClassifyType] = useState<"template" | "example">(
-    (contentClassification as "template" | "example") ?? "template"
+  const [savedClassification, setSavedClassification] = useState<
+    "template" | "example" | null
+  >(
+    contentClassification === "template" || contentClassification === "example"
+      ? contentClassification
+      : null,
   );
-  const [selectedTouches, setSelectedTouches] = useState<string[]>(
-    contentClassification === "example" ? (touchTypes ?? []) : []
+  const [savedTouchTypes, setSavedTouchTypes] = useState<string[]>(
+    contentClassification === "example" ? (touchTypes ?? []) : [],
   );
+  const [savedArtifactType, setSavedArtifactType] = useState<
+    "proposal" | "talk_track" | "faq" | null
+  >(null);
   const [isSavingClassification, setIsSavingClassification] = useState(false);
 
-  const label = getClassificationLabel(contentClassification, touchTypes);
-
-  async function handleSaveClassification() {
-    if (classifyType === "example" && selectedTouches.length === 0) {
-      toast.error("Select at least one touch type for examples");
-      return;
+  useEffect(() => {
+    setSavedClassification(
+      contentClassification === "template" || contentClassification === "example"
+        ? contentClassification
+        : null,
+    );
+    setSavedTouchTypes(contentClassification === "example" ? (touchTypes ?? []) : []);
+    if (contentClassification !== "example" || touchTypes?.[0] !== "touch_4") {
+      setSavedArtifactType(null);
     }
+  }, [contentClassification, touchTypes]);
+
+  const label = getClassificationLabel(
+    savedClassification,
+    savedTouchTypes,
+    savedArtifactType,
+  );
+
+  async function handleSaveClassification(values: TemplateClassificationValues) {
     setIsSavingClassification(true);
     try {
       const result = await classifyTemplateAction(
         templateId,
-        classifyType,
-        classifyType === "example" ? selectedTouches : undefined,
+        values.classification,
+        values.classification === "example" ? values.touchTypes : undefined,
+        values.artifactType,
       );
       if (result.success) {
-        toast.success(`Classified as ${classifyType}`);
+        setSavedClassification(values.classification);
+        setSavedTouchTypes(values.classification === "example" ? values.touchTypes : []);
+        setSavedArtifactType(values.artifactType);
+        toast.success(`Classified as ${values.classification}`);
         setIsEditingClassification(false);
       } else {
         toast.error(result.error ?? "Classification failed");
@@ -226,25 +249,17 @@ function TemplateClassificationSection({
     }
   }
 
-  function handleToggleTouch(value: string) {
-    setSelectedTouches((prev) =>
-      prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value]
-    );
-  }
-
   return (
     <div className="border-b border-slate-200 pb-3">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           Content Classification
         </p>
-        {contentClassification && !isEditingClassification && (
+        {savedClassification && !isEditingClassification && (
           <button
             type="button"
             className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 cursor-pointer"
             onClick={() => {
-              setClassifyType((contentClassification as "template" | "example") ?? "template");
-              setSelectedTouches(contentClassification === "example" ? (touchTypes ?? []) : []);
               setIsEditingClassification(true);
             }}
           >
@@ -254,17 +269,17 @@ function TemplateClassificationSection({
         )}
       </div>
 
-      {!isEditingClassification && !contentClassification && (
+      {!isEditingClassification && !savedClassification && (
         <div className="mt-2">
           <p className="text-sm text-amber-600 font-medium mb-2">Unclassified</p>
         </div>
       )}
 
-      {!isEditingClassification && contentClassification && (
+      {!isEditingClassification && savedClassification && (
         <div className="mt-2">
           <span
             className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-              contentClassification === "template"
+              savedClassification === "template"
                 ? "border-blue-200 bg-blue-50 text-blue-700"
                 : "border-purple-200 bg-purple-50 text-purple-700"
             }`}
@@ -274,78 +289,19 @@ function TemplateClassificationSection({
         </div>
       )}
 
-      {(isEditingClassification || !contentClassification) && (
-        <div className="mt-2 space-y-3">
-          {/* Type selector */}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-                classifyType === "template"
-                  ? "border-blue-300 bg-blue-50 text-blue-700"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-              }`}
-              onClick={() => setClassifyType("template")}
-            >
-              Template
-            </button>
-            <button
-              type="button"
-              className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-                classifyType === "example"
-                  ? "border-purple-300 bg-purple-50 text-purple-700"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-              }`}
-              onClick={() => setClassifyType("example")}
-            >
-              Example
-            </button>
-          </div>
-
-          {/* Touch type selection (only for Example) */}
-          {classifyType === "example" && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-slate-500">
-                Touch types <span className="text-red-500">*</span>
-              </p>
-              <div className="space-y-1.5">
-                {TOUCH_TYPES.map((t) => (
-                  <label
-                    key={t.value}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={selectedTouches.includes(t.value)}
-                      onCheckedChange={() => handleToggleTouch(t.value)}
-                    />
-                    <span className="text-xs text-slate-700">{t.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Save / Cancel buttons */}
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="flex-1 cursor-pointer"
-              onClick={handleSaveClassification}
-              disabled={isSavingClassification || (classifyType === "example" && selectedTouches.length === 0)}
-            >
-              {isSavingClassification ? "Saving..." : "Save"}
-            </Button>
-            {isEditingClassification && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="cursor-pointer"
-                onClick={() => setIsEditingClassification(false)}
-              >
-                Cancel
-              </Button>
-            )}
-          </div>
+      {(isEditingClassification || !savedClassification) && (
+        <div className="mt-2">
+          <TemplateClassificationControls
+            key={`${savedClassification ?? "template"}-${savedTouchTypes.join(",")}-${savedArtifactType ?? "none"}`}
+            initialClassification={savedClassification ?? "template"}
+            initialTouchTypes={savedClassification === "example" ? savedTouchTypes : []}
+            initialArtifactType={savedArtifactType}
+            isSaving={isSavingClassification}
+            onSave={handleSaveClassification}
+            onCancel={
+              isEditingClassification ? () => setIsEditingClassification(false) : undefined
+            }
+          />
         </div>
       )}
     </div>
