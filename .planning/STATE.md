@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: AtlusAI Authentication & Discovery
-status: completed
-stopped_at: Phase 29 context gathered
-last_updated: "2026-03-07T00:41:23.053Z"
-last_activity: "2026-03-07 - Completed quick task 6: Fix template re-ingest auto-navigation and add breadcrumbs"
+status: executing
+stopped_at: Completed 29-02-PLAN.md
+last_updated: "2026-03-07T01:14:52.392Z"
+last_activity: "2026-03-07 - Completed 29-02: Discovery browse/search UI with infinite scroll, debounced search, preview panel"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_plans: 10
+  completed_plans: 9
+  percent: 95
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 29 of 29 (Discovery UI)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-07 - Completed 29-01: Discovery UI infrastructure (endpoints, actions, sidebar, page)
+Last activity: 2026-03-07 - Completed 29-02: Discovery browse/search UI with infinite scroll, debounced search, preview panel
 
-Progress: [██████████] 100%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ All decisions logged in PROJECT.md Key Decisions table (28 decisions total).
 - Phase 29-01: Module-level Map for batch ingestion state (simple, in-memory, sufficient for single-instance agent)
 - Phase 29-01: templateId='atlus-discovery' synthetic marker for discovery-originated SlideEmbedding records
 - Phase 29-01: Skipped LLM classification in discovery ingest (stores raw metadata, can be enriched later)
+- [Phase 29]: Used slideId-based ingestion check instead of client-side SHA-256 hashing
 
 ### Pending Todos
 
@@ -80,6 +81,7 @@ None.
 | 5 | Rewrite All Gemini References to LLM-Agnostic | 2026-03-06 | 0da192b | [5-rewrite-all-gemini-references-and-relate](./quick/5-rewrite-all-gemini-references-and-relate/) |
 | 6 | Fix Template Re-ingest Auto-Navigation & Add Breadcrumbs | 2026-03-07 | 75256c4 | [6-fix-template-re-ingest-auto-navigation-a](./quick/6-fix-template-re-ingest-auto-navigation-a/) |
 | Phase 28 P02 | 9min | 2 tasks | 2 files |
+| Phase 29 P02 | 4min | 2 tasks | 1 files |
 
 ### Blockers/Concerns
 
@@ -91,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T01:07:01Z
-Stopped at: Completed 29-01-PLAN.md
+Last session: 2026-03-07T01:14:52.389Z
+Stopped at: Completed 29-02-PLAN.md
 Next action: Execute 29-02-PLAN.md (Browse/Search UI)
