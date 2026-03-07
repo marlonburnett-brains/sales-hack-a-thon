@@ -24,10 +24,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -265,19 +266,12 @@ export function TemplateCard({
           <h3 className="line-clamp-1 text-sm font-semibold text-slate-900">
             {template.name}
           </h3>
-          <Popover open={classifyOpen} onOpenChange={setClassifyOpen}>
-            <PopoverTrigger asChild>
-              {/* Hidden trigger -- we open programmatically */}
-              <span className="hidden" />
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="w-64 p-3"
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-            >
+          <Dialog open={classifyOpen} onOpenChange={setClassifyOpen}>
+            <DialogContent className="sm:max-w-xs" onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}>
+              <DialogHeader>
+                <DialogTitle className="text-sm">Classify Presentation</DialogTitle>
+              </DialogHeader>
               <div className="space-y-3">
-                <p className="text-sm font-medium text-slate-900">Classify Presentation</p>
-
                 {/* Type selector */}
                 <div className="flex gap-2">
                   <button
@@ -337,8 +331,8 @@ export function TemplateCard({
                   {isClassifying ? "Saving..." : "Save"}
                 </Button>
               </div>
-            </PopoverContent>
-          </Popover>
+            </DialogContent>
+          </Dialog>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
