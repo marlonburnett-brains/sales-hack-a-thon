@@ -53,22 +53,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCHM-01 | Phase TBD | Pending |
-| SCHM-02 | Phase TBD | Pending |
-| SCHM-03 | Phase TBD | Pending |
-| CLSF-01 | Phase TBD | Pending |
-| CLSF-02 | Phase TBD | Pending |
-| DECK-01 | Phase TBD | Pending |
-| DECK-02 | Phase TBD | Pending |
-| DECK-03 | Phase TBD | Pending |
-| DECK-04 | Phase TBD | Pending |
-| DECK-05 | Phase TBD | Pending |
+| SCHM-01 | Phase 35 | Pending |
+| SCHM-02 | Phase 35 | Pending |
+| SCHM-03 | Phase 35 | Pending |
+| CLSF-01 | Phase 37 | Pending |
+| CLSF-02 | Phase 37 | Pending |
+| DECK-01 | Phase 36 | Pending |
+| DECK-02 | Phase 36 | Pending |
+| DECK-03 | Phase 37 | Pending |
+| DECK-04 | Phase 37 | Pending |
+| DECK-05 | Phase 36 | Pending |
 
 **Coverage:**
 - v1.6 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10
+- Mapped to phases: 10
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-07*
-*Last updated: 2026-03-07 after initial definition*
+*Last updated: 2026-03-07 after roadmap creation*

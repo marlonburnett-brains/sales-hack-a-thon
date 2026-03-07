@@ -8,6 +8,7 @@
 - v1.3 **Google API Auth: User-Delegated Credentials** -- Phases 22-26 (shipped 2026-03-06) -- [Archive](milestones/v1.3-ROADMAP.md)
 - v1.4 **AtlusAI Authentication & Discovery** -- Phases 27-31 (shipped 2026-03-07) -- [Archive](milestones/v1.4-ROADMAP.md)
 - v1.5 **Review Polish & Deck Intelligence** -- Phases 32-34 (shipped 2026-03-07) -- [Archive](milestones/v1.5-ROADMAP.md)
+- v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-37 (in progress)
 
 ## Phases
 
@@ -67,7 +68,7 @@
 - [x] Phase 27: Auth Foundation (5/5 plans) -- completed 2026-03-06
 - [x] Phase 28: MCP Integration (2/2 plans) -- completed 2026-03-07
 - [x] Phase 29: Discovery UI (3/3 plans) -- completed 2026-03-07
-- [x] Phase 30: Verification & Documentation Reconciliation (1/1 plan) -- completed 2026-03-07
+- [x] Phase 30: Verification & Doc Reconciliation (1/1 plan) -- completed 2026-03-07
 - [x] Phase 31: Tech Debt Cleanup (1/1 plan) -- completed 2026-03-07
 
 </details>
@@ -81,7 +82,54 @@
 
 </details>
 
+### v1.6 Touch 4 Artifact Intelligence (In Progress)
+
+**Milestone Goal:** Add artifact type sub-classification (Proposal / Talk Track / FAQ) to Touch 4 Examples and display per-artifact-type deck structures in Settings.
+
+- [ ] **Phase 35: Schema & Constants Foundation** - Prisma migrations for artifactType columns and shared constants
+- [ ] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation
+- [ ] **Phase 37: Frontend UI** - Classify UI artifact selector and Settings tabbed deck structure views
+
+## Phase Details
+
+### Phase 35: Schema & Constants Foundation
+**Goal**: Data model supports artifact type classification and per-artifact deck structures
+**Depends on**: Nothing (first phase of v1.6)
+**Requirements**: SCHM-01, SCHM-02, SCHM-03
+**Success Criteria** (what must be TRUE):
+  1. `ARTIFACT_TYPES` constant is importable from `@lumenalta/schemas` and contains `proposal`, `talk_track`, `faq`
+  2. Template model has nullable `artifactType` column and existing templates are unaffected (null value)
+  3. DeckStructure model has nullable `artifactType` column with composite unique constraint on `(touchType, artifactType)`
+  4. Existing mixed Touch 4 DeckStructure row is cleaned up during migration
+  5. All migrations are forward-only and applied without reset
+**Plans**: TBD
+
+### Phase 36: Backend Engine & API Routes
+**Goal**: Inference, cron, and chat operate independently per artifact type for Touch 4
+**Depends on**: Phase 35
+**Requirements**: DECK-01, DECK-02, DECK-05
+**Success Criteria** (what must be TRUE):
+  1. `inferDeckStructure()` accepts `artifactType` parameter and filters Touch 4 examples to only that artifact type before sending to the LLM
+  2. Cron auto-inference iterates 6 keys (Touch 1-3 + Touch 4 x3 artifact types) with per-key change detection including `artifactType` in hash
+  3. Chat refinement threads `artifactType` through the entire chain, scoping conversation to the correct artifact-type structure
+  4. API routes accept `?artifactType=` query parameter and return 6 deck structure entries (3 for Touch 4)
+**Plans**: TBD
+
+### Phase 37: Frontend UI
+**Goal**: Users can classify Touch 4 examples by artifact type and view per-artifact deck structures in Settings
+**Depends on**: Phase 36
+**Requirements**: CLSF-01, CLSF-02, DECK-03, DECK-04
+**Success Criteria** (what must be TRUE):
+  1. When classifying a presentation as Touch 4 Example, user sees artifact type selector (Proposal / Talk Track / FAQ) and selection is persisted
+  2. Artifact type selector only appears when both Touch 4 and Example are selected -- hidden for all other combinations
+  3. Settings Touch 4 page shows three tabs (Proposal / Talk Track / FAQ) each with its own deck structure display
+  4. Each Touch 4 artifact tab shows independent confidence scoring based on classified example count for that specific artifact type
+  5. Chat refinement on each tab is scoped to the correct artifact type structure
+**Plans**: TBD
+
 ## Progress
+
+**Execution Order:** 35 -> 36 -> 37
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -119,3 +167,6 @@
 | 32. UX Polish | v1.5 | 2/2 | Complete | 2026-03-07 |
 | 33. Slide Intelligence Foundation | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 34. Deck Intelligence | v1.5 | 3/3 | Complete | 2026-03-07 |
+| 35. Schema & Constants Foundation | v1.6 | 0/TBD | Not started | - |
+| 36. Backend Engine & API Routes | v1.6 | 0/TBD | Not started | - |
+| 37. Frontend UI | v1.6 | 0/TBD | Not started | - |
