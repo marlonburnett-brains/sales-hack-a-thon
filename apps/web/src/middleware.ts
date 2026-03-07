@@ -46,6 +46,12 @@ export async function middleware(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth")
   ) {
+    // Server action requests (POST with Next-Action header) can't follow
+    // redirects properly — return 401 so the client gets an error it can handle
+    if (request.headers.get("next-action")) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const url = request.nextUrl.clone();
     const returnTo = request.nextUrl.pathname + request.nextUrl.search;
     url.pathname = "/login";
@@ -130,9 +136,14 @@ export async function middleware(request: NextRequest) {
               `[middleware] Token check failed with status ${checkResponse.status}`
             );
           }
-        } catch (err) {
-          // Agent unreachable — graceful degradation, proceed without check
-          console.warn("[middleware] Token check failed, agent unreachable:", err);
+        } catch {
+          // Agent unreachable — cache "valid" briefly so we don't retry every request
+          supabaseResponse.cookies.set("google-token-status", "valid", {
+            httpOnly: false,
+            maxAge: 300, // 5 minutes
+            sameSite: "lax",
+            path: "/",
+          });
         }
       }
       // If no AGENT_API_KEY set, skip check (graceful degradation)

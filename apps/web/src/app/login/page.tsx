@@ -51,7 +51,7 @@ function LoginContent() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        scopes: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/documents",
+        scopes: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/documents",
         redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         queryParams: {
           hd: "lumenalta.com",

@@ -1,6 +1,6 @@
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "./db";
-import { decryptToken } from "./token-encryption";
+import { decryptToken, encryptToken } from "./token-encryption";
 import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
@@ -95,16 +95,27 @@ async function doRefresh(userId: string): Promise<string | null> {
     );
     oauth2Client.setCredentials({ refresh_token: decryptedRefresh });
 
+    // Capture token rotation — Google may issue a new refresh token
+    oauth2Client.on("tokens", (newTokens) => {
+      if (newTokens.refresh_token) {
+        const { encrypted, iv, authTag } = encryptToken(newTokens.refresh_token);
+        prisma.userGoogleToken
+          .update({
+            where: { userId },
+            data: { encryptedRefresh: encrypted, iv, authTag },
+          })
+          .then(() => console.log(`[token-cache] Rotated refresh token for ${userId}`))
+          .catch((err) => console.error(`[token-cache] Failed to save rotated token:`, err));
+      }
+    });
+
     const tokenResponse = await oauth2Client.getAccessToken();
     const accessToken = tokenResponse.token;
 
     if (!accessToken) {
-      // Refresh failed with no token returned -- mark as invalid
-      await prisma.userGoogleToken.update({
-        where: { userId },
-        data: { isValid: false, revokedAt: new Date() },
-      });
-      cache.delete(userId);
+      // No token returned but no error thrown — unusual but not definitive.
+      // Log a warning but don't invalidate; next request will retry.
+      console.warn(`[token-cache] No access token returned for ${userId} (no error thrown)`);
       return null;
     }
 
@@ -126,23 +137,69 @@ async function doRefresh(userId: string): Promise<string | null> {
 
     return accessToken;
   } catch (err) {
-    // Refresh token exchange failed (revoked, expired, etc.)
     console.error(
       `[token-cache] Failed to refresh token for user ${userId}:`,
       err
     );
 
-    // Mark token as invalid
-    await prisma.userGoogleToken
-      .update({
-        where: { userId },
-        data: { isValid: false, revokedAt: new Date() },
-      })
-      .catch(() => {
-        // DB update failed too -- nothing we can do
-      });
+    // Only permanently invalidate on definitive errors (token revoked/expired).
+    // Transient network errors should NOT burn the token.
+    const isDefinitive = isDefinitiveTokenError(err);
+
+    if (isDefinitive) {
+      console.warn(`[token-cache] Definitive error for ${userId} — marking token invalid`);
+      await prisma.userGoogleToken
+        .update({
+          where: { userId },
+          data: { isValid: false, revokedAt: new Date() },
+        })
+        .catch(() => {});
+
+      // Create reauth_needed ActionRequired record
+      try {
+        const existing = await prisma.actionRequired.findFirst({
+          where: { userId, actionType: 'reauth_needed', resolved: false },
+        });
+        if (!existing) {
+          const tokenRecord = await prisma.userGoogleToken.findUnique({
+            where: { userId },
+            select: { email: true },
+          });
+          await prisma.actionRequired.create({
+            data: {
+              userId,
+              actionType: 'reauth_needed',
+              title: `Re-authentication needed for ${tokenRecord?.email ?? 'your account'}`,
+              description: 'Your Google token has expired or been revoked. Please log out and log back in to re-authorize Google access.',
+            },
+          });
+        }
+      } catch {
+        // Non-critical
+      }
+    } else {
+      console.warn(`[token-cache] Transient error for ${userId} — keeping token valid for retry`);
+    }
 
     cache.delete(userId);
     return null;
   }
+}
+
+/**
+ * Determine if a token refresh error is definitive (token truly revoked/expired)
+ * vs transient (network timeout, server error, etc.).
+ * Only definitive errors should permanently invalidate the stored refresh token.
+ */
+function isDefinitiveTokenError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  const definitivePatterns = [
+    'invalid_grant',
+    'Token has been expired or revoked',
+    'Token has been revoked',
+    'invalid_client',
+    'unauthorized_client',
+    'access_denied',
+  ];
+  return definitivePatterns.some((pattern) => message.includes(pattern));
 }

@@ -5,7 +5,7 @@ milestone_name: AtlusAI Authentication & Discovery
 status: completed
 stopped_at: Phase 29 context gathered
 last_updated: "2026-03-07T00:41:23.053Z"
-last_activity: "2026-03-07 - Completed Plan 28-02: Search Adapter"
+last_activity: "2026-03-07 - Completed quick task 6: Fix template re-ingest auto-navigation and add breadcrumbs"
 progress:
   total_phases: 3
   completed_phases: 2
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 28 of 29 (MCP Integration)
 Plan: 2 of 2 in current phase
 Status: Phase 28 Complete
-Last activity: 2026-03-07 - Completed Plan 28-02: Search Adapter
+Last activity: 2026-03-07 - Completed quick task 6: Fix template re-ingest auto-navigation and add breadcrumbs
 
 Progress: [██████████] 100%
 

@@ -2,6 +2,7 @@
   "name": "@lumenalta/schemas",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "main": "index.ts",
   "dependencies": {
     "zod": "^4.3.6"

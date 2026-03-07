@@ -16,6 +16,9 @@ dev prod:
 run:
 	@cp apps/web/.env.$(ENV) apps/web/.env.local
 	@cp apps/agent/.env.$(ENV) apps/agent/.env
+	@lsof -ti :4111 -ti :3000 | xargs kill -9 2>/dev/null || true
+	@while lsof -ti :4111 >/dev/null 2>&1; do sleep 0.5; done
+	@rm -rf apps/agent/.mastra/output apps/agent/.mastra/.build
 	@echo "Running with $(ENV) environment"
 	pnpm dev
 

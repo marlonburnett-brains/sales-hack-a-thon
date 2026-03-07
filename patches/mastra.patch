@@ -1,0 +1,18 @@
+diff --git a/dist/index.js b/dist/index.js
+index a38b63bb3a97337d55051c1ffe3d51b12ee54d4b..fc69648ea800e4892360c068442140c25a73aad9 100755
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1760,7 +1760,12 @@ async function rebundleAndRestart(dotMastraPath, { port, host, studioBasePath, p
+     if (currentServerProcess) {
+       devLogger.restarting();
+       devLogger.debug("Stopping current server...");
+-      currentServerProcess.kill("SIGINT");
++      const proc = currentServerProcess;
++      proc.kill("SIGINT");
++      await new Promise((resolve) => {
++        const timeout = setTimeout(resolve, 5000);
++        proc.on("exit", () => { clearTimeout(timeout); resolve(); });
++      });
+     }
+     const env = await bundler.loadEnvVars();
+     if (requestContextPresetsJson) {

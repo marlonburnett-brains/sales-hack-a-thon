@@ -99,6 +99,15 @@ export function TemplateForm({ children, onSuccess }: TemplateFormProps) {
         onSuccess?.({ template: result.template });
       }
     } catch (error) {
+      // Server action returns 401 when session expired — redirect to login
+      if (
+        error instanceof Error &&
+        (error.message.includes("Unauthorized") ||
+          error.message.includes("401"))
+      ) {
+        window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
       toast.error(
         error instanceof Error ? error.message : "Failed to add template"
       );

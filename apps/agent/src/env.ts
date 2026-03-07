@@ -1,5 +1,26 @@
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { createEnv } from '@t3-oss/env-core'
 import { z } from 'zod'
+
+// Resolve GOOGLE_APPLICATION_CREDENTIALS to an absolute path before any SDK reads it.
+// mastra dev runs from .mastra/output/ so relative paths like ./vertex-service-account.json
+// won't resolve correctly. Try the original path first, then fall back to the project root.
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS && !process.env.GOOGLE_APPLICATION_CREDENTIALS.startsWith('/')) {
+  const rel = process.env.GOOGLE_APPLICATION_CREDENTIALS
+  const abs = resolve(rel)
+  if (existsSync(abs)) {
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = abs
+  } else {
+    // Try resolving relative to the agent package root.
+    // process.cwd() works in both CJS and ESM (unlike __dirname).
+    // When mastra dev runs from .mastra/output/, cwd is still the agent root.
+    const fromProjectRoot = resolve(process.cwd(), rel)
+    if (existsSync(fromProjectRoot)) {
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = fromProjectRoot
+    }
+  }
+}
 
 export const env = createEnv({
   server: {

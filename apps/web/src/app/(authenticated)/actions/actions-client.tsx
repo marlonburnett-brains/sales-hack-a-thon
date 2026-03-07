@@ -17,6 +17,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import type { ActionRequiredItem } from "@/lib/api-client";
 import { silenceActionAction } from "@/lib/actions/action-required-actions";
+import { createClient } from "@/lib/supabase/client";
 
 function getActionIcon(actionType: string) {
   switch (actionType) {
@@ -153,6 +154,32 @@ export function ActionsClient({ initialActions }: ActionsClientProps) {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                {/* Re-authenticate Google via OAuth */}
+                {action.actionType === "reauth_needed" && !action.silenced && (
+                  <button
+                    onClick={async () => {
+                      const supabase = createClient();
+                      await supabase.auth.signInWithOAuth({
+                        provider: "google",
+                        options: {
+                          scopes:
+                            "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/documents",
+                          queryParams: {
+                            hd: "lumenalta.com",
+                            access_type: "offline",
+                            prompt: "consent",
+                          },
+                          redirectTo: `${window.location.origin}/auth/callback`,
+                        },
+                      });
+                    }}
+                    className="inline-flex cursor-pointer items-center rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    <ExternalLink className="mr-1.5 h-4 w-4" />
+                    Connect Google
+                  </button>
+                )}
+
                 {/* Connect to AtlusAI via OAuth */}
                 {isAtlusActionType(action.actionType) && !action.silenced && (
                   <a

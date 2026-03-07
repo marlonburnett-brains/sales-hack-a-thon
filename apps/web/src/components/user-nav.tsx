@@ -57,7 +57,7 @@ export function UserNav({ user }: UserNavProps) {
               provider: "google",
               options: {
                 scopes:
-                  "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/documents",
+                  "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/documents",
                 queryParams: {
                   hd: "lumenalta.com",
                   access_type: "offline",
@@ -72,12 +72,13 @@ export function UserNav({ user }: UserNavProps) {
           <span>Connect Google</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer"
-          onClick={() => signOut()}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Sign out</span>
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <form action={signOut}>
+            <button type="submit" className="flex w-full items-center">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sign out</span>
+            </button>
+          </form>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
