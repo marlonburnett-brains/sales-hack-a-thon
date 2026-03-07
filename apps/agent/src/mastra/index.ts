@@ -1684,6 +1684,18 @@ export const mastra = new Mastra({
               data: { resolved: true, resolvedAt: new Date() },
             }).catch(() => {}); // fire and forget
 
+            // Re-queue templates with failed ingestion so they auto-retry
+            try {
+              const failedTemplates = await prisma.template.findMany({
+                where: { ingestionStatus: "failed" },
+                select: { id: true, name: true },
+              });
+              for (const t of failedTemplates) {
+                ingestionQueue.enqueue(t.id);
+                console.log(`[tokens] Re-queued failed template "${t.name}" after Google reconnect`);
+              }
+            } catch { /* non-critical */ }
+
             // NOTE: AtlusAI access detection removed from here.
             // detectAtlusAccess requires an AtlusAI access token, NOT a Google refresh token.
             // AtlusAI detection should happen via the dedicated /atlus/detect endpoint
