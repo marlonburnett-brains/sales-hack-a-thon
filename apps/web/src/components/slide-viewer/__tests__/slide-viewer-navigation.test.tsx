@@ -11,12 +11,26 @@ import React from "react";
 import { SlideViewerClient } from "@/app/(authenticated)/templates/[id]/slides/slide-viewer-client";
 import type { SlideData, SlideThumbnail } from "@/lib/actions/slide-actions";
 
+const mockClassificationPanel = vi.fn(
+  ({ artifactType }: { artifactType?: string | null }) =>
+    React.createElement(
+      "div",
+      { "data-testid": "classification-panel-props" },
+      artifactType ?? "null"
+    )
+);
+
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
     back: vi.fn(),
   }),
+}));
+
+vi.mock("@/components/slide-viewer/classification-panel", () => ({
+  ClassificationPanel: (props: { artifactType?: string | null }) =>
+    mockClassificationPanel(props),
 }));
 
 // Mock server actions
@@ -109,6 +123,31 @@ describe("PREV-01: Slide viewer navigation and display", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cleanup();
+  });
+
+  it("forwards persisted artifactType into ClassificationPanel", () => {
+    render(
+      <SlideViewerClient
+        templateId="tmpl-1"
+        templateName="Artifact Deck"
+        initialSlides={makeSlides(1)}
+        initialThumbnails={makeThumbnails(1)}
+        contentClassification="example"
+        touchTypes={["touch_4"]}
+        artifactType="proposal"
+      />
+    );
+
+    expect(mockClassificationPanel.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        contentClassification: "example",
+        touchTypes: ["touch_4"],
+        artifactType: "proposal",
+      }),
+    );
+    expect(screen.getByTestId("classification-panel-props")).toHaveTextContent(
+      "proposal",
+    );
   });
 
   it("shows slide counter as '1 of N' on initial render", () => {
