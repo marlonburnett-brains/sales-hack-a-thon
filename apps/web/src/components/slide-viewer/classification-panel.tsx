@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { ThumbsUp, ThumbsDown, Search, ChevronDown, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import type { ArtifactType } from "@lumenalta/schemas";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -23,6 +24,7 @@ interface ClassificationPanelProps {
   isFindingSimilar?: boolean;
   contentClassification?: string | null;
   touchTypes?: string[];
+  artifactType?: ArtifactType | null;
 }
 
 interface ParsedDescription {
@@ -183,10 +185,12 @@ function TemplateClassificationSection({
   templateId,
   contentClassification,
   touchTypes,
+  artifactType,
 }: {
   templateId: string;
   contentClassification?: string | null;
   touchTypes?: string[];
+  artifactType?: ArtifactType | null;
 }) {
   const [isEditingClassification, setIsEditingClassification] = useState(false);
   const [savedClassification, setSavedClassification] = useState<
@@ -201,7 +205,11 @@ function TemplateClassificationSection({
   );
   const [savedArtifactType, setSavedArtifactType] = useState<
     "proposal" | "talk_track" | "faq" | null
-  >(null);
+  >(
+    contentClassification === "example" && touchTypes?.[0] === "touch_4"
+      ? (artifactType ?? null)
+      : null,
+  );
   const [isSavingClassification, setIsSavingClassification] = useState(false);
 
   useEffect(() => {
@@ -211,10 +219,12 @@ function TemplateClassificationSection({
         : null,
     );
     setSavedTouchTypes(contentClassification === "example" ? (touchTypes ?? []) : []);
-    if (contentClassification !== "example" || touchTypes?.[0] !== "touch_4") {
-      setSavedArtifactType(null);
-    }
-  }, [contentClassification, touchTypes]);
+    setSavedArtifactType(
+      contentClassification === "example" && touchTypes?.[0] === "touch_4"
+        ? (artifactType ?? null)
+        : null,
+    );
+  }, [artifactType, contentClassification, touchTypes]);
 
   const label = getClassificationLabel(
     savedClassification,
@@ -316,6 +326,7 @@ export function ClassificationPanel({
   isFindingSimilar,
   contentClassification,
   touchTypes,
+  artifactType,
 }: ClassificationPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -395,11 +406,12 @@ export function ClassificationPanel({
   return (
     <div className="space-y-4 p-4">
       {/* Template-level content classification */}
-      <TemplateClassificationSection
-        templateId={templateId}
-        contentClassification={contentClassification}
-        touchTypes={touchTypes}
-      />
+        <TemplateClassificationSection
+          templateId={templateId}
+          contentClassification={contentClassification}
+          touchTypes={touchTypes}
+          artifactType={artifactType}
+        />
 
       {/* AI Description */}
       <DescriptionSection description={slide.description} />
