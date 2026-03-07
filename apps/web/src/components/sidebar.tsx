@@ -12,6 +12,7 @@ import {
   Menu,
   PanelLeft,
   PanelLeftClose,
+  Settings,
   X,
 } from "lucide-react";
 import { UserNav } from "@/components/user-nav";
@@ -112,6 +113,21 @@ export function Sidebar({ user, children }: SidebarProps) {
 
       {/* Bottom section */}
       <div className="border-t border-slate-200 px-3 py-3">
+        {/* Settings link */}
+        <Link
+          href="/settings"
+          onClick={closeMobile}
+          title={collapsed ? "Settings" : undefined}
+          className={`mb-2 flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            pathname.startsWith("/settings")
+              ? "bg-slate-100 font-medium text-slate-900"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+          }`}
+        >
+          <Settings className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Settings</span>}
+        </Link>
+
         <button
           onClick={toggleCollapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
