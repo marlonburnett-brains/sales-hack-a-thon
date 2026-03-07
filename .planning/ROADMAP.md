@@ -92,11 +92,11 @@
   3. User sees identical ingestion status (progress bar and slide count) on both Discovery and Templates pages for the same presentation
   4. User clicks Ingest and sees immediate visual confirmation (button disables, menu closes, toast appears) before the server responds
   5. User cannot trigger duplicate ingestion by rapid-clicking the Ingest button
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 32-01: TBD
-- [ ] 32-02: TBD
+- [ ] 32-01-PLAN.md — Backend thumbnail pipeline, shared UI components, and server-side duplicate guard
+- [ ] 32-02-PLAN.md — Discovery card redesign, status unification, optimistic UI, and visual verification
 
 ### Phase 33: Slide Intelligence Foundation
 **Goal**: Ingestion pipeline produces rich AI descriptions and structured element maps per slide, and users can classify presentations as Template or Example with touch binding
@@ -166,6 +166,6 @@ Plans:
 | 29. Discovery UI | v1.4 | 3/3 | Complete | 2026-03-07 |
 | 30. Verification & Doc Reconciliation | v1.4 | 1/1 | Complete | 2026-03-07 |
 | 31. Tech Debt Cleanup | v1.4 | 1/1 | Complete | 2026-03-07 |
-| 32. UX Polish | v1.5 | 0/TBD | Not started | - |
+| 32. UX Polish | v1.5 | 0/2 | Not started | - |
 | 33. Slide Intelligence Foundation | v1.5 | 0/TBD | Not started | - |
 | 34. Deck Intelligence | v1.5 | 0/TBD | Not started | - |
