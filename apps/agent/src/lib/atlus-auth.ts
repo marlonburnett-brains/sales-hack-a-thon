@@ -20,6 +20,7 @@ export interface PooledAtlusAuthResult {
   refreshToken?: string;
   source: "pool" | "env";
   userId?: string;
+  clientId?: string;
 }
 
 /**
@@ -317,6 +318,24 @@ export async function updateAtlusTokenInDb(
 }
 
 /**
+ * Persist the OAuth client_id for a user's AtlusAI token record.
+ * Called after successful dynamic client registration so that subsequent
+ * restarts can reuse the client_id without re-registering.
+ *
+ * @param userId   - Supabase Auth user ID
+ * @param clientId - Dynamic client_id from registerAtlusClient()
+ */
+export async function persistAtlusClientId(
+  userId: string,
+  clientId: string,
+): Promise<void> {
+  await prisma.userAtlusToken.update({
+    where: { userId },
+    data: { clientId },
+  });
+}
+
+/**
  * Perform agent-side dynamic client registration with AtlusAI.
  * Required to obtain a client_id for refresh_token grants (Pitfall 5).
  * Result is cached -- only registers once per process lifetime.
@@ -398,7 +417,7 @@ export async function getPooledAtlusAuth(): Promise<PooledAtlusAuthResult | null
         );
       }
 
-      return { token: accessToken, refreshToken, source: "pool", userId: token.userId };
+      return { token: accessToken, refreshToken, source: "pool", userId: token.userId, clientId: token.clientId ?? undefined };
     } catch {
       // POOL-03: Mark token invalid on failure (fire-and-forget)
       prisma.userAtlusToken

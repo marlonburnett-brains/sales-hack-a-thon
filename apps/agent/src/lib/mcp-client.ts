@@ -20,6 +20,7 @@ import {
   refreshAtlusToken,
   updateAtlusTokenInDb,
   registerAtlusClient,
+  persistAtlusClientId,
   type PooledAtlusAuthResult,
 } from "./atlus-auth";
 import { prisma } from "./db";
@@ -223,13 +224,24 @@ export async function initMcp(): Promise<void> {
       source: auth.source,
     };
 
-    // Register for a client_id (needed for future refresh)
-    const registration = await registerAtlusClient();
-    if (registration) {
-      cachedClientId = registration.client_id;
-      console.log("[mcp] Client registered for token refresh");
+    // Use persisted client_id if available, otherwise register a new one
+    if (auth.clientId) {
+      cachedClientId = auth.clientId;
+      console.log("[mcp] Using persisted client_id");
     } else {
-      console.warn("[mcp] Client registration failed -- refresh will not be available");
+      const registration = await registerAtlusClient();
+      if (registration) {
+        cachedClientId = registration.client_id;
+        console.log("[mcp] Client registered for token refresh");
+        // Persist client_id for next restart
+        if (auth.userId) {
+          persistAtlusClientId(auth.userId, registration.client_id).catch((err) =>
+            console.warn("[mcp] Failed to persist client_id:", err),
+          );
+        }
+      } else {
+        console.warn("[mcp] Client registration failed -- refresh will not be available");
+      }
     }
 
     // Create and health-check the client

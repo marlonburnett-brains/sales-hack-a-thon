@@ -281,6 +281,7 @@ model UserAtlusToken {
   encryptedToken String // AES-256-GCM encrypted token
   iv             String // Base64-encoded initialization vector
   authTag        String // Base64-encoded GCM authentication tag
+  clientId       String? // Persisted OAuth client_id to skip re-registration on restart
   lastUsedAt     DateTime  @default(now())
   isValid        Boolean   @default(true)
   revokedAt      DateTime?
