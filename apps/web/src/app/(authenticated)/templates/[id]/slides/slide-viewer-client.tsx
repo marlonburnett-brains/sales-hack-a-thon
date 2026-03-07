@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
+import Link from "next/link";
+
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SlidePreview } from "@/components/slide-viewer/slide-preview";
 import { ThumbnailStrip } from "@/components/slide-viewer/thumbnail-strip";
@@ -28,7 +29,6 @@ export function SlideViewerClient({
   initialSlides,
   initialThumbnails,
 }: SlideViewerClientProps) {
-  const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slides, setSlides] = useState<SlideData[]>(initialSlides);
   const [similarResults, setSimilarResults] = useState<SimilarSlide[] | null>(
@@ -151,20 +151,20 @@ export function SlideViewerClient({
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 cursor-pointer"
-          onClick={() => router.push("/templates")}
-          aria-label="Back to templates"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-sm font-semibold text-slate-900">
-          {templateName}
-        </h1>
-        <span className="ml-auto text-xs text-slate-500">
+      <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+        <nav className="flex items-center gap-1 text-sm" aria-label="Breadcrumb">
+          <Link
+            href="/templates"
+            className="text-slate-500 hover:text-slate-900 transition-colors"
+          >
+            Templates
+          </Link>
+          <ChevronRight className="h-4 w-4 text-slate-400" />
+          <span className="font-semibold text-slate-900 truncate max-w-[300px]">
+            {templateName}
+          </span>
+        </nav>
+        <span className="text-xs text-slate-500">
           {currentIndex + 1} of {totalSlides}
         </span>
       </div>
