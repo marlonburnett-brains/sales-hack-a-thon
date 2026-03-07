@@ -56,6 +56,14 @@ export const env = createEnv({
     // Source: Google Cloud Console -> APIs & Services -> Credentials -> OAuth 2.0 Client IDs
     GOOGLE_CLIENT_ID: z.string().min(1),
     GOOGLE_CLIENT_SECRET: z.string().min(1),
+
+    // MCP integration controls
+    // Kill switch for MCP search (set to 'false' to disable)
+    ATLUS_USE_MCP: z.string().default('true'),
+    // AtlusAI project ID for scoping MCP searches (optional)
+    ATLUS_PROJECT_ID: z.string().optional(),
+    // Max lifetime for MCP client connection in ms (default: 1 hour)
+    ATLUS_MCP_MAX_LIFETIME_MS: z.coerce.number().default(3_600_000),
   },
   runtimeEnv: process.env,
 })

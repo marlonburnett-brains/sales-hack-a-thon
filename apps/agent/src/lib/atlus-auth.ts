@@ -246,6 +246,113 @@ export async function detectAtlusAccess(
 }
 
 // ────────────────────────────────────────────────────────────
+// OAuth Token Refresh
+// ────────────────────────────────────────────────────────────
+
+const ATLUS_TOKEN_ENDPOINT =
+  "https://knowledge-base-api.lumenalta.com/auth/token";
+const ATLUS_REGISTER_ENDPOINT =
+  "https://knowledge-base-api.lumenalta.com/auth/register";
+
+/** Cached dynamic client_id from agent-side registration */
+let cachedRegistrationClientId: string | null = null;
+
+/**
+ * Refresh an AtlusAI OAuth access token using a refresh_token grant.
+ *
+ * @param refreshToken - The refresh token from the stored OAuth credential
+ * @param clientId     - Dynamic client_id obtained via registerAtlusClient()
+ * @returns New token pair on success, null on failure
+ */
+export async function refreshAtlusToken(
+  refreshToken: string,
+  clientId: string,
+): Promise<{ access_token: string; refresh_token?: string } | null> {
+  try {
+    const body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      client_id: clientId,
+    });
+
+    const res = await fetch(ATLUS_TOKEN_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as {
+      access_token: string;
+      refresh_token?: string;
+    };
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Re-encrypt and update a user's AtlusAI token in the database after
+ * a successful token refresh.
+ *
+ * @param userId       - Supabase Auth user ID
+ * @param newTokenJson - Stringified JSON `{ access_token, refresh_token }`
+ */
+export async function updateAtlusTokenInDb(
+  userId: string,
+  newTokenJson: string,
+): Promise<void> {
+  const { encrypted, iv, authTag } = encryptToken(newTokenJson);
+  await prisma.userAtlusToken.update({
+    where: { userId },
+    data: {
+      encryptedToken: encrypted,
+      iv,
+      authTag,
+      lastUsedAt: new Date(),
+    },
+  });
+}
+
+/**
+ * Perform agent-side dynamic client registration with AtlusAI.
+ * Required to obtain a client_id for refresh_token grants (Pitfall 5).
+ * Result is cached -- only registers once per process lifetime.
+ *
+ * @returns `{ client_id }` on success, null on failure
+ */
+export async function registerAtlusClient(): Promise<{
+  client_id: string;
+} | null> {
+  if (cachedRegistrationClientId) {
+    return { client_id: cachedRegistrationClientId };
+  }
+
+  try {
+    const res = await fetch(ATLUS_REGISTER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        redirect_uris: ["http://localhost"],
+        token_endpoint_auth_method: "none",
+        grant_types: ["refresh_token"],
+        response_types: ["code"],
+      }),
+    });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as { client_id: string };
+    cachedRegistrationClientId = data.client_id;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// ────────────────────────────────────────────────────────────
 // Token Pool — iterates user tokens before falling back to
 // ATLUS_API_TOKEN env var for background jobs
 // ────────────────────────────────────────────────────────────
