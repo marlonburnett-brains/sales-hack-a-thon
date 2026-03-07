@@ -4,6 +4,9 @@
  * Classifies each extracted slide with structured metadata tags
  * using LLM structured output mode.
  *
+ * Primary backend: gpt-oss-120b via OpenAI SDK on Vertex AI (MaaS)
+ * Fallback backend: Gemini 2.0 Flash via Google GenAI SDK
+ *
  * Tags assigned per slide:
  *   - industries (multi-value enum)
  *   - subsectors (free-text array, maps to ~62 subsectors in PROJECT.md)
@@ -16,6 +19,8 @@
  */
 
 import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleAuth } from "google-auth-library";
+import OpenAI from "openai";
 import { env } from "../env";
 import type { ExtractedSlide } from "../lib/slide-extractor";
 import {
@@ -35,8 +40,7 @@ export interface ClassifiedSlide extends ExtractedSlide {
 }
 
 // ────────────────────────────────────────────────────────────
-// LLM JSON Schema (hand-crafted for LLM structured output)
-// zod-to-json-schema does not support Zod 4.x
+// LLM JSON Schema (Gemini — uses @google/genai Type.* format)
 // ────────────────────────────────────────────────────────────
 
 const LLM_RESPONSE_SCHEMA = {
@@ -119,6 +123,100 @@ const LLM_RESPONSE_SCHEMA = {
 };
 
 // ────────────────────────────────────────────────────────────
+// Plain JSON Schema for gpt-oss system prompt
+// (gpt-oss uses json_object mode — schema must be in prompt)
+// ────────────────────────────────────────────────────────────
+
+const JSON_SCHEMA_FOR_PROMPT = {
+  type: "object",
+  properties: {
+    industries: {
+      type: "array",
+      items: { type: "string", enum: [...INDUSTRIES] },
+      description:
+        "Industries this slide content is relevant to. Select all that apply.",
+    },
+    subsectors: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        'Identify 1-3 specific subsectors within the classified industries. Use concise labels like "Digital Banking", "Telehealth", "EdTech". If too generic, return an empty array.',
+    },
+    solutionPillars: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "Lumenalta solution pillars this slide addresses. Use exact names from the AVAILABLE SOLUTION PILLARS list.",
+    },
+    funnelStages: {
+      type: "array",
+      items: { type: "string", enum: [...FUNNEL_STAGES] },
+      description:
+        "Which GTM touch point funnel stages this slide is designed for. Can be multi-value.",
+    },
+    contentType: {
+      type: "string",
+      enum: [...CONTENT_TYPES],
+      description: "The type of content this slide represents.",
+    },
+    slideCategory: {
+      type: "string",
+      enum: [...SLIDE_CATEGORIES],
+      description: "The functional category of this slide within a deck.",
+    },
+    buyerPersonas: {
+      type: "array",
+      items: { type: "string", enum: [...BUYER_PERSONAS] },
+      description: "Buyer personas this content is most relevant to.",
+    },
+    touchType: {
+      type: "array",
+      items: { type: "string", enum: [...TOUCH_TYPES] },
+      description:
+        "Which GTM touch type(s) this slide is associated with. touch_1 = First Contact, touch_2 = Intro Conversation, touch_3 = Capability Alignment, touch_4 = Solution Proposal.",
+    },
+    confidence: {
+      type: "number",
+      description:
+        "Overall confidence score (0-100) for this classification.",
+    },
+  },
+  required: [
+    "industries",
+    "subsectors",
+    "solutionPillars",
+    "funnelStages",
+    "contentType",
+    "slideCategory",
+    "buyerPersonas",
+    "touchType",
+    "confidence",
+  ],
+};
+
+// ────────────────────────────────────────────────────────────
+// Vertex AI access token for gpt-oss (OpenAI-compatible endpoint)
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Get a short-lived access token from the service account credentials.
+ * google-auth-library caches tokens internally so repeated calls are cheap.
+ */
+async function getVertexAccessToken(): Promise<string> {
+  const credentials = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_KEY);
+  const auth = new GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+  });
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+  if (!tokenResponse.token) {
+    throw new Error("Failed to obtain Vertex AI access token from service account");
+  }
+  return tokenResponse.token;
+}
+
+// ────────────────────────────────────────────────────────────
 // Classification prompt
 // ────────────────────────────────────────────────────────────
 
@@ -167,34 +265,60 @@ Classify this slide with all applicable tags.`;
 }
 
 // ────────────────────────────────────────────────────────────
-// Single slide classification
+// Backend: gpt-oss-120b via OpenAI SDK on Vertex AI
 // ────────────────────────────────────────────────────────────
 
-const RATE_LIMIT_DELAY = 300; // ms between LLM calls
+/**
+ * Classify a slide using gpt-oss-120b via the Vertex AI OpenAI-compatible endpoint.
+ * A fresh OpenAI client is created per call (access tokens are short-lived).
+ */
+async function classifySlideWithGptOss(prompt: string): Promise<string> {
+  const accessToken = await getVertexAccessToken();
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  const client = new OpenAI({
+    baseURL: `https://${env.GOOGLE_CLOUD_LOCATION}-aiplatform.googleapis.com/v1/projects/${env.GOOGLE_CLOUD_PROJECT}/locations/${env.GOOGLE_CLOUD_LOCATION}/endpoints/openapi`,
+    apiKey: accessToken,
+  });
+
+  const response = await client.chat.completions.create({
+    model: "openai/gpt-oss-120b-maas",
+    response_format: { type: "json_object" },
+    temperature: 0.2,
+    messages: [
+      {
+        role: "system",
+        content: `You must respond with valid JSON matching the following schema:\n${JSON.stringify(JSON_SCHEMA_FOR_PROMPT, null, 2)}`,
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("gpt-oss returned empty response");
+  }
+  return content;
 }
 
-/**
- * Classify a single slide using LLM structured output.
- */
-export async function classifySlide(
-  slide: ExtractedSlide,
-  titleSlideText: string,
-  solutionPillarList: string[],
-  _legacyApiKey?: string
-): Promise<ClassifiedSlide> {
-  const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
+// ────────────────────────────────────────────────────────────
+// Backend: Gemini 2.0 Flash via Google GenAI SDK
+// ────────────────────────────────────────────────────────────
 
-  const prompt = buildClassificationPrompt(
-    slide,
-    titleSlideText,
-    solutionPillarList
-  );
+/**
+ * Classify a slide using Gemini 2.0 Flash with structured output (responseSchema).
+ */
+async function classifySlideWithGemini(prompt: string): Promise<string> {
+  const ai = new GoogleGenAI({
+    vertexai: true,
+    project: env.GOOGLE_CLOUD_PROJECT,
+    location: env.GOOGLE_CLOUD_LOCATION,
+  });
 
   const response = await ai.models.generateContent({
-    model: "openai/gpt-oss-120b-maas",
+    model: "gemini-2.0-flash",
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -202,7 +326,72 @@ export async function classifySlide(
     },
   });
 
-  const text = response.text ?? "{}";
+  return response.text ?? "{}";
+}
+
+// ────────────────────────────────────────────────────────────
+// Single slide classification (dual-backend with fallback)
+// ────────────────────────────────────────────────────────────
+
+const RATE_LIMIT_DELAY = 300; // ms between LLM calls
+const MAX_CONSECUTIVE_FAILURES = 3;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+interface ClassifyResult {
+  classified: ClassifiedSlide;
+  backend: "gpt-oss" | "gemini";
+  gptOssFailed: boolean;
+}
+
+/**
+ * Classify a single slide using LLM structured output.
+ *
+ * Tries gpt-oss-120b first (via OpenAI SDK on Vertex AI).
+ * Falls back to Gemini 2.0 Flash on gpt-oss failure.
+ *
+ * @param useGeminiOnly - Skip gpt-oss and use Gemini directly (set after consecutive failures)
+ */
+async function classifySlideInternal(
+  slide: ExtractedSlide,
+  titleSlideText: string,
+  solutionPillarList: string[],
+  useGeminiOnly = false
+): Promise<ClassifyResult> {
+  const prompt = buildClassificationPrompt(
+    slide,
+    titleSlideText,
+    solutionPillarList
+  );
+
+  let text: string;
+  let backend: "gpt-oss" | "gemini";
+  let gptOssFailed = false;
+
+  if (useGeminiOnly) {
+    text = await classifySlideWithGemini(prompt);
+    backend = "gemini";
+  } else {
+    try {
+      text = await classifySlideWithGptOss(prompt);
+      backend = "gpt-oss";
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `  WARNING: gpt-oss failed for slide ${slide.slideIndex}, falling back to Gemini: ${message}`
+      );
+      gptOssFailed = true;
+      text = await classifySlideWithGemini(prompt);
+      backend = "gemini";
+    }
+  }
+
+  console.log(
+    `  Slide ${slide.slideIndex} classified via ${backend}`
+  );
+
   let metadata: SlideMetadata;
   let confidence = 50;
 
@@ -233,10 +422,30 @@ export async function classifySlide(
   }
 
   return {
-    ...slide,
-    metadata,
-    confidence,
+    classified: { ...slide, metadata, confidence },
+    backend,
+    gptOssFailed,
   };
+}
+
+/**
+ * Public API — classify a single slide (returns ClassifiedSlide only).
+ * Used by test scripts and callers that don't need backend tracking.
+ */
+export async function classifySlide(
+  slide: ExtractedSlide,
+  titleSlideText: string,
+  solutionPillarList: string[],
+  _legacyApiKey?: string,
+  useGeminiOnly = false
+): Promise<ClassifiedSlide> {
+  const { classified } = await classifySlideInternal(
+    slide,
+    titleSlideText,
+    solutionPillarList,
+    useGeminiOnly
+  );
+  return classified;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -248,6 +457,9 @@ export async function classifySlide(
  *
  * Groups slides by presentation so all slides from the same deck
  * share title slide context. Classifies sequentially with rate limiting.
+ *
+ * Uses gpt-oss-120b as primary backend. After MAX_CONSECUTIVE_FAILURES
+ * consecutive gpt-oss failures, switches remaining slides to Gemini-only.
  */
 export async function classifyAllSlides(
   slides: ExtractedSlide[],
@@ -264,6 +476,8 @@ export async function classifyAllSlides(
 
   const classified: ClassifiedSlide[] = [];
   let totalProcessed = 0;
+  let consecutiveGptOssFailures = 0;
+  let useGeminiOnly = false;
 
   for (const [presId, presSlides] of byPresentation) {
     // Sort by slideIndex to ensure title slide is first
@@ -279,12 +493,29 @@ export async function classifyAllSlides(
 
     for (const slide of presSlides) {
       try {
-        const result = await classifySlide(
+        const result = await classifySlideInternal(
           slide,
           titleSlideText,
           solutionPillarList,
+          useGeminiOnly
         );
-        classified.push(result);
+        classified.push(result.classified);
+
+        // Track gpt-oss consecutive failures for circuit breaker
+        if (!useGeminiOnly) {
+          if (result.gptOssFailed) {
+            consecutiveGptOssFailures++;
+            if (consecutiveGptOssFailures >= MAX_CONSECUTIVE_FAILURES) {
+              console.warn(
+                `  WARNING: gpt-oss failed ${MAX_CONSECUTIVE_FAILURES} consecutive times, switching to Gemini for remaining slides`
+              );
+              useGeminiOnly = true;
+            }
+          } else {
+            // gpt-oss succeeded — reset counter
+            consecutiveGptOssFailures = 0;
+          }
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : String(error);
@@ -306,6 +537,17 @@ export async function classifyAllSlides(
           },
           confidence: 50,
         });
+
+        // Both backends failed — count as gpt-oss failure too
+        if (!useGeminiOnly) {
+          consecutiveGptOssFailures++;
+          if (consecutiveGptOssFailures >= MAX_CONSECUTIVE_FAILURES) {
+            console.warn(
+              `  WARNING: gpt-oss failed ${MAX_CONSECUTIVE_FAILURES} consecutive times, switching to Gemini for remaining slides`
+            );
+            useGeminiOnly = true;
+          }
+        }
       }
 
       totalProcessed++;
