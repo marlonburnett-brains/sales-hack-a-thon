@@ -1,339 +1,347 @@
-# Stack Research
+# Technology Stack — v1.5 Review Polish & Deck Intelligence
 
-**Domain:** AtlusAI MCP integration, token pool auth, and Discovery UI for agentic sales platform
-**Researched:** 2026-03-06
-**Confidence:** MEDIUM (AtlusAI endpoint auth mechanism is inferred, not documented)
+**Project:** AtlusAI Agentic Sales Orchestration
+**Researched:** 2026-03-07
+**Confidence:** HIGH (all features use existing installed packages)
 
 ## Scope
 
-This research covers ONLY new technology additions and configuration changes for v1.4 (AtlusAI Authentication & Discovery). The existing stack (Next.js 15, Mastra AI 1.8, Prisma 6.19 + Supabase PostgreSQL + pgvector, Google Workspace APIs, shadcn/ui, Supabase Auth + Google OAuth, Sonner, CircleCI) is validated and NOT re-researched.
+This research covers ONLY stack additions/changes for v1.5 (Review Polish & Deck Intelligence). The existing validated stack (Next.js 15, Mastra AI 1.8, Prisma 6.19 + Supabase PostgreSQL + pgvector, Google Workspace APIs via `googleapis` v144, shadcn/ui, React 19, Supabase Auth + Google OAuth, Sonner, GCS thumbnail caching) is NOT re-researched.
 
 **Focus areas:**
-1. @mastra/mcp MCPClient -- wiring to AtlusAI SSE endpoint with auth
-2. AtlusAI token pool -- UserAtlusToken model, AES-256-GCM encryption, rotation
-3. Replacing Drive API fallback search with direct MCP semantic search
-4. Discovery UI -- new sidebar page with browse/search/ingest views
+1. Google Slides API element map extraction from `presentations.get`
+2. Google Drive API file metadata/thumbnails for Discovery cards
+3. Optimistic UI patterns for ingest click feedback
+4. AI chat interface for deck structure refinement
+5. Rich AI-generated slide descriptions during ingestion
+6. Template vs Example classification with touch binding
 
-## Recommended Stack Additions
+---
 
-### 1. @mastra/mcp MCPClient (Already in Dependencies -- Wire It Up)
+## Executive Summary
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `@mastra/mcp` | ^1.0.2 | Connect to AtlusAI MCP server via SSE for semantic search and document discovery | Already declared in `apps/agent/package.json` but NOT installed in `node_modules` and NOT wired up. This is Mastra's official MCP client. It auto-detects transport (tries Streamable HTTP first, falls back to legacy SSE). Provides `listTools()` for tool discovery and namespaced tool execution. |
+v1.5 requires **zero new package dependencies**. Every feature builds on existing installed libraries:
 
-**Current state:** The package is in `package.json` at `^1.0.2` and locked in `pnpm-lock.yaml` at `1.0.2`, but not actually installed. The existing `atlusai-client.ts` uses raw `fetch()` to probe the SSE endpoint and documents the 401 failure. The existing `atlusai-search.ts` falls back to Drive API `files.list` with `fullText contains` queries -- this is what v1.4 replaces.
+- **Element maps:** The `presentations.get` response already contains full `pageElements[]` structure -- `slide-extractor.ts` just discards it today
+- **Discovery thumbnails:** `drive.files.get` with `fields=thumbnailLink,hasThumbnail,iconLink,mimeType` plus existing GCS caching pattern
+- **Optimistic UI:** React 19 `useOptimistic` hook (already used in `actions-client.tsx`)
+- **AI chat:** shadcn/ui primitives + existing `fetchJSON` API client + new Mastra Hono route
+- **Rich descriptions:** Additional LLM prompt step in existing ingestion pipeline
+- **Classification:** Prisma schema addition + shadcn/ui Select component
 
-**Critical requirement:** The AtlusAI SSE endpoint (`https://knowledge-base-api.lumenalta.com/sse`) returns HTTP 401 without credentials. Claude Code connects via its internal MCP layer (configured in `.mcp.json`). For the agent service to connect programmatically, we need to discover and configure the auth mechanism.
+---
 
-**MCPClient SSE auth configuration pattern:**
+## Recommended Stack (v1.5) -- No New Packages
 
-When using legacy SSE transport with custom auth headers, BOTH `requestInit` AND `eventSourceInit` must be configured. This is because the SSE connection uses a different fetch path than regular HTTP requests.
+### 1. Google Slides API — Structured Element Map Extraction
+
+| Aspect | Detail |
+|--------|--------|
+| **Library** | `googleapis` v144.0.0 (already in `apps/agent/package.json`) |
+| **API Method** | `slides.presentations.get({ presentationId })` -- already called at `slide-extractor.ts` line 151 |
+| **Current gap** | `extractSlidesFromPresentation()` extracts text only, discards structural element data |
+| **v1.5 approach** | Extend the same function to also return a structured element map per slide -- no additional API calls |
+| **Confidence** | HIGH -- verified against current codebase and [Google Slides API page elements docs](https://developers.google.com/workspace/slides/api/concepts/page-elements) |
+
+**What `presentations.get` already returns per slide (currently discarded):**
+
+Eight `pageElement` types, each with:
+- `objectId` -- stable ID for `batchUpdate` operations (critical for downstream deck generation)
+- `size` / `transform` -- position, dimensions, rotation
+- Type-specific properties:
+
+| Element Type | Key Properties | Why It Matters for Deck Intelligence |
+|-------------|----------------|--------------------------------------|
+| **Shape** | `shapeProperties`, `text.textElements[]`, `placeholder.type` (TITLE, SUBTITLE, BODY, etc.) | Identifies slide layout structure, text content, and placeholder positions for template replacement |
+| **Image** | `imageProperties.contentUrl`, `sourceUrl`, `cropProperties` | Tracks image positions for swap operations during deck generation |
+| **Table** | `tableRows[].tableCells[].text`, `rows`, `columns` | Identifies data tables for content injection |
+| **Line** | `lineProperties`, `lineType` (STRAIGHT, BENT, CURVED) | Tracks decorative/connector elements |
+| **Video** | `videoProperties.videoUri` | Identifies embedded media |
+| **WordArt** | `renderedText` | Visual text elements |
+| **SheetsChart** | `chartId`, `spreadsheetId` | Embedded chart tracking |
+| **Group** | `children[]` (recursive `PageElement[]`) | Nested element containers |
+
+**Implementation: extend `ExtractedSlide` interface:**
 
 ```typescript
-import { MCPClient } from '@mastra/mcp';
+interface SlideElement {
+  objectId: string;
+  type: 'shape' | 'image' | 'table' | 'line' | 'video' | 'wordArt' | 'sheetsChart' | 'group';
+  position: { x: number; y: number }; // from transform
+  size: { width: number; height: number };
+  placeholderType?: string; // TITLE, SUBTITLE, BODY, etc.
+  textContent?: string; // for shapes/tables
+  imageUrl?: string; // for images
+  childCount?: number; // for groups/tables
+}
 
-function createAtlusAIClient(bearerToken: string): MCPClient {
-  return new MCPClient({
-    id: 'atlusai',  // Prevents memory leaks on re-instantiation
-    servers: {
-      'atlus-ai': {
-        url: new URL('https://knowledge-base-api.lumenalta.com/sse'),
-        // requestInit covers POST requests (tool calls)
-        requestInit: {
-          headers: {
-            Authorization: `Bearer ${bearerToken}`,
-          },
-        },
-        // eventSourceInit covers SSE connection (must use custom fetch)
-        eventSourceInit: {
-          fetch(input: Request | URL | string, init?: RequestInit) {
-            const headers = new Headers(init?.headers || {});
-            headers.set('Authorization', `Bearer ${bearerToken}`);
-            return fetch(input, { ...init, headers });
-          },
-        },
-      },
-    },
-    timeout: 30_000,
+interface ExtractedSlide {
+  // ... existing fields ...
+  elementMap: SlideElement[]; // NEW
+}
+```
+
+**Storage:** `SlideEmbedding.elementMapJson` (new `String?` column) -- JSON serialized. Read as a whole per slide, not queried individually, so JSON column is appropriate over a normalized table.
+
+### 2. Google Drive API — Discovery Document Thumbnails
+
+| Aspect | Detail |
+|--------|--------|
+| **Library** | `googleapis` v144.0.0 (already installed) |
+| **API Method** | `drive.files.get({ fileId, fields: 'thumbnailLink,hasThumbnail,iconLink,mimeType,name' })` |
+| **Current usage** | `drive.files.get` already called in 6+ places in `mastra/index.ts` |
+| **Confidence** | HIGH -- verified against [Google Drive API file metadata docs](https://developers.google.com/workspace/drive/api/guides/file-metadata) |
+
+**Key fields to request:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `thumbnailLink` | string | Short-lived URL (hours), **blocked by CORS** -- must proxy server-side |
+| `hasThumbnail` | boolean | Check before attempting fetch |
+| `iconLink` | string | Always available, small icon, no CORS issues |
+| `mimeType` | string | For file-type icon fallback |
+
+**CORS constraint and solution:**
+
+`thumbnailLink` URLs cannot be used directly in `<img>` tags due to CORS policy. Two approaches:
+
+1. **Reuse existing GCS caching pattern** (RECOMMENDED): Fetch `thumbnailLink` server-side, upload to GCS via existing `uploadThumbnailToGCS()` from `gcs-thumbnails.ts`, store the GCS URL in `DiscoveryDocCache.cachedThumbnailUrl`. This is the same pattern already proven for slide thumbnails.
+
+2. **Fallback for non-Slides documents**: For Docs/Sheets/PDFs where Slides API thumbnails aren't available, fetch `thumbnailLink` server-side and cache to GCS using the same pattern.
+
+3. **Icon fallback**: When `hasThumbnail` is false, use `iconLink` or hardcoded lucide-react icons (`FileText`, `Sheet`, `Presentation`, `FileImage`).
+
+**No new packages needed.** `gcs-thumbnails.ts` already handles GCS uploads via `googleapis` storage client (not `@google-cloud/storage`).
+
+### 3. React 19 — Optimistic UI for Ingest Click
+
+| Aspect | Detail |
+|--------|--------|
+| **Library** | `react` v19.0.0 (already installed) |
+| **Hook** | `useOptimistic(state, updateFn)` -- built into React 19 |
+| **Existing usage** | Already used in `apps/web/src/app/(authenticated)/actions/actions-client.tsx` |
+| **Confidence** | HIGH -- verified via [React 19 useOptimistic docs](https://react.dev/reference/react/useOptimistic) and existing codebase |
+
+**Pattern for Templates page ingest button:**
+
+```typescript
+const [optimisticStatus, setOptimisticStatus] = useOptimistic(
+  template.ingestionStatus,
+  (_current: string, newStatus: string) => newStatus
+);
+
+async function handleIngest() {
+  setOptimisticStatus("queued"); // Instant UI update
+  startTransition(async () => {
+    await triggerIngestionAction(templateId);
+    // On success: server revalidation updates real status
+    // On error: optimistic state automatically rolls back
   });
 }
 ```
 
-**Transport fallback behavior:** MCPClient first tries Streamable HTTP (MCP protocol version 2025-03-26). If the server responds with an error or unsupported status, it falls back to legacy SSE (protocol version 2024-11-05). The AtlusAI endpoint at `/sse` strongly suggests it uses the legacy SSE transport.
+**Also needed:** `useTransition` (already used throughout codebase) to wrap the server action call, providing `isPending` state for loading indicators.
 
-**Tool execution pattern:**
+**Discovery page pattern:** Same approach for the batch ingest flow in `discovery-client.tsx`. Currently uses manual `itemStatuses` Map state -- replace with `useOptimistic` over the statuses.
 
-```typescript
-const client = createAtlusAIClient(token);
-const tools = await client.listTools();
-// Tools are namespaced: 'atlus-ai_knowledge_base_search_semantic'
+### 4. AI Chat Interface — Deck Structure Refinement (Settings Page)
 
-// Call a tool directly via the underlying MCP transport
-const result = await client.callTool('atlus-ai', 'knowledge_base_search_semantic', {
-  query: 'healthcare digital transformation case studies',
-});
+| Aspect | Detail |
+|--------|--------|
+| **Library** | shadcn/ui primitives (all already installed) -- NO new packages |
+| **Why NOT Vercel AI SDK** | Agent uses Mastra AI with custom Hono routes. Adding `@ai-sdk/react` introduces a parallel streaming layer that conflicts with the established `fetchJSON` -> Mastra route architecture. |
+| **Why NOT streaming** | Deck structure refinement produces short structured responses (JSON deck outlines), not long-form text. Standard request/response via POST is sufficient and simpler. |
+| **Confidence** | HIGH -- architectural decision based on existing patterns |
+
+**Build from existing shadcn/ui components:**
+
+| Component | Source | Purpose |
+|-----------|--------|---------|
+| `ScrollArea` | `@radix-ui/react-scroll-area` (add via `npx shadcn@latest add scroll-area`) | Message list container |
+| `Card` | Already installed | Message bubbles |
+| `Input` + `Button` | Already installed | Message input |
+| `Loader2` | `lucide-react` (already installed) | Typing indicator |
+| `Avatar` | `@radix-ui/react-avatar` (already installed) | User/AI message differentiation |
+
+**Note:** `ScrollArea` is the only shadcn/ui component that may need to be added via the CLI. It's a thin wrapper around `@radix-ui/react-scroll-area` and does not add a new package dependency since Radix is already in the project.
+
+**Chat architecture:**
+
+```
+User types message
+  -> POST /api/chat/deck-structure (new Mastra route)
+  -> Mastra agent processes with LLM (GPT-OSS 120b)
+  -> Returns structured JSON response
+  -> Client appends to messages array
+  -> Rendered in ScrollArea with Card components
 ```
 
-**Connection lifecycle:** Create ONE MCPClient instance per request or pool it with connection health checks. Call `client.disconnect()` when done. The `id` parameter prevents memory leaks from repeated instantiation.
+**State management:** Simple `useState<Message[]>` + `useTransition` for pending state. No external state library needed.
 
-### 2. AtlusAI Token Pool (New Prisma Model + Existing Encryption)
+### 5. Rich AI-Generated Slide Descriptions
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| AES-256-GCM (Node.js crypto) | Built-in | Encrypt AtlusAI tokens at rest | Identical to the existing `token-encryption.ts` pattern used for `UserGoogleToken`. Reuse the same `encryptToken()` / `decryptToken()` functions and `GOOGLE_TOKEN_ENCRYPTION_KEY` env var. Zero new dependencies. |
+| Aspect | Detail |
+|--------|--------|
+| **Library** | Existing Gemini/GPT-OSS via Mastra AI |
+| **Current pattern** | 8-axis classification runs during ingestion, stored in `classificationJson` |
+| **v1.5 approach** | Add description generation step alongside classification in the ingestion pipeline |
+| **Confidence** | HIGH -- follows existing ingestion pipeline pattern in `ingest-template.ts` |
 
-**New Prisma model -- `UserAtlusToken`:**
+**No new packages.** The LLM call uses the same Mastra AI / Vertex AI integration already in place. The prompt includes:
+- Slide text content (already extracted)
+- Speaker notes (already extracted)
+- Element map structure (new from feature #1)
+- Thumbnail URL (already cached in GCS)
 
-This mirrors `UserGoogleToken` exactly. Same encryption pattern, same pool rotation logic, same health alerting. The only difference is what the token authenticates against (AtlusAI MCP vs Google APIs).
+**Storage:** New `description` `String?` column on `SlideEmbedding` model.
+
+### 6. Template vs Example Classification + Touch Binding
+
+| Aspect | Detail |
+|--------|--------|
+| **Library** | Prisma (existing), shadcn/ui Select (existing) |
+| **Confidence** | HIGH -- standard schema addition + UI component |
+
+**Schema additions:**
 
 ```prisma
-model UserAtlusToken {
-  id               String    @id @default(cuid())
-  userId           String    @unique // Supabase Auth user ID
-  email            String    // User email for logging/debugging
-  encryptedToken   String    // AES-256-GCM encrypted AtlusAI API token
-  iv               String    // Base64-encoded initialization vector
-  authTag          String    // Base64-encoded GCM authentication tag
-  lastUsedAt       DateTime  @default(now())
-  isValid          Boolean   @default(true)
-  revokedAt        DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  @@index([isValid, lastUsedAt])
-  @@index([email])
-}
+// Template model additions
+contentRole    String    @default("template") // "template" | "example"
+boundTouchType String?   // Only for examples: "touch_1" | "touch_2" | etc.
 ```
 
-**Pool rotation pattern -- reuse `getPooledGoogleAuth` structure:**
+**UI:** Existing `@radix-ui/react-select` for the dropdown. Existing `touchTypes` field on `Template` model shows this pattern is already established.
 
-```typescript
-export async function getPooledAtlusToken(): Promise<{ token: string; source: 'pool' | 'env_fallback'; userId?: string }> {
-  const tokens = await prisma.userAtlusToken.findMany({
-    where: { isValid: true },
-    orderBy: { lastUsedAt: 'desc' },
-  });
+---
 
-  for (const tokenRecord of tokens) {
-    try {
-      const plainToken = decryptToken(tokenRecord.encryptedToken, tokenRecord.iv, tokenRecord.authTag);
-      // Validate by attempting a lightweight MCP call (e.g., discover_documents)
-      // On success: update lastUsedAt, return token
-      // On failure: mark isValid=false, create ActionRequired
-      return { token: plainToken, source: 'pool', userId: tokenRecord.userId };
-    } catch {
-      // Mark invalid, continue to next token
-    }
-  }
+## Schema Migrations Required
 
-  // Fallback: use env var if configured
-  const envToken = process.env.ATLUS_API_TOKEN;
-  if (envToken) return { token: envToken, source: 'env_fallback' };
+All via `prisma migrate dev --name <name>` (never `db push` per CLAUDE.md rules):
 
-  throw new Error('No valid AtlusAI tokens available');
-}
+```prisma
+// Migration 1: Slide intelligence additions
+// Add to SlideEmbedding model:
+description    String?   // Rich AI-generated description
+elementMapJson String?   // JSON: structured element map from Slides API
+
+// Migration 2: Template classification
+// Add to Template model:
+contentRole    String    @default("template") // "template" | "example"
+boundTouchType String?   // null for templates, required for examples
+
+// Migration 3: Discovery thumbnail cache
+// Add to DiscoveryDocCache model:
+cachedThumbnailUrl String?  // GCS URL for cached document thumbnail
 ```
 
-**Why NOT a separate encryption key:** The `GOOGLE_TOKEN_ENCRYPTION_KEY` is a 256-bit key used for AES-256-GCM. It secures tokens at rest regardless of what they authenticate. Using a single encryption key for both Google and AtlusAI tokens simplifies operations. The tokens are still isolated by table (different Prisma models). If security policy requires separate keys, add `ATLUS_TOKEN_ENCRYPTION_KEY` later.
+---
 
-### 3. New ActionRequired Types (Schema Extension Only)
+## Alternatives Considered
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Existing `ActionRequired` model | N/A | Add `atlus_account_required` and `atlus_project_required` action types | The `ActionRequired` model already exists with `actionType: String`. No schema migration needed -- just use new string values. The sidebar already shows action counts via `/api/actions/count`. |
+| Feature | Recommended | Alternative | Why Not Alternative |
+|---------|-------------|-------------|-------------------|
+| Chat UI | Custom shadcn/ui primitives | Vercel AI SDK `@ai-sdk/react` + `useChat` | Conflicts with Mastra route architecture; adds unnecessary streaming for short structured responses; would require new API route pattern incompatible with existing `fetchJSON` |
+| Chat UI | Custom shadcn/ui primitives | `shadcn-chatbot-kit` (Blazity) | External dependency for 3-4 components; copy-paste approach means no version management; existing primitives sufficient |
+| Discovery thumbnails | GCS cache (reuse existing pattern) | Direct `thumbnailLink` in `<img>` tags | CORS-blocked; thumbnailLink URLs expire in hours |
+| Discovery thumbnails | GCS cache | `iconLink` only (no thumbnails) | Loses visual distinction -- thumbnails are the primary UX improvement requested in REVIEW-ISSUES.md #1 |
+| Element map storage | JSON column (`elementMapJson`) | Separate `SlideElement` model with relations | Over-normalized; element maps read as a whole per slide, never queried individually; JSON simpler and faster |
+| Optimistic UI | React 19 `useOptimistic` | Manual `useState` with rollback logic | `useOptimistic` is purpose-built, handles pending state automatically, already used in codebase |
+| Ingestion status sync | Polling (existing pattern) | WebSocket / SSE real-time push | Over-engineering for ~20 users; polling at 2-3s intervals already works on Templates page |
+| Slide descriptions | LLM during ingestion | Pre-computed static templates | Descriptions must reflect actual slide content; static templates can't capture this |
 
-**New action types (no schema change needed):**
+---
 
-```typescript
-// Existing actionType values: 'reauth_needed', 'share_with_sa', 'drive_access'
-// New actionType values:
-// - 'atlus_account_required': User needs an AtlusAI account
-// - 'atlus_project_required': User needs access to the AtlusAI project/knowledge base
-```
+## What NOT to Add
 
-**3-tier access detection flow:**
+| Package | Why NOT |
+|---------|---------|
+| `@ai-sdk/react` / `ai` (Vercel AI SDK) | Mastra handles LLM orchestration; adding a second AI framework creates architectural confusion and dual streaming patterns |
+| `@google-cloud/storage` | Already using `googleapis` storage v1 client for GCS (see `gcs-thumbnails.ts` line 36); two GCS clients is redundant |
+| `socket.io` / `ws` | Real-time push is over-engineering for ~20 users with existing polling |
+| `react-markdown` / `remark` | Chat responses are structured JSON deck outlines, not markdown prose |
+| `@tanstack/react-query` | Server Actions + `useOptimistic` + `useTransition` cover all data fetching; client-side cache layer conflicts with Next.js server-first architecture |
+| `swr` | Same rationale as react-query above |
+| `prompt-kit` / `ai-elements` | Designed for Vercel AI SDK `useChat` pattern, not Mastra route pattern |
 
-1. **No token stored** -> Create `atlus_account_required` ActionRequired
-2. **Token stored but 401 on MCP connect** -> Create `atlus_project_required` ActionRequired (token valid but no project access)
-3. **Token stored and MCP connects** -> Full access, proceed with MCP calls
-
-### 4. Discovery UI Components (Existing shadcn/ui + Lucide Icons)
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| shadcn/ui (EXISTING) | N/A | Cards, Tabs, Input, Button, Dialog for browse/search views | Already installed and used throughout the web app. The Discovery UI needs: `Tabs` for browse/search toggle, `Card` for document results, `Input` for search box, `Dialog` for ingestion confirmation. All these components exist in the project. |
-| lucide-react (EXISTING) | ^0.576.0 | Icons for the Discovery sidebar nav item and UI elements | Already installed. Use `Search`, `BookOpen`, `Download`, or `Compass` for the nav item. |
-
-**New sidebar nav item:**
-
-```typescript
-// Add to navItems array in sidebar.tsx
-{ href: "/discovery", label: "AtlusAI Discovery", icon: Compass },
-```
-
-**No new UI dependencies needed.** The existing component library covers all Discovery UI requirements:
-
-- **Browse view:** `Tabs` + server-fetched document list rendered as `Card` components
-- **Search view:** `Input` for query + search results as `Card` components with similarity scores
-- **Ingestion action:** `Button` + `Dialog` for confirmation, `Progress` component (already in radix) for ingestion progress
-- **Access status banner:** Conditional banner using existing `Alert` pattern when user lacks AtlusAI access
-
-**Existing Radix components already installed that the Discovery UI will use:**
-- `@radix-ui/react-tabs` (^1.1.13) -- browse/search toggle
-- `@radix-ui/react-dialog` (^1.1.15) -- ingestion confirmation
-- `@radix-ui/react-progress` (^1.1.8) -- ingestion progress bar
-- `@radix-ui/react-alert-dialog` (^1.1.15) -- destructive action confirmations
-
-### 5. Environment Variables
-
-| Variable | Where | Purpose | Notes |
-|----------|-------|---------|-------|
-| `ATLUS_API_TOKEN` | `apps/agent/.env` | Fallback AtlusAI API token when pool is empty | Optional. Pool-first, env-fallback. Same pattern as service account fallback for Google APIs. |
-
-**No new env vars for encryption.** Reuse `GOOGLE_TOKEN_ENCRYPTION_KEY` for AtlusAI token encryption.
+---
 
 ## Installation
 
 ```bash
-# Ensure @mastra/mcp is actually installed (it's in package.json but missing from node_modules)
-pnpm install
+# No new packages to install. Zero changes to package.json.
+# All features use existing dependencies.
 
-# That's it. No new dependencies to add.
+# Only action: run migrations for new schema columns
+cd apps/agent
+pnpm exec prisma migrate dev --name add-slide-description-element-map
+pnpm exec prisma migrate dev --name add-template-classification
+pnpm exec prisma migrate dev --name add-discovery-thumbnail-cache
+
+# Optional: add ScrollArea shadcn component if not already generated
+cd apps/web
+npx shadcn@latest add scroll-area
 ```
 
-**Zero new npm packages need to be added.** The only action is running `pnpm install` to ensure `@mastra/mcp@1.0.2` is actually installed in `node_modules` (it is declared in `package.json` but was never installed).
+---
 
-## Alternatives Considered
+## Integration Points with Existing Code
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| `@mastra/mcp` MCPClient | Raw `fetch()` to SSE endpoint | Never. The MCPClient handles SSE connection management, reconnection, message parsing, and tool invocation. Raw fetch requires reimplementing all of this. |
-| `@mastra/mcp` MCPClient | `@modelcontextprotocol/sdk` (official MCP SDK) | Only if Mastra MCPClient has a blocking bug. The official SDK is lower-level and requires more boilerplate. `@mastra/mcp` wraps it with ergonomic APIs. |
-| Reuse `token-encryption.ts` | Separate encryption module for AtlusAI tokens | Only if security policy mandates separate encryption keys per service. Same AES-256-GCM, same key length, same crypto -- no reason to duplicate. |
-| `UserAtlusToken` Prisma model | JSON column on existing `UserGoogleToken` | Never. Separate models keep concerns clean. A user may have Google tokens but no AtlusAI token, or vice versa. |
-| Existing shadcn/ui components | New UI library (e.g., Mantine, Chakra) | Never. Adding a second component library to a project is always wrong. |
-| Single `GOOGLE_TOKEN_ENCRYPTION_KEY` | Separate `ATLUS_TOKEN_ENCRYPTION_KEY` | Only if compliance requires key separation per external service. Adds operational complexity. |
-| Drive API fallback retained temporarily | Immediate Drive API removal | Keep Drive fallback behind a feature flag during v1.4. Remove in v1.5 once MCP path is proven stable. |
+### Element Map Extraction
+- **Modify:** `apps/agent/src/lib/slide-extractor.ts` -- extend `ExtractedSlide` interface and `extractSlidesFromPresentation()` to parse `pageElements` fully
+- **Modify:** `apps/agent/src/ingestion/ingest-template.ts` -- pass element map to DB storage
+- **Data source:** Same `presentations.get` response already fetched (line 151) -- zero additional API calls
 
-## What NOT to Use
+### Discovery Document Thumbnails
+- **Modify:** `apps/agent/src/mastra/index.ts` -- discovery enrichment routes to include `thumbnailLink` in Drive API field selectors
+- **Reuse:** `apps/agent/src/lib/gcs-thumbnails.ts` -- `uploadThumbnailToGCS()` for caching
+- **Modify:** `apps/web/src/app/(authenticated)/discovery/discovery-client.tsx` -- render thumbnails in document cards
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| Raw `fetch()` for MCP SSE connection | The SSE protocol requires message parsing, connection management, and reconnection logic. Raw fetch is error-prone and incomplete. | `@mastra/mcp` MCPClient |
-| `EventSource` browser API | Not available in Node.js without polyfills. MCPClient handles SSE internally. | `@mastra/mcp` MCPClient |
-| `@mastra/mcp` versions newer than lockfile | The project locks 1.0.2. Jumping to a newer version without testing risks breaking changes. | `@mastra/mcp@1.0.2` (from lockfile) |
-| Prisma 7.x | Known regression with `Unsupported("vector")` columns (prisma/prisma#28867). Still applies. | Prisma 6.19.x |
-| `prisma db push` | Prohibited by CLAUDE.md rules | `prisma migrate dev --name <name>` |
-| WebSocket for Discovery UI | The browse/search pattern is request-response, not real-time streaming. Server Actions + REST is sufficient. | Next.js Server Actions + REST API |
-| Global MCPClient singleton | MCP connections carry auth context. A singleton with one user's token would leak access to other users' requests. | Per-request or pooled MCPClient with token injection |
-| Storing AtlusAI tokens in plaintext | Violates the encryption-at-rest pattern established in v1.3 for Google tokens. | AES-256-GCM encryption via existing `token-encryption.ts` |
+### Optimistic Ingest UI
+- **Modify:** `apps/web/src/components/template-card.tsx` -- wrap ingest action with `useOptimistic`
+- **Modify:** `apps/web/src/app/(authenticated)/discovery/discovery-client.tsx` -- replace manual `itemStatuses` Map with `useOptimistic`
+
+### Ingestion Status Consistency
+- **Modify:** Discovery client to poll same agent endpoint as Templates page
+- **Key insight:** Agent already exposes ingestion progress per template. Discovery page currently tracks its own state via `itemStatuses` Map -- must switch to polling the canonical source
+
+### AI Chat for Deck Structures
+- **New:** `apps/agent/src/mastra/routes/` -- new Hono route for deck structure chat
+- **New:** `apps/web/src/components/deck-structure-chat.tsx` -- chat UI component
+- **New:** `apps/web/src/app/(authenticated)/settings/` -- Settings page with deck structures
+
+### Rich Slide Descriptions
+- **Modify:** `apps/agent/src/ingestion/ingest-template.ts` -- add LLM description generation step
+- **Input:** Slide text + speaker notes + element map + classification context
+- **Output:** 2-3 sentence description stored in `SlideEmbedding.description`
+
+---
 
 ## Version Compatibility
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `@mastra/mcp` 1.0.2 | `@mastra/core` ^1.8.0, Node 22 | Requires Node >= 22.13.0 per `engines` field. Project uses Node 22 -- compatible. |
-| `@mastra/mcp` 1.0.2 | MCP Protocol 2024-11-05 (SSE) and 2025-03-26 (Streamable HTTP) | Tries Streamable HTTP first, falls back to SSE. AtlusAI endpoint is likely SSE-only. |
-| `@mastra/mcp` 1.0.2 | `pnpm` lockfile | Already resolved in `pnpm-lock.yaml`. Run `pnpm install` to populate `node_modules`. |
-| Prisma 6.19.x | New `UserAtlusToken` model | Standard model with String/DateTime/Boolean fields. No vector columns. Safe to add via migration. |
-| `token-encryption.ts` | AES-256-GCM (Node.js built-in crypto) | No version dependency. Works with any Node.js 16+. |
-| shadcn/ui components | Next.js 15, React 19, Radix UI | All Discovery UI components already installed and validated. |
+| Package | Version | Compatible | Notes |
+|---------|---------|------------|-------|
+| `googleapis` | 144.0.0 | YES | Slides API v1 and Drive API v3 both stable; element map fields have been available since API launch |
+| `react` | 19.0.0 | YES | `useOptimistic` is stable in React 19 (not experimental) |
+| `prisma` | 6.3.1+ | YES | New `String?` columns are trivial migrations. Stay on 6.19.x (Prisma 7.x has vector regression #28867) |
+| `@radix-ui/react-scroll-area` | latest | YES | Compatible with React 19, already in Radix ecosystem used by project |
+| shadcn/ui | latest | YES | All needed components either installed or available via CLI |
 
-## Migration Strategy
-
-```bash
-# 1. Add UserAtlusToken table
-pnpm --filter agent exec prisma migrate dev --name add-user-atlus-token
-
-# No other schema changes needed for v1.4.
-# ActionRequired model already supports new actionType strings without migration.
-```
-
-## Key Integration Points
-
-### Replacing `atlusai-search.ts` Drive Fallback
-
-The current search flow is:
-```
-slide-selection.ts -> atlusai-search.ts -> Drive API files.list(fullText contains)
-```
-
-The v1.4 target flow is:
-```
-slide-selection.ts -> atlusai-mcp-search.ts -> @mastra/mcp MCPClient -> AtlusAI SSE endpoint
-```
-
-**Files to modify:**
-- `apps/agent/src/lib/atlusai-search.ts` -- Replace Drive API calls with MCPClient tool invocations
-- `apps/agent/src/lib/slide-selection.ts` -- No changes needed (it calls `searchSlides` which is the interface)
-- `apps/agent/src/lib/atlusai-client.ts` -- Refactor to use MCPClient instead of raw fetch for discovery
-
-**Consumers of `atlusai-search.ts` (5 files):**
-1. `apps/agent/src/lib/slide-selection.ts` -- Touch 2/3 slide selection
-2. `apps/agent/src/lib/proposal-assembly.ts` -- Touch 4 proposal assembly
-3. `apps/agent/src/mastra/workflows/pre-call-workflow.ts` -- Pre-call briefing
-4. `apps/agent/src/mastra/workflows/touch-4-workflow.ts` -- Touch 4 workflow
-5. `apps/agent/src/scripts/verify-rag-quality.ts` -- RAG quality verification
-
-All five import `searchSlides` or `searchForProposal` from `atlusai-search.ts`. The interface stays the same -- only the implementation changes from Drive API to MCP.
-
-### Discovery UI Route Structure
-
-```
-apps/web/src/app/(authenticated)/discovery/
-  page.tsx          -- Main Discovery page with tabs
-  loading.tsx       -- Loading skeleton
-  actions.ts        -- Server Actions for search/browse/ingest
-```
-
-This follows the existing route pattern (e.g., `/templates`, `/slides`, `/actions`).
-
-## Open Questions
-
-1. **AtlusAI SSE endpoint authentication mechanism**
-   - What we know: Returns 401 without auth. Claude Code connects via `.mcp.json` config with no visible credentials (internal MCP layer handles auth).
-   - What's unclear: Does it use Bearer tokens? API keys? OAuth? What header name?
-   - Impact: BLOCKING for MCPClient configuration. The code pattern above assumes Bearer token auth.
-   - Recommendation: First task of v1.4 Phase 1 must be auth discovery. Try: (a) check if Claude Code stores credentials in `~/.claude/` config, (b) contact AtlusAI team for API documentation, (c) attempt MCPClient connection with various auth header formats.
-   - Confidence: LOW -- the auth mechanism is inferred, not verified.
-
-2. **AtlusAI token acquisition flow**
-   - What we know: Users need AtlusAI accounts. Tokens need to be stored.
-   - What's unclear: How users obtain AtlusAI tokens. Is there an OAuth flow? Do users paste API keys from an AtlusAI dashboard? Are tokens per-user or per-project?
-   - Recommendation: Design the `UserAtlusToken` model to be flexible (encrypted blob). The web UI should have a simple "Enter your AtlusAI token" form until the acquisition flow is clarified.
-   - Confidence: LOW
-
-3. **MCP tool response format**
-   - What we know: Three tools exist (semantic search, structured search, discover_documents). They are read-only.
-   - What's unclear: The exact response schema of each tool. What fields come back from `knowledge_base_search_semantic`? Does it return relevance scores? Document IDs? Full text?
-   - Recommendation: Phase 1 must include tool discovery via `client.listTools()` and sample invocations to map response schemas.
-   - Confidence: MEDIUM (tool names are known from `.claude/settings.local.json`)
+---
 
 ## Sources
 
 ### HIGH Confidence
-- [Mastra MCPClient Reference](https://mastra.ai/reference/tools/mcp-client) -- Constructor API, SSE auth configuration with requestInit + eventSourceInit, transport fallback behavior, listTools() method
-- [@mastra/mcp npm](https://www.npmjs.com/package/@mastra/mcp) -- Version 1.0.2 confirmed as latest
-- [Mastra MCP Overview](https://mastra.ai/docs/tools-mcp/mcp-overview) -- Transport auto-detection (Streamable HTTP -> SSE fallback)
-- Existing codebase: `apps/agent/package.json` declares `@mastra/mcp: ^1.0.2`, `pnpm-lock.yaml` resolves to 1.0.2
-- Existing codebase: `apps/agent/src/lib/token-encryption.ts` -- AES-256-GCM encryption pattern
-- Existing codebase: `apps/agent/src/lib/google-auth.ts` -- Token pool pattern with `getPooledGoogleAuth()`
-- Existing codebase: `apps/agent/prisma/schema.prisma` -- `UserGoogleToken` model structure, `ActionRequired` model
-- Existing codebase: `apps/agent/src/lib/atlusai-search.ts` -- Drive API fallback implementation and `SlideSearchResult` interface
-- Existing codebase: `.mcp.json` -- AtlusAI SSE endpoint URL configuration
+- [Google Slides API -- Page Elements](https://developers.google.com/workspace/slides/api/concepts/page-elements) -- 8 element types, properties per type
+- [Google Slides API -- Pages Resource REST Reference](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations.pages) -- full response schema
+- [Google Drive API -- File Metadata](https://developers.google.com/workspace/drive/api/guides/file-metadata) -- thumbnailLink, hasThumbnail, iconLink fields
+- [React 19 useOptimistic](https://react.dev/reference/react/useOptimistic) -- official hook documentation
+- Existing codebase: `slide-extractor.ts` (lines 58-183), `gcs-thumbnails.ts`, `api-client.ts`, `discovery-client.tsx`, `actions-client.tsx`
 
 ### MEDIUM Confidence
-- [MCP SSE Transport Auth](https://mcp-framework.com/docs/Transports/sse/) -- SSE transport auth patterns with custom headers
-- [MCP Protocol Transports](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports) -- SSE transport specification (2024-11-05)
-- Existing codebase: `.claude/settings.local.json` -- Three whitelisted AtlusAI MCP tools (knowledge_base_search_semantic, knowledge_base_search_structured, discover_documents)
-- Existing codebase: `apps/agent/src/lib/atlusai-client.ts` -- 401 response from SSE endpoint, known tool schemas
-
-### LOW Confidence
-- AtlusAI SSE endpoint auth mechanism -- No public documentation found. Inferred from 401 response and Claude Code's internal MCP connection. Needs validation.
-- AtlusAI token acquisition flow -- No documentation on how users obtain tokens. Needs clarification from AtlusAI team.
-- MCP tool response schemas -- Tool names are known but response formats are not documented outside of Claude Code's MCP layer.
+- [Google Drive thumbnailLink 404 issues](https://issuetracker.google.com/issues/229184403) -- known instability with short-lived thumbnail URLs; reinforces GCS caching approach
+- [shadcn/ui AI Components](https://www.shadcn.io/ai) -- evaluated and rejected for this project's architecture
+- [Vercel AI Elements](https://github.com/vercel/ai-elements) -- evaluated and rejected due to Mastra architecture incompatibility
 
 ---
-*Stack research for: Lumenalta v1.4 AtlusAI Authentication & Discovery*
-*Researched: 2026-03-06*
+*Stack research for: Lumenalta v1.5 Review Polish & Deck Intelligence*
+*Researched: 2026-03-07*

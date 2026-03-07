@@ -1,211 +1,542 @@
-# Architecture Research: v1.4 AtlusAI Authentication & Discovery
+# Architecture Patterns
 
-**Domain:** AtlusAI token pool auth, Mastra MCP client integration, Drive fallback replacement, Action Required extension, Discovery UI
-**Researched:** 2026-03-06
-**Confidence:** HIGH (based on existing codebase analysis and v1.3 patterns)
+**Domain:** v1.5 Review Polish & Deck Intelligence -- integration architecture for 7 features into existing AtlusAI sales platform
+**Researched:** 2026-03-07
+**Confidence:** HIGH (based on deep codebase analysis of all relevant source files)
 
----
+## Existing Architecture Summary
 
-## Existing Architecture (v1.3 -- What Already Exists)
+Two-app monorepo with clear separation:
 
 ```
-lumenalta-hackathon/
-  apps/
-    web/                          # Next.js 15 on Vercel
-      src/app/(authenticated)/    # Route group: deals, templates, slides, actions
-      src/lib/api-client.ts       # ALL web->agent HTTP (Bearer auth)
-      src/lib/actions/            # Server Actions proxying to agent
-      src/components/             # sidebar.tsx, user-nav.tsx, ui/
-    agent/                        # Mastra Hono on Railway (Docker)
-      src/mastra/index.ts         # Mastra init + all API routes
-      src/mastra/workflows/       # touch-1..4, pre-call, slide-ingest
-      src/lib/google-auth.ts      # Dual-mode auth + token pool
-      src/lib/token-encryption.ts # AES-256-GCM encrypt/decrypt
-      src/lib/atlusai-client.ts   # SSE discovery (401s) + Drive ingestion
-      src/lib/atlusai-search.ts   # Drive API fallback search
-      prisma/schema.prisma        # PostgreSQL, UserGoogleToken, ActionRequired, etc.
-  packages/schemas/               # Shared Zod types + constants
+apps/web (Next.js 15, Vercel)          apps/agent (Mastra Hono, Railway)
+  - Server Components + Server Actions    - REST API routes (registerApiRoute)
+  - Supabase Auth (Google OAuth)          - Prisma + PostgreSQL + pgvector
+  - api-client.ts (typed fetch wrapper)   - Google Workspace APIs
+  - shadcn/ui components                  - Gemini 2.0 Flash (classification)
+  - Sonner toasts                         - Vertex AI text-embedding-005
+  - NavProgress (global)                  - Mastra workflows (HITL)
+  - loading.tsx skeletons (all routes)    - IngestionQueue (sequential, singleton)
+                                          - GCS thumbnail cache
+                                          - MCP client (AtlusAI)
 ```
+
+Communication: `fetchJSON` / `fetchWithGoogleAuth` in api-client.ts. Service auth via `Authorization: Bearer` API key. Google auth passthrough via `X-Google-Access-Token` header.
+
+State sync: Polling-based. TemplateCard polls `GET /templates/:id/progress` every 2s during ingestion. DiscoveryClient polls `GET /discovery/ingest/:batchId/progress` every 2s.
 
 **Critical invariants:**
 - Web has ZERO direct database access -- all data flows through api-client.ts to agent
-- Agent owns database via Prisma
-- MCPClient must live on agent (Railway) -- Vercel serverless kills SSE connections
-- Token encryption uses shared AES-256-GCM pattern via token-encryption.ts
-- ActionRequired items surface in sidebar badge count via /api/actions/count
+- Agent owns database via Prisma; only vector operations use raw SQL
+- MCP client lives on agent only (Railway long-running vs Vercel serverless)
+- Ingestion queue is sequential and in-memory (single agent instance)
 
 ---
 
-## v1.4 Integration Architecture
+## Feature Integration Map
+
+### Feature 1: Discovery Document Card Thumbnails
+
+**What changes:** Discovery cards currently show text-only (title + textContent preview). Need thumbnails for Google Slides documents and file-type icons for non-Slides documents.
+
+**Integration point:** The DiscoveryDocCache model already caches Drive metadata per AtlusAI document. The existing `enrichDocsWithDriveMetadata()` in browse/search endpoints already calls `drive.files.get` per document. Extend the `fields` parameter to include `thumbnailLink,hasThumbnail,iconLink`.
+
+**Architecture decision:** Reuse the existing GCS thumbnail caching pattern from `gcs-thumbnails.ts`. Drive `thumbnailLink` URLs are short-lived and CORS-blocked -- they MUST be fetched server-side and cached to GCS.
 
 ```
-                          EXISTING                           NEW (v1.4)
-                +--------------------------+      +---------------------------+
-                |       apps/web           |      |    apps/web additions     |
-                |  (Next.js 15 / Vercel)   |      |                           |
-                |                          |      |  /discovery (browse+search)|
-                |  /deals (existing)       |      |  AtlusAI sidebar nav item  |
-                |  /templates (existing)   |      |  New action type icons     |
-                |  /slides (existing)      |      |  AtlusAI token setup form  |
-                |  /actions (existing)     |      |                            |
-                +-----------+--------------+      +------------+--------------+
-                            |  Bearer Auth                      |
-                            v                                   v
-                +--------------------------+      +---------------------------+
-                |       apps/agent         |      |   apps/agent additions    |
-                |  (Mastra Hono / Railway) |      |                           |
-                |                          |      |  atlusai-mcp-client.ts    |
-                |  google-auth.ts          |      |  atlusai-auth.ts (pool)   |
-                |  token-encryption.ts     |      |  /atlus/search routes     |
-                |  atlusai-search.ts       |      |  /atlus/discover routes   |
-                |  atlusai-client.ts       |      |  /atlus/token routes      |
-                +-----------+--------------+      +------------+--------------+
-                            |                                  |
-                            v                                  v
-                +----------------------------------------------------------+
-                |                 Supabase PostgreSQL                       |
-                |  UserGoogleToken (existing)  | UserAtlusToken [NEW]      |
-                |  ActionRequired  (existing)  | + new actionType values   |
-                +----------------------------------------------------------+
-                                                               |
-                                               +---------------v-----------+
-                                               |   AtlusAI MCP Server       |
-                                               |   SSE endpoint at          |
-                                               |   knowledge-base-api       |
-                                               |   .lumenalta.com/sse       |
-                                               |                            |
-                                               |   Tools:                   |
-                                               |   - search_semantic        |
-                                               |   - search_structured      |
-                                               |   - discover_documents     |
-                                               +----------------------------+
+Drive API files.get (MODIFIED fields)
+  |-- hasThumbnail=true --> fetch thumbnailLink server-side
+  |                          --> uploadThumbnailToGCS() (EXISTING)
+  |                          --> store in DiscoveryDocCache.thumbnailUrl
+  |-- hasThumbnail=false --> Client uses mimeType to select lucide-react icon
 ```
+
+**New/Modified components:**
+
+| Layer | File | Change |
+|-------|------|--------|
+| Agent | `mastra/index.ts` (browse/search) | Add thumbnailUrl to enriched doc response; expand Drive fields |
+| Agent | `lib/gcs-thumbnails.ts` | Add `cacheDiscoveryThumbnail(driveFileId, thumbnailLink)` helper |
+| Agent | `prisma/schema.prisma` | Add `thumbnailUrl String?` to DiscoveryDocCache |
+| Web | `api-client.ts` | Add `thumbnailUrl` to DiscoveryDocument interface |
+| Web | `discovery-client.tsx` | Render `<img>` from GCS URL or file-type icon fallback |
+
+**No new Prisma model.** One migration: ADD COLUMN.
+
+### Feature 2: Consistent Ingestion Status Across Pages
+
+**What changes:** Discovery and Templates pages each maintain independent ingestion state. Navigate between them and status resets.
+
+**Root cause analysis:**
+- Discovery page: tracks `itemStatuses` Map in React state. Lost on unmount/remount.
+- Templates page: fetches fresh `listTemplatesAction()` on mount, reads `ingestionStatus` from Template model.
+- Template model IS the source of truth (stores `ingestionStatus`, `ingestionProgress`).
+- Discovery page does NOT read Template model status. It only tracks its own client-side state.
+
+**Architecture decision: Polling with server-side source of truth.** NOT SSE, NOT shared client state.
+
+Rationale:
+- SSE adds deployment complexity (Railway sticky sessions needed). Overkill for ~20 users.
+- React Context at layout level couples unrelated pages and is lost on refresh anyway.
+- The Template model already stores ingestion state. Discovery just needs to read it.
+
+**Specific approach:**
+1. On mount, DiscoveryClient fetches `GET /templates?status=ingesting` to get currently-ingesting template presentationIds.
+2. Cross-reference with document list to seed initial statuses.
+3. After triggering ingestion, poll `GET /templates/:id/progress` (same endpoint TemplateCard uses).
+
+| Layer | File | Change |
+|-------|------|--------|
+| Agent | `mastra/index.ts` | Add optional `?status=ingesting` filter to GET /templates |
+| Web | `discovery-client.tsx` | Mount-time check for ingesting templates; poll Template progress endpoint |
+
+**No new models.** Template.ingestionStatus is the single source of truth for both pages.
+
+### Feature 3: Immediate Feedback on Ingest Click (Optimistic UI)
+
+**What changes:** Delay between click and visual feedback on Discovery page.
+
+**Analysis of current code:** `handleBatchIngest()` already sets `itemStatuses.set(doc.slideId, "pending")` BEFORE awaiting the server action. The toast ("Ingestion complete") only fires on polling completion. The gap is:
+1. No immediate toast when ingest is triggered.
+2. The `await startDiscoveryIngestionAction(enrichedItems)` blocks before `startPolling(batchId)`.
+
+**Architecture decision:** Optimistic state is already partially implemented. Complete it:
+1. Add immediate toast: `toast.info("Queuing N items for ingestion...")` before the await.
+2. The existing optimistic state setting is correct -- status updates to "pending" before the server call.
+3. If the server call fails, the existing catch block already reverts status.
+
+**Alternatively, use React 19 `useOptimistic`** for a cleaner pattern (already used in `actions-client.tsx`). However, given the complexity of the Map-based status tracking, the current pattern with an immediate toast is simpler and sufficient.
+
+| Layer | File | Change |
+|-------|------|--------|
+| Web | `discovery-client.tsx` | Add immediate toast on ingest click |
+
+**No backend changes.** Pure client-side UX.
+
+### Feature 4: Rich AI-Generated Slide Descriptions
+
+**What changes:** During ingestion, generate a 1-3 sentence description per slide alongside classification.
+
+**Architecture decision: Add `description` column to SlideEmbedding. Generate in the SAME Gemini call as classification.**
+
+Rationale:
+- Description is a first-class display field (shown in slide viewer, search results).
+- Adding to `classificationJson` would couple display data with classification and require JSON parsing everywhere.
+- Dedicated column enables `SELECT description` without JSON parsing, consistent with `contentText` and `speakerNotes`.
+- Same Gemini 2.0 Flash call already processes each slide -- add `description` to the response schema. Zero additional API cost.
+
+**Generation approach:** Add to the Gemini response schema in `classify-metadata.ts`:
+```javascript
+description: {
+  type: Type.STRING,
+  description: "A 1-3 sentence description of this slide's content and purpose within the deck."
+}
+```
+
+Add to the classification prompt:
+```
+9. Write a 1-3 sentence description of what this slide communicates and how it fits in the deck context.
+```
+
+| Layer | File | Change |
+|-------|------|--------|
+| Agent | `prisma/schema.prisma` | Add `description String?` to SlideEmbedding |
+| Agent | `ingestion/classify-metadata.ts` | Add `description` to LLM_RESPONSE_SCHEMA and prompt |
+| Agent | `ingestion/ingest-template.ts` | Store description in INSERT/UPDATE raw SQL |
+| Agent | `mastra/index.ts` | Include description in GET /templates/:id/slides response |
+| Web | `api-client.ts` | Add `description` to SlideData interface |
+| Web | `slide-viewer-client.tsx` | Display description below slide thumbnail |
+| Schemas | `llm/slide-metadata.ts` | Add optional `description: z.string().optional()` |
+
+**One migration:** ADD COLUMN.
+
+### Feature 5: Structured Element Map via Google Slides API
+
+**This is the biggest architectural decision in v1.5.**
+
+**What changes:** Extract structural composition of each slide (text boxes, images, tables, shapes, groups) as a typed element map.
+
+#### Data Model: JSON Column vs New Model
+
+**Decision: JSON column (`elementMap Json?`) on SlideEmbedding.**
+
+Rationale:
+- Element map is 1:1 with a slide -- no independent querying needed.
+- Always read as a unit (never "find all slides with a table element").
+- Separate model adds JOINs for zero benefit.
+- Data is structured but variable per slide. JSON is the natural fit.
+- Prisma handles `Json` type natively (unlike vector, which needs raw SQL).
+
+#### Element Map Shape (Zod schema in packages/schemas)
+
+```typescript
+interface SlideElementMap {
+  width: number;   // Slide width in EMU
+  height: number;  // Slide height in EMU
+  elements: SlideElement[];
+}
+
+interface SlideElement {
+  objectId: string;
+  type: "text_box" | "image" | "table" | "shape" | "group" | "video" | "line";
+  position: { x: number; y: number; width: number; height: number }; // EMU
+  textContent?: string;       // For text_box, shape
+  imageUrl?: string;          // For image elements
+  tableSize?: { rows: number; cols: number };
+  placeholderType?: string;   // "TITLE", "SUBTITLE", "BODY", etc.
+  children?: SlideElement[];  // For groups
+}
+```
+
+#### Extraction Point
+
+**Zero additional API calls.** `extractSlidesFromPresentation()` in `slide-extractor.ts` already calls `presentations.get` which returns full `pageElements` with positions, types, and properties. Currently only text is extracted via `extractTextFromPageElements()`. Extend to also build the element map from the same response.
+
+The existing code already handles shapes, tables, and groups (for text extraction). The element map extraction reuses these traversals and adds position/type data.
+
+| Layer | File | Change |
+|-------|------|--------|
+| Agent | `prisma/schema.prisma` | Add `elementMap Json?` to SlideEmbedding |
+| Agent | `lib/slide-extractor.ts` | Add `elementMap` to ExtractedSlide interface; build from pageElements |
+| Agent | `ingestion/ingest-template.ts` | Store elementMap as JSON in INSERT/UPDATE SQL |
+| Agent | `mastra/index.ts` | Include elementMap in GET /templates/:id/slides response |
+| Web | `api-client.ts` | Add `elementMap` to SlideData interface |
+| Web | `slide-viewer-client.tsx` | Render element map summary (element count, types) |
+| Schemas | New `slide-element-map.ts` | Zod schema for SlideElementMap |
+
+**One migration:** ADD COLUMN (JSONB).
+
+### Feature 6: Template vs Example Classification with Touch Binding
+
+**What changes:** Distinguish between templates (reusable deck structures) and examples (real client decks). Bind examples to specific touch types.
+
+**Architecture decision: Add two columns to Template model.**
+
+```prisma
+contentRole    String   @default("template") // "template" | "example"
+```
+
+Note: `touchTypes` already exists as a JSON array on Template. For examples, this field gets populated with the specific touch type(s) the example deck represents.
+
+Rationale:
+- Template model is where the operational data lives (not ContentSource, which is a discovery tracking table).
+- `contentRole` (not `contentType`) to avoid confusion with the existing `contentType` field on SlideEmbedding classification.
+- Default `"template"` preserves backward compatibility with existing data.
+
+**How classification affects deck assembly:**
+- Templates: used as structural patterns (copy-and-prune approach)
+- Examples: used as content patterns (AI learns from real decks what content goes where)
+- The deck structure inference (Feature 7) queries examples grouped by touch type.
+
+| Layer | File | Change |
+|-------|------|--------|
+| Agent | `prisma/schema.prisma` | Add `contentRole String @default("template")` to Template |
+| Agent | `mastra/index.ts` | Accept/return contentRole in template CRUD routes |
+| Web | `api-client.ts` | Add `contentRole` to Template interface |
+| Web | `templates-page-client.tsx` | Add filter tabs: All / Templates / Examples |
+| Web | `template-card.tsx` | Show contentRole badge, dropdown to change |
+| Web | `discovery-client.tsx` | Allow setting contentRole when ingesting from Discovery |
+| Schemas | `constants.ts` | Add `CONTENT_ROLES = ["template", "example"] as const` |
+
+**One migration:** ADD COLUMN with default.
+
+### Feature 7: Settings Page with Deck Structures + AI Chat
+
+**Two architectural decisions here: data model and chat approach.**
+
+#### Route Structure
+
+```
+apps/web/src/app/(authenticated)/settings/
+  page.tsx              -- Server component, fetches deck structures
+  settings-client.tsx   -- Client component with touch-type tabs
+  loading.tsx           -- Skeleton
+```
+
+Fits the existing `(authenticated)` layout pattern. Add `{ href: "/settings", label: "Settings", icon: Settings }` to `navItems` in `sidebar.tsx`.
+
+#### Deck Structure Data Model
+
+**New Prisma model: `DeckStructure`.**
+
+```prisma
+model DeckStructure {
+  id          String   @id @default(cuid())
+  touchType   String   @unique // "touch_1" | "touch_2" | "touch_3" | "touch_4"
+  name        String   // "First Contact Pager" | "Intro Deck" | etc.
+  sections    String   // JSON array of DeckSection objects
+  createdBy   String?  // User ID who last modified
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([touchType])
+}
+```
+
+Rationale for NEW model (not extending Template):
+- Deck structures are per-touch-type (one structure for ALL Touch 2 decks).
+- Templates are individual Google Slides files.
+- 1:1 relationship between touch type and deck structure (@@unique on touchType).
+- Separate model avoids coupling template CRUD with structure management.
+
+Sections JSON shape:
+```typescript
+interface DeckSection {
+  name: string;           // "Title Slide", "About Us", "Industry Focus"
+  description: string;    // Purpose description
+  required: boolean;      // Must appear in every deck of this type?
+  order: number;          // Assembly order
+  slideCategory?: string; // Maps to SLIDE_CATEGORIES for auto-matching
+}
+```
+
+#### AI Chat Architecture
+
+**Where it runs: Agent side, as a simple Hono route. NOT a Mastra workflow.**
+
+Rationale:
+- Stateless request/response. No HITL checkpoints, no suspend/resume.
+- Deck structure refinement is a single LLM call, not a multi-step pipeline.
+- Mastra workflows are overkill here.
+
+**Why NOT streaming:** Responses are structured JSON (deck outline, 10-20 sections). Entire response must be valid JSON to update the structure. Streaming partial JSON adds complexity for zero UX benefit (responses complete in <3s).
+
+```
+POST /settings/deck-structures/:touchType/refine
+  Body: { message: string, currentSections: DeckSection[] }
+  Response: { sections: DeckSection[], explanation: string }
+```
+
+The LLM call uses GPT-OSS 120b via Mastra's `generate()` with:
+- System prompt: Lumenalta deck structure expert context
+- Current sections as structured context
+- User message as the refinement request
+- Response schema enforcing DeckSection[] output
+
+| Layer | File | Change |
+|-------|------|--------|
+| Agent | `prisma/schema.prisma` | New DeckStructure model |
+| Agent | `mastra/index.ts` | CRUD routes + refine endpoint |
+| Web | `sidebar.tsx` | Add Settings nav item |
+| Web | `settings/page.tsx` | Server component |
+| Web | `settings/settings-client.tsx` | Client with touch-type tabs + section editor + chat |
+| Web | `settings/loading.tsx` | Skeleton |
+| Web | `api-client.ts` | DeckStructure types + API functions |
+| Web | `lib/actions/settings-actions.ts` | Server actions |
+| Schemas | New `deck-structure.ts` | Zod schema for DeckSection |
+
+**One migration** (CREATE TABLE).
 
 ---
 
-## New Components
+## Complete Schema Changes Summary
 
-| Component | Responsibility | Location |
-|-----------|---------------|----------|
-| **UserAtlusToken model** | Encrypted AtlusAI credential storage | `schema.prisma` (new model, mirrors UserGoogleToken) |
-| **atlusai-auth.ts** | Token pool rotation for AtlusAI, 3-tier access detection | `apps/agent/src/lib/atlusai-auth.ts` |
-| **atlusai-mcp-client.ts** | MCPClient singleton wrapper with reconnect + health check | `apps/agent/src/lib/atlusai-mcp-client.ts` |
-| **AtlusAI agent routes** | Search, discover, token management API endpoints | `apps/agent/src/mastra/index.ts` (new registerApiRoute blocks) |
-| **Discovery page** | Browse + search + selective ingestion UI | `apps/web/src/app/(authenticated)/discovery/` |
-| **AtlusAI token setup** | Form for users to provide AtlusAI credentials | `apps/web/src/app/(authenticated)/discovery/` or settings |
+### New Models
 
-## Modified Components
+| Model | Purpose | Columns |
+|-------|---------|---------|
+| DeckStructure | Per-touch deck section ordering | id, touchType (unique), name, sections (JSON), createdBy, timestamps |
 
-| Component | Change | Why |
-|-----------|--------|-----|
-| `atlusai-search.ts` | Replace Drive API internals of `searchSlides()` with MCP calls; keep public API | Core v1.4 deliverable |
-| `sidebar.tsx` | Add Discovery nav item (line 25-30 navItems array) | Discovery page needs sidebar entry |
-| `actions-client.tsx` | Add icon cases for `atlus_account_required`, `atlus_project_required` (line 8-18 switch) | New action types need visual identity |
-| `schema.prisma` | Add UserAtlusToken model | Credential storage |
-| `packages/schemas` | Add AtlusAI action type constants, shared Zod types | Type safety across apps |
-| `api-client.ts` | Add AtlusAI search/discover/token API functions | Web needs typed wrappers for new agent endpoints |
+### Modified Models
+
+| Model | Column | Type | Default | Purpose |
+|-------|--------|------|---------|---------|
+| SlideEmbedding | `description` | `String?` | null | AI-generated slide description |
+| SlideEmbedding | `elementMap` | `Json?` | null | Structural element map from Slides API |
+| Template | `contentRole` | `String` | `"template"` | Template vs Example classification |
+| DiscoveryDocCache | `thumbnailUrl` | `String?` | null | Cached GCS thumbnail URL |
+
+**Total: 5 migrations** (4 ALTER TABLE + 1 CREATE TABLE). All additive, no data loss.
 
 ---
 
-## Data Flow
+## Complete API Routes Summary
 
-### AtlusAI Token Capture Flow
-```
-User (web) -> Settings/Discovery page -> "Enter AtlusAI token" form
-  -> Server Action -> POST /atlus/token (agent)
-  -> Agent: encrypt token via token-encryption.ts
-  -> Agent: upsert UserAtlusToken record
-  -> Agent: probe MCP connection with token (3-tier detection)
-  -> Agent: create ActionRequired if tier 1 or 2 failure
-  -> Return access status to web
-```
+### New Routes
 
-### MCP Search Flow (replacing Drive fallback)
-```
-Workflow calls searchSlides({ query, industry, touchType })
-  -> atlusai-search.ts (same public API)
-  -> NEW: getPooledAtlusAuth() from atlusai-auth.ts
-  -> NEW: getAtlusAIMCPClient() from atlusai-mcp-client.ts
-  -> NEW: client.callTool('knowledge_base_search_semantic', { query })
-  -> NEW: adapter maps MCP results -> SlideSearchResult interface
-  -> Callers (touch-1..4, pre-call) unchanged
-  FALLBACK: if MCP fails -> Drive API search (existing code, behind flag)
-```
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/settings/deck-structures` | List all deck structures |
+| GET | `/settings/deck-structures/:touchType` | Get structure for touch type |
+| PUT | `/settings/deck-structures/:touchType` | Create/update structure |
+| POST | `/settings/deck-structures/:touchType/refine` | AI chat refinement |
 
-### Discovery Browse/Search Flow
-```
-User (web) -> /discovery page
-  -> Server Action -> GET /atlus/discover (agent)
-  -> Agent: getAtlusAIMCPClient() -> client.callTool('discover_documents')
-  -> Return document inventory to web
-  -> User sees categorized browse list
+### Modified Routes
 
-User types search query -> Server Action -> POST /atlus/search (agent)
-  -> Agent: MCPClient -> knowledge_base_search_semantic
-  -> Return ranked results with relevance
-  -> User selects items -> POST /atlus/ingest (agent)
-  -> Agent: fetches content, runs through SlideEmbedding pipeline
-```
+| Method | Path | Change |
+|--------|------|--------|
+| GET | `/templates` | Add optional `?status=ingesting` filter |
+| POST | `/templates` | Accept `contentRole` field |
+| PATCH | `/templates/:id` | New: update `contentRole` |
+| GET | `/templates/:id/slides` | Include `description` + `elementMap` in response |
+| GET | `/discovery/browse` | Include `thumbnailUrl` in enriched docs |
+| POST | `/discovery/search` | Include `thumbnailUrl` in enriched docs |
 
 ---
 
-## Key Architecture Decisions
+## Data Flow Changes
 
-| Decision | Rationale |
-|----------|-----------|
-| MCPClient lives ONLY on agent (Railway) | Vercel serverless kills SSE connections; Railway is long-running |
-| Singleton MCPClient with health check wrapper | Avoids 2-5s SSE handshake per request; disconnect+recreate on failure |
-| `fetch` callback for token injection | Fresh token per POST request; SSE connection also gets auth |
-| Adapter pattern for MCP -> SlideSearchResult | Preserves existing interface; zero changes to workflow consumers |
-| Drive fallback retained behind flag | Rollback path if MCP search quality is worse |
-| Separate UserAtlusToken model (not column on UserGoogleToken) | Different auth systems; user may have one without the other |
-| Reuse GOOGLE_TOKEN_ENCRYPTION_KEY | Same AES-256-GCM, same security posture; fewer env vars |
-| useReducer for Discovery UI state | Multi-mode UI (browse/search/ingest) with shared selection state |
-
----
-
-## Build Order (Dependency-Driven)
+### v1.5 Ingestion Flow (additions marked with +)
 
 ```
-1. UserAtlusToken Model + Migration
-   |
-2. Token Encryption Reuse + Pool Rotation (atlusai-auth.ts)
-   |   |
-   |   3. 3-Tier Access Detection + ActionRequired Integration
-   |
-4. MCPClient Singleton Wrapper (atlusai-mcp-client.ts)
-   |   requires pooled auth from step 2
-   |
-5. Replace Drive Fallback (atlusai-search.ts internals)
-   |   requires MCPClient from step 4
-   |   preserves searchSlides/searchForProposal/searchByCapability API
-   |
-6. Agent API Routes (/atlus/search, /atlus/discover, /atlus/token)
-   |   requires steps 2, 4, 5
-   |
-7. Discovery UI (sidebar + browse + search + ingest)
-      requires step 6 for data fetching
+User clicks Ingest
+  -> + Immediate toast ("Queuing N items...")
+  -> + Optimistic "pending" status in UI
+  -> Server Action -> POST /discovery/ingest
+  -> Creates Template record (+ with contentRole)
+  -> Enqueues in IngestionQueue
+  -> IngestionQueue processes:
+     -> extract (+ element map from same presentations.get call)
+     -> classify (+ description from same Gemini call)
+     -> embed -> store (+ description + elementMap columns)
+     -> cache thumbnails (+ discovery thumbnail via GCS)
+  -> Client polls progress every 2s (+ uses Template progress endpoint)
+  -> + On mount, cross-check with ingesting templates for consistency
 ```
 
-**Recommended phase grouping:**
-1. **Phase 27: Auth Foundation** -- UserAtlusToken model, migration, pool rotation, access detection, ActionRequired types
-2. **Phase 28: MCP Integration** -- MCPClient wrapper, Drive fallback replacement, agent API routes
-3. **Phase 29: Discovery UI** -- Sidebar nav, browse page, semantic search, selective ingestion
+### Settings Data Flow
+
+```
+User opens Settings -> Server fetches DeckStructure records (4 max)
+  -> Tabs per touch type -> Edit sections inline (drag to reorder)
+  -> Save: PUT /settings/deck-structures/:touchType
+  -> AI Refine: POST /settings/deck-structures/:touchType/refine
+     -> Agent calls GPT-OSS 120b with current structure + user message
+     -> Returns modified structure + explanation
+  -> User reviews diff, accepts or rejects
+```
 
 ---
 
 ## Anti-Patterns to Avoid
 
-| Anti-Pattern | Why Wrong | Do Instead |
-|--------------|-----------|------------|
-| MCPClient on Vercel (web app) | SSE killed by serverless lifecycle | Agent-side only; web calls agent API |
-| Global MCPClient without `id` param | Memory leak on re-creation | Use `id: 'atlus-ai'` parameter |
-| requestInit headers only (no eventSourceInit) | SSE fallback gets no auth headers | Use `fetch` callback covering all transports |
-| Removing Drive fallback before MCP validated | No rollback path | Feature flag; keep both during v1.4 |
-| Unified token pool abstraction | Google OAuth != AtlusAI auth | Keep pools independent, share patterns not code |
-| Auto-ingesting all AtlusAI content | Pollutes vector space | Selective ingestion with user curation |
+### Anti-Pattern 1: SSE for Ingestion Status
+**What:** Server-Sent Events for real-time ingestion updates.
+**Why bad:** Railway needs sticky sessions for SSE. Connection management and reconnection logic adds complexity. For ~20 users with 2s polling, overhead is unjustified.
+**Instead:** Keep polling. Template model is the source of truth.
+
+### Anti-Pattern 2: Shared React Context for Cross-Page State
+**What:** IngestionContext at layout level to sync status between pages.
+**Why bad:** Couples unrelated pages, lost on refresh anyway, adds layout complexity.
+**Instead:** Server-side source of truth queried on mount.
+
+### Anti-Pattern 3: Separate Element Map Table
+**What:** `SlideElement` model with FK to SlideEmbedding.
+**Why bad:** Element maps are always read as a unit. Separate table adds JOINs for zero queryability benefit.
+**Instead:** `elementMap Json?` column. JSONB in PostgreSQL is efficient.
+
+### Anti-Pattern 4: Two LLM Calls Per Slide
+**What:** Separate Gemini call for classification and description.
+**Why bad:** Doubles API cost and ingestion time (~300ms rate limit per call).
+**Instead:** Add description to existing classification prompt. One call, both outputs.
+
+### Anti-Pattern 5: Mastra Workflow for AI Chat
+**What:** Suspend/resume workflow for settings page chat.
+**Why bad:** Overkill. Workflows are for multi-step, stateful, durable HITL operations.
+**Instead:** Simple POST endpoint with `generate()`.
+
+### Anti-Pattern 6: Multiple presentations.get Calls
+**What:** Calling Slides API separately for text extraction and element map extraction.
+**Why bad:** Google Slides API has strict quotas (60 reads/min). Doubles consumption.
+**Instead:** Extract all data from the single existing `presentations.get` response.
 
 ---
 
-*Architecture research for: v1.4 AtlusAI Authentication & Discovery*
-*Researched: 2026-03-06*
+## Patterns to Follow
+
+### Pattern 1: Extend Existing Extractors
+Existing `presentations.get` call already returns all element data. Parse more of it, do not add new API calls.
+
+### Pattern 2: GCS Cache for External Thumbnails
+Never serve Google-hosted thumbnail URLs directly to browser. Always fetch server-side and cache to GCS. Existing pattern in `gcs-thumbnails.ts`.
+
+### Pattern 3: Column-per-display-field
+Add `description` as a dedicated column, not inside JSON. Consistent with `contentText`, `speakerNotes`.
+
+### Pattern 4: Fire-and-forget with polling
+Return immediately, poll for progress. Established in TemplateCard and DiscoveryClient.
+
+### Pattern 5: Additive migrations only
+Per CLAUDE.md: no resets, forward-only. All changes as nullable columns or new tables.
+
+### Pattern 6: Server-side enrichment
+Enrich API responses on the server (thumbnailUrl, isGoogleSlides). Client stays thin.
+
+---
+
+## Build Order (Dependency-Aware)
+
+```
+Phase 1: Schema + Infrastructure (no UI changes, no functional changes)
+  1.1 Migration: SlideEmbedding.description
+  1.2 Migration: SlideEmbedding.elementMap
+  1.3 Migration: Template.contentRole
+  1.4 Migration: DiscoveryDocCache.thumbnailUrl
+  1.5 Migration: CREATE TABLE DeckStructure
+
+Phase 2: Agent-side extraction enhancements (backend only)
+  2.1 Element map extraction in slide-extractor.ts (depends on 1.2)
+  2.2 Description generation in classify-metadata.ts (depends on 1.1)
+  2.3 Store description + elementMap in ingest-template.ts (depends on 2.1, 2.2)
+
+Phase 3: Agent-side API routes (backend only)
+  3.1 Discovery thumbnail caching + enrichment (depends on 1.4)
+  3.2 Template contentRole in CRUD routes (depends on 1.3)
+  3.3 Slides endpoint with description + elementMap (depends on 2.3)
+  3.4 Ingesting templates filter on GET /templates (no schema dependency)
+  3.5 Deck structure CRUD routes (depends on 1.5)
+  3.6 AI refinement endpoint (depends on 3.5)
+
+Phase 4: Web-side UX improvements (can start in parallel with Phase 2)
+  4.1 Optimistic UI for ingest click (no backend dependency)
+  4.2 Cross-page ingestion status consistency (depends on 3.4)
+  4.3 Discovery thumbnails in card grid (depends on 3.1)
+
+Phase 5: Web-side new features
+  5.1 Rich descriptions in slide viewer (depends on 3.3)
+  5.2 Element map display in slide viewer (depends on 3.3)
+  5.3 Template vs Example filter + classification UI (depends on 3.2)
+  5.4 Settings page with deck structures + AI chat (depends on 3.5, 3.6)
+```
+
+**Critical path:** Phase 1 (migrations) -> Phase 2 (extraction) -> Phase 3 (routes) -> Phase 5 (features).
+
+**Parallelism opportunities:**
+- Phase 4.1 (optimistic UI) can start immediately -- no backend dependency.
+- Phase 5.4 (Settings) is fully independent of Phases 2-3 extraction work.
+- All 5 migrations in Phase 1 are independent and can be created in any order.
+- Phase 3.4 and 3.5 have no dependency on Phase 2.
+
+---
+
+## Scalability Considerations
+
+| Concern | Current (~38 slides, 5 templates) | At 500 slides, 50 templates | At 5000 slides |
+|---------|----------------------------------|----------------------------|----------------|
+| Element map storage | Negligible (<5KB per slide JSONB) | ~2.5MB total | ~25MB. Still fine. |
+| Description generation | +0s per slide (same LLM call) | Same | Same |
+| Ingestion time | ~2min per template | Same per-template | Queue serializes. OK. |
+| Thumbnail caching | Existing GCS infra | ~500 GCS objects | ~5000. GCS scales infinitely. |
+| Polling load | 1 user * 2s = negligible | 5 concurrent = 2.5 req/s | Consider SSE at this point. |
+
+---
+
+## Sources
+
+- Codebase: `apps/agent/prisma/schema.prisma` (341 lines, 14 models)
+- Codebase: `apps/agent/src/ingestion/ingest-template.ts` (375 lines, full pipeline)
+- Codebase: `apps/agent/src/ingestion/classify-metadata.ts` (321 lines, Gemini schema)
+- Codebase: `apps/agent/src/lib/slide-extractor.ts` (184 lines, presentations.get parsing)
+- Codebase: `apps/agent/src/lib/gcs-thumbnails.ts` (198 lines, GCS cache pattern)
+- Codebase: `apps/agent/src/mastra/index.ts` (~1900 lines, all API routes)
+- Codebase: `apps/web/src/lib/api-client.ts` (863 lines, typed fetch wrappers)
+- Codebase: `apps/web/src/components/sidebar.tsx` (190 lines, nav items)
+- Codebase: `apps/web/src/components/template-card.tsx` (358 lines, polling pattern)
+- Codebase: `apps/web/src/app/(authenticated)/discovery/discovery-client.tsx` (1049 lines, ingestion state)
+- Debug: `.planning/debug/ingestion-state-reverts.md` (Drive metadata enrichment fix)
+- Debug: `.planning/debug/slow-navigation-no-feedback.md` (loading.tsx + NavProgress fix)
+- Google Slides API: `presentations.get` returns full pageElements (HIGH confidence -- verified in slide-extractor.ts)
+
+---
+*Architecture research for: Lumenalta v1.5 Review Polish & Deck Intelligence*
+*Researched: 2026-03-07*

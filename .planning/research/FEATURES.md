@@ -1,227 +1,329 @@
-# Feature Research
+# Feature Landscape -- v1.5 Review Polish & Deck Intelligence
 
-**Domain:** AtlusAI Authentication & Discovery (MCP-based knowledge base integration with token pool auth, access detection, and discovery UI)
-**Researched:** 2026-03-06
-**Confidence:** MEDIUM-HIGH (MCP client patterns well-documented via Mastra docs; AtlusAI-specific tool names inferred from project context and MCP KB server patterns)
+**Domain:** UX polish, slide intelligence deepening, content classification, and AI-assisted deck structure management for agentic sales platform
+**Researched:** 2026-03-07
+**Confidence:** HIGH (all features mapped from milestone spec with clear implementation paths; competitor patterns verified; existing codebase reviewed)
 
-## Feature Landscape
+## Scope
 
-### Table Stakes (Users Expect These)
+Features for v1.5 milestone ONLY. Seven features targeting three tiers: UX gap fixes, slide intelligence deepening, and deck structure management.
 
-Features users assume exist. Missing these = product feels incomplete.
+---
+
+## Table Stakes
+
+Features that fix identified UX gaps. Missing = product feels broken or incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **UserAtlusToken model with AES-256-GCM encryption** | Follows identical pattern to existing UserGoogleToken; users expect consistent credential handling across all external services | LOW | Copy UserGoogleToken model structure -- same fields (encryptedRefresh, iv, authTag, isValid, lastUsedAt, email). New Prisma model + forward-only migration. Reuse existing `token-encryption.ts` encrypt/decrypt functions. |
-| **Token pool rotation for AtlusAI** | Background MCP calls need pooled auth identical to Google token pool. Without this, MCP client fails when a single token expires, breaking all AtlusAI search for everyone. | MEDIUM | Mirror `getPooledGoogleAuth()` from google-auth.ts. Iterate valid UserAtlusToken records ordered by lastUsedAt DESC. Mark invalid on failure, create ActionRequired on exhaustion. Key difference from Google pool: no service account fallback exists for AtlusAI -- pool exhaustion is a hard failure that must surface immediately via ActionRequired. |
-| **Token capture on AtlusAI OAuth login** | Users should not manually configure tokens. Login flow should transparently capture and store the refresh token, same as Google OAuth flow in v1.3. | MEDIUM | AtlusAI OAuth callback extracts refresh token, encrypts via AES-256-GCM, upserts UserAtlusToken record. Requires knowing AtlusAI's OAuth endpoint and scopes. If AtlusAI uses API keys instead of OAuth, simplify to encrypted API key storage. |
-| **MCPClient wired to AtlusAI SSE endpoint** | The entire v1.4 milestone premise is "direct AtlusAI integration via MCP." Without a working MCP connection, nothing else functions. | HIGH | Use `@mastra/mcp` MCPClient with SSE transport. Configure `url`, `requestInit`, and `eventSourceInit` with auth headers (both required for SSE per Mastra docs). Use custom `fetch` override to inject pooled access token per-request. MCPClient auto-falls back from Streamable HTTP to legacy SSE. Singleton instance with reconnection handling. |
-| **3-tier access detection** | Users need clear, actionable feedback when AtlusAI access is missing. Three distinct states require distinct UX: (1) no AtlusAI account, (2) account but no project access, (3) full access. Cryptic MCP errors are unacceptable. | MEDIUM | Probe MCP connection on first use per user. Map error responses: auth failure = no account (tier 1), successful auth but empty/forbidden project list = no project access (tier 2), successful tool call = full access (tier 3). Cache access state per user in a lightweight column or session to avoid repeated probing. |
-| **ActionRequired: atlus_account_required + atlus_project_required** | Existing ActionRequired system handles reauth_needed, share_with_sa, drive_access. AtlusAI access issues MUST surface through the same mechanism -- users already check this page and see the sidebar badge. | LOW | Add two new actionType string values. No schema migration needed (actionType is a String, not an enum). Add icon mappings in actions-client.tsx (new Lucide icons for AtlusAI states). Existing badge count, list page, and dismiss flow all work unchanged. |
-| **MCP semantic search replacing Drive fallback** | Current atlusai-search.ts uses Drive API fullText search -- keyword-based, low recall, slow (exports each doc individually). Users expect semantic retrieval matching what they experience in AtlusAI directly. This is the core deliverable of v1.4. | HIGH | Call `knowledge_base_search_semantic` tool via MCPClient `listTools()`. Map MCP results to existing `SlideSearchResult` interface. Replace `searchSlides()` internals while preserving its public API signature so all callers (searchForProposal, searchByCapability) work unchanged. Keep Drive fallback as degraded-mode path during rollout. |
-| **Discovery UI: sidebar nav entry** | Users need to access AtlusAI content from the main navigation. Adding a nav item is trivial but blocking -- without it, the discovery page is unreachable. | LOW | Add one entry to `navItems` array in sidebar.tsx: `{ href: "/atlusai", label: "AtlusAI", icon: Database }`. Same pattern as existing Deals, Templates, Slide Library, Actions entries. |
-| **Discovery UI: browse knowledge bases** | Users need to see what content exists in AtlusAI before deciding what to ingest. A list/browse view of available knowledge bases and documents is the minimum discovery experience. | MEDIUM | Call MCP `discover_documents` or equivalent listing tool. Display as categorized list with document title, type, and metadata. Follow existing page patterns from templates list (table with status badges, action buttons). New route: `/atlusai` with server component + client component split. |
-| **Discovery UI: semantic search** | Users expect to search AtlusAI content by meaning, not keywords. This IS the value proposition of v1.4 -- "direct AtlusAI integration" means semantic search available in our UI. | MEDIUM | Search input with debounced query (300ms). Call `knowledge_base_search_semantic` via MCP. Display ranked results with relevance indicators. Reuse search UI patterns from Slide Library page (color-coded results, similarity scores). Search and browse should be on the same page with tab or toggle. |
+| **F1: Discovery document card thumbnails** | Grid view shows only title + text snippet -- indistinguishable cards. Users expect visual previews for presentation content. | LOW | Drive API `thumbnailLink` returns short-lived URLs (hours). Existing GCS caching pattern from v1.4 slide thumbnails applies. Add `thumbnailUrl` to `DiscoveryDocCache`. File-type icon fallback via `mimeType` already in `DiscoveryDocCache`. |
+| **F2: Consistent ingestion status across pages** | Discovery tracks status in-memory `Map<string, ItemStatus>` (lost on navigation). Templates tracks via DB `ingestionStatus` column. Users see contradictory states. | MEDIUM | Promote Discovery batch status to DB. Extend `DiscoveryDocCache` with `ingestionStatus` + `batchId` columns. Agent mirrors in-memory batch state to DB on transitions. Both pages poll same DB source. |
+| **F3: Immediate feedback on ingest click** | Gap between click and visual response feels broken. Users click multiple times, causing errors. | LOW | React 19 `useOptimistic` for instant status flip. Current `handleBatchIngest` sets pending before await but React batching may delay paint. Wrap server action in `startTransition` so pending UI paints first. |
 
-### Differentiators (Competitive Advantage)
+## Differentiators
 
-Features that set the product apart. Not required, but valuable.
+Features that add intelligence value beyond UX fixes.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Selective content ingestion** | Users cherry-pick which AtlusAI documents to ingest into the SlideEmbedding pipeline rather than bulk-importing everything. Prevents noise in vector space, keeps retrieval quality high. | HIGH | Multi-select checkboxes on discovery results. "Ingest Selected" button triggers existing SlideEmbedding pipeline (Vertex AI embedding + Gemini 8-axis classification). Requires a content adapter to transform MCP document shape into the `{contentText, speakerNotes, templateId, slideIndex}` format expected by the ingestion pipeline. Need a synthetic templateId for AtlusAI-sourced content vs Google Slides-sourced content. |
-| **Structured search (knowledge_base_search_structured)** | Filter by metadata axes (industry, pillar, persona, stage) rather than free-text only. Power users narrow results precisely, reducing noise in large knowledge bases. | MEDIUM | Expose MCP `knowledge_base_search_structured` tool if available. Build filter dropdowns matching existing classification axes from `packages/schemas` constants. Combine with semantic search for hybrid retrieval (structured filters + semantic ranking). |
-| **Pre-ingestion preview** | Before committing to ingestion (which costs Vertex AI API calls), users preview document content from AtlusAI in-app. Reduces wasted ingestion cycles and API spend. | LOW | Fetch document content via MCP resource read or tool call. Render in a slide-over panel or modal. Reuse existing slide viewer patterns from template preview (keyboard navigation, content display). No new API integration needed beyond MCP read. |
-| **Ingestion status tracking per AtlusAI document** | Show which AtlusAI documents have already been ingested, which are pending, which failed. Prevents duplicate ingestion and wasted API costs. | MEDIUM | Track AtlusAI document IDs via a new field on SlideEmbedding or a lightweight junction table mapping AtlusAI doc IDs to SlideEmbedding records. Display status badges (ingested/not ingested/failed) inline on discovery UI results. Content hash comparison for dedup. |
-| **Pool health indicator** | Show remaining valid AtlusAI tokens and pool health in discovery page header. Surfaces auth problems before they cause search failures. | LOW | Query `UserAtlusToken.count({ where: { isValid: true } })`. Display as status chip: green (3+ valid), yellow (1-2 valid), red (0 valid). Already have the pattern from Google pool console warnings -- just promoting to UI. |
-| **Cross-source unified search** | Search both AtlusAI (via MCP) and local SlideEmbedding (via pgvector) simultaneously, deduplicating and ranking results. Eliminates "where should I search?" friction. | HIGH | Run MCP semantic search and pgvector cosine similarity in parallel. Merge and deduplicate by content hash. Rank by normalized relevance score. Complex due to different score scales between MCP results and pgvector distances. Defer unless both sources are individually stable. |
+| **F4: Rich AI-generated slide descriptions** | Current metadata is taxonomy-only (8-axis classification). No human-readable description. Rich descriptions ("Financial services case study with before/after metrics and client testimonial") make slide library browsable without opening each slide. | MEDIUM | Add `description: z.string()` to Gemini classification prompt. Already sees full text + speaker notes. Marginal cost near zero. Store in new `aiDescription` column on `SlideEmbedding`. Consider appending to embedding input for richer vector representations. |
+| **F5: Structured element map extraction** | Knowing a slide has "2 text boxes, 1 table with 4 rows, 1 image placeholder" enables intelligent assembly. System can match content to layout slots. No competitor analyzes existing Google Slides for structure -- all predefine or generate from scratch. | HIGH | Google Slides API returns 8 element types: Shape, Image, Table, SheetsChart, Line, Video, WordArt, Group. Extract per slide: shapes (with placeholder type: TITLE, SUBTITLE, BODY), tables (rows x cols), images (bounds, placeholder flag), charts. Store as `elementMapJson` on `SlideEmbedding`. Placeholder types from `shape.placeholder.type` are critical for slot filling. |
+| **F6: Template vs Example classification with touch binding** | All presentations treated identically. No distinction between skeleton templates (reusable structures) and real client deliverables (examples for a touch). Classification changes retrieval behavior. | LOW-MEDIUM | Add `contentClassification` column to Template model ("template" / "example" / "case_study", default: "template"). Add `boundTouchType` for examples. Propagate to `SlideEmbedding` for vector search filtering. UI: radio group on template detail page. |
+| **F7: Settings page with Deck Structures and AI chat** | Define expected deck structure per touch type. Foundation for intelligent assembly. AI analyzes ingested examples and proposes structures; chat refines conversationally. | HIGH | New `DeckStructure` model: `{ touchType, name, sections: JSON, isDefault }`. Sections: `[{ name, required, minSlides, maxSlides, slideCategories }]`. Settings page at `/settings`. AI chat uses Mastra agent + tool to read slide library stats. Structured JSON responses, not streaming. |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+## Anti-Features
 
-Features that seem good but create problems.
+Features to explicitly NOT build in v1.5.
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| **Auto-ingest all AtlusAI content** | "Just import everything" feels efficient and thorough | Floods vector space with irrelevant content, degrades retrieval quality for Touch 1-4 deck assembly, wastes Vertex AI embedding API costs ($0.01-0.02 per document), makes Gemini classification noise worse, pollutes the curated SlideEmbedding corpus | Selective ingestion with preview. Let users curate what enters the pipeline. Quality over quantity. |
-| **Persistent SSE connection keepalive** | SSE feels like it should be always-on for real-time updates | SSE connections are expensive to maintain server-side, AtlusAI may rate-limit persistent connections, reconnection logic adds error-handling complexity for zero user-visible benefit since searches are user-initiated | Connect-on-demand pattern. MCPClient handles reconnection automatically per the Mastra docs. Instantiate on first search, disconnect after idle timeout. |
-| **Token management admin UI** | "Let admins see and manage all AtlusAI tokens" | Only ~20 users at Lumenalta. Admin UI is significant frontend work (table, revoke buttons, health charts) for a problem that ActionRequired notifications already solve. Token rotation happens automatically via OAuth refresh events. | ActionRequired notifications for expired tokens + automatic token capture on login. Console warnings for pool health. Same proven approach from v1.3 Google token pool. |
-| **AtlusAI write-back (push corrections to AtlusAI)** | "Sync our tag corrections back to AtlusAI source" | Write access requires different auth scopes, introduces data integrity risks if AtlusAI has its own curation workflow, MCP write tools may not exist, and bidirectional sync creates reconciliation nightmares | Keep corrections local in SlideEmbedding metadata. Local corrections improve local retrieval quality. AtlusAI remains the source of truth for raw content. |
-| **Custom MCP tool definitions** | "Build our own MCP tools wrapping AtlusAI" | Unnecessary abstraction. AtlusAI already exposes the tools we need via its MCP server. Custom wrappers mean maintaining compatibility with AtlusAI's evolving tool schema on both sides of the wrapper. | Use AtlusAI's MCP tools directly via `MCPClient.listTools()`. The Mastra MCPClient namespaces tools automatically (e.g., `atlusai_knowledge_base_search_semantic`). |
-| **Real-time AtlusAI content sync** | "Show AtlusAI changes as they happen" | Requires MCP resource subscriptions, WebSocket infrastructure for pushing updates to the web UI, and cache invalidation logic. AtlusAI content changes infrequently (new decks added weekly, not continuously). | Refresh on page load. Add a manual "Refresh" button. Content changes are low-frequency enough that polling on navigation is sufficient. |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Drag-and-drop slide reordering** | Out of scope per PROJECT.md. Sellers reorder in Google Slides directly. | Link to Google Slides for editing |
+| **In-browser slide content editing** | Out of scope per PROJECT.md. Massive scope, fragile API. | Link to Google Slides |
+| **Real-time WebSocket status updates** | Over-engineering for ~20 users. Polling at 2s is smooth. Adds WS infra to Hono + Railway. | 2s polling (already implemented) |
+| **Streaming AI chat responses** | Deck structure responses are short structured JSON. Streaming adds complexity without UX benefit. | Standard request/response |
+| **Auto-classify template vs example** | Classification requires understanding organizational intent (skeleton vs deliverable). AI cannot reliably distinguish structurally identical slides by intent. | Default to "template", user overrides to "example". Batch classify from Discovery page. |
+| **Auto deck structure generation without examples** | Without real examples, AI-generated structures are hallucinated. Need ground truth from touch-bound examples. | Only enable structure inference when 2+ examples exist for a touch |
+| **Element map visual editor** | Canvas rendering of element positions is complex and unnecessary for v1.5 data model. | Show element inventory as metadata list in slide detail view |
+| **Thumbnail generation for non-Slides files** | Requires server-side rendering (puppeteer). Most Discovery items are Google Slides. | File-type icon + title for non-Slides docs. Drive API `thumbnailLink` covers Google Workspace files. |
+
+## Feature-by-Feature Deep Analysis
+
+### F1: Discovery Document Card Thumbnails
+
+**What users expect:** Visual preview on each Discovery card. File-type icon when thumbnail unavailable.
+
+**Table stakes:**
+- Thumbnail image on card (not just title + text)
+- File-type icon fallback (Slides, Docs, Sheets icons via lucide)
+- Graceful degradation: broken thumbnails show icon, not broken image
+- Progressive loading (skeleton while fetching)
+
+**Differentiator:** Thumbnail in preview side panel. Hover-to-enlarge.
+
+**Implementation:**
+- Drive API `thumbnailLink` is short-lived (hours), requires auth. Known stability issues (404s reported in Google Issue Tracker).
+- Reuse `gcs-thumbnails.ts` pattern: fetch Drive thumbnail, upload to GCS, store permanent URL.
+- `DiscoveryDocCache` already has `driveFileId` -- add `thumbnailUrl` + `thumbnailFetchedAt` columns (same pattern as `SlideEmbedding`).
+- Populate during Drive metadata resolution phase of Discovery browse/search.
+- File-type detection: `DiscoveryDocCache.mimeType` already populated. Map: `application/vnd.google-apps.presentation` -> Slides icon, `application/vnd.google-apps.document` -> Doc icon, etc.
+
+**Depends on:** GCS thumbnail caching (v1.4), DiscoveryDocCache (v1.4).
+
+---
+
+### F2: Consistent Ingestion Status Across Pages
+
+**What users expect:** Start ingestion on Discovery, navigate to Templates, see same in-progress status. Return to Discovery, see completion.
+
+**Table stakes:**
+- Status survives page navigation
+- Same status on Discovery cards and Template cards for same presentation
+- Completion toast fires regardless of active page
+
+**Differentiator:** Global ingestion indicator in nav bar ("3 items ingesting...").
+
+**Implementation:**
+- Current Discovery: in-memory `Map<string, ItemStatus>` in `discovery-client.tsx` state -- lost on unmount (line 68-73).
+- Current Templates: DB-backed `Template.ingestionStatus` -- persists.
+- Fix: Extend `DiscoveryDocCache` with `ingestionStatus` ("idle" | "pending" | "ingesting" | "done" | "error") + `batchId` columns.
+- Agent's in-memory batch state (`Module-level Map`) mirrors to DB on each status transition.
+- Both pages poll same DB state via server actions. Discovery page hydrates `itemStatuses` from DB on mount.
+- Alternative: New `IngestionBatch` + `IngestionItem` tables. More normalized but more complex. Recommend extending DiscoveryDocCache for simplicity.
+
+**Depends on:** Agent batch system (v1.4), DiscoveryDocCache (v1.4).
+
+---
+
+### F3: Immediate Feedback on Ingest Click
+
+**What users expect:** Click "Ingest" and button/card state changes in same frame. No perceptible delay.
+
+**Table stakes:**
+- Visual state change within 16ms of click
+- Revert on server error with toast
+- Button disabled to prevent double-click
+
+**Implementation:**
+- Current `handleBatchIngest` (line 301-352): sets statuses to "pending" synchronously before `await`, which looks correct. However, React concurrent rendering may batch the state update with the async call.
+- Fix: Use `React.useOptimistic` or `React.startTransition` to ensure pending state paints before server action executes.
+- Also clear selection set and disable Ingest button immediately (already partially implemented at line 335).
+- Bonus: add subtle pulse animation on status badge transition.
+
+**Depends on:** Nothing. Pure frontend change.
+
+---
+
+### F4: Rich AI-Generated Slide Descriptions
+
+**What users expect:** Each slide has a 1-2 sentence human-readable description beyond raw extracted text and taxonomy tags.
+
+**Table stakes:**
+- Description generated during ingestion (not separate step)
+- Visible in slide viewer alongside classification
+- Coherent English, not tag concatenation
+
+**Differentiator:**
+- References specific elements ("Features 3-column comparison table with deployment options")
+- Useful for search (append to embedding input)
+- Editable by humans (like existing tag correction)
+
+**Implementation:**
+- Current `SlideMetadataSchema` has 8 fields (industries, subsectors, solutionPillars, funnelStages, contentType, slideCategory, buyerPersonas, touchType). No description.
+- Add `description: z.string()` to classification prompt. Gemini already sees full text + speaker notes. Near-zero marginal cost per slide.
+- If element map (F5) is extracted first, include element summary in description prompt for richer output.
+- Store in `SlideEmbedding.aiDescription` column (new migration).
+
+**Depends on:** Gemini classification pipeline (v1.2). Enhanced by F5 (element maps).
+
+---
+
+### F5: Structured Element Map Extraction
+
+**What users expect:** System understands slide layout structure for smarter assembly.
+
+**Table stakes:**
+- Element inventory per slide: count of shapes, tables, images, charts
+- Table dimensions (rows x cols)
+- Stored and viewable in slide detail
+
+**Differentiator:**
+- Placeholder type detection (TITLE, SUBTITLE, BODY, SLIDE_NUMBER) -- enables slot filling
+- Layout type inference via heuristics ("comparison", "data table", "hero image")
+- Element map used for matching slides to deck structure slots
+
+**How competitors handle deck structure:**
+
+| Tool | Approach | Key Insight |
+|------|----------|-------------|
+| **Beautiful.ai** | ~60+ predefined Smart Slide types (comparison, timeline, Venn, org chart). Content auto-adapts. | Structure is opinionated and predefined, not inferred. |
+| **Pitch** | Team-defined slide masters. Slides inherit structure. No dynamic inference. | Structure from organizational design systems. |
+| **Tome** | Generates structure from scratch per prompt. No templates. | Structure is generative, not analytical. |
+| **Gamma** | Card-based (not slide-based). Flexible layout blocks. | Avoids the structure problem with a different paradigm. |
+| **Prezent.ai** | Storytelling frameworks (pyramid principle, problem-solution). Maps to narrative, not visual layout. | Structure = narrative pattern, not element arrangement. |
+
+**None analyze existing Google Slides to infer structure.** AtlusAI's approach (infer from corporate slides) is genuinely novel.
+
+**Implementation:**
+- Google Slides API `presentations.get` already called during ingestion. Currently only text is extracted; `pageElements[]` array is discarded.
+- Parse each page's elements: `{ shapes: [{id, placeholderType, hasText, bounds}], tables: [{id, rows, cols}], images: [{id, bounds, isPlaceholder}], charts: [{id, type}], lines: count, groups: [{id, childCount}] }`
+- Store as `elementMapJson` column on `SlideEmbedding` (TEXT, not JSON type -- Prisma PostgreSQL compatibility).
+- Layout type inference via rule-based heuristics:
+  - 2 side-by-side text shapes = "comparison"
+  - 1 large image + 1 text shape = "hero"
+  - Table with 4+ rows = "data table"
+  - Only TITLE + SUBTITLE placeholders = "title/divider"
+- Heuristic classification stored alongside element map. LLM refinement deferred unless heuristics prove insufficient.
+
+**Depends on:** Google Slides API (v1.3 credentials), ingestion pipeline (v1.2).
+
+---
+
+### F6: Template vs Example Classification with Touch Binding
+
+**What users expect:** Tag content as "template" (reusable skeleton), "example" (past deliverable), or "case_study". Each with touch binding.
+
+**Table stakes:**
+- Classification dropdown on template detail page
+- Touch type multi-select (exists, make more prominent)
+- Visible on template cards and discovery cards
+- Filterable in template list and slide library
+
+**Differentiator:**
+- Different icons per classification (blueprint, lightbulb, trophy)
+- Classification influences RAG: templates for assembly, examples for reference, case studies for proof
+- Batch classify from Discovery: "Ingest these 5 as examples for Touch 3"
+
+**Implementation:**
+- `Template` model: add `contentClassification` column (String, default "template"). Add `boundTouchType` (String, nullable -- set when classification is "example").
+- Propagate to `SlideEmbedding` via `contentClassification` column for vector search filtering.
+- `ContentSource` already has `contentType` and `touchTypes` for Discovery-side. Bridge on ingestion.
+- UI: Radio group + touch type multi-select on template creation form and detail page.
+
+**Depends on:** Template CRUD (v1.2), SlideEmbedding (v1.2).
+
+---
+
+### F7: Settings Page with Deck Structures and AI Chat
+
+**What users expect:** Define "Touch 2 decks have: title, team intro, 3-5 capability slides, case study, next steps."
+
+**Table stakes:**
+- Settings page at `/settings` with sidebar nav entry
+- Per-touch-type deck structure CRUD
+- Ordered section list with name, required flag, slide count range
+
+**Differentiator:**
+- AI-suggested structures from ingested examples ("Based on 5 Touch 2 examples, typical structure is...")
+- Chat interface for refinement ("Add competitive analysis after problem statement")
+- Structure validation on assembly (warn on deviation)
+- Multiple variants per touch ("short pitch" vs "deep dive")
+
+**Implementation:**
+- New `DeckStructure` model: `{ id, touchType, name, sections: String (JSON), isDefault: Boolean, createdAt, updatedAt }`
+- Sections JSON schema: `[{ name: string, required: boolean, minSlides: number, maxSlides: number, slideCategories: string[], description?: string }]`
+- AI inference: Mastra agent with tool that reads SlideEmbedding stats grouped by touch-bound examples. Requires F6 (classification) and F5 (element maps) to be meaningful.
+- Chat: Non-streaming request/response. POST to Mastra route. LLM takes current structure JSON + user message, returns updated structure JSON.
+- Settings page: Next.js at `/settings` with tabs per touch type. AI suggestions shown as proposed structures user can accept/modify.
+- Only enable AI inference when 2+ examples exist for a touch (prevents hallucinated structures).
+
+**Depends on:** F5 (element maps for structural analysis), F6 (classification for touch-bound examples), Mastra agent (v1.0).
 
 ## Feature Dependencies
 
 ```
-[UserAtlusToken Model]
-    └──requires──> [AES-256-GCM Encryption] (already exists: token-encryption.ts)
+F1: Discovery Thumbnails (standalone)
+    depends on: GCS caching (v1.4), DiscoveryDocCache (v1.4)
 
-[Token Capture on Login]
-    └──requires──> [UserAtlusToken Model]
-    └──requires──> [AtlusAI OAuth endpoint knowledge] (need to confirm OAuth vs API key)
+F2: Consistent Ingestion Status (standalone)
+    depends on: Agent batch system (v1.4), DiscoveryDocCache (v1.4)
 
-[Token Pool Rotation]
-    └──requires──> [UserAtlusToken Model]
-    └──requires──> [Token Capture on Login] (pool needs tokens to rotate)
+F3: Immediate Feedback (standalone)
+    depends on: nothing new
 
-[MCP Client Connection]
-    └──requires──> [Token Pool Rotation] (needs valid access token for auth headers)
-    └──requires──> [@mastra/mcp package] (already in apps/agent/package.json)
+F4: Rich AI Descriptions
+    depends on: Gemini classification pipeline (v1.2)
+    enhanced by: F5 (element maps enrich description prompts)
 
-[3-Tier Access Detection]
-    └──requires──> [MCP Client Connection] (probes connection to determine state)
-    └──outputs-to──> [ActionRequired Integration] (creates records for tiers 1 and 2)
+F5: Structured Element Map
+    depends on: Google Slides API (v1.3), ingestion pipeline (v1.2)
+    enables: F7 (structural analysis for deck structure suggestions)
 
-[ActionRequired Integration]
-    └──requires──> [ActionRequired Model] (already exists, just new actionType values)
-    └──no-migration──> (actionType is String, not enum -- just add new values in code)
+F6: Template vs Example Classification
+    depends on: Template CRUD (v1.2), SlideEmbedding (v1.2)
+    enables: F7 (touch-bound examples as input for structure inference)
 
-[MCP Semantic Search]
-    └──requires──> [MCP Client Connection]
-
-[Replace Drive Fallback]
-    └──requires──> [MCP Semantic Search] (new implementation)
-    └──preserves──> [searchSlides() public API] (callers unchanged)
-    └──preserves──> [searchForProposal() public API] (callers unchanged)
-    └──preserves──> [searchByCapability() public API] (callers unchanged)
-    └──degrades-to──> [Drive fallback] (keep as backup during rollout)
-
-[Discovery UI: Nav Entry]
-    └──requires──> [sidebar.tsx navItems array] (add one entry)
-
-[Discovery UI: Browse]
-    └──requires──> [MCP Client Connection] (list/discover tools)
-    └──requires──> [Discovery UI: Nav Entry] (reachable from sidebar)
-
-[Discovery UI: Search]
-    └──requires──> [MCP Semantic Search]
-    └──enhances──> [Discovery UI: Browse] (same page, search tab)
-
-[Selective Ingestion]
-    └──requires──> [Discovery UI: Browse or Search] (user selects from results)
-    └──requires──> [SlideEmbedding Pipeline] (already exists: Vertex AI + Gemini)
-    └──requires──> [Content Adapter] (MCP document shape -> SlideEmbedding input)
-
-[Structured Search]
-    └──enhances──> [Discovery UI: Search] (adds filter dropdowns)
-    └──requires──> [MCP Client Connection]
-
-[Pre-Ingestion Preview]
-    └──enhances──> [Selective Ingestion] (preview before committing)
-    └──requires──> [MCP Client Connection]
+F7: Settings + Deck Structures + AI Chat
+    depends on: F5 (element maps), F6 (classification)
+    enhances: all touch generation workflows (v1.0)
 ```
 
 ### Dependency Notes
 
-- **Token Pool requires UserAtlusToken populated:** Cannot rotate tokens without stored credentials. At least one user must have logged in and stored a token before any MCP call works. This means the very first v1.4 user experience requires onboarding flow awareness.
-- **MCP Client requires Token Pool:** Every MCP request needs an auth header. The pooled auth function provides the access token dynamically via MCPClient's custom `fetch` override. The token is injected per-request, not at connection time, because tokens rotate.
-- **Replace Drive Fallback requires MCP Semantic Search verified:** Cannot remove the Drive fallback until MCP search returns equivalent or better results. Keep Drive code in place as degradation path during rollout. Feature-flag the switch if possible.
-- **Selective Ingestion requires Content Adapter:** AtlusAI MCP documents have a different shape than Google Slides content currently processed by the SlideEmbedding pipeline. Need a transformer mapping MCP document content to `{contentText, speakerNotes, slideObjectId, templateId}`. The `templateId` field needs a synthetic value strategy for AtlusAI-sourced content (e.g., `atlus-{knowledgeBaseId}`).
-- **3-Tier Access Detection creates ActionRequired records:** Detection at MCP connection time produces `atlus_account_required` or `atlus_project_required` records. These surface in the existing Actions page and sidebar badge -- no new UI needed for notification delivery.
-- **ActionRequired needs no migration:** The `actionType` field is a plain `String`, not a Prisma enum. New action type values are purely code-level additions (icon mapping, description text). Zero schema changes.
+- **F1, F2, F3 are fully independent** of each other and of F4-F7. Ship first.
+- **F4 and F5 both modify the ingestion pipeline** -- implement together to avoid double-migration and double-deployment of ingestion flow.
+- **F5 extracts data during the same API call** as existing text extraction (same `presentations.get` response, just parse more fields).
+- **F6 is a prerequisite for F7** -- deck structures reference content classification to know which slides to pull per section.
+- **F7 depends on F5 and F6** -- AI structure suggestions need element maps (from F5) and touch-bound examples (from F6) to be meaningful.
 
-## MVP Definition
+## MVP Recommendation
 
-### Launch With (v1.4 Core)
+**Phase 1 -- UX Polish (no new models, minimal risk):**
+1. F3: Immediate feedback on ingest (LOW, pure frontend, 30min fix)
+2. F1: Discovery thumbnails (LOW, extends existing GCS pattern)
+3. F2: Consistent ingestion status (MEDIUM, requires DB migration for DiscoveryDocCache extension)
 
-Minimum viable milestone -- what is needed to replace Drive fallback and enable AtlusAI discovery.
+**Phase 2 -- Slide Intelligence Foundation (pipeline changes):**
+4. F5: Element map extraction (HIGH, parse and store page elements during ingestion)
+5. F4: Rich AI descriptions (MEDIUM, extend Gemini prompt + new column)
+6. F6: Template vs Example classification (LOW-MEDIUM, model + UI changes)
 
-- [x] **UserAtlusToken model + migration** -- credential storage foundation (extends existing encryption infra)
-- [x] **Token capture on AtlusAI login** -- populate the token pool transparently during user login
-- [x] **Token pool rotation** -- reliable auth for background and on-demand MCP calls
-- [x] **MCPClient wired to AtlusAI SSE** -- core integration point, singleton with reconnection
-- [x] **3-tier access detection** -- know immediately if user can access AtlusAI, surface via ActionRequired
-- [x] **ActionRequired: atlus_account_required + atlus_project_required** -- surface access issues through existing notification system
-- [x] **MCP semantic search** -- call knowledge_base_search_semantic, map results to SlideSearchResult
-- [x] **Replace atlusai-search.ts Drive fallback** -- swap searchSlides() implementation, preserve public API, keep Drive as degraded fallback
-- [x] **Discovery UI: sidebar nav + browse + search** -- users can explore AtlusAI content from the app
-- [x] **Selective ingestion** -- users pick documents to ingest into SlideEmbedding pipeline
+**Phase 3 -- Deck Intelligence Capstone (depends on Phase 2):**
+7. F7: Settings page + deck structures + AI chat (HIGH, new model + page + agent integration)
 
-### Add After Validation (v1.4.x)
-
-Features to add once core MCP integration is working and users are actively searching.
-
-- [ ] **Structured search filters** -- add after confirming which structured search tools AtlusAI's MCP server actually exposes
-- [ ] **Pre-ingestion preview** -- add after ingestion flow is stable and users want to preview before committing
-- [ ] **Ingestion status tracking** -- add after users have ingested enough AtlusAI content to need duplicate detection
-- [ ] **Pool health indicator in UI** -- add after pool is populated with multiple user tokens
-
-### Future Consideration (v2+)
-
-Features to defer until the integration is mature and user patterns are established.
-
-- [ ] **Cross-source unified search** -- complex relevance ranking across MCP + pgvector, defer until both sources are individually reliable
-- [ ] **AtlusAI write-back** -- requires AtlusAI API support for writes, different auth scopes, bidirectional sync
-- [ ] **Token management admin UI** -- unnecessary at ~20 users, ActionRequired handles the need
-- [ ] **Real-time content sync via MCP subscriptions** -- overkill for weekly content change frequency
+**Defer to v1.6:** Element map-powered slide matching (query engine for structural matching during assembly).
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| UserAtlusToken model | HIGH | LOW | P1 |
-| Token capture on login | HIGH | MEDIUM | P1 |
-| Token pool rotation | HIGH | MEDIUM | P1 |
-| MCPClient SSE connection | HIGH | HIGH | P1 |
-| 3-tier access detection | HIGH | MEDIUM | P1 |
-| ActionRequired new types | MEDIUM | LOW | P1 |
-| MCP semantic search | HIGH | HIGH | P1 |
-| Replace Drive fallback | HIGH | MEDIUM | P1 |
-| Discovery UI (nav + browse + search) | HIGH | MEDIUM | P1 |
-| Selective ingestion | HIGH | HIGH | P1 |
-| Structured search filters | MEDIUM | MEDIUM | P2 |
-| Pre-ingestion preview | MEDIUM | LOW | P2 |
-| Ingestion status tracking | MEDIUM | MEDIUM | P2 |
-| Pool health indicator | LOW | LOW | P3 |
-| Cross-source search | HIGH | HIGH | P3 |
+| Feature | User Value | Implementation Cost | Priority | Rationale |
+|---------|------------|---------------------|----------|-----------|
+| F3: Immediate feedback | HIGH | LOW | P1 | Eliminates perceived latency. Quick win. |
+| F1: Discovery thumbnails | HIGH | LOW | P1 | Visual browsing is table stakes. Pattern exists. |
+| F2: Consistent status | HIGH | MEDIUM | P1 | Fixes contradictory cross-page states. |
+| F4: Rich AI descriptions | MEDIUM | MEDIUM | P1 | Marginal cost on existing pipeline. Browsability. |
+| F5: Element map | HIGH | HIGH | P2 | Foundation for deck intelligence. Enables F7. |
+| F6: Classification | MEDIUM | LOW-MEDIUM | P2 | Enables filtered retrieval. Prerequisite for F7. |
+| F7: Deck structures + AI | HIGH | HIGH | P3 | Capstone. Depends on P2 completion. |
 
 **Priority key:**
-- P1: Must have for v1.4 milestone completion
-- P2: Should have, add within v1.4 if time permits
-- P3: Nice to have, defer to future milestone
-
-## Existing Infrastructure Reuse
-
-Critical for v1.4 -- these assets already exist and should be leveraged, not rebuilt.
-
-| Existing Asset | Reuse For | Location |
-|----------------|-----------|----------|
-| UserGoogleToken model pattern | Clone for UserAtlusToken | `schema.prisma` line 252-267 |
-| `getPooledGoogleAuth()` | Pattern for `getPooledAtlusAuth()` | `google-auth.ts` line 92-174 |
-| `token-encryption.ts` | Shared AES-256-GCM encrypt/decrypt (no changes needed) | `apps/agent/src/lib/token-encryption.ts` |
-| ActionRequired model | Add new action types (no schema change) | `schema.prisma` line 274-290 |
-| ActionRequired UI + icons | Add icon cases for new types | `actions-client.tsx` line 8-19 |
-| Sidebar navItems array | Add one entry for AtlusAI | `sidebar.tsx` line 25-30 |
-| Sidebar badge count | Already works for any ActionRequired type | `sidebar.tsx` line 37-43 |
-| SlideEmbedding pipeline | Target for selective ingestion | Vertex AI embedding + Gemini classification |
-| Slide Library search UI | Pattern for discovery search results | `apps/web/src/app/(authenticated)/slides/` |
-| Template preview viewer | Pattern for pre-ingestion preview | Keyboard nav + thumbnail strip + content display |
-| `@mastra/mcp` package | Already in package.json, ready to use | `apps/agent/package.json` |
-| `atlusai-search.ts` public API | Preserve SlideSearchResult, ProposalSearchResult interfaces | `apps/agent/src/lib/atlusai-search.ts` |
-| searchForProposal multi-pass logic | Keep pass structure, swap inner search implementation | `atlusai-search.ts` line 299-384 |
+- P1: Must have -- ship first, closes UX gaps
+- P2: Should have -- builds intelligence layer
+- P3: Valuable but depends on P2 completion
 
 ## Competitor Feature Analysis
 
-| Feature | AtlusAI Direct (browser UI) | Current Drive Fallback (v1.3) | v1.4 MCP Integration (target) |
-|---------|----------------------------|-------------------------------|-------------------------------|
-| Search quality | Semantic (native vector index) | Keyword-only (Drive fullText contains) | Semantic (MCP knowledge_base_search_semantic) |
-| Search speed | Fast (native index) | Slow (Drive API list + per-doc export) | Fast (single MCP tool call, results in response) |
-| Browse content | Full web UI with categories | None (no browsing capability) | Discovery page with categorized browse |
-| Filter by metadata | Full filter axes | None (query string concatenation only) | Structured search via MCP (if tool available) |
-| Access control | Per-user AtlusAI credentials | Service account only (single point of failure) | Per-user token pool with rotation |
-| Content ingestion | N/A (content lives in AtlusAI) | Manual via template registration | Selective from discovery results |
-| Fallback behavior | None (requires AtlusAI access) | Always works (Drive always accessible) | Degrades to Drive fallback if MCP unavailable |
-| Integration depth | Standalone (no deck assembly) | Embedded in deck assembly pipeline | Embedded + standalone discovery |
+| Feature Area | Beautiful.ai | Pitch | Tome | Gamma | AtlusAI (v1.5) |
+|-------------|-------------|-------|------|-------|-----------------|
+| **Template structure** | ~60 predefined Smart Slide types | Team-defined slide masters | No templates -- pure generation | Card-based blocks | Inferred from existing Google Slides via element map (novel) |
+| **Content categorization** | By slide type (data, comparison, quote) | By team/brand library | By AI topic | By card content | 8-axis classification + template/example/case_study + touch |
+| **Deck structure** | Implicit in template selection | Team design systems | AI generates per prompt | Flexible cards | Explicit per-touch structures with AI inference from examples (novel for sales) |
+| **Thumbnails** | Native rendering engine | Native | Native | Native | GCS-cached from Google Drive API |
+| **AI descriptions** | Auto-generated alt text | None | AI content descriptions | AI summaries | Per-slide AI descriptions during ingestion |
+| **Status feedback** | Instant (local-first) | Instant | Instant | Instant | Optimistic UI + persistent DB status sync |
+
+**Key positioning:** AtlusAI does not compete as a presentation creator. It competes as a sales content intelligence platform that works WITH Google Slides. The differentiator is understanding existing corporate content (element maps, classification, structure inference) for intelligent assembly -- something competitors do not do because they own their rendering engines.
 
 ## Sources
 
-- [Mastra MCPClient Reference](https://mastra.ai/reference/tools/mcp-client) -- SSE transport config, auth headers, tool listing, resource operations (HIGH confidence)
-- [Mastra MCP Overview](https://mastra.ai/docs/mcp/overview) -- Transport auto-detection, Streamable HTTP to SSE fallback behavior (HIGH confidence)
-- [MCP Architecture Overview](https://modelcontextprotocol.io/docs/learn/architecture) -- Client-server protocol patterns, tool and resource primitives (HIGH confidence)
-- [Knowledge Base MCP Server reference implementation](https://github.com/jeanibarz/knowledge-base-mcp-server) -- KB search tool patterns, semantic + structured search (MEDIUM confidence)
-- [Document360 KB Search Patterns](https://document360.com/blog/knowledge-base-search/) -- Search UI patterns, indexing approaches (MEDIUM confidence)
-- [Cobbai AI Knowledge Base Navigation](https://cobbai.com/blog/ai-for-intuitive-knowledge-base-navigation) -- Browse + search UX patterns (MEDIUM confidence)
-- Existing codebase: `atlusai-search.ts`, `google-auth.ts`, `schema.prisma`, `sidebar.tsx`, `actions-client.tsx` (HIGH confidence, read directly)
+- [Google Slides API: Page Elements](https://developers.google.com/workspace/slides/api/concepts/page-elements) -- 8 element types, placeholder types, structured properties (HIGH confidence)
+- [Google Slides API: Element Operations](https://developers.google.com/workspace/slides/api/samples/elements) -- extraction and manipulation capabilities (HIGH confidence)
+- [Google Drive API: File Metadata](https://developers.google.com/workspace/drive/api/guides/file-metadata) -- `thumbnailLink` behavior, short-lived URLs, auth requirements (HIGH confidence)
+- [Drive API thumbnailLink stability issues](https://issuetracker.google.com/issues/229184403) -- known 404 issues with thumbnail URLs (MEDIUM confidence)
+- [React 19 useOptimistic](https://react.dev/reference/react/useOptimistic) -- canonical optimistic UI pattern for instant feedback (HIGH confidence)
+- [Beautiful.ai Smart Slides](https://www.beautiful.ai/smart-slides) -- predefined layout type approach (MEDIUM confidence)
+- [Beautiful.ai vs Pitch](https://www.beautiful.ai/comparison/beautiful-ai-vs-pitch) -- competitor structure approaches (MEDIUM confidence)
+- [Optimistic UI Architecture Patterns](https://javascript.plainenglish.io/optimistic-ui-in-frontend-architecture-do-it-right-avoid-pitfalls-7507d713c19c) -- rollback, idempotency, error handling (MEDIUM confidence)
+- Existing codebase: `discovery-client.tsx`, `template-card.tsx`, `schema.prisma`, `slide-metadata.ts`, `constants.ts` (HIGH confidence, read directly)
 
 ---
-*Feature research for: v1.4 AtlusAI Authentication & Discovery*
-*Researched: 2026-03-06*
+*Feature research for: Lumenalta v1.5 Review Polish & Deck Intelligence*
+*Researched: 2026-03-07*

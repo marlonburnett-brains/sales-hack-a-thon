@@ -1,298 +1,205 @@
 # Pitfalls Research
 
-**Domain:** Adding AtlusAI token pool auth, Mastra MCP client, Drive fallback replacement, Action Required extension, and Discovery UI to existing Next.js + Mastra monorepo
-**Researched:** 2026-03-06
-**Confidence:** HIGH (based on existing codebase analysis, Mastra MCP docs, MCP protocol spec, Vercel serverless constraints, and v1.3 token pool implementation patterns)
+**Domain:** v1.5 Review Polish & Deck Intelligence -- adding thumbnails, ingestion consistency, optimistic UI, rich descriptions, element maps, classification, and deck structures to existing AI sales platform
+**Researched:** 2026-03-07
+**Confidence:** HIGH (codebase-verified pitfalls with Google API documentation backing)
 
 ## Critical Pitfalls
 
-### Pitfall 1: SSE Connection Lifecycle in Vercel Serverless Functions Causes Silent Tool Call Failures
+### Pitfall 1: Drive thumbnailLink URLs Expire Within Hours and Have CORS Restrictions
 
 **What goes wrong:**
-The Mastra `MCPClient` holds a persistent SSE connection to `https://knowledge-base-api.lumenalta.com/sse`. On Vercel, serverless functions have hard timeouts (60s Hobby, 300s Pro). If a web Server Action creates an `MCPClient`, the SSE connection opens, but the function terminates when the response completes -- killing the SSE connection mid-flight if any background work is pending. On subsequent requests, a new function invocation gets a new `MCPClient` with a new SSE connection. If the `MCPClient` is cached at module scope (singleton pattern), Vercel's function recycling means the cached instance may hold a dead SSE connection that silently fails on the next tool call.
+Google Drive API `thumbnailLink` fields contain short-lived, authenticated URLs that expire after a few hours (variable, sometimes less than a day). If you store these URLs directly in the database for Discovery document card thumbnails, users see broken images the next session. The URLs also have CORS restrictions -- they cannot be fetched directly from a browser; they require server-side proxying or credential injection. Developers test it, see it work, ship it, then discover broken images the next day.
 
 **Why it happens:**
-Vercel serverless functions are stateless and ephemeral. SSE connections are stateful and persistent. These two paradigms are fundamentally incompatible. The MCP protocol requires an `initialize` handshake on each new SSE session, but a cached `MCPClient` instance does not know its SSE connection has been severed by function recycling. The `MCPClient` auto-connects lazily on first `listTools()` or tool call, but does not detect that the underlying transport died.
+Google intentionally makes `thumbnailLink` short-lived as a security measure. The field is "only populated when the requesting app can access the file's content" and the URL itself requires an authenticated client. A plain browser `<img src>` tag will get a 404 or 403.
 
 **How to avoid:**
-1. **Do NOT create MCPClient on Vercel (web app) at all.** All MCP operations must go through the Railway-hosted agent service, which is a long-running process that can hold persistent SSE connections.
-2. The web app should call agent API endpoints (via `fetchWithGoogleAuth` or `fetchJSON`) that internally use the MCPClient on the agent side.
-3. On Railway (agent), create a singleton `MCPClient` at startup with proper reconnect handling. The agent process is long-lived, so SSE connections persist naturally.
-4. Implement a health check that verifies the SSE connection is alive before tool calls: wrap `listTools()` in a try/catch and reconnect (`disconnect()` then re-create) on failure.
-5. Set the MCPClient `timeout` to 30 seconds (not the default 60s) to fail fast on stale connections.
+Follow the pattern already established for slide thumbnails in `gcs-thumbnails.ts`: fetch the thumbnail server-side using authenticated credentials, upload to GCS as a permanent public PNG, store the GCS URL. For Discovery document cards, extend `DiscoveryDocCache` with a `thumbnailGcsUrl` column. Trigger thumbnail caching during the `enrichDocsWithDriveMetadata()` call that already runs on browse/search. Use the same `THUMBNAIL_TTL_MS` (7 days) refresh cycle. Never store raw `thumbnailLink` URLs as the display URL.
 
 **Warning signs:**
-- Tool calls that work in development (long-running Node.js process) but fail in production (Vercel serverless)
-- `ECONNRESET` or `fetch failed` errors from the MCPClient
-- SSE connection established but tool responses never arrive
-- MCPClient `listTools()` returning empty arrays after function recycling
+- Thumbnail images load on first visit but break on subsequent visits
+- 404 or 403 errors in browser network tab for `lh3.googleusercontent.com` URLs
+- Images work for the developer but not for other users (different auth context)
 
 **Phase to address:**
-Mastra MCP Client phase -- must be an agent-side-only component from the start.
+Discovery document thumbnails phase (first phase). Solve this before any UI card rendering work.
 
 ---
 
-### Pitfall 2: MCPClient SSE Connection on Railway Dies After Server Restarts Without Reconnect Logic
+### Pitfall 2: Optimistic UI State Overwritten by Background Polling
 
 **What goes wrong:**
-Railway auto-restarts containers on deploy, health check failure, or OOM. When the agent process restarts, the singleton `MCPClient` is destroyed. If the `MCPClient` is created in a module-level `const`, it initializes lazily on first use after restart -- but the AtlusAI SSE endpoint may take 5-10 seconds to establish, during which incoming requests that need MCP tools will fail. Additionally, if the AtlusAI server itself restarts or has a network blip, the SSE connection drops and `MCPClient` does not auto-reconnect. Per the MCP TypeScript SDK issue #510, "SSEClientTransport doesn't re-establish lifecycle state on disconnect/reconnect" -- reconnecting creates a new session but the client assumes the old initialization state.
+When a user clicks "Ingest" on a template card, the UI optimistically sets status to "Queued". Meanwhile, a background polling interval fetches template status from the server. The poll response arrives before the server has processed the ingest request, so it returns `ingestionStatus: "idle"`. The poll overwrites the optimistic state, making the button appear to reset. User clicks again, gets "already ingesting" error toast. This exact issue is documented in REVIEW-ISSUES.md #3 and is a well-known pattern (RTK Query issue #1512, various React Query discussions).
 
 **Why it happens:**
-The MCP SSE transport is session-based. Each SSE connection has a session ID. When the connection drops, the server forgets the session. The client must fully re-initialize (new handshake, new session). But `MCPClient` does not have built-in reconnect with re-initialization -- it reconnects the transport but skips the `initialize` message exchange.
+The existing ingestion flow uses polling (`getDiscoveryIngestionProgressAction` and template status polling) with no coordination between optimistic state and poll responses. The in-memory ingestion queue (`ingestionQueue.ts`) processes asynchronously, so there is a window between "client sends ingest request" and "server updates Template.ingestionStatus in DB" where polls return stale data.
 
 **How to avoid:**
-1. Create a wrapper around `MCPClient` that detects connection drops and fully re-creates the client (not just reconnects the transport):
-```typescript
-let mcpClient: MCPClient | null = null;
-
-async function getAtlusAIMCPClient(): Promise<MCPClient> {
-  if (mcpClient) {
-    try {
-      await mcpClient.listTools(); // health check
-      return mcpClient;
-    } catch {
-      await mcpClient.disconnect().catch(() => {});
-      mcpClient = null;
-    }
-  }
-  mcpClient = new MCPClient({ servers: { atlus: { url: new URL(ATLUS_SSE_URL), ... } } });
-  return mcpClient;
-}
-```
-2. Add a `process.on('SIGTERM', ...)` handler to gracefully disconnect before Railway kills the container.
-3. Use the MCPClient `id` parameter to prevent memory leaks: `id: 'atlus-ai-singleton'`. Without this, creating multiple instances with identical config throws an error.
-4. Add startup readiness gating: the agent should not accept MCP-dependent requests until the SSE connection is confirmed alive via `listTools()`.
+1. **Monotonic status transitions**: The codebase already uses a monotonic set pattern for stepper progress (PROJECT.md key decisions). Apply the same principle: ingestion status can only move forward (idle -> queued -> ingesting -> done), never backward. Poll responses that would regress state are ignored.
+2. **Timestamp-based stale rejection**: Record a `lastOptimisticAt` timestamp when applying optimistic updates. Discard poll responses initiated before that timestamp.
+3. **Disable the action button immediately** on click (before the async call), and use a local ref or `useOptimistic` to track pending state independently from server state. Note: `useOptimistic` alone does not solve race conditions -- it needs to be combined with the monotonic transition guard.
+4. **Return the updated status from the ingest endpoint** so the client can immediately reconcile without waiting for the next poll.
 
 **Warning signs:**
-- MCP tool calls failing immediately after Railway deploys
-- "MCPClient already exists with this configuration" errors (memory leak from re-creation without disconnect)
-- Tools working for hours, then suddenly failing (network blip killed SSE)
-- Agent logs showing SSE connection established but `initialize` handshake never completed
+- Status "flickers" between states (queued -> idle -> queued)
+- Users report clicking ingest "doesn't work" on first try
+- Error toasts about duplicate ingestion appear
+- Template card briefly shows "Ready" during active ingestion
 
 **Phase to address:**
-Mastra MCP Client phase -- reconnect wrapper must be part of the initial integration.
+Optimistic UI / immediate feedback phase. Must be solved before ingestion status consistency work, as the consistency fix depends on clean state transitions.
 
 ---
 
-### Pitfall 3: Two Independent Token Pools (Google + AtlusAI) Create Cascade Failures and Confusing Action Required Items
+### Pitfall 3: Google Slides API Element Extraction Produces Massive Response Payloads
 
 **What goes wrong:**
-The existing `getPooledGoogleAuth()` iterates `UserGoogleToken` records for Google API access. v1.4 adds a second pool (`UserAtlusToken`) for AtlusAI API access. Both pools create `ActionRequired` records with different `actionType` values (`reauth_needed` vs `atlus_account_required`). When a user's Google token expires, the system creates a Google re-auth action. When they also lack an AtlusAI account, they get an AtlusAI action. The Actions page becomes a confusing mix of Google and AtlusAI issues with no clear categorization. Worse, if a background job needs BOTH pools (e.g., search AtlusAI + fetch from Drive), one pool failure causes the whole operation to fail, but only one `ActionRequired` is created -- the user fixes one issue and the job still fails on the other.
+`presentations.get` returns the full presentation resource including every page element's properties, text runs, transforms, styles, table cells, and embedded image references. For a 50-slide presentation with complex layouts, this response can be 5-15 MB of JSON. For 100+ slides, it can exceed 30 MB. Storing the full element map per slide in a `TEXT` column in PostgreSQL creates massive row sizes that degrade query performance, especially when joined with vector search results from SlideEmbedding.
 
 **Why it happens:**
-Two independent pools with independent fallback chains and independent error paths. No coordination between the pools. The Action Required UI treats all actions as a flat list with no grouping. Background jobs that need both APIs do not atomically check both before starting.
+The Google Slides API returns deeply nested objects for each element: `PageElement` contains `Transform`, `Size`, `ElementProperties`, and then type-specific fields (`TextBox` with `TextRun[]` with `TextStyle`, `Table` with `TableCell[]` each with their own text/style, etc.). Developers fetch the full response for element mapping without realizing the data volume.
 
 **How to avoid:**
-1. Group Action Required items by category in the UI. Add an `actionCategory` field or derive from `actionType`: Google actions vs AtlusAI actions. Show them in separate sections.
-2. For operations requiring both pools, pre-check both pools at the start and create all needed `ActionRequired` records upfront -- do not discover them one at a time.
-3. Keep the pools completely independent in code. Do NOT create a unified "token pool" abstraction -- Google OAuth and AtlusAI auth are different systems with different credentials, different refresh mechanisms, and different scopes. A bad abstraction here causes more bugs than it prevents.
-4. Use distinct `actionType` values that are clearly named: `google_reauth_needed`, `atlus_account_required`, `atlus_project_required` (not generic `reauth_needed` that could mean either).
-5. Add de-duplication: before creating a new `ActionRequired`, check for an existing unresolved record with the same `userId` + `actionType` (the existing Google pool already does this -- replicate for AtlusAI pool).
+1. **Use field masking on presentations.get**: Request only needed fields via the `fields` parameter. For element maps, something like: `slides(objectId,pageElements(objectId,size,transform,shape(shapeType,placeholder),table(rows,columns),image(contentUrl),description))`. Official docs confirm this can reduce response size by 60-80%.
+2. **Store a reduced element map**: Extract and store only: element ID, type, placeholder type (if any), bounding box (position + size), and content summary. Do NOT store full text runs or detailed style information in the element map (text content is already stored in `contentText` on SlideEmbedding).
+3. **Separate element map from embedding row**: Store element maps in a new `SlideElementMap` table or a JSONB column on a separate table, NOT in the same row as the 768-dim vector. This prevents element map queries from pulling vector data and vice versa.
+4. **Use one presentations.get call per template, not per-slide pages.get**: A single field-masked `presentations.get` counts as 1 regular read (quota: 600/min/user) and returns all slide elements. This is far cheaper than N `pages.get` calls.
 
 **Warning signs:**
-- Users seeing 4+ unresolved actions with unclear categorization
-- Background jobs failing twice -- once for Google, once for AtlusAI -- when both credentials are expired
-- `ActionRequired` table growing with duplicate entries for the same user/issue
+- Ingestion times increase dramatically for larger presentations
+- Memory spikes on the Railway agent container during ingestion
+- Prisma query timeouts when loading slide detail views
+- Database bloat: check `pg_total_relation_size('SlideEmbedding')`
 
 **Phase to address:**
-Auth & Token Pool phase AND Action Required Integration phase -- both phases must coordinate on `actionType` naming and UI grouping.
+Element map extraction phase. Design the storage schema BEFORE implementing extraction.
 
 ---
 
-### Pitfall 4: MCP Auth Credential Injection -- Passing AtlusAI Tokens Through requestInit/eventSourceInit Incorrectly
+### Pitfall 4: Ingestion Status Inconsistency Between Discovery and Templates Pages
 
 **What goes wrong:**
-The AtlusAI SSE endpoint (`/sse`) returns 401 without auth. The `MCPClient` needs to pass the AtlusAI access token via request headers. However, the MCPClient has TWO header configuration points: `requestInit` (for the initial Streamable HTTP attempt and subsequent POST requests) and `eventSourceInit` (for the SSE fallback). If you only set `requestInit`, the SSE fallback connection opens without auth headers and gets 401. The MCPClient silently falls back from Streamable HTTP to SSE, then SSE fails with 401, and the error message just says "connection failed" without indicating that SSE auth headers were missing.
+The Discovery page and Templates page independently derive status using different logic. Discovery checks `ingestedHashes` (a set of `Template.presentationId` values), which only reflects whether a Template record exists. Templates checks `Template.ingestionStatus`, which reflects the actual pipeline state. Result: Discovery shows "Ingested" the moment the Template record is created (before any slides are processed), while Templates correctly shows "Ingesting... Slide 4 of 21". This is documented in REVIEW-ISSUES.md #2 and partially caused by the recent ingestion rewrite (see `ingestion-state-reverts.md`).
 
 **Why it happens:**
-The MCPClient first tries Streamable HTTP transport (protocol version 2025-03-26), then falls back to legacy SSE (protocol version 2024-11-05). These are two different transports with two different request configurations. The AtlusAI server is an SSE server (legacy protocol), so the Streamable HTTP attempt will always fail. The SSE connection needs auth in `eventSourceInit`, not `requestInit`. Developers set `requestInit` headers assuming it covers all transports.
+The ingestion flow creates a Template record first, then enqueues it for processing. The Template record's existence immediately marks it as "ingested" in Discovery's dedup check (`ingestedHashes` includes all Template `presentationId` values regardless of ingestion status). There is no shared status abstraction -- each page implements its own status derivation logic independently.
 
 **How to avoid:**
-1. Set auth headers in BOTH `requestInit` AND `eventSourceInit`:
-```typescript
-const mcpClient = new MCPClient({
-  id: 'atlus-ai',
-  servers: {
-    atlus: {
-      url: new URL('https://knowledge-base-api.lumenalta.com/sse'),
-      requestInit: {
-        headers: { Authorization: `Bearer ${atlusToken}` },
-      },
-      eventSourceInit: {
-        fetch: (url, init) => fetch(url, {
-          ...init,
-          headers: { ...init?.headers, Authorization: `Bearer ${atlusToken}` },
-        }),
-      },
-    },
-  },
-});
-```
-2. Alternatively, use the `fetch` option on the server config which covers ALL transports:
-```typescript
-fetch: async (url, init) => {
-  return fetch(url, {
-    ...init,
-    headers: { ...init?.headers, Authorization: `Bearer ${token}` },
-  });
-}
-```
-3. The `fetch` option is preferred because it provides a single auth injection point that works regardless of which transport the MCPClient selects.
-4. Since the AtlusAI token comes from a pool (rotated per request), use the `fetch` callback pattern so tokens are resolved at request time, not at MCPClient construction time.
+1. **Single source of truth**: Both pages should derive status from `Template.ingestionStatus`. Discovery should check not just "does Template exist?" but "does Template exist AND ingestionStatus === 'idle' AND lastIngestedAt IS NOT NULL?".
+2. **Three-state model for Discovery**: `not_ingested` (no Template record), `ingesting` (Template exists, ingestionStatus !== 'idle' OR lastIngestedAt is null), `ingested` (Template exists, ingestionStatus === 'idle', lastIngestedAt set).
+3. **Shared polling endpoint**: Create a single `/ingestion-status` endpoint that returns status for multiple templates by presentationId, usable by both pages. This eliminates divergent status logic.
+4. **Include ingestion progress in Discovery response**: When the browse/search endpoint returns documents, include the corresponding Template's ingestionStatus and ingestionProgress for any that have been started.
 
 **Warning signs:**
-- MCPClient connects but all tool calls return 401
-- "Bad credentials" errors after SSE connection appears to establish
-- Auth works in manual `fetch()` test but not through MCPClient
-- MCPClient falls back to SSE silently and then fails
+- Discovery shows "Ingested" badge while Templates shows "Ingesting..."
+- Users go to Templates page expecting to see a completed template but find it mid-ingestion
+- Confusion about whether ingestion actually succeeded
 
 **Phase to address:**
-Mastra MCP Client phase -- auth injection pattern must be correct from the first connection attempt.
+Ingestion status consistency phase. Must come after the optimistic UI fix (Pitfall 2) since both relate to status display.
 
 ---
 
-### Pitfall 5: Replacing Drive Fallback Search Without Preserving the Multi-Pass Retrieval Contract
+### Pitfall 5: Prisma Migration With New Models Alongside Existing pgvector Columns
 
 **What goes wrong:**
-The existing `atlusai-search.ts` has a carefully designed multi-pass retrieval system: primary pillar search (20 slides), secondary pillar searches (5 each), case study search (5), with three-tier fallback broadening when results are sparse. The `searchForProposal()` function returns `ProposalSearchResult` with per-pass counts for diagnostics. Replacing Drive-based search with MCP-based search seems simple -- swap the underlying `searchSlides()` call -- but the MCP tools (`knowledge_base_search_semantic`, `knowledge_base_search_structured`) return different result shapes, have different pagination, and may not support the same filtering. If the replacement only swaps the search call without preserving the multi-pass logic, fallback tiers, and deduplication, proposal quality degrades silently.
+Adding new models (e.g., `SlideElementMap`, `DeckStructure`, `TouchBinding`) via `prisma migrate dev` when the schema already contains `Unsupported("vector(768)")` can trigger schema drift detection. Prisma's migration engine sees the vector column as an unknown type and sometimes generates incorrect diff SQL or warns about drift. On Prisma 6.19.x this is manageable but requires care. On Prisma 7.x, this is a known regression (GitHub issue #28867) that outright breaks migrations -- the project constraint to stay on 6.19.x exists for this reason.
 
 **Why it happens:**
-The temptation is to rip out `atlusai-search.ts` entirely and replace it with direct MCP calls. But `searchForProposal()` and `searchByCapability()` are consumed by 5 workflow files (`touch-1` through `touch-4` and `pre-call`). Each expects the `SlideSearchResult` interface. The MCP tools return different fields. A naive replacement breaks the contract.
+Prisma treats `Unsupported(...)` columns as opaque -- it cannot introspect or diff them reliably. When generating a new migration, the engine may produce ALTER statements that interact badly with the vector column or its HNSW index. The project rule requiring `prisma migrate dev --name <name>` (never `db push`) adds safety but doesn't eliminate the drift detection risk.
 
 **How to avoid:**
-1. Keep the `SlideSearchResult` interface as the public API contract. The replacement should only change the internal implementation of `searchSlides()`.
-2. Create an adapter that maps MCP `knowledge_base_search_semantic` results to `SlideSearchResult`:
-   - Map MCP document fields to `slideId`, `textContent`, `speakerNotes`, `metadata`
-   - Preserve `presentationId` and `slideObjectId` extraction from MCP metadata
-3. Keep `searchForProposal()` and `searchByCapability()` unchanged -- they orchestrate multiple `searchSlides()` calls and handle deduplication/fallback.
-4. Run a side-by-side comparison: for the same query, compare Drive search results vs MCP search results. Verify that MCP returns equal or better quality before cutting over.
-5. Keep the Drive fallback path available (behind a feature flag) during the transition. If MCP search returns poor results or is down, fall back to Drive search.
+1. **Always use `--create-only` first**: Generate migration SQL without applying it. Inspect the SQL for any unintended changes to `SlideEmbedding` or its indexes.
+2. **Never modify SlideEmbedding in the same migration as new models**: If you need to add columns to SlideEmbedding (e.g., `description`, `elementMapJson`), do it in a separate migration from any new model creation.
+3. **Stay on Prisma 6.19.x**: The constraint is already documented but bears repeating -- upgrading to 7.x will break vector migrations entirely.
+4. **Test migrations against a throwaway database first**: Before running on the shared dev DB, apply to a local PostgreSQL with pgvector enabled to verify no drift.
+5. **Use raw SQL for vector-adjacent schema changes**: If adding a column to a table with vector columns causes Prisma issues, write the migration SQL manually and mark it as applied with `prisma migrate resolve --applied`.
 
 **Warning signs:**
-- Workflows that previously generated good slide selections now produce irrelevant results
-- `searchForProposal()` returning 0 candidates (MCP search returning empty)
-- Type errors in workflow files after search replacement (interface mismatch)
-- Loss of per-pass count diagnostics (primaryCount, secondaryCount, caseStudyCount)
+- `prisma migrate dev` warns about schema drift
+- Generated migration SQL contains DROP/CREATE statements for SlideEmbedding
+- Migration fails with "column type vector does not exist" errors
+- HNSW index gets dropped and recreated (kills query performance until rebuild completes)
 
 **Phase to address:**
-Replace Drive Fallback phase -- must be an adapter swap, not a rewrite of the retrieval orchestration.
+Every phase that adds new models. First migration should be tested thoroughly before subsequent phases build on it.
 
 ---
 
-### Pitfall 6: Extending ActionRequired Model With New Types Breaks Existing Switch Statements and Icon Mapping
+### Pitfall 6: Slides API Rate Limits on Thumbnails + Element Extraction Combined
 
 **What goes wrong:**
-The existing `actions-client.tsx` has a `getActionIcon()` function that switches on `actionType`: `reauth_needed`, `share_with_sa`, `drive_access`. Adding new types (`atlus_account_required`, `atlus_project_required`) without updating this switch falls through to the `default` case (generic gray icon). The agent-side code that creates `ActionRequired` records also has hardcoded type-specific logic (e.g., the Google pool creates `reauth_needed` with specific title/description patterns). Adding new types without updating ALL consumers of `actionType` creates inconsistent behavior.
+The existing thumbnail caching (`gcs-thumbnails.ts`) uses `presentations.pages.getThumbnail` which counts as an "expensive read" -- limited to **60/minute/user** and **300/minute/project**. Regular reads (`presentations.get`, `presentations.pages.get`) have a separate, more generous quota of **600/minute/user** and **3000/minute/project**. If v1.5 adds element map extraction AND thumbnail caching AND rich description generation, the API budget gets tight. The existing code uses `BATCH_SIZE = 2` and `BATCH_DELAY_MS = 3000` for thumbnails, meaning a 50-slide template takes 75+ seconds just for thumbnails. Running this for 3+ templates queued in `ingestionQueue` serially adds minutes.
 
 **Why it happens:**
-The `actionType` field is a plain `String` in Prisma, not an enum. There is no compile-time check when new types are added. The consumers are split across apps: agent creates records, web displays them. Adding a type on the agent side without updating the web side is easy to miss.
+Thumbnail fetching (`getThumbnail`) and regular reads (`presentations.get`) use different quota buckets but developers don't realize this. The sequential ingestion queue prevents concurrent template processing but doesn't coordinate API budget across thumbnail caching AND regular reads within a single template ingestion. The current thumbnail caching runs as part of `ingestTemplate()` (line 331-341), serially adding 75+ seconds to every ingestion after the "idle" status is already set.
 
 **How to avoid:**
-1. Define a shared `ACTION_TYPES` constant in `packages/schemas` that lists all valid action types. Both agent and web import from this single source.
-2. When adding new types, grep for ALL `actionType` references across both apps. Key files to update:
-   - `apps/web/src/app/(authenticated)/actions/actions-client.tsx` -- icon mapping, display logic
-   - `apps/web/src/lib/actions/action-required-actions.ts` -- any type-specific server actions
-   - `apps/agent/src/lib/google-auth.ts` -- existing type creation
-   - `apps/agent/src/mastra/index.ts` -- any route-level type handling
-3. Add an icon and description for every new `actionType` in `getActionIcon()` BEFORE the agent starts creating records with that type.
-4. Consider adding a `resolutionUrl` field to `ActionRequired` so the UI can show a "Fix this" button that navigates to the appropriate page (e.g., AtlusAI login page, Google re-auth page).
+1. **Use one field-masked presentations.get for elements**: A single call returns all slide elements. This counts as 1 regular read (3000/min project quota), NOT an expensive read. Far cheaper than per-slide `pages.get` calls.
+2. **Separate thumbnail caching from the ingestion critical path**: It already runs after status is set to "idle", but it should be truly decoupled -- a separate background job or queue entry that runs after ingestion completes.
+3. **Budget-aware batching for thumbnails**: The current `BATCH_SIZE = 2` with `BATCH_DELAY_MS = 3000` is conservative. With 60/min/user quota, you could batch 4 with 4s delay. But if multiple templates queue, share a rate limiter instance.
+4. **Cache element maps alongside content hashes**: If the element map hasn't changed (same contentHash from smart merge), skip re-extraction on re-ingestion.
 
 **Warning signs:**
-- New action types appearing in the UI with generic gray icons
-- Action descriptions that are confusing because the web app does not know how to format them
-- Users seeing "Action Required" items with no clear resolution path
+- 429 errors in agent logs during ingestion
+- Ingestion takes 5+ minutes for a 30-slide deck
+- Thumbnail caching silently fails (current error handling logs but swallows 429s)
+- `BATCH_DELAY_MS` increased reactively to avoid rate limits
 
 **Phase to address:**
-Action Required Integration phase -- shared type definition must ship before either app creates records with new types.
+Element map extraction phase. Audit and document the rate budget before implementing.
 
 ---
 
-### Pitfall 7: Discovery UI Browse/Search/Ingest State Machine Becomes Spaghetti Without Explicit State Management
+### Pitfall 7: Deck Structure AI Analysis Produces Unreliable Results With Few Examples
 
 **What goes wrong:**
-The Discovery UI has three modes (browse, search, ingest) with complex transitions: browse lists projects/documents, search returns results with selection, ingest takes selected items through a multi-step pipeline (fetch slides, embed, classify, save). Without explicit state management, the component accumulates `useState` hooks for: current mode, search query, search results, selected items, ingestion progress per item, error states per item, and filter state. State interactions become unpredictable -- a user searches, selects items, switches to browse, comes back to search, and the selection is lost. Ingestion progress overwrites search results in the same state variable.
+The Settings page "Deck Structures" feature requires AI to infer the typical structure/flow of presentations per touch type. With only 5 accessible presentations (38 slides total) across potentially 4 touch types, some touches may have 0-1 examples. The AI will produce confident-sounding but unfounded structural analysis from a single example, presenting one deck's idiosyncratic structure as "the pattern." GPT-OSS 120b (like all LLMs) cannot distinguish "pattern from N=1" from "pattern from N=50."
 
 **Why it happens:**
-React `useState` works for simple UIs but breaks down for multi-phase flows with intermediate state. The project's existing pattern (see `touch-4-form.tsx` stepper) uses a monotonic set pattern for progress, but the Discovery UI has bidirectional navigation (browse <-> search, select <-> deselect) that monotonic patterns do not support.
+LLMs are excellent at pattern description but terrible at statistical significance. The model will describe whatever it sees as if it's representative. With the current content library status (38 slides from 5 presentations), there simply isn't enough data for meaningful structural inference for all 4 touch types.
 
 **How to avoid:**
-1. Use `useReducer` with explicit states and transitions:
-```typescript
-type DiscoveryState =
-  | { mode: 'browse'; projects: Project[]; loading: boolean }
-  | { mode: 'search'; query: string; results: SearchResult[]; selected: Set<string> }
-  | { mode: 'ingesting'; items: IngestItem[]; progress: Map<string, IngestStatus> }
-```
-2. Keep selected items as a `Set<string>` that persists across mode switches (browse and search share the same selection).
-3. Separate data fetching state from UI mode state. Search results and browse data should live in separate state slices, not be mutually exclusive.
-4. For ingestion progress, use a `Map<itemId, status>` where status is `'pending' | 'fetching' | 'embedding' | 'classifying' | 'done' | 'error'`. This maps naturally to a progress UI per item.
-5. Follow the existing polling pattern (used in template ingestion) for long-running operations. Do NOT use SSE from the web app for ingestion progress -- the web app is on Vercel where SSE is unreliable.
+1. **Show example count per touch prominently**: Display "Based on N examples" alongside every structural inference. If N < 3, show a warning: "Insufficient examples for reliable structure inference."
+2. **Template vs Example classification must come first**: You need to know which presentations ARE examples (bound to a specific touch) before analyzing their structure. Build classification before deck structures.
+3. **Use the AI chat refinement as the primary mechanism**: Since automated analysis will be unreliable with few examples, make the chat interface the real tool. Let users correct and refine interactively rather than trusting initial AI analysis.
+4. **Store structure as user-editable artifact**: Treat AI output as a draft. Store the final structure as a user-confirmed artifact, not a cached LLM response that gets regenerated.
+5. **Graceful degradation**: When 0 examples exist for a touch, show "No examples classified for this touch yet" instead of fabricating a structure.
 
 **Warning signs:**
-- More than 8 `useState` hooks in a single component
-- State interactions causing stale renders (search results from previous query appearing during new search)
-- Ingestion progress not updating (state update batching issues)
-- User selections disappearing on mode switch
+- Deck structures look plausible but don't match what sellers actually use
+- Different runs produce different structures for the same touch (non-deterministic with low data)
+- Users immediately flag the AI analysis as wrong via the chat interface
+- All 4 touches show similar structures (model generalizing from too few examples)
 
 **Phase to address:**
-Discovery UI phase -- `useReducer` state machine must be designed before UI implementation begins.
+Settings page / Deck Structures phase. This should be the LAST feature built in v1.5, after more examples have been classified and ingested via the Template vs Example classification feature.
 
 ---
 
-### Pitfall 8: MCPClient Token Rotation Creates Stale Credential in SSE Connection
+### Pitfall 8: Adding Rich AI Descriptions During Ingestion Doubles LLM Costs and Time
 
 **What goes wrong:**
-The `MCPClient` is created with an AtlusAI token injected via `fetch` callback or `requestInit`. AtlusAI tokens may expire or rotate (similar to Google OAuth). If the token is captured by closure at MCPClient creation time, the SSE connection continues using the stale token. Eventually the server rejects requests with 401, but the SSE transport connection itself may still be "alive" (EventSource reconnects automatically). The health check (`listTools()`) might pass (server accepts the SSE connection) but tool calls fail (server rejects the tool invocation).
+The current ingestion pipeline already makes 2 LLM/API calls per slide: one for classification (Gemini via `classifySlide`) and one for embedding (Vertex AI `text-embedding-005`). Adding a rich description generation step adds a third LLM call per slide. For a 50-slide template, this means 150 API calls instead of 100. With the 300ms rate limit delay between slides (`ingest-template.ts` line 236), ingestion time increases by ~15 seconds for the descriptions alone, plus actual LLM latency (1-3 seconds per call). A 50-slide deck that took 3 minutes now takes 4-5 minutes.
 
 **Why it happens:**
-SSE connections are long-lived. The auth token is provided at connection time. If the token expires after the connection is established, different MCP servers handle this differently -- some reject mid-connection, others reject only new tool calls. The `MCPClient`'s `fetch` callback is called for POST requests (tool invocations) but the SSE GET connection was established with the original token.
+Each slide needs a contextual, human-readable description that captures purpose, visual composition, and use cases. This requires an LLM call that is separate from classification (different prompt, different output schema). Developers add it as a serial step in the per-slide loop without considering the cumulative time cost.
 
 **How to avoid:**
-1. Use the `fetch` callback pattern (not `requestInit`) so that every POST request to the MCP server gets a fresh token:
-```typescript
-fetch: async (url, init) => {
-  const freshToken = await getPooledAtlusAuth(); // get fresh token from pool
-  return fetch(url, {
-    ...init,
-    headers: { ...init?.headers, Authorization: `Bearer ${freshToken}` },
-  });
-}
-```
-2. Implement a periodic SSE reconnect (every 30 minutes) that tears down and re-creates the MCPClient with a fresh token. This ensures the SSE connection itself has valid credentials.
-3. On 401 from any tool call, immediately disconnect and re-create the MCPClient with a new pooled token.
-4. Do NOT cache the MCPClient indefinitely. Set a max lifetime (e.g., 1 hour) after which it is forcibly recycled.
+1. **Combine classification and description in a single LLM call**: Extend the `classifySlide` prompt to also produce a `description` field. One call does both classification and description generation. This is the most impactful optimization.
+2. **Use a smaller/faster model for descriptions if separate**: If the description prompt must be different from classification, consider using Gemini Flash instead of GPT-OSS 120b for descriptions (faster, cheaper, sufficient for summaries).
+3. **Batch descriptions**: If keeping separate calls, process descriptions in parallel batches (Promise.allSettled) rather than sequentially, respecting rate limits.
+4. **Store description alongside classification**: Add a `description` column to SlideEmbedding. Do NOT create a separate table for descriptions -- they are 1:1 with slides and always displayed together.
 
 **Warning signs:**
-- Tool calls returning 401 while `listTools()` succeeds
-- MCPClient working for hours then suddenly failing
-- All tool calls failing simultaneously (token expiry affects all operations)
+- Ingestion time increases noticeably compared to v1.4
+- Sellers complain about waiting longer for templates to be ready
+- LLM costs increase (check Vertex AI billing dashboard)
+- Rate limit 429 errors appear during ingestion (too many LLM calls too fast)
 
 **Phase to address:**
-Mastra MCP Client phase and Auth & Token Pool phase -- token freshness and MCPClient lifecycle must be coordinated.
-
----
-
-### Pitfall 9: AtlusAI 3-Tier Access Detection Creates False Negatives During Pool Initialization
-
-**What goes wrong:**
-The v1.4 spec calls for 3-tier access detection: (1) has AtlusAI account, (2) has accessible project, (3) can search content. During initial pool setup, if a user has an AtlusAI account but no project access, the system should create an `atlus_project_required` action. But if the detection runs before the user has logged in and stored their AtlusAI token, the detection returns "no account" (tier 1 failure) which masks the actual issue (tier 2 -- no project). When the user creates an account and provides credentials, the system may not re-run detection to discover the tier 2 issue.
-
-**Why it happens:**
-Access detection is a waterfall: each tier depends on the previous. If tier 1 fails, tiers 2 and 3 are never checked. But the resolution for tier 1 (user creates account) should trigger a re-check of tiers 2 and 3. Without an event-driven re-check, the `ActionRequired` record for tier 1 is resolved (user has account now) but tiers 2 and 3 are never evaluated until the next background job attempts to use AtlusAI.
-
-**How to avoid:**
-1. When resolving an `atlus_account_required` action (user provides credentials), immediately run the full 3-tier detection again. Create any needed tier 2/3 actions right away.
-2. Store the access detection result alongside the token: a `accessLevel` field on `UserAtlusToken` with values `'none' | 'account_only' | 'project_access' | 'full_access'`.
-3. Re-run detection on token store/update, not just on background job failure.
-4. Show all three tiers in the Action Required UI as a checklist (like an onboarding flow), not as individual disconnected items.
-
-**Warning signs:**
-- User resolves "create AtlusAI account" action but still cannot use AtlusAI features
-- No new `ActionRequired` created after account creation (detection not re-triggered)
-- Users stuck in a loop of resolving one action only to discover another
-
-**Phase to address:**
-Auth & Token Pool phase -- 3-tier detection must be re-triggerable, not one-shot.
+Rich description phase. Combine with classification in a single call from the start.
 
 ---
 
@@ -300,109 +207,116 @@ Auth & Token Pool phase -- 3-tier detection must be re-triggerable, not one-shot
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Single MCPClient with no reconnect logic | Faster initial integration | Silent failures after network blips, requires agent restart to recover | Never -- reconnect wrapper from day one |
-| Storing AtlusAI token in plaintext (not encrypted) | Faster implementation | Inconsistent with Google token pattern, security liability | Never -- use existing `token-encryption.ts` for consistency |
-| Hardcoding AtlusAI SSE URL in MCPClient config | One less env var | Cannot switch environments (staging/prod AtlusAI) without code change | Only during initial development; extract to env var before merge |
-| Flat ActionRequired list without grouping | Simpler UI component | Users overwhelmed when they have both Google and AtlusAI issues | Acceptable for initial launch; add grouping when > 3 action types exist |
-| Creating MCPClient per request instead of singleton | Avoids stale connection issues | Memory leaks (MCPClient instances accumulate), SSE connection storm on server | Never -- use singleton with health check |
-| Skipping Drive fallback feature flag during MCP cutover | Simpler code path | No rollback if MCP search quality is worse than Drive search | Never -- keep Drive fallback until MCP search is validated |
-| Discovery UI with raw useState (no useReducer) | Faster initial UI prototype | State spaghetti within 2 weeks, hard to add new flows | Only for throwaway prototype; refactor before merge |
+| Storing element maps as JSON text in SlideEmbedding row | No schema change needed | Bloated rows degrade vector queries, awkward to index or query elements | Never -- create a separate table or JSONB column |
+| Combining description into existing classificationJson | No migration needed | classificationJson becomes overloaded, harder to update independently | Acceptable short-term if description is a simple string field |
+| Adding description column to SlideEmbedding via raw SQL | Avoids Prisma drift issues | Manual migration maintenance | Acceptable -- use `--create-only` and hand-edit SQL |
+| In-memory Map for batch ingestion state (existing) | Avoids DB complexity | Lost on agent restart, no cross-instance state | Acceptable for single Railway instance with ~20 users |
+| Polling for ingestion status (existing) | Simple implementation | Stale data races, polling load | Acceptable at current scale; SSE for v2 |
+| Single LLM call for deck structure analysis | Fast to implement | Unreliable with few examples | Only in v1.5 MVP with prominent confidence indicators and example counts |
+| Hardcoded touch type list in classification UI | No DB lookup needed | Adding Touch 5+ requires code change | Acceptable for current 4-touch scope |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| MCPClient + SSE auth | Setting `requestInit` headers only | Set auth in `fetch` callback OR both `requestInit` AND `eventSourceInit` -- SSE uses different config from HTTP |
-| MCPClient + Vercel | Creating MCPClient in web app Server Actions | MCPClient lives only on Railway agent; web calls agent API endpoints that proxy to MCP |
-| MCPClient + singleton | Re-creating without calling `disconnect()` first | Always `disconnect()` before re-creating; use `id` parameter to prevent memory leak errors |
-| AtlusAI token pool + Google token pool | Sharing `ActionRequired` type names | Use distinct, prefixed action types: `google_reauth_needed` vs `atlus_account_required` |
-| MCP search + existing retrieval | Replacing `searchForProposal()` entirely | Only replace the internal `searchSlides()` implementation; keep the multi-pass orchestration unchanged |
-| AtlusAI search results + SlideSearchResult | Assuming MCP returns same fields as Drive search | Build an explicit adapter layer that maps MCP result shape to existing `SlideSearchResult` interface |
-| Discovery UI + ingestion pipeline | Calling ingestion synchronously from the UI | Use the existing `ingestionQueue` pattern -- enqueue items, poll for progress |
-| Two token pools + background jobs | Checking pools sequentially (Google first, then AtlusAI on failure) | Check both pools upfront before starting the operation; create all needed `ActionRequired` records at once |
+| Google Slides API `presentations.get` | Fetching full response for 50+ slide decks (5-15MB JSON) | Use `fields` parameter to mask response to only needed fields |
+| Google Slides API `pages.getThumbnail` | Treating as regular read quota (600/min) | It is an "expensive read" -- 60/min/user, 300/min/project. Separate quota bucket. |
+| Google Drive API `thumbnailLink` | Storing the URL directly in DB for display | URL expires in hours, has CORS issues. Proxy to GCS for permanent storage. |
+| Google Drive API `files.get` for thumbnails | Calling per-document on every browse request | Cache results in `DiscoveryDocCache` (already exists) -- extend with thumbnailGcsUrl |
+| Prisma + pgvector migrations | Adding columns to vector table in same migration as new models | Separate migrations. Use `--create-only`. Inspect SQL. Never modify SlideEmbedding and other tables in one migration. |
+| Prisma `Unsupported("vector")` | Assuming Prisma can introspect and diff these columns | Prisma cannot. Manual SQL may be needed. Use `prisma migrate resolve --applied` for hand-written migrations. |
+| User-delegated OAuth for thumbnails | Assuming token is always available for background thumbnail fetch | Token pool may be empty. Service account fallback must work. Follow existing `getPooledGoogleAuth()` pattern. |
+| Ingestion pipeline extension | Adding new per-slide steps as serial calls in the loop | Combine where possible (classification + description in one LLM call). Keep element extraction separate (API vs LLM). |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Creating new MCPClient per MCP operation | 2-5 second SSE handshake delay per operation; connection storm on AtlusAI server | Singleton with health check wrapper | Immediately noticeable on first use |
-| Searching AtlusAI with broad queries returning 100+ results | MCP tool call takes 10+ seconds; response too large for SSE message frame | Limit results in MCP tool parameters; paginate if supported | > 50 concurrent searches |
-| Discovery UI fetching all AtlusAI projects on page load | Page load takes 5+ seconds; unnecessary API calls when user navigates away | Lazy load projects on first browse tab click; cache in React state | > 100 projects in AtlusAI |
-| Polling ingestion progress too aggressively from Discovery UI | Agent API overwhelmed with status checks; Vercel function invocations spike | Poll every 3-5 seconds (matching existing template ingestion pattern); use exponential backoff when idle | > 5 concurrent ingestions |
-| Two token pools both doing concurrent health checks | Double the database queries per background job cycle | Stagger pool health checks; Google pool checks on even minutes, AtlusAI pool on odd minutes | > 50 background job cycles/hour |
+| Full `presentations.get` response stored per slide | Slow ingestion, memory spikes, DB bloat | Field masking + reduced element map + separate table | Presentations with 30+ complex slides |
+| Serial LLM calls for classification + description + embedding per slide | 4-5 min ingestion for 50 slides | Combine classification + description in single call; parallelize embedding | Any deck over 20 slides |
+| Concurrent thumbnail caching across queued templates | 429 rate limit errors, silent failures | Sequential queue (already exists) + budget-aware batching | 3+ templates queued simultaneously |
+| Polling from multiple browser tabs (Discovery + Templates) | N * polling_rate requests to agent per interval | Use Visibility API to pause polling in background tabs; debounce | 5+ concurrent users with multiple tabs |
+| Loading full SlideEmbedding rows for Discovery dedup | Slow browse page with unnecessary data transfer | Select only `presentationId` for dedup check, not full rows | 100+ ingested templates |
+| Element map stored in same row as 768-dim vector | Vector similarity queries pull MB of element JSON per result | Separate table for element maps; join only when needed | 10+ results in similarity search with element-heavy slides |
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Logging AtlusAI access tokens in agent debug output | Token leakage in Railway logs; anyone with log access gets AtlusAI credentials | Never log tokens; log only `source: 'pool'` and `userId` without the token value |
-| Storing AtlusAI tokens without encryption | Inconsistent with Google token handling; database compromise exposes all AtlusAI credentials | Use existing `encryptToken` / `decryptToken` from `token-encryption.ts` |
-| Passing AtlusAI tokens from web to agent without HTTPS | MITM interception of credentials | Already mitigated -- both Vercel and Railway enforce HTTPS; verify agent service URL uses `https://` |
-| MCPClient `fetch` callback not checking token expiry before use | Expired token sent to AtlusAI server; 401 error cascade | Check token `expiresAt` before use; refresh if needed; mark invalid if refresh fails |
-| Exposing MCP tool results directly in web API responses | AtlusAI content that should require auth is visible to any authenticated user | Verify user has AtlusAI access before returning MCP results; filter by user's project access |
+| Exposing raw Drive `thumbnailLink` to client | URL may contain auth tokens; leaks Google session info; CORS blocks it anyway | Always proxy through GCS; never send `thumbnailLink` to browser |
+| Storing element map with image `contentUrl` from Slides API | Image URLs contain short-lived tokens; could be used to access other Drive resources | Strip or replace image URLs with GCS-cached versions before storage |
+| Service account used for all Drive thumbnail fetches | SA may not have access to user-shared files in personal Drives | Use pooled user auth with SA fallback, matching existing `getPooledGoogleAuth()` pattern |
+| Description generation prompt including raw slide text | LLM could echo sensitive client content in descriptions visible to all users | Descriptions should be structural (purpose, layout, element types) not content-reproducing |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Showing AtlusAI connection errors with technical MCP jargon ("SSE transport failed", "initialize handshake timeout") | User has no idea what happened or how to fix it | Show user-friendly message: "AtlusAI is temporarily unavailable. Your search will use local slides instead." with automatic Drive fallback |
-| Discovery UI browse loads entire AtlusAI catalog at once | Slow initial load, overwhelming content list | Paginated browse with folder/project hierarchy; lazy-load children on expand |
-| Ingestion progress showing only "in progress" with no per-slide detail | User cannot tell if ingestion is stuck or just slow | Reuse existing ingestion progress pattern: "Processing slide N of M... Classifying..." |
-| Action Required page showing AtlusAI setup actions to users who do not need AtlusAI | Confusion: "What is AtlusAI and why do I need it?" | Only show AtlusAI actions to users who have attempted to use AtlusAI features (triggered by first Discovery page visit) |
-| Search results from AtlusAI showing raw document metadata instead of formatted previews | Users cannot evaluate result quality before ingesting | Show slide text preview, source presentation name, and classification tags in search results |
-| No clear distinction between "already ingested" and "not yet ingested" AtlusAI content in Discovery UI | Users accidentally re-ingest content, creating duplicates | Mark already-ingested items with a checkmark; show "Re-ingest" instead of "Ingest" with confirmation dialog |
+| Showing "Ingested" immediately on Discovery while actually ingesting | User navigates to Templates expecting completed template, finds it in progress | Show real 3-state status on both pages (not ingested / ingesting / ingested) |
+| No feedback for 2-5 seconds after clicking "Ingest" | User clicks again, gets error toast about duplicate ingestion | Disable button immediately, show spinner, update status optimistically with monotonic guard |
+| AI deck structure presented without data confidence context | User trusts wrong structure, builds decks with incorrect flow | Show "Based on N examples" with score; warning when N < 3; highlight low-confidence sections |
+| Element map data shown raw in UI | Technical JSON blob confuses non-technical sellers | Show element map as visual diagram or structured summary; raw JSON only in dev/debug view |
+| Template vs Example classification required retroactively for all existing templates | Existing templates show "Action Required" banners, cluttering the page | Batch classification flow with smart defaults (infer from existing `touchTypes` field) |
+| Rich description missing for already-ingested slides | Inconsistent UX where some slides have descriptions and others don't | Backfill descriptions for existing slides on first load or via background re-classification job |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **MCPClient SSE connection:** Connects to AtlusAI AND handles reconnect on disconnect AND handles token rotation AND health check wrapper is tested -- not just "it connected once"
-- [ ] **AtlusAI token pool:** Encrypted storage AND pool iteration AND invalid token marking AND ActionRequired creation AND 3-tier access detection re-triggers on resolution -- not just "tokens are stored"
-- [ ] **Drive fallback replacement:** MCP search adapter returns `SlideSearchResult` interface AND multi-pass retrieval preserved AND fallback tiers work AND side-by-side quality comparison run AND Drive fallback behind feature flag -- not just "MCP calls work"
-- [ ] **Action Required extension:** New types have icons AND descriptions AND resolution URLs AND shared type constants AND UI grouping AND de-duplication -- not just "records are created"
-- [ ] **Discovery UI:** Browse loads lazily AND search debounces AND selection persists across mode switches AND ingestion uses queue (not sync) AND progress polls at correct interval AND already-ingested items are marked -- not just "the page renders"
-- [ ] **Token pool race conditions:** Both pools handle concurrent access without duplicate ActionRequired records AND stale token marking is idempotent AND pool health warnings do not spam logs -- not just "tokens work one at a time"
+- [ ] **Discovery thumbnails:** Often missing GCS caching -- verify thumbnails survive browser cache clear AND new session AND 24hr gap
+- [ ] **Discovery thumbnails:** Often missing file-type icons for non-Slides docs -- verify PDFs, Docs, Sheets show appropriate icons
+- [ ] **Ingestion status sync:** Often only tested on Templates page -- verify Discovery page shows matching status during active ingestion (check both pages simultaneously)
+- [ ] **Optimistic UI:** Often only tested happy path -- verify rollback on network error AND no flicker when poll arrives during optimistic state AND button disabled during pending
+- [ ] **Element map extraction:** Often missing field masking -- verify `presentations.get` uses `fields` parameter (check agent request logs for response size)
+- [ ] **Element map storage:** Often stored in same table as vectors -- verify separate storage that doesn't bloat vector query results
+- [ ] **Rich descriptions:** Often missing for existing slides -- verify backfill strategy for slides ingested before descriptions were added
+- [ ] **Template classification:** Often missing migration for existing data -- verify existing templates prompt for classification AND don't show broken state
+- [ ] **Deck structure analysis:** Often tested with good examples only -- verify behavior when 0 examples exist for a touch type (should show helpful empty state, not hallucinated structure)
+- [ ] **Rate limit handling:** Often only tested with 1 template -- verify 429 handling when 3+ templates are queued with both thumbnails and element extraction
+- [ ] **Prisma migrations:** Often tested with `db push` accidentally -- verify migration file exists in `prisma/migrations/` and was applied via `prisma migrate dev --name`
+- [ ] **Thumbnail CORS:** Often tested via server-side fetch only -- verify thumbnails render in actual browser across origins (not just API response check)
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| MCPClient singleton holds dead SSE connection | LOW | Restart agent service on Railway (auto-restarts clear the singleton); add reconnect wrapper to prevent recurrence |
-| Wrong auth injection pattern (requestInit only, missing eventSourceInit) | LOW | Update MCPClient config to use `fetch` callback; redeploy agent |
-| Drive fallback removed before MCP search validated | MEDIUM | Re-add `atlusai-search.ts` from git history; add feature flag to switch between Drive and MCP search; run quality comparison |
-| ActionRequired type mismatch between agent and web | LOW | Add missing types to `getActionIcon()` switch statement; deploy web; no data migration needed |
-| Discovery UI state spaghetti | MEDIUM | Refactor to `useReducer`; extract state machine; re-test all flows (browse, search, select, ingest, error, retry) |
-| AtlusAI tokens stored unencrypted | MEDIUM | Add encrypted columns via migration; encrypt all existing plaintext tokens; drop plaintext column in subsequent migration |
-| MCPClient memory leak from re-creation without disconnect | LOW | Add `id` parameter to MCPClient constructor; add `disconnect()` call before re-creation; restart agent to clear accumulated instances |
-| Two pools creating duplicate ActionRequired records | LOW | Add unique constraint or upsert logic on `[userId, actionType, resolved: false]`; deduplicate existing records via migration |
+| Stored raw Drive thumbnailLinks that expired | LOW | Batch job: query all rows with non-GCS thumbnailUrl, re-fetch via Drive API, upload to GCS |
+| Optimistic state desync from server | LOW | Force refresh (re-fetch all template statuses), clear local state, page reload |
+| Element map bloated SlideEmbedding table | MEDIUM | Create separate SlideElementMap table, migrate data, null out old column, VACUUM FULL |
+| Prisma migration dropped HNSW index | HIGH | `CREATE INDEX CONCURRENTLY` to rebuild without locking table; 30-60 sec for current scale; minutes at 1000+ rows |
+| Rate limit exhausted during batch ingestion | LOW | Queue will process next on `processNext()`. Add exponential backoff delay. Retry after quota resets (60 seconds). |
+| Deck structure analysis produced wrong results | LOW | User corrects via AI chat. Store corrections as authoritative. Re-run analysis when more examples added. |
+| Migration broke vector column | HIGH | Restore from Supabase point-in-time backup. Re-apply migration with hand-corrected SQL. |
+| Descriptions missing for existing slides | LOW | Background job: query slides where description IS NULL, generate via LLM batch, update. Non-blocking. |
 
 ## Pitfall-to-Phase Mapping
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| SSE connection lifecycle in serverless (Vercel) | Mastra MCP Client | MCPClient exists ONLY in agent code; no `@mastra/mcp` imports in `apps/web` |
-| SSE reconnect on Railway | Mastra MCP Client | Agent survives `railway restart`; MCPClient reconnects; tool calls succeed within 15 seconds of restart |
-| Two independent token pools cascade | Auth & Token Pool + Action Required | Both pools create distinct, de-duplicated ActionRequired records; UI groups by category |
-| MCP auth credential injection | Mastra MCP Client | Tool calls authenticate successfully via `fetch` callback; token rotation does not break existing connections |
-| Drive fallback replacement contract | Replace Drive Fallback | `searchForProposal()` returns same interface; workflow files unchanged; side-by-side quality comparison passes |
-| ActionRequired type extension | Action Required Integration | All new types have icons, descriptions, and resolution guidance in web UI; shared constants in `packages/schemas` |
-| Discovery UI state management | Discovery UI | `useReducer` manages all state; selections persist across mode switches; ingestion progress tracks per item |
-| MCPClient token rotation | Mastra MCP Client + Auth & Token Pool | `fetch` callback resolves fresh token per request; periodic MCPClient recycling every 30-60 minutes |
-| 3-tier access detection false negatives | Auth & Token Pool | Resolving tier 1 action triggers re-detection; tier 2/3 actions created immediately if needed |
+| Drive thumbnailLink expiration + CORS | Discovery thumbnails (Phase 1) | Thumbnails survive 24hr+ without refresh; render in browser without CORS error |
+| Optimistic UI overwritten by poll | Immediate feedback / optimistic UI (Phase 2) | Click ingest, wait 10s, status never flickers backward |
+| Element map response size | Element extraction (Phase 3) | `presentations.get` request includes `fields` param; response < 500KB for 50-slide deck |
+| Ingestion status inconsistency | Status consistency (Phase 2-3) | Both Discovery and Templates show identical status during ingestion (test simultaneously) |
+| Prisma + pgvector migration | Every phase with schema changes | `--create-only` used, SQL inspected, no SlideEmbedding DROP/ALTER in new-model migrations |
+| Slides API rate limits combined | Element extraction + thumbnails (Phase 1, 3) | 50-slide template ingests without 429 errors in agent logs |
+| Deck structure insufficient data | Deck structures (last phase) | "Based on N examples" shown; warning when N < 3; graceful empty state when N = 0 |
+| Rich description doubles LLM cost | Rich descriptions (Phase 3) | Single LLM call produces both classification AND description; no separate description call |
 
 ## Sources
 
-- [Mastra MCPClient Reference](https://mastra.ai/reference/tools/mcp-client) -- constructor parameters, `requestInit` vs `eventSourceInit`, `fetch` callback, `id` parameter, lifecycle methods
-- [MCP SSE Reconnection Issue #510](https://github.com/modelcontextprotocol/typescript-sdk/issues/510) -- SSEClientTransport does not re-establish lifecycle state on disconnect/reconnect
-- [MCP Transport Specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) -- SSE deprecated in favor of Streamable HTTP; session lifecycle requirements
-- [Vercel Serverless Function Duration](https://vercel.com/docs/functions/configuring-functions/duration) -- maxDuration limits per plan (60s Hobby, 300s Pro)
-- [Vercel SSE Timeout Discussion](https://community.vercel.com/t/sse-requests-timing-out/7964) -- SSE connections in serverless functions
-- Existing codebase: `apps/agent/src/lib/google-auth.ts` -- token pool pattern, `getPooledGoogleAuth()`, `PooledAuthResult` interface
-- Existing codebase: `apps/agent/src/lib/atlusai-search.ts` -- multi-pass retrieval, `searchForProposal()`, `SlideSearchResult` interface
-- Existing codebase: `apps/agent/src/lib/atlusai-client.ts` -- SSE endpoint URL, known MCP tools, auth discovery
-- Existing codebase: `apps/web/src/app/(authenticated)/actions/actions-client.tsx` -- `getActionIcon()` switch, Action Required UI
-- Existing codebase: `apps/agent/prisma/schema.prisma` -- `ActionRequired` model, `UserGoogleToken` model
-- Existing codebase: `.mcp.json` -- AtlusAI SSE endpoint configuration
-- v1.3 Phase 24 research: `24-RESEARCH.md` -- token pool patterns, race condition analysis, ActionRequired creation patterns
+- [Google Slides API Usage Limits](https://developers.google.com/workspace/slides/api/limits) -- 60/min expensive reads (getThumbnail), 600/min regular reads, 3000/min project-level (HIGH confidence)
+- [Google Slides API Performance Guide](https://developers.google.com/slides/api/guides/performance) -- field masking to reduce response size (HIGH confidence)
+- [Google Drive thumbnailLink expiration](https://groups.google.com/g/google-drive-api-and-sdk/c/8bmHrbTPvaM) -- short-lived URLs confirmed by community (MEDIUM confidence)
+- [Drive API thumbnailLink 404 issues](https://issuetracker.google.com/issues/229184403) -- Google-acknowledged expiration behavior (HIGH confidence)
+- [Drive API thumbnailLink 404 on public files](https://issuetracker.google.com/issues/188567656) -- auth requirements for thumbnail access (HIGH confidence)
+- [Prisma 7.x vector migration regression](https://github.com/prisma/prisma/issues/28867) -- confirmed breaking change, stay on 6.19.x (HIGH confidence)
+- [RTK Query polling race condition with optimistic updates](https://github.com/reduxjs/redux-toolkit/issues/1512) -- documented pattern matching this exact pitfall (MEDIUM confidence)
+- [React useOptimistic limitations](https://www.columkelly.com/blog/use-optimistic) -- useOptimistic alone doesn't solve race conditions (MEDIUM confidence)
+- Codebase: `apps/agent/src/lib/gcs-thumbnails.ts` -- existing thumbnail caching pattern with BATCH_SIZE=2, BATCH_DELAY_MS=3000 (HIGH confidence)
+- Codebase: `apps/agent/src/ingestion/ingestion-queue.ts` -- existing sequential queue, singleton pattern (HIGH confidence)
+- Codebase: `apps/agent/src/ingestion/ingest-template.ts` -- existing pipeline: extract -> smart merge -> classify + embed -> store -> thumbnails (HIGH confidence)
+- Codebase: `.planning/debug/ingestion-state-reverts.md` -- recent state revert bug with Discovery vs Templates inconsistency (HIGH confidence)
+- Codebase: `REVIEW-ISSUES.md` -- all 7 UX issues driving v1.5 scope (HIGH confidence)
+- Codebase: `apps/agent/prisma/schema.prisma` -- current schema with Unsupported("vector(768)"), DiscoveryDocCache, Template models (HIGH confidence)
 
 ---
-*Pitfalls research for: v1.4 AtlusAI Authentication & Discovery*
-*Researched: 2026-03-06*
+*Pitfalls research for: v1.5 Review Polish & Deck Intelligence*
+*Researched: 2026-03-07*
