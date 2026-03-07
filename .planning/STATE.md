@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
 status: active
-stopped_at: Completed 35-01-PLAN.md
-last_updated: "2026-03-07T20:44:23.343Z"
-last_activity: 2026-03-07 — Completed Phase 35 Plan 01 shared artifact constants
+stopped_at: Completed 35-02-PLAN.md
+last_updated: "2026-03-07T20:47:30.000Z"
+last_activity: 2026-03-07 — Completed Phase 35 Schema & Constants Foundation
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 50
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State
@@ -21,21 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 35 (Schema & Constants Foundation)
+**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 36 (Backend Engine & API Routes)
 
 ## Current Position
 
-Phase: 35 of 37 (Schema & Constants Foundation)
-Plan: 2 of 2
-Status: Ready to execute Phase 35 Plan 02
-Last activity: 2026-03-07 — Completed Phase 35 Plan 01 shared artifact constants
+Phase: 36 of 37 (Backend Engine & API Routes)
+Plan: Ready to plan
+Status: Ready to plan Phase 36
+Last activity: 2026-03-07 — Completed Phase 35 Schema & Constants Foundation
 
-Progress: [█████░░░░░] 50%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 73 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8)
+- Total plans completed: 75 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 2)
 - Total project time: ~5 days (2026-03-03 -> 2026-03-07)
 - Total LOC: ~40,833 TypeScript/TSX
 
@@ -46,6 +46,9 @@ Progress: [█████░░░░░] 50%
 All decisions logged in PROJECT.md Key Decisions table (55 decisions total through v1.5).
 - [Phase 35]: Keep artifact raw values and friendly labels together in packages/schemas/constants.ts. — This keeps one shared contract for storage values and UI copy across agent and web.
 - [Phase 35]: Expose artifact constants and ArtifactType from the public @lumenalta/schemas barrel. — Downstream phases can import from the package surface without reaching into internal file paths.
+- [Phase 35]: Keep artifactType as nullable string fields with SQL check constraints
+- [Phase 35]: Serve placeholders for generic touch_4 until artifact-aware backend work lands
+- [Phase 35]: Use findFirst plus update/create for legacy null-artifact deck structures
 
 ### Pending Todos
 
@@ -66,6 +69,7 @@ None.
 | 10 | Auto-resolve share_with_sa Action Items | 2026-03-07 | de08f7e | [10-auto-resolve-share-with-sa-action-items-](./quick/10-auto-resolve-share-with-sa-action-items-/) |
 | 11 | Add Periodic Cron Job for Auto Slide Classification | 2026-03-07 | 24c7b7e | [11-add-periodic-cron-job-for-automatic-slid](./quick/11-add-periodic-cron-job-for-automatic-slid/) |
 | Phase 35 P01 | 1 min | 2 tasks | 2 files |
+| Phase 35 P02 | 6 min | 2 tasks | 6 files |
 
 ### Blockers/Concerns
 
@@ -74,6 +78,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T20:44:23.340Z
-Stopped at: Completed 35-01-PLAN.md
-Next action: /gsd-execute-phase 35
+Last session: 2026-03-07T20:46:03.318Z
+Stopped at: Completed 35-02-PLAN.md
+Next action: /gsd-plan-phase 36
