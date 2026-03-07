@@ -210,15 +210,44 @@ model SlideEmbedding {
   archived                   Boolean  @default(false)
   needsReReview              Boolean  @default(false)
   previousClassificationJson String?
+  description                String?  // AI-generated rich description (JSON: purpose, visualComposition, keyContent, useCases)
   reviewStatus               String   @default("unreviewed") // "unreviewed" | "approved" | "needs_correction"
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
+  elements                   SlideElement[]
 
   @@unique([templateId, contentHash])
   @@index([templateId])
   @@index([archived])
   @@index([reviewStatus])
   @@index([embedding], name: "SlideEmbedding_embedding_idx")
+}
+
+// ────────────────────────────────────────────────────────────
+// Phase 33: Slide Element Map (SLI-03/04)
+// Stores per-element structural data extracted from Google Slides API
+// ────────────────────────────────────────────────────────────
+
+model SlideElement {
+  id          String   @id @default(cuid())
+  slideId     String
+  elementId   String
+  elementType String   // "shape" | "text" | "image" | "table" | "group"
+  positionX   Float    // EMU units
+  positionY   Float    // EMU units
+  width       Float    // EMU units
+  height      Float    // EMU units
+  contentText String   @default("")
+  fontSize    Float?
+  fontColor   String?
+  isBold      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  slide SlideEmbedding @relation(fields: [slideId], references: [id], onDelete: Cascade)
+
+  @@index([slideId])
+  @@unique([slideId, elementId])
 }
 
 // ────────────────────────────────────────────────────────────
@@ -238,9 +267,10 @@ model Template {
   sourceModifiedAt  DateTime?
   slideCount        Int       @default(0)
   ingestionStatus   String    @default("idle") // "idle" | "queued" | "ingesting" | "failed"
-  ingestionProgress String?   // JSON: { current, total, phase, skipped }
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  ingestionProgress       String?   // JSON: { current, total, phase, skipped }
+  contentClassification   String?   // null | "template" | "example"
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   @@index([accessStatus])
 }

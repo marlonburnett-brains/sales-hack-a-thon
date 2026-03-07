@@ -9,12 +9,13 @@ import {
 } from "@/lib/api-client";
 import type {
   SlideData,
+  SlideElementData,
   SlideThumbnail,
   SimilarSlide,
   CorrectedTags,
 } from "@/lib/api-client";
 
-export type { SlideData, SlideThumbnail, SimilarSlide, CorrectedTags };
+export type { SlideData, SlideElementData, SlideThumbnail, SimilarSlide, CorrectedTags };
 
 export async function listSlidesAction(
   templateId: string

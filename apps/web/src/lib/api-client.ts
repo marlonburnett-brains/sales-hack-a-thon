@@ -627,6 +627,20 @@ export async function getIngestionProgress(
 // Slides — Preview & Review (Phase 21)
 // ────────────────────────────────────────────────────────────
 
+export interface SlideElementData {
+  id: string;
+  elementId: string;
+  elementType: string; // "shape" | "text" | "image" | "table" | "group"
+  positionX: number; // EMU units
+  positionY: number; // EMU units
+  width: number; // EMU units
+  height: number; // EMU units
+  contentText: string;
+  fontSize: number | null;
+  fontColor: string | null;
+  isBold: boolean;
+}
+
 export interface SlideData {
   id: string;
   slideIndex: number;
@@ -641,6 +655,8 @@ export interface SlideData {
   persona: string | null;
   funnelStage: string | null;
   contentType: string | null;
+  description: string | null;
+  elements: SlideElementData[];
 }
 
 export interface SlideThumbnail {

@@ -1360,6 +1360,64 @@ export const mastra = new Mastra({
         },
       }),
 
+      // POST /templates/:id/classify -- Classify template as "template" or "example"
+      registerApiRoute("/templates/:id/classify", {
+        method: "POST",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                classification: z.enum(["template", "example"]),
+                touchTypes: z.array(z.string()).optional(),
+              })
+              .parse(body);
+
+            // If classifying as "example", touchTypes must be non-empty
+            if (
+              data.classification === "example" &&
+              (!data.touchTypes || data.touchTypes.length === 0)
+            ) {
+              return c.json(
+                { error: "touchTypes must be a non-empty array when classification is 'example'" },
+                400
+              );
+            }
+
+            const template = await prisma.template.findUnique({ where: { id } });
+            if (!template) {
+              return c.json({ error: "Template not found" }, 404);
+            }
+
+            const updateData: Record<string, unknown> = {
+              contentClassification: data.classification,
+            };
+
+            // Only update touchTypes when classifying as "example"
+            if (data.classification === "example" && data.touchTypes) {
+              updateData.touchTypes = JSON.stringify(data.touchTypes);
+            }
+
+            const updated = await prisma.template.update({
+              where: { id },
+              data: updateData,
+            });
+
+            return c.json(updated);
+          } catch (err) {
+            if (err instanceof z.ZodError) {
+              return c.json({ error: "Invalid request body", details: err.errors }, 400);
+            }
+            console.error("[templates/classify] Error:", err);
+            return c.json(
+              { error: "Classification failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
       // GET /templates/:id/progress -- Get ingestion progress
       registerApiRoute("/templates/:id/progress", {
         method: "GET",
@@ -1503,6 +1561,23 @@ export const mastra = new Mastra({
               persona: true,
               funnelStage: true,
               contentType: true,
+              description: true,
+              elements: {
+                orderBy: { positionY: "asc" },
+                select: {
+                  id: true,
+                  elementId: true,
+                  elementType: true,
+                  positionX: true,
+                  positionY: true,
+                  width: true,
+                  height: true,
+                  contentText: true,
+                  fontSize: true,
+                  fontColor: true,
+                  isBold: true,
+                },
+              },
             },
           });
           return c.json(slides);

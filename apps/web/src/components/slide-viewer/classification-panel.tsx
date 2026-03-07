@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { ThumbsUp, ThumbsDown, Search } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Search, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -15,6 +15,84 @@ interface ClassificationPanelProps {
   onUpdated: (slide: SlideData) => void;
   onFindSimilar?: (slideId: string) => void;
   isFindingSimilar?: boolean;
+}
+
+interface ParsedDescription {
+  purpose: string;
+  visualComposition: string;
+  keyContent: string;
+  useCases: string;
+}
+
+function parseDescription(raw: string | null | undefined): ParsedDescription | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed.purpose || parsed.visualComposition || parsed.keyContent || parsed.useCases) {
+      return {
+        purpose: parsed.purpose ?? "",
+        visualComposition: parsed.visualComposition ?? "",
+        keyContent: parsed.keyContent ?? "",
+        useCases: parsed.useCases ?? "",
+      };
+    }
+    return null;
+  } catch {
+    // If it's a plain string, treat it as purpose only
+    return { purpose: raw, visualComposition: "", keyContent: "", useCases: "" };
+  }
+}
+
+function DescriptionSection({ description }: { description: string | null | undefined }) {
+  const [isOpen, setIsOpen] = useState(true);
+  const parsed = useMemo(() => parseDescription(description), [description]);
+
+  const fields: { label: string; value: string }[] = parsed
+    ? [
+        { label: "Purpose", value: parsed.purpose },
+        { label: "Visual Composition", value: parsed.visualComposition },
+        { label: "Key Content", value: parsed.keyContent },
+        { label: "Use Cases", value: parsed.useCases },
+      ].filter((f) => f.value)
+    : [];
+
+  return (
+    <div className="border-b border-slate-200 pb-3">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between py-1 text-left cursor-pointer"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+      >
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          AI Description
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+            isOpen ? "" : "-rotate-90"
+          }`}
+        />
+      </button>
+      {isOpen && (
+        <div className="mt-2 space-y-2">
+          {!parsed ? (
+            <p className="text-sm italic text-slate-400 animate-pulse">
+              Generating description...
+            </p>
+          ) : fields.length === 0 ? (
+            <p className="text-sm italic text-slate-400">No description available</p>
+          ) : (
+            fields.map((f) => (
+              <div key={f.label}>
+                <p className="text-sm font-medium text-muted-foreground">{f.label}</p>
+                <p className="text-sm text-slate-700">{f.value}</p>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface ParsedClassification {
@@ -177,6 +255,9 @@ export function ClassificationPanel({
 
   return (
     <div className="space-y-4 p-4">
+      {/* AI Description */}
+      <DescriptionSection description={slide.description} />
+
       {/* Rating buttons */}
       <div className="flex items-center gap-2">
         <Button

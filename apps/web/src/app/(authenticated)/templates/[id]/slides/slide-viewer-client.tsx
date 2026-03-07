@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SlidePreview } from "@/components/slide-viewer/slide-preview";
 import { ThumbnailStrip } from "@/components/slide-viewer/thumbnail-strip";
 import { ClassificationPanel } from "@/components/slide-viewer/classification-panel";
+import { ElementMapPanel } from "@/components/slide-viewer/element-map-panel";
 import { SimilarityResults } from "@/components/slide-viewer/similarity-results";
 import { findSimilarSlidesAction, getSlideThumbnailsAction } from "@/lib/actions/slide-actions";
 import type {
@@ -223,13 +224,18 @@ export function SlideViewerClient({
 
         <div className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white">
           {currentSlide && (
-            <ClassificationPanel
-              slide={currentSlide}
-              templateId={templateId}
-              onUpdated={handleSlideUpdated}
-              onFindSimilar={handleFindSimilar}
-              isFindingSimilar={isFindingSimilar}
-            />
+            <>
+              <ClassificationPanel
+                slide={currentSlide}
+                templateId={templateId}
+                onUpdated={handleSlideUpdated}
+                onFindSimilar={handleFindSimilar}
+                isFindingSimilar={isFindingSimilar}
+              />
+              <div className="px-4 pb-4">
+                <ElementMapPanel elements={currentSlide.elements ?? []} />
+              </div>
+            </>
           )}
         </div>
       </div>
