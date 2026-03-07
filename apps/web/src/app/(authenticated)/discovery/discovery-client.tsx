@@ -541,6 +541,15 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
   }
 
   // -- Thumbnail with skeleton shimmer --
+  const handleImageLoad = useCallback((slideId: string) => {
+    setLoadedImages((prev) => {
+      if (prev.has(slideId)) return prev;
+      const next = new Set(prev);
+      next.add(slideId);
+      return next;
+    });
+  }, []);
+
   function ThumbnailArea({ doc }: { doc: DiscoveryDocument }) {
     const hasThumb = !!doc.thumbnailUrl;
     const imageLoaded = loadedImages.has(doc.slideId);
@@ -556,17 +565,13 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
               src={doc.thumbnailUrl!}
               alt={doc.documentTitle}
               fill
-              className="object-cover"
+              className={cn("object-cover transition-opacity", imageLoaded ? "opacity-100" : "opacity-0")}
               sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 25vw"
-              onLoad={() =>
-                setLoadedImages((prev) => new Set(prev).add(doc.slideId))
-              }
+              onLoad={() => handleImageLoad(doc.slideId)}
             />
           </>
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <DocumentTypeIcon mimeType={doc.mimeType} size="lg" />
-          </div>
+          <div className="flex h-full items-center justify-center" />
         )}
         {/* Corner file-type badge */}
         <div className="absolute bottom-2 right-2">
