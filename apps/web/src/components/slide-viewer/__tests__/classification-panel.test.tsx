@@ -442,4 +442,62 @@ describe("CLSF-02: Classification panel Touch 4 artifact flow", () => {
 
     expect(await screen.findByText("Example (Touch 4+ - FAQ)")).toBeInTheDocument();
   });
+
+  it("rehydrates the saved badge from persisted Example Touch 4 artifact props", () => {
+    render(
+      <ClassificationPanel
+        slide={makeSlide()}
+        templateId="tmpl-1"
+        onUpdated={vi.fn()}
+        contentClassification="example"
+        touchTypes={["touch_4"]}
+        artifactType="proposal"
+      />
+    );
+
+    expect(screen.getByText("Example (Touch 4+ - Proposal)")).toBeInTheDocument();
+  });
+
+  it("clears stale hydrated artifact labels outside Example Touch 4 state", () => {
+    const { rerender } = render(
+      <ClassificationPanel
+        slide={makeSlide()}
+        templateId="tmpl-1"
+        onUpdated={vi.fn()}
+        contentClassification="example"
+        touchTypes={["touch_4"]}
+        artifactType="talk_track"
+      />
+    );
+
+    expect(screen.getByText("Example (Touch 4+ - Talk Track)")).toBeInTheDocument();
+
+    rerender(
+      <ClassificationPanel
+        slide={makeSlide()}
+        templateId="tmpl-1"
+        onUpdated={vi.fn()}
+        contentClassification="template"
+        touchTypes={["touch_4"]}
+        artifactType="talk_track"
+      />
+    );
+
+    expect(screen.getByText("Template")).toBeInTheDocument();
+    expect(screen.queryByText(/Talk Track/)).not.toBeInTheDocument();
+
+    rerender(
+      <ClassificationPanel
+        slide={makeSlide()}
+        templateId="tmpl-1"
+        onUpdated={vi.fn()}
+        contentClassification="example"
+        touchTypes={["touch_2"]}
+        artifactType="talk_track"
+      />
+    );
+
+    expect(screen.getByText("Example (Touch 2)")).toBeInTheDocument();
+    expect(screen.queryByText(/Talk Track/)).not.toBeInTheDocument();
+  });
 });
