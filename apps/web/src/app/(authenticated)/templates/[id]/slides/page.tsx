@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import type { ArtifactType } from "@lumenalta/schemas";
 import {
   listSlidesAction,
   getSlideThumbnailsAction,
@@ -23,6 +24,7 @@ export default async function SlidesPage({
   let templateName = "Template";
   let contentClassification: string | null = null;
   let touchTypes: string[] = [];
+  let artifactType: ArtifactType | null = null;
 
   try {
     const [slidesResult, thumbnailsResult, templates] = await Promise.all([
@@ -36,6 +38,7 @@ export default async function SlidesPage({
     if (template) {
       templateName = template.name;
       contentClassification = template.contentClassification;
+      artifactType = template.artifactType;
       try {
         touchTypes = JSON.parse(template.touchTypes);
       } catch {
@@ -76,6 +79,7 @@ export default async function SlidesPage({
       initialThumbnails={thumbnails.thumbnails}
       contentClassification={contentClassification}
       touchTypes={touchTypes}
+      artifactType={artifactType}
     />
   );
 }

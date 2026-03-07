@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import type { ArtifactType } from "@lumenalta/schemas";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface SlideViewerClientProps {
   initialThumbnails: SlideThumbnail[];
   contentClassification?: string | null;
   touchTypes?: string[];
+  artifactType?: ArtifactType | null;
 }
 
 export function SlideViewerClient({
@@ -33,6 +35,7 @@ export function SlideViewerClient({
   initialThumbnails,
   contentClassification,
   touchTypes,
+  artifactType,
 }: SlideViewerClientProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slides, setSlides] = useState<SlideData[]>(initialSlides);
@@ -237,6 +240,7 @@ export function SlideViewerClient({
                 isFindingSimilar={isFindingSimilar}
                 contentClassification={contentClassification}
                 touchTypes={touchTypes}
+                artifactType={artifactType}
               />
               <div className="px-4 pb-4">
                 <ElementMapPanel elements={currentSlide.elements ?? []} />
