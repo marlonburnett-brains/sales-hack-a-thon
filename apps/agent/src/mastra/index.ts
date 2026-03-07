@@ -27,8 +27,11 @@ import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-cl
 import { searchSlides } from "../lib/atlusai-search";
 import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS, cacheDocumentCover, checkGcsCoverExists } from "../lib/gcs-thumbnails";
 import crypto from "node:crypto";
-import { TOUCH_TYPES } from "@lumenalta/schemas";
 import { startDeckInferenceCron } from "../deck-intelligence/auto-infer-cron";
+import {
+  getDeckStructureListKeys,
+  resolveDeckStructureKey,
+} from "../deck-intelligence/deck-structure-key";
 import {
   buildEmptyDeckStructureOutput,
   GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
@@ -2502,22 +2505,29 @@ export const mastra = new Mastra({
       registerApiRoute("/deck-structures", {
         method: "GET",
         handler: async (c) => {
+          const keys = getDeckStructureListKeys();
           const records = await prisma.deckStructure.findMany({
-            where: { artifactType: null },
+            where: {
+              OR: keys.map((key) => ({
+                touchType: key.touchType,
+                artifactType: key.artifactType,
+              })),
+            },
             orderBy: { touchType: "asc" },
           });
 
-          // Build a map of existing records
-          const byTouchType = new Map(records.map((r) => [r.touchType, r]));
+          const byKey = new Map(
+            records.map((r) => [`${r.touchType}:${r.artifactType ?? "null"}`, r]),
+          );
 
-          // Return one entry per touch type (placeholder for missing ones)
-          const results = TOUCH_TYPES.map((tt) => {
-            const record = byTouchType.get(tt);
+          const results = keys.map((key) => {
+            const record = byKey.get(`${key.touchType}:${key.artifactType ?? "null"}`);
             if (record) {
               const conf = calculateConfidence(record.exampleCount);
               return {
                 id: record.id,
                 touchType: record.touchType,
+                artifactType: key.artifactType,
                 exampleCount: record.exampleCount,
                 confidence: record.confidence,
                 confidenceColor: conf.color,
@@ -2537,7 +2547,8 @@ export const mastra = new Mastra({
             }
             return {
               id: null,
-              touchType: tt,
+              touchType: key.touchType,
+              artifactType: key.artifactType,
               exampleCount: 0,
               confidence: 0,
               confidenceColor: "red" as const,
@@ -2558,13 +2569,27 @@ export const mastra = new Mastra({
         method: "GET",
         handler: async (c) => {
           const touchType = c.req.param("touchType");
+          const query = z
+            .object({ artifactType: z.string().nullable().optional() })
+            .parse(c.req.query());
 
-          if (isUnsupportedGenericTouch4(touchType)) {
+          let key;
+          try {
+            key = resolveDeckStructureKey(touchType, query.artifactType ?? null);
+          } catch (error) {
+            return c.json(
+              { error: error instanceof Error ? error.message : "Invalid deck structure key" },
+              400,
+            );
+          }
+
+          if (isUnsupportedGenericTouch4(key.touchType, key.artifactType)) {
             const conf = calculateConfidence(0);
             return c.json({
-              touchType,
+              touchType: key.touchType,
+              artifactType: key.artifactType,
               structure: buildEmptyDeckStructureOutput(
-                touchType,
+                key.touchType,
                 GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
               ),
               exampleCount: 0,
@@ -2580,8 +2605,8 @@ export const mastra = new Mastra({
 
           const record = await prisma.deckStructure.findFirst({
             where: {
-              touchType,
-              artifactType: null,
+              touchType: key.touchType,
+              artifactType: key.artifactType,
             },
             include: {
               chatMessages: {
@@ -2594,7 +2619,8 @@ export const mastra = new Mastra({
           if (!record) {
             const conf = calculateConfidence(0);
             return c.json({
-              touchType,
+              touchType: key.touchType,
+              artifactType: key.artifactType,
               structure: { sections: [], sequenceRationale: "" },
               exampleCount: 0,
               confidence: 0,
@@ -2632,6 +2658,7 @@ export const mastra = new Mastra({
 
           return c.json({
             touchType: record.touchType,
+            artifactType: record.artifactType,
             structure,
             exampleCount: record.exampleCount,
             confidence: record.confidence,
@@ -2650,13 +2677,27 @@ export const mastra = new Mastra({
         method: "POST",
         handler: async (c) => {
           const touchType = c.req.param("touchType");
+          const query = z
+            .object({ artifactType: z.string().nullable().optional() })
+            .parse(c.req.query());
 
-          if (isUnsupportedGenericTouch4(touchType)) {
+          let key;
+          try {
+            key = resolveDeckStructureKey(touchType, query.artifactType ?? null);
+          } catch (error) {
+            return c.json(
+              { error: error instanceof Error ? error.message : "Invalid deck structure key" },
+              400,
+            );
+          }
+
+          if (isUnsupportedGenericTouch4(key.touchType, key.artifactType)) {
             const conf = calculateConfidence(0);
             return c.json({
-              touchType,
+              touchType: key.touchType,
+              artifactType: key.artifactType,
               structure: buildEmptyDeckStructureOutput(
-                touchType,
+                key.touchType,
                 GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
               ),
               confidence: conf.score,
@@ -2668,30 +2709,28 @@ export const mastra = new Mastra({
           // Load existing chat constraints if any
           const existing = await prisma.deckStructure.findFirst({
             where: {
-              touchType,
-              artifactType: null,
+              touchType: key.touchType,
+              artifactType: key.artifactType,
             },
             select: { chatContextJson: true },
           });
 
           try {
-            const result = await inferDeckStructure(
-              touchType,
-              existing?.chatContextJson ?? undefined,
-            );
+            const result = await inferDeckStructure(key, existing?.chatContextJson ?? undefined);
 
             const conf = calculateConfidence(
               (await prisma.deckStructure.findFirst({
                 where: {
-                  touchType,
-                  artifactType: null,
+                  touchType: key.touchType,
+                  artifactType: key.artifactType,
                 },
                 select: { exampleCount: true },
               }))?.exampleCount ?? 0,
             );
 
             return c.json({
-              touchType,
+              touchType: key.touchType,
+              artifactType: key.artifactType,
               structure: result,
               confidence: conf.score,
               confidenceColor: conf.color,
@@ -2710,7 +2749,20 @@ export const mastra = new Mastra({
         method: "POST",
         handler: async (c) => {
           const touchType = c.req.param("touchType");
+          const query = z
+            .object({ artifactType: z.string().nullable().optional() })
+            .parse(c.req.query());
           const body = await c.req.json<{ message: string }>();
+
+          let key;
+          try {
+            key = resolveDeckStructureKey(touchType, query.artifactType ?? null);
+          } catch (error) {
+            return c.json(
+              { error: error instanceof Error ? error.message : "Invalid deck structure key" },
+              400,
+            );
+          }
 
           if (!body.message?.trim()) {
             return c.json({ error: "Message is required" }, 400);
@@ -2722,11 +2774,12 @@ export const mastra = new Mastra({
               const encoder = new TextEncoder();
               try {
                 const result = await streamChatRefinement(
-                  touchType,
+                  key.touchType,
                   body.message.trim(),
                   (chunk) => {
                     controller.enqueue(encoder.encode(chunk));
                   },
+                  key.artifactType,
                 );
 
                 // Write delimiter and structure update payload

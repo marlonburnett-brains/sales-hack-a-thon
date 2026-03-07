@@ -9,6 +9,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../env";
 import { prisma } from "../lib/db";
+import { resolveDeckStructureKey } from "./deck-structure-key";
 import {
   buildEmptyDeckStructureOutput,
   GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
@@ -133,13 +134,16 @@ export async function streamChatRefinement(
   touchType: string,
   userMessage: string,
   onChunk: (text: string) => void,
+  artifactType: string | null = null,
 ): Promise<ChatRefinementResult> {
-  if (isUnsupportedGenericTouch4(touchType)) {
+  const key = resolveDeckStructureKey(touchType, artifactType);
+
+  if (isUnsupportedGenericTouch4(key.touchType, key.artifactType)) {
     onChunk(GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE);
     return {
       aiResponse: GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
       updatedStructure: buildEmptyDeckStructureOutput(
-        touchType,
+        key.touchType,
         GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
       ),
       diff: { added: [], modified: [], removed: [] },
@@ -149,8 +153,8 @@ export async function streamChatRefinement(
   // 1. Load existing DeckStructure
   const existing = await prisma.deckStructure.findFirst({
     where: {
-      touchType,
-      artifactType: null,
+      touchType: key.touchType,
+      artifactType: key.artifactType,
     },
     include: {
       chatMessages: {
@@ -177,7 +181,7 @@ export async function streamChatRefinement(
   const existingContext = existing?.chatContextJson ?? "";
 
   const chatPrompt = buildChatPrompt(
-    touchType,
+    key.touchType,
     currentStructureJson,
     existingContext,
     recentMessages.map((m: { role: string; content: string }) => ({
@@ -232,7 +236,7 @@ export async function streamChatRefinement(
     ? `${existingContext}\n\n--- Latest refinement ---\n${constraintSummary}`
     : constraintSummary;
 
-  const updatedStructure = await inferDeckStructure(touchType, updatedConstraints);
+  const updatedStructure = await inferDeckStructure(key, updatedConstraints);
 
   // 5. Compute diff
   const diff = computeStructureDiff(oldSections, updatedStructure.sections);
@@ -240,8 +244,8 @@ export async function streamChatRefinement(
   // 6. Save messages
   const deckStructure = await prisma.deckStructure.findFirst({
     where: {
-      touchType,
-      artifactType: null,
+      touchType: key.touchType,
+      artifactType: key.artifactType,
     },
   });
 
