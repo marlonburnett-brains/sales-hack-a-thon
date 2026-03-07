@@ -69,33 +69,33 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UXP-01 | — | Pending |
-| UXP-02 | — | Pending |
-| UXP-03 | — | Pending |
-| UXP-04 | — | Pending |
-| UXP-05 | — | Pending |
-| SLI-01 | — | Pending |
-| SLI-02 | — | Pending |
-| SLI-03 | — | Pending |
-| SLI-04 | — | Pending |
-| SLI-05 | — | Pending |
-| CCL-01 | — | Pending |
-| CCL-02 | — | Pending |
-| CCL-03 | — | Pending |
-| CCL-04 | — | Pending |
-| DKI-01 | — | Pending |
-| DKI-02 | — | Pending |
-| DKI-03 | — | Pending |
-| DKI-04 | — | Pending |
-| DKI-05 | — | Pending |
-| DKI-06 | — | Pending |
-| DKI-07 | — | Pending |
+| UXP-01 | Phase 32 | Pending |
+| UXP-02 | Phase 32 | Pending |
+| UXP-03 | Phase 32 | Pending |
+| UXP-04 | Phase 32 | Pending |
+| UXP-05 | Phase 32 | Pending |
+| SLI-01 | Phase 33 | Pending |
+| SLI-02 | Phase 33 | Pending |
+| SLI-03 | Phase 33 | Pending |
+| SLI-04 | Phase 33 | Pending |
+| SLI-05 | Phase 33 | Pending |
+| CCL-01 | Phase 33 | Pending |
+| CCL-02 | Phase 33 | Pending |
+| CCL-03 | Phase 33 | Pending |
+| CCL-04 | Phase 33 | Pending |
+| DKI-01 | Phase 34 | Pending |
+| DKI-02 | Phase 34 | Pending |
+| DKI-03 | Phase 34 | Pending |
+| DKI-04 | Phase 34 | Pending |
+| DKI-05 | Phase 34 | Pending |
+| DKI-06 | Phase 34 | Pending |
+| DKI-07 | Phase 34 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21
+- Mapped to phases: 21
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-07*
-*Last updated: 2026-03-07 after initial definition*
+*Last updated: 2026-03-07 after roadmap creation*
