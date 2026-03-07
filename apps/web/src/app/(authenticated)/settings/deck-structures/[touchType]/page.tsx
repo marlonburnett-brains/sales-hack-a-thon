@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Touch4ArtifactTabs } from "@/components/settings/touch-4-artifact-tabs";
 import { TouchTypeDetailView } from "@/components/settings/touch-type-detail-view";
 
 const VALID_SLUGS: Record<string, string> = {
@@ -38,7 +39,11 @@ export default async function TouchTypePage({ params }: Props) {
         AI-inferred section patterns for {label} presentations, based on
         classified examples.
       </p>
-      <TouchTypeDetailView touchType={touchType} label={label} />
+      {touchType === "touch_4" ? (
+        <Touch4ArtifactTabs touchType={touchType} label={label} />
+      ) : (
+        <TouchTypeDetailView touchType={touchType} label={label} />
+      )}
     </div>
   );
 }

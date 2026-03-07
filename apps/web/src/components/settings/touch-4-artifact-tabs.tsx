@@ -1,7 +1,7 @@
 "use client";
 
 import { ARTIFACT_TYPES, ARTIFACT_TYPE_LABELS, type ArtifactType } from "@lumenalta/schemas";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import { AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,7 +25,9 @@ const DetailView = TouchTypeDetailView as unknown as (props: {
   touchType: string;
   label: string;
   artifactType?: ArtifactType;
-}) => JSX.Element;
+  emptyStateTitle?: string;
+  emptyStateDescription?: string;
+}) => ReactElement;
 
 export function Touch4ArtifactTabs({
   touchType,
@@ -161,6 +163,8 @@ export function Touch4ArtifactTabs({
             touchType={touchType}
             label={label}
             artifactType={artifactType}
+            emptyStateTitle={`No ${ARTIFACT_TYPE_LABELS[artifactType]} examples classified yet`}
+            emptyStateDescription={`Classify ${ARTIFACT_TYPE_LABELS[artifactType]} examples on Templates to improve this structure.`}
           />
         </TabsContent>
       ))}
