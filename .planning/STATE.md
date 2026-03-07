@@ -75,6 +75,7 @@ None.
 | 3 | Auto-populate Template Name from Google Slides | 2026-03-06 | ce26721 | [3-auto-populate-template-name-from-google-](./quick/3-auto-populate-template-name-from-google-/) |
 | 4 | Make Touch Type Selection Optional | 2026-03-06 | bb4803c | [4-make-touch-type-selection-optional-when-](./quick/4-make-touch-type-selection-optional-when-/) |
 | 5 | Rewrite All Gemini References to LLM-Agnostic | 2026-03-06 | 0da192b | [5-rewrite-all-gemini-references-and-relate](./quick/5-rewrite-all-gemini-references-and-relate/) |
+| 6 | Fix Template Re-ingest Auto-Navigation & Add Breadcrumbs | 2026-03-07 | 75256c4 | [6-fix-template-re-ingest-auto-navigation-a](./quick/6-fix-template-re-ingest-auto-navigation-a/) |
 | Phase 28 P02 | 9min | 2 tasks | 2 files |
 
 ### Blockers/Concerns
