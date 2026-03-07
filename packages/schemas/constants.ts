@@ -74,6 +74,15 @@ export const TOUCH_TYPES = [
   "pre_call",
 ] as const;
 
+export const ARTIFACT_TYPES = ["proposal", "talk_track", "faq"] as const;
+export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
+
+export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
+  proposal: "Proposal",
+  talk_track: "Talk Track",
+  faq: "FAQ",
+};
+
 /**
  * SUBSECTORS — Industry-specific subsector taxonomy
  *
