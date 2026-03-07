@@ -26,6 +26,7 @@ interface ParsedClassification {
   slideCategory: string;
   subsectors?: string[];
   touchType?: string[];
+  classifiedBy?: string;
 }
 
 function parseClassification(slide: SlideData): ParsedClassification {
@@ -42,6 +43,7 @@ function parseClassification(slide: SlideData): ParsedClassification {
         slideCategory: parsed.slideCategory ?? "other",
         subsectors: parsed.subsectors ?? [],
         touchType: parsed.touchType ?? [],
+        classifiedBy: parsed.classifiedBy,
       };
     } catch {
       // Fall through to column-based
@@ -230,15 +232,28 @@ export function ClassificationPanel({
         </span>
       </div>
 
-      {/* Confidence */}
-      {confidencePercent != null && (
-        <div className="space-y-1">
-          <p className="text-xs text-slate-500">
-            {confidencePercent}% confident
-          </p>
-          <Progress value={confidencePercent} className="h-1.5" />
-        </div>
-      )}
+      {/* Confidence + Model */}
+      <div className="flex items-center gap-2">
+        {confidencePercent != null && (
+          <div className="flex-1 space-y-1">
+            <p className="text-xs text-slate-500">
+              {confidencePercent}% confident
+            </p>
+            <Progress value={confidencePercent} className="h-1.5" />
+          </div>
+        )}
+        {classification.classifiedBy && (
+          <span
+            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+              classification.classifiedBy === "gpt-oss"
+                ? "bg-violet-100 text-violet-700 border border-violet-200"
+                : "bg-sky-100 text-sky-700 border border-sky-200"
+            }`}
+          >
+            {classification.classifiedBy}
+          </span>
+        )}
+      </div>
 
       {/* Tags display or editor */}
       {isEditing ? (

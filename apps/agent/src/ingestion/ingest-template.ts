@@ -169,8 +169,8 @@ export async function ingestTemplate(
           slide.slideObjectId
         );
 
-        // Store classification as JSON
-        const classJson = JSON.stringify(classified.metadata);
+        // Store classification as JSON (include classifiedBy for UI visibility)
+        const classJson = JSON.stringify({ ...classified.metadata, classifiedBy: classified.classifiedBy });
 
         // Upsert via raw SQL (Prisma cannot handle vector type)
         const id = generateCuid();
@@ -251,7 +251,7 @@ export async function ingestTemplate(
           slide.speakerNotes,
           slide.slideObjectId
         );
-        const classJson = JSON.stringify(classified.metadata);
+        const classJson = JSON.stringify({ ...classified.metadata, classifiedBy: classified.classifiedBy });
         const vec = toSql(embedding);
 
         // Update existing row: set needsReReview, store previous classification
@@ -303,6 +303,19 @@ export async function ingestTemplate(
 
     // 11. Finalize: clear progress, update template metadata
     const totalActive = mergeResult.unchanged.length + processed;
+
+    // If the presentation had slides but none were successfully processed,
+    // treat this as a failure rather than a successful empty ingestion.
+    // This prevents the template from showing "Ready" with 0 slides when
+    // per-slide errors (e.g., Vertex AI auth failures) caused all slides
+    // to be skipped.
+    if (totalActive === 0 && slides.length > 0) {
+      throw new Error(
+        `All ${slides.length} slides failed to process (${skipped} skipped). ` +
+        `Check Vertex AI configuration and credentials.`
+      );
+    }
+
     await prisma.template.update({
       where: { id: templateId },
       data: {
@@ -312,6 +325,13 @@ export async function ingestTemplate(
         slideCount: totalActive,
       },
     });
+
+    if (skipped > 0) {
+      console.warn(
+        `[ingest] WARNING: ${skipped} of ${slides.length} slides failed to process for "${template.name}". ` +
+        `Check per-slide errors above for details.`
+      );
+    }
 
     console.log(
       `[ingest] Complete: ${processed} processed, ${skipped} skipped, ${mergeResult.toArchive.length} archived`

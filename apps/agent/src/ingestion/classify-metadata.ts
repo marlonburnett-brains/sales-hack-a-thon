@@ -37,6 +37,7 @@ import {
 export interface ClassifiedSlide extends ExtractedSlide {
   metadata: SlideMetadata;
   confidence: number;
+  classifiedBy: "gpt-oss" | "gemini";
 }
 
 // ────────────────────────────────────────────────────────────
@@ -203,9 +204,9 @@ const JSON_SCHEMA_FOR_PROMPT = {
  * google-auth-library caches tokens internally so repeated calls are cheap.
  */
 async function getVertexAccessToken(): Promise<string> {
-  const credentials = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_KEY);
+  // Use GOOGLE_APPLICATION_CREDENTIALS (vertex-service-account.json) for Vertex AI,
+  // NOT GOOGLE_SERVICE_ACCOUNT_KEY (which is for Drive/Slides in a different project).
   const auth = new GoogleAuth({
-    credentials,
     scopes: ["https://www.googleapis.com/auth/cloud-platform"],
   });
   const client = await auth.getClient();
@@ -396,7 +397,11 @@ async function classifySlideInternal(
   let confidence = 50;
 
   try {
-    const parsed = JSON.parse(text);
+    let parsed = JSON.parse(text);
+    // gpt-oss sometimes wraps the response in {"final": "<escaped-json>"} — unwrap it
+    if (typeof parsed.final === "string" && !parsed.industries) {
+      parsed = JSON.parse(parsed.final);
+    }
     // Extract confidence before Zod strips it (it's not in SlideMetadata schema)
     if (typeof parsed.confidence === "number") {
       confidence = Math.max(0, Math.min(100, Math.round(parsed.confidence)));
@@ -422,7 +427,7 @@ async function classifySlideInternal(
   }
 
   return {
-    classified: { ...slide, metadata, confidence },
+    classified: { ...slide, metadata, confidence, classifiedBy: backend },
     backend,
     gptOssFailed,
   };
@@ -536,6 +541,7 @@ export async function classifyAllSlides(
             touchType: [],
           },
           confidence: 50,
+          classifiedBy: useGeminiOnly ? "gemini" : "gemini",
         });
 
         // Both backends failed — count as gpt-oss failure too
