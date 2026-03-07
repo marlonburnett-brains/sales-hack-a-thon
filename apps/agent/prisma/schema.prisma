@@ -269,6 +269,7 @@ model Template {
   ingestionStatus   String    @default("idle") // "idle" | "queued" | "ingesting" | "failed"
   ingestionProgress       String?   // JSON: { current, total, phase, skipped }
   contentClassification   String?   // null | "template" | "example"
+  artifactType            String?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -329,7 +330,8 @@ model UserAtlusToken {
 
 model DeckStructure {
   id              String   @id @default(cuid())
-  touchType       String   @unique // "touch_1" | "touch_2" | "touch_3" | "touch_4" | "pre_call"
+  touchType       String   // "touch_1" | "touch_2" | "touch_3" | "touch_4" | "pre_call"
+  artifactType    String?
   structureJson   String   // JSON: { sections: [...], sequenceRationale: "..." }
   exampleCount    Int      @default(0)
   confidence      Float    @default(0) // 0-100 confidence score
@@ -342,6 +344,7 @@ model DeckStructure {
 
   chatMessages DeckChatMessage[]
 
+  @@unique([touchType, artifactType])
   @@index([touchType])
 }
 
