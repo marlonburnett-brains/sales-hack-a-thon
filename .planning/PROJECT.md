@@ -141,7 +141,13 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ### Active
 
-(No active requirements -- planning next milestone)
+**Current Milestone: v1.6 Touch 4 Artifact Intelligence**
+
+**Goal:** Add artifact type sub-classification (Proposal / Talk Track / FAQ) to Touch 4 Examples and display per-artifact-type deck structures in Settings.
+
+**Target features:**
+- Touch 4 Example classification includes artifact type (Proposal, Talk Track, FAQ)
+- Settings deck structure view shows 3 separate structures for Touch 4 (one per artifact type)
 
 ### Out of Scope
 
@@ -241,4 +247,4 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | Active session protection (30-min window) | Cron skips re-inference during active chat sessions | ✓ Good — prevents overwriting user refinements |
 
 ---
-*Last updated: 2026-03-07 after v1.5 milestone*
+*Last updated: 2026-03-07 after v1.6 milestone start*

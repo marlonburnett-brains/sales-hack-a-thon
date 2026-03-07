@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: Review Polish & Deck Intelligence
-status: archived
-stopped_at: Milestone v1.5 archived
-last_updated: "2026-03-07T21:30:00.000Z"
-last_activity: "2026-03-07 — Milestone v1.5 archived"
+milestone: v1.6
+milestone_name: Touch 4 Artifact Intelligence
+status: active
+stopped_at: null
+last_updated: "2026-03-07T22:00:00.000Z"
+last_activity: "2026-03-07 — Milestone v1.6 started"
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,15 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Planning next milestone
+**Current focus:** v1.6 Touch 4 Artifact Intelligence
 
 ## Current Position
 
-Milestone: v1.5 Review Polish & Deck Intelligence -- ARCHIVED
-Status: archived
-Last activity: 2026-03-07 -- Milestone v1.5 complete and archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-07 — Milestone v1.6 started
 
-Progress: [##########] 100% (all milestones through v1.5 shipped)
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
