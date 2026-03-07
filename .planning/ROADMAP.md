@@ -185,8 +185,8 @@ Phases execute in numeric order: 27 -> 28 -> 29 -> 30 -> 31
 | 24. Token Pool & Refresh Lifecycle | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 25. Integration Verification & Cutover | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 26. Tech Debt Cleanup | v1.3 | 1/1 | Complete | 2026-03-06 |
-| 27. Auth Foundation | 5/5 | Complete   | 2026-03-06 | - |
-| 28. MCP Integration | 2/2 | Complete    | 2026-03-07 | - |
+| 27. Auth Foundation | v1.4 | 5/5 | Complete | 2026-03-06 |
+| 28. MCP Integration | v1.4 | 2/2 | Complete | 2026-03-07 |
 | 29. Discovery UI | v1.4 | 3/3 | Complete | 2026-03-07 |
-| 30. Verification & Doc Reconciliation | v1.4 | 0/1 | Pending | - |
-| 31. Tech Debt Cleanup | 1/1 | Complete   | 2026-03-07 | - |
+| 30. Verification & Doc Reconciliation | v1.4 | 0/1 | In Progress | - |
+| 31. Tech Debt Cleanup | v1.4 | 1/1 | Complete | 2026-03-07 |
