@@ -22,6 +22,8 @@ interface SlideViewerClientProps {
   templateName: string;
   initialSlides: SlideData[];
   initialThumbnails: SlideThumbnail[];
+  contentClassification?: string | null;
+  touchTypes?: string[];
 }
 
 export function SlideViewerClient({
@@ -29,6 +31,8 @@ export function SlideViewerClient({
   templateName,
   initialSlides,
   initialThumbnails,
+  contentClassification,
+  touchTypes,
 }: SlideViewerClientProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slides, setSlides] = useState<SlideData[]>(initialSlides);
@@ -231,6 +235,8 @@ export function SlideViewerClient({
                 onUpdated={handleSlideUpdated}
                 onFindSimilar={handleFindSimilar}
                 isFindingSimilar={isFindingSimilar}
+                contentClassification={contentClassification}
+                touchTypes={touchTypes}
               />
               <div className="px-4 pb-4">
                 <ElementMapPanel elements={currentSlide.elements ?? []} />

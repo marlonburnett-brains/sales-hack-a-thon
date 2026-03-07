@@ -1,12 +1,18 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { ThumbsUp, ThumbsDown, Search, ChevronDown } from "lucide-react";
+import { ThumbsUp, ThumbsDown, Search, ChevronDown, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { TagEditor } from "@/components/slide-viewer/tag-editor";
 import { updateSlideClassificationAction } from "@/lib/actions/slide-actions";
+import { classifyTemplateAction } from "@/lib/actions/template-actions";
+import {
+  getClassificationLabel,
+  TOUCH_TYPES,
+} from "@/lib/template-utils";
 import type { SlideData, CorrectedTags } from "@/lib/actions/slide-actions";
 
 interface ClassificationPanelProps {
@@ -15,6 +21,8 @@ interface ClassificationPanelProps {
   onUpdated: (slide: SlideData) => void;
   onFindSimilar?: (slideId: string) => void;
   isFindingSimilar?: boolean;
+  contentClassification?: string | null;
+  touchTypes?: string[];
 }
 
 interface ParsedDescription {
@@ -171,12 +179,187 @@ function TagChips({
   );
 }
 
+function TemplateClassificationSection({
+  templateId,
+  contentClassification,
+  touchTypes,
+}: {
+  templateId: string;
+  contentClassification?: string | null;
+  touchTypes?: string[];
+}) {
+  const [isEditingClassification, setIsEditingClassification] = useState(false);
+  const [classifyType, setClassifyType] = useState<"template" | "example">(
+    (contentClassification as "template" | "example") ?? "template"
+  );
+  const [selectedTouches, setSelectedTouches] = useState<string[]>(
+    contentClassification === "example" ? (touchTypes ?? []) : []
+  );
+  const [isSavingClassification, setIsSavingClassification] = useState(false);
+
+  const label = getClassificationLabel(contentClassification, touchTypes);
+
+  async function handleSaveClassification() {
+    if (classifyType === "example" && selectedTouches.length === 0) {
+      toast.error("Select at least one touch type for examples");
+      return;
+    }
+    setIsSavingClassification(true);
+    try {
+      const result = await classifyTemplateAction(
+        templateId,
+        classifyType,
+        classifyType === "example" ? selectedTouches : undefined,
+      );
+      if (result.success) {
+        toast.success(`Classified as ${classifyType}`);
+        setIsEditingClassification(false);
+      } else {
+        toast.error(result.error ?? "Classification failed");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Classification failed"
+      );
+    } finally {
+      setIsSavingClassification(false);
+    }
+  }
+
+  function handleToggleTouch(value: string) {
+    setSelectedTouches((prev) =>
+      prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value]
+    );
+  }
+
+  return (
+    <div className="border-b border-slate-200 pb-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          Content Classification
+        </p>
+        {contentClassification && !isEditingClassification && (
+          <button
+            type="button"
+            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 cursor-pointer"
+            onClick={() => {
+              setClassifyType((contentClassification as "template" | "example") ?? "template");
+              setSelectedTouches(contentClassification === "example" ? (touchTypes ?? []) : []);
+              setIsEditingClassification(true);
+            }}
+          >
+            <Pencil className="h-3 w-3" />
+            Edit
+          </button>
+        )}
+      </div>
+
+      {!isEditingClassification && !contentClassification && (
+        <div className="mt-2">
+          <p className="text-sm text-amber-600 font-medium mb-2">Unclassified</p>
+        </div>
+      )}
+
+      {!isEditingClassification && contentClassification && (
+        <div className="mt-2">
+          <span
+            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+              contentClassification === "template"
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-purple-200 bg-purple-50 text-purple-700"
+            }`}
+          >
+            {label}
+          </span>
+        </div>
+      )}
+
+      {(isEditingClassification || !contentClassification) && (
+        <div className="mt-2 space-y-3">
+          {/* Type selector */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                classifyType === "template"
+                  ? "border-blue-300 bg-blue-50 text-blue-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+              onClick={() => setClassifyType("template")}
+            >
+              Template
+            </button>
+            <button
+              type="button"
+              className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                classifyType === "example"
+                  ? "border-purple-300 bg-purple-50 text-purple-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+              }`}
+              onClick={() => setClassifyType("example")}
+            >
+              Example
+            </button>
+          </div>
+
+          {/* Touch type selection (only for Example) */}
+          {classifyType === "example" && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-slate-500">
+                Touch types <span className="text-red-500">*</span>
+              </p>
+              <div className="space-y-1.5">
+                {TOUCH_TYPES.map((t) => (
+                  <label
+                    key={t.value}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={selectedTouches.includes(t.value)}
+                      onCheckedChange={() => handleToggleTouch(t.value)}
+                    />
+                    <span className="text-xs text-slate-700">{t.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Save / Cancel buttons */}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1 cursor-pointer"
+              onClick={handleSaveClassification}
+              disabled={isSavingClassification || (classifyType === "example" && selectedTouches.length === 0)}
+            >
+              {isSavingClassification ? "Saving..." : "Save"}
+            </Button>
+            {isEditingClassification && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="cursor-pointer"
+                onClick={() => setIsEditingClassification(false)}
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ClassificationPanel({
   slide,
   templateId,
   onUpdated,
   onFindSimilar,
   isFindingSimilar,
+  contentClassification,
+  touchTypes,
 }: ClassificationPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -255,6 +438,13 @@ export function ClassificationPanel({
 
   return (
     <div className="space-y-4 p-4">
+      {/* Template-level content classification */}
+      <TemplateClassificationSection
+        templateId={templateId}
+        contentClassification={contentClassification}
+        touchTypes={touchTypes}
+      />
+
       {/* AI Description */}
       <DescriptionSection description={slide.description} />
 

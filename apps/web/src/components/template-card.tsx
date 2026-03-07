@@ -13,6 +13,7 @@ import {
   Clock,
   RefreshCw,
   Play,
+  Tag,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -22,6 +23,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,12 +42,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { IngestionStatusBadge } from "@/components/ingestion-status";
 import { IngestionProgress } from "@/components/ingestion-progress";
-import { getTemplateStatus, type TemplateStatus } from "@/lib/template-utils";
+import {
+  getTemplateStatus,
+  getClassificationLabel,
+  TOUCH_TYPES,
+  type TemplateStatus,
+} from "@/lib/template-utils";
 import {
   deleteTemplateAction,
   checkStalenessAction,
   triggerIngestionAction,
   getIngestionProgressAction,
+  classifyTemplateAction,
 } from "@/lib/actions/template-actions";
 import type { Template } from "@/lib/api-client";
 
@@ -73,6 +86,10 @@ export function TemplateCard({
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [classifyOpen, setClassifyOpen] = useState(false);
+  const [classifyType, setClassifyType] = useState<"template" | "example">("template");
+  const [selectedTouches, setSelectedTouches] = useState<string[]>([]);
+  const [isClassifying, setIsClassifying] = useState(false);
   const [progress, setProgress] = useState<{
     current: number;
     total: number;
@@ -141,10 +158,10 @@ export function TemplateCard({
     try {
       toast.info("Re-checking access...");
       await checkStalenessAction(template.id);
-      // checkStaleness updates accessStatus — try ingestion
+      // checkStaleness updates accessStatus -- try ingestion
       try {
         await triggerIngestionAction(template.id);
-        toast.success("Access confirmed — ingestion started");
+        toast.success("Access confirmed -- ingestion started");
       } catch {
         // Ingestion refused (still not accessible or already running)
         toast.success("Access re-checked");
@@ -186,6 +203,58 @@ export function TemplateCard({
     }
   }
 
+  async function handleClassify() {
+    if (classifyType === "example" && selectedTouches.length === 0) {
+      toast.error("Select at least one touch type for examples");
+      return;
+    }
+    setIsClassifying(true);
+    try {
+      const result = await classifyTemplateAction(
+        template.id,
+        classifyType,
+        classifyType === "example" ? selectedTouches : undefined,
+      );
+      if (result.success) {
+        toast.success(`Classified as ${classifyType}`);
+        setClassifyOpen(false);
+        onRefresh?.();
+      } else {
+        toast.error(result.error ?? "Classification failed");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Classification failed"
+      );
+    } finally {
+      setIsClassifying(false);
+    }
+  }
+
+  function handleToggleTouch(value: string) {
+    setSelectedTouches((prev) =>
+      prev.includes(value)
+        ? prev.filter((t) => t !== value)
+        : [...prev, value]
+    );
+  }
+
+  function openClassifyPopover() {
+    // Pre-fill with current classification if available
+    if (template.contentClassification === "template" || template.contentClassification === "example") {
+      setClassifyType(template.contentClassification);
+    } else {
+      setClassifyType("template");
+    }
+    setSelectedTouches(template.contentClassification === "example" ? touchTypes : []);
+    setClassifyOpen(true);
+  }
+
+  const classificationLabel = getClassificationLabel(
+    template.contentClassification,
+    touchTypes,
+  );
+
   return (
     <>
       <Link href={`/templates/${template.id}/slides`} className="block cursor-pointer">
@@ -196,6 +265,80 @@ export function TemplateCard({
           <h3 className="line-clamp-1 text-sm font-semibold text-slate-900">
             {template.name}
           </h3>
+          <Popover open={classifyOpen} onOpenChange={setClassifyOpen}>
+            <PopoverTrigger asChild>
+              {/* Hidden trigger -- we open programmatically */}
+              <span className="hidden" />
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-64 p-3"
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            >
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-slate-900">Classify Presentation</p>
+
+                {/* Type selector */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                      classifyType === "template"
+                        ? "border-blue-300 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    }`}
+                    onClick={() => setClassifyType("template")}
+                  >
+                    Template
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                      classifyType === "example"
+                        ? "border-purple-300 bg-purple-50 text-purple-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    }`}
+                    onClick={() => setClassifyType("example")}
+                  >
+                    Example
+                  </button>
+                </div>
+
+                {/* Touch type selection (only for Example) */}
+                {classifyType === "example" && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-slate-500">
+                      Touch types <span className="text-red-500">*</span>
+                    </p>
+                    <div className="space-y-1.5">
+                      {TOUCH_TYPES.map((t) => (
+                        <label
+                          key={t.value}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={selectedTouches.includes(t.value)}
+                            onCheckedChange={() => handleToggleTouch(t.value)}
+                          />
+                          <span className="text-xs text-slate-700">{t.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Save button */}
+                <Button
+                  size="sm"
+                  className="w-full cursor-pointer"
+                  onClick={handleClassify}
+                  disabled={isClassifying || (classifyType === "example" && selectedTouches.length === 0)}
+                >
+                  {isClassifying ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -220,6 +363,20 @@ export function TemplateCard({
                 <Eye className="mr-2 h-4 w-4" />
                 View Slides
               </DropdownMenuItem>
+              {/* Classify action -- only show when template has been ingested */}
+              {(status === "ready" || status === "classify") && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    openClassifyPopover();
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Tag className="mr-2 h-4 w-4" />
+                  Classify
+                </DropdownMenuItem>
+              )}
               {status === "no_access" && (
                 <DropdownMenuItem
                   onClick={(e) => {
@@ -261,7 +418,7 @@ export function TemplateCard({
           </DropdownMenu>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             {touchTypes.map((type) => (
               <span
                 key={type}
@@ -270,6 +427,18 @@ export function TemplateCard({
                 {TOUCH_LABEL_MAP[type] ?? type}
               </span>
             ))}
+            {/* Show classification label if classified */}
+            {template.contentClassification && (
+              <span
+                className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+                  template.contentClassification === "template"
+                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    : "border-purple-200 bg-purple-50 text-purple-700"
+                }`}
+              >
+                {classificationLabel}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center justify-between">

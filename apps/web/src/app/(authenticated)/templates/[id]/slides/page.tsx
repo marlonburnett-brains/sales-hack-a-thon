@@ -21,6 +21,8 @@ export default async function SlidesPage({
     thumbnails: [],
   };
   let templateName = "Template";
+  let contentClassification: string | null = null;
+  let touchTypes: string[] = [];
 
   try {
     const [slidesResult, thumbnailsResult, templates] = await Promise.all([
@@ -33,6 +35,12 @@ export default async function SlidesPage({
     const template = templates.find((t) => t.id === id);
     if (template) {
       templateName = template.name;
+      contentClassification = template.contentClassification;
+      try {
+        touchTypes = JSON.parse(template.touchTypes);
+      } catch {
+        touchTypes = [];
+      }
     }
   } catch {
     // Agent service may be unavailable during development
@@ -66,6 +74,8 @@ export default async function SlidesPage({
       templateName={templateName}
       initialSlides={slides}
       initialThumbnails={thumbnails.thumbnails}
+      contentClassification={contentClassification}
+      touchTypes={touchTypes}
     />
   );
 }
