@@ -13,9 +13,12 @@ export {
   SLIDE_CATEGORIES,
   BUYER_PERSONAS,
   TOUCH_TYPES,
+  ARTIFACT_TYPES,
+  ARTIFACT_TYPE_LABELS,
   SUBSECTORS,
   SOLUTION_PILLARS,
   ACTION_TYPES,
+  type ArtifactType,
   type ActionType,
 } from "./constants.ts";
 
