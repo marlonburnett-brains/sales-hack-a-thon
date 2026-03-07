@@ -327,6 +327,16 @@ export async function ingestTemplate(
       },
     });
 
+    // Auto-resolve share_with_sa action items now that ingestion succeeded
+    await prisma.actionRequired.updateMany({
+      where: {
+        resourceId: template.presentationId,
+        actionType: "share_with_sa",
+        resolved: false,
+      },
+      data: { resolved: true, resolvedAt: new Date() },
+    }).catch(() => {}); // fire and forget
+
     // Cache thumbnails in GCS (best-effort, non-blocking for ingestion result)
     await updateProgress(templateId, { phase: "thumbnails", current: 0, total: 1 });
     try {
