@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Brain } from "lucide-react";
 import {
   checkAtlusAccessAction,
@@ -48,12 +47,12 @@ export default async function DiscoveryPage() {
         </h1>
         <p className="max-w-md text-sm text-slate-500">{description}</p>
         {showConnectButton && (
-          <Link
-            href="/actions"
+          <a
+            href="/auth/atlus/connect"
             className="mt-2 inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             Connect AtlusAI
-          </Link>
+          </a>
         )}
       </div>
     );

@@ -76,7 +76,10 @@ export async function GET(request: Request) {
     );
 
     if (result.accessResult === "full_access") {
-      actionsUrl.searchParams.set("atlus_success", "connected");
+      // Redirect to discovery page -- the user now has access
+      const discoveryUrl = new URL("/discovery", origin);
+      discoveryUrl.searchParams.set("atlus_success", "connected");
+      return NextResponse.redirect(discoveryUrl);
     } else if (result.accessResult === "no_project") {
       actionsUrl.searchParams.set("atlus_success", "no_project");
     } else {

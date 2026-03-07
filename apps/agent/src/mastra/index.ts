@@ -1812,6 +1812,15 @@ export const mastra = new Mastra({
               data.accessToken,
             );
 
+            // Re-initialize MCP now that we have a token in the pool.
+            // This clears fallbackMode so isMcpAvailable() returns true
+            // without requiring an agent restart.
+            if (accessResult === "full_access") {
+              initMcp().catch((err) =>
+                console.warn("[atlus-oauth] MCP re-init after token store failed:", err),
+              );
+            }
+
             return c.json({ success: true, accessResult });
           } catch (err) {
             if (err instanceof z.ZodError) {
