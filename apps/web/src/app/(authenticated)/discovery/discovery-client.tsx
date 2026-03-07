@@ -1131,8 +1131,6 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
   }
 
   // -- Main render --
-  const displayDocs = mode === "browse" ? documents : searchResults;
-
   return (
     <div className="space-y-6">
       {/* Header */}
