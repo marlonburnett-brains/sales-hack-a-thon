@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
-status: Ready to start Phase 37
-stopped_at: Completed 36-backend-engine-api-routes-02-PLAN.md
-last_updated: "2026-03-07T22:02:54.426Z"
-last_activity: 2026-03-07 — Completed Phase 36 Plan 02 artifact-aware route contract
+status: executing
+stopped_at: Completed 37-02-PLAN.md
+last_updated: "2026-03-07T23:09:33.963Z"
+last_activity: 2026-03-07 — Completed Phase 37 Plan 01 shared Touch 4 classify contract
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 67
+  total_plans: 3
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 37 of 37 (Frontend UI)
-Plan: 0 of TBD complete (next: Phase 37 planning)
-Status: Ready to start Phase 37
-Last activity: 2026-03-07 — Completed Phase 36 Plan 02 artifact-aware route contract
+Plan: 1 of 3 complete (next: 37-02-PLAN.md)
+Status: In Progress Phase 37
+Last activity: 2026-03-07 — Completed Phase 37 Plan 01 shared Touch 4 classify contract
 
-Progress: [███████░░░] 67%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -55,6 +55,10 @@ All decisions logged in PROJECT.md Key Decisions table (55 decisions total throu
 - [Phase 36-backend-engine-api-routes]: Keep the existing :touchType route family and validate Touch 4 artifact keys through query params at the route boundary
 - [Phase 36-backend-engine-api-routes]: Use resolveDeckStructureKey() inside agent detail, infer, chat, and chat-refinement flows so every Touch 4 operation resolves to a single artifact row
 - [Phase 36-backend-engine-api-routes]: Use URLSearchParams in web helpers and proxy routing so optional artifactType stays encoded consistently without a second endpoint family
+- [Phase 37-frontend-ui]: Keep Touch 4 classify behavior in a shared control so both existing classify surfaces can adopt one artifact-aware state model.
+- [Phase 37-frontend-ui]: Default classify updates to artifactType null and only persist an artifact for valid single-touch Touch 4 examples.
+- [Phase 37]: Keep /settings/deck-structures/[touchType] server-rendered and branch only touch-4 into a client tab shell.
+- [Phase 37]: Treat empty Touch 4 artifacts as actionable by keeping chat enabled and sending artifactType with refinement requests.
 
 ### Pending Todos
 
@@ -79,6 +83,8 @@ None.
 | Phase 35 P02 | 6 min | 2 tasks | 6 files |
 | Phase 36-backend-engine-api-routes P01 | 7 min | 3 tasks | 6 files |
 | Phase 36-backend-engine-api-routes P02 | 3 min | 2 tasks | 7 files |
+| Phase 37-frontend-ui P01 | 6 min | 2 tasks | 8 files |
+| Phase 37 P02 | 5 min | 3 tasks | 8 files |
 
 ### Blockers/Concerns
 
@@ -87,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T21:53:52.208Z
-Stopped at: Completed 36-backend-engine-api-routes-02-PLAN.md
-Next action: /gsd-plan-phase 37
+Last session: 2026-03-07T23:09:33.960Z
+Stopped at: Completed 37-02-PLAN.md
+Next action: /gsd-execute-phase 37

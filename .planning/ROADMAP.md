@@ -133,7 +133,12 @@ Plans:
   3. Settings Touch 4 page shows three tabs (Proposal / Talk Track / FAQ) each with its own deck structure display
   4. Each Touch 4 artifact tab shows independent confidence scoring based on classified example count for that specific artifact type
   5. Chat refinement on each tab is scoped to the correct artifact type structure
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [x] 37-01-PLAN.md — Add shared Touch 4 artifact classification controls and persist `artifactType` through the classify flow
+- [ ] 37-02-PLAN.md — Convert Touch 4 settings into artifact tabs with per-tab confidence, empty states, and scoped chat
+- [ ] 37-03-PLAN.md — Wire both classify surfaces to the shared Touch 4 control and show saved artifact badges
 
 ## Progress
 
@@ -177,4 +182,4 @@ Plans:
 | 34. Deck Intelligence | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
-| 37. Frontend UI | v1.6 | 0/TBD | Not started | - |
+| 37. Frontend UI | 2/3 | In Progress|  | - |

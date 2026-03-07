@@ -15,15 +15,15 @@ Requirements for Touch 4 Artifact Intelligence. Each maps to roadmap phases.
 
 ### Classification
 
-- [ ] **CLSF-01**: User can select artifact type (Proposal / Talk Track / FAQ) when classifying a presentation as Touch 4 Example
-- [ ] **CLSF-02**: Artifact type selector only appears when Touch 4 + Example is selected in classify UI
+- [x] **CLSF-01**: User can select artifact type (Proposal / Talk Track / FAQ) when classifying a presentation as Touch 4 Example
+- [x] **CLSF-02**: Artifact type selector only appears when Touch 4 + Example is selected in classify UI
 
 ### Deck Structures
 
 - [x] **DECK-01**: AI inference engine filters Touch 4 examples by artifact type, producing 3 separate deck structures
 - [x] **DECK-02**: Cron auto-inference iterates over 6 keys (Touch 1-3 + Touch 4 x3 artifact types) with per-key change detection
-- [ ] **DECK-03**: Settings Touch 4 page shows tabbed view (Proposal / Talk Track / FAQ) with separate structure per tab
-- [ ] **DECK-04**: Each Touch 4 artifact tab shows independent confidence scoring based on classified example count for that artifact type
+- [x] **DECK-03**: Settings Touch 4 page shows tabbed view (Proposal / Talk Track / FAQ) with separate structure per tab
+- [x] **DECK-04**: Each Touch 4 artifact tab shows independent confidence scoring based on classified example count for that artifact type
 - [x] **DECK-05**: Chat refinement threads artifact type, allowing per-artifact-type conversation scoped to the correct structure
 
 ## Future Requirements
@@ -56,12 +56,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCHM-01 | Phase 35 | Complete |
 | SCHM-02 | Phase 35 | Complete |
 | SCHM-03 | Phase 35 | Complete |
-| CLSF-01 | Phase 37 | Pending |
-| CLSF-02 | Phase 37 | Pending |
+| CLSF-01 | Phase 37 | Complete |
+| CLSF-02 | Phase 37 | Complete |
 | DECK-01 | Phase 36 | Complete |
 | DECK-02 | Phase 36 | Complete |
-| DECK-03 | Phase 37 | Pending |
-| DECK-04 | Phase 37 | Pending |
+| DECK-03 | Phase 37 | Complete |
+| DECK-04 | Phase 37 | Complete |
 | DECK-05 | Phase 36 | Complete |
 
 **Coverage:**
