@@ -17,10 +17,16 @@ import {
   detectAtlusAccess,
   upsertAtlusToken,
   resolveActionsByType,
+  getPooledAtlusAuth,
 } from "../lib/atlus-auth";
 import { ACTION_TYPES } from "@lumenalta/schemas";
 import { env } from "../env";
-import { initMcp, shutdownMcp } from "../lib/mcp-client";
+import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
+import { searchSlides } from "../lib/atlusai-search";
+import { generateEmbedding } from "../ingestion/embed-slide";
+import { computeContentHash } from "../ingestion/smart-merge";
+import { toSql } from "pgvector";
+import crypto from "node:crypto";
 
 // ────────────────────────────────────────────────────────────
 // Background Staleness Polling
@@ -29,6 +35,14 @@ import { initMcp, shutdownMcp } from "../lib/mcp-client";
 const STALENESS_POLL_INTERVAL = 300_000; // 5 minutes
 const STALENESS_INITIAL_DELAY = 10_000; // 10 seconds after startup
 const DRIVE_API_DELAY = 200; // 200ms between Drive API calls
+
+// ────────────────────────────────────────────────────────────
+// Discovery Batch Ingestion State (Phase 29)
+// ────────────────────────────────────────────────────────────
+const discoveryBatches = new Map<
+  string,
+  Map<string, { status: string; error?: string }>
+>();
 
 function startStalenessPolling() {
   if (!process.env.GOOGLE_CLOUD_PROJECT) {
@@ -1336,11 +1350,10 @@ export const mastra = new Mastra({
               data: { resolved: true, resolvedAt: new Date() },
             }).catch(() => {}); // fire and forget
 
-            // Fire-and-forget: check AtlusAI access using the Google token
-            // The user just logged in or re-authed, so this is the natural trigger point
-            detectAtlusAccess(data.userId, data.email, data.refreshToken).catch((err) => {
-              console.error("[atlus-detect] Failed to check AtlusAI access:", err);
-            });
+            // NOTE: AtlusAI access detection removed from here.
+            // detectAtlusAccess requires an AtlusAI access token, NOT a Google refresh token.
+            // AtlusAI detection should happen via the dedicated /atlus/detect endpoint
+            // or the AtlusAI OAuth flow (/auth/atlus/connect -> /auth/atlus/callback).
 
             return c.json({ success: true, tokenId: token.id });
           } catch (err) {
@@ -1500,6 +1513,277 @@ export const mastra = new Mastra({
             data.googleAccessToken,
           );
           return c.json({ result });
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Phase 29: Discovery UI Endpoints
+      // ────────────────────────────────────────────────────────────
+
+      // GET /discovery/access-check -- Check if AtlusAI is available
+      registerApiRoute("/discovery/access-check", {
+        method: "GET",
+        handler: async (c) => {
+          try {
+            if (env.ATLUS_USE_MCP === "false") {
+              return c.json({ hasAccess: false, reason: "disabled" });
+            }
+
+            if (!isMcpAvailable()) {
+              // Check if there are tokens at all
+              const auth = await getPooledAtlusAuth();
+              if (!auth) {
+                return c.json({ hasAccess: false, reason: "no_tokens" });
+              }
+              return c.json({ hasAccess: false, reason: "mcp_unavailable" });
+            }
+
+            return c.json({ hasAccess: true });
+          } catch (err) {
+            console.error("[discovery/access-check] Error:", err);
+            return c.json({ hasAccess: false, reason: "mcp_unavailable" });
+          }
+        },
+      }),
+
+      // GET /discovery/browse -- Browse AtlusAI document inventory
+      registerApiRoute("/discovery/browse", {
+        method: "GET",
+        handler: async (c) => {
+          try {
+            if (!isMcpAvailable()) {
+              return c.json(
+                { documents: [], error: "MCP not available" },
+                503,
+              );
+            }
+
+            const cursor = c.req.query("cursor") || undefined;
+            const limit = parseInt(c.req.query("limit") || "20", 10);
+
+            const args: Record<string, unknown> = { limit };
+            if (env.ATLUS_PROJECT_ID) {
+              args.project_id = env.ATLUS_PROJECT_ID;
+            }
+            if (cursor) {
+              args.cursor = cursor;
+            }
+
+            const rawResult = await callMcpTool("discover_documents", args);
+
+            // Query already-ingested content hashes
+            const ingested = await prisma.slideEmbedding.findMany({
+              where: { archived: false },
+              select: { contentHash: true },
+            });
+            const ingestedHashes = ingested
+              .map((r) => r.contentHash)
+              .filter((h): h is string => h !== null);
+
+            // Return raw MCP result under documents key
+            const rawObj =
+              rawResult && typeof rawResult === "object"
+                ? (rawResult as Record<string, unknown>)
+                : {};
+            const documents = Array.isArray(rawObj.documents)
+              ? rawObj.documents
+              : Array.isArray(rawResult)
+                ? rawResult
+                : [];
+            const nextCursor =
+              typeof rawObj.nextCursor === "string"
+                ? rawObj.nextCursor
+                : typeof rawObj.next_cursor === "string"
+                  ? rawObj.next_cursor
+                  : undefined;
+
+            return c.json({ documents, nextCursor, ingestedHashes });
+          } catch (err) {
+            console.error("[discovery/browse] Error:", err);
+            return c.json(
+              { documents: [], error: String(err) },
+              500,
+            );
+          }
+        },
+      }),
+
+      // POST /discovery/search -- Semantic search via MCP
+      registerApiRoute("/discovery/search", {
+        method: "POST",
+        handler: async (c) => {
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({ query: z.string().min(1) })
+              .parse(body);
+
+            const results = await searchSlides({
+              query: data.query,
+              limit: 30,
+            });
+
+            // Query already-ingested content hashes
+            const ingested = await prisma.slideEmbedding.findMany({
+              where: { archived: false },
+              select: { contentHash: true },
+            });
+            const ingestedHashes = ingested
+              .map((r) => r.contentHash)
+              .filter((h): h is string => h !== null);
+
+            return c.json({ results, ingestedHashes });
+          } catch (err) {
+            if (err instanceof z.ZodError) {
+              return c.json(
+                { error: "Invalid request body", details: err.issues },
+                400,
+              );
+            }
+            console.error("[discovery/search] Error:", err);
+            return c.json(
+              { results: [], error: String(err) },
+              500,
+            );
+          }
+        },
+      }),
+
+      // POST /discovery/ingest -- Start batch ingestion of selected discovery items
+      registerApiRoute("/discovery/ingest", {
+        method: "POST",
+        handler: async (c) => {
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                items: z.array(
+                  z.object({
+                    slideId: z.string(),
+                    documentTitle: z.string(),
+                    textContent: z.string(),
+                    speakerNotes: z.string().default(""),
+                    metadata: z.record(z.string(), z.unknown()).default({}),
+                  }),
+                ),
+              })
+              .parse(body);
+
+            const batchId = crypto.randomUUID();
+
+            // Initialize batch tracking
+            const batchItems = new Map<
+              string,
+              { status: string; error?: string }
+            >();
+            for (const item of data.items) {
+              batchItems.set(item.slideId, { status: "pending" });
+            }
+            discoveryBatches.set(batchId, batchItems);
+
+            // Fire and forget -- process asynchronously
+            void (async () => {
+              for (const item of data.items) {
+                try {
+                  batchItems.set(item.slideId, { status: "ingesting" });
+
+                  // Generate content hash
+                  const contentHash = computeContentHash(
+                    item.textContent,
+                    item.speakerNotes,
+                    item.slideId,
+                  );
+
+                  // Check for duplicate
+                  const existing = await prisma.slideEmbedding.findFirst({
+                    where: { contentHash, archived: false },
+                    select: { id: true },
+                  });
+                  if (existing) {
+                    batchItems.set(item.slideId, { status: "done" });
+                    continue;
+                  }
+
+                  // Generate embedding via Vertex AI
+                  const embeddingText = [
+                    item.documentTitle,
+                    item.textContent,
+                    item.speakerNotes,
+                  ]
+                    .filter(Boolean)
+                    .join("\n");
+                  const embedding = await generateEmbedding(embeddingText);
+
+                  // Generate a simple cuid-like ID
+                  const id = `c${Date.now().toString(36)}${Math.random().toString(36).substring(2, 12)}`;
+
+                  // Store SlideEmbedding record via raw SQL for pgvector
+                  await prisma.$executeRaw`
+                    INSERT INTO "SlideEmbedding" (
+                      id, "templateId", "slideIndex", "slideObjectId",
+                      "contentText", "speakerNotes", "contentHash",
+                      embedding, "classificationJson", confidence,
+                      "reviewStatus", "needsReReview", archived,
+                      "createdAt", "updatedAt"
+                    ) VALUES (
+                      ${id}, 'atlus-discovery', 0, ${item.slideId},
+                      ${item.textContent}, ${item.speakerNotes}, ${contentHash},
+                      ${toSql(embedding)}::vector, ${JSON.stringify(item.metadata)}, ${0.5},
+                      'unreviewed', false, false,
+                      NOW(), NOW()
+                    )
+                  `;
+
+                  batchItems.set(item.slideId, { status: "done" });
+                } catch (err) {
+                  console.error(
+                    `[discovery/ingest] Failed to ingest ${item.slideId}:`,
+                    err,
+                  );
+                  batchItems.set(item.slideId, {
+                    status: "error",
+                    error: String(err),
+                  });
+                }
+              }
+            })();
+
+            return c.json({ batchId });
+          } catch (err) {
+            if (err instanceof z.ZodError) {
+              return c.json(
+                { error: "Invalid request body", details: err.issues },
+                400,
+              );
+            }
+            console.error("[discovery/ingest] Error:", err);
+            return c.json({ error: "Ingestion failed" }, 500);
+          }
+        },
+      }),
+
+      // GET /discovery/ingest/:batchId/progress -- Poll ingestion progress
+      registerApiRoute("/discovery/ingest/:batchId/progress", {
+        method: "GET",
+        handler: async (c) => {
+          const batchId = c.req.param("batchId");
+          const batch = discoveryBatches.get(batchId);
+
+          if (!batch) {
+            return c.json({ error: "Batch not found" }, 404);
+          }
+
+          const items = Array.from(batch.entries()).map(([id, state]) => ({
+            id,
+            status: state.status,
+            ...(state.error ? { error: state.error } : {}),
+          }));
+
+          const complete = items.every(
+            (i) => i.status === "done" || i.status === "error",
+          );
+
+          return c.json({ items, complete });
         },
       }),
     ],
