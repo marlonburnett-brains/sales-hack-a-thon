@@ -120,7 +120,18 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to define next)
+## Current Milestone: v1.5 Review Polish & Deck Intelligence
+
+**Goal:** Fix UX gaps identified in review (thumbnail previews, ingestion status consistency, feedback latency), deepen slide intelligence (rich descriptions, structured element maps), add content classification (Template vs Example with touch binding), and build Settings page with AI-inferred deck structures per touch.
+
+**Target features:**
+- Discovery document card thumbnails and file-type icons
+- Consistent ingestion status across Discovery and Templates pages
+- Immediate feedback on ingest click with optimistic UI
+- Rich AI-generated slide descriptions during ingestion
+- Structured element map extraction via Google Slides API
+- Template vs Example classification with touch binding
+- Settings page with Deck Structures and AI chat refinement
 
 ### Out of Scope
 
@@ -209,4 +220,4 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | Fire-and-forget persistAtlusClientId | Avoids blocking MCP init for non-critical persistence | ✓ Good — fast startup |
 
 ---
-*Last updated: 2026-03-07 after v1.4 milestone*
+*Last updated: 2026-03-07 after v1.5 milestone start*

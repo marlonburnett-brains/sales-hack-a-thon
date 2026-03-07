@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: AtlusAI Authentication & Discovery
-status: complete
-stopped_at: Milestone v1.4 archived
+milestone: v1.5
+milestone_name: Review Polish & Deck Intelligence
+status: active
+stopped_at: Defining requirements
 last_updated: "2026-03-07"
-last_activity: 2026-03-07 - Milestone v1.4 completed and archived
+last_activity: 2026-03-07 - Milestone v1.5 started
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,15 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Planning next milestone
+**Current focus:** Milestone v1.5 — Review Polish & Deck Intelligence
 
 ## Current Position
 
-Phase: All complete (31 phases across 5 milestones)
-Status: Between milestones
-Last activity: 2026-03-07 - Milestone v1.4 archived
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-07 — Milestone v1.5 started
 
 ## Performance Metrics
 
@@ -69,5 +68,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Milestone v1.4 archived
-Next action: /gsd:new-milestone to start next milestone
+Stopped at: Milestone v1.5 started
+Next action: Research then define requirements
