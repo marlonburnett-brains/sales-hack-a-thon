@@ -5,7 +5,6 @@ import {
   fetchActions,
   resolveAction,
   silenceAction,
-  recheckAtlusAccess,
 } from "@/lib/api-client";
 import type { ActionRequiredItem } from "@/lib/api-client";
 
@@ -27,8 +26,3 @@ export async function silenceActionAction(id: string): Promise<ActionRequiredIte
   return result;
 }
 
-export async function recheckAtlusAccessAction(userId: string, email: string, googleAccessToken: string): Promise<{ result: string }> {
-  const result = await recheckAtlusAccess(userId, email, googleAccessToken);
-  revalidatePath("/actions");
-  return result;
-}

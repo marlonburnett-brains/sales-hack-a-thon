@@ -777,13 +777,6 @@ export async function silenceAction(id: string): Promise<ActionRequiredItem> {
   });
 }
 
-export async function recheckAtlusAccess(userId: string, email: string, googleAccessToken: string): Promise<{ result: string }> {
-  return fetchJSON<{ result: string }>('/atlus/detect', {
-    method: "POST",
-    body: JSON.stringify({ userId, email, googleAccessToken }),
-  });
-}
-
 export async function storeAtlusOAuthToken(
   userId: string,
   email: string,
