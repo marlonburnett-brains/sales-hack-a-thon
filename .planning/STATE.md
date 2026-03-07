@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
 status: planning
-stopped_at: Completed 36-backend-engine-api-routes-01-PLAN.md
-last_updated: "2026-03-07T21:44:15.690Z"
-last_activity: 2026-03-07 — Completed Phase 36 Plan 01 backend keying foundation
+stopped_at: Completed 36-backend-engine-api-routes-02-PLAN.md
+last_updated: "2026-03-07T21:53:52.210Z"
+last_activity: 2026-03-07 — Completed Phase 36 Plan 02 artifact-aware route contract
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 33
+  completed_plans: 4
+  percent: 67
 ---
 
 # Project State
@@ -21,21 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 36 (Backend Engine & API Routes)
+**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 37 (Frontend UI)
 
 ## Current Position
 
-Phase: 36 of 37 (Backend Engine & API Routes)
-Plan: 1 of 2 complete (next: 36-02)
-Status: In progress on Phase 36
-Last activity: 2026-03-07 — Completed Phase 36 Plan 01 backend keying foundation
+Phase: 37 of 37 (Frontend UI)
+Plan: 0 of TBD complete (next: Phase 37 planning)
+Status: Ready to start Phase 37
+Last activity: 2026-03-07 — Completed Phase 36 Plan 02 artifact-aware route contract
 
-Progress: [███░░░░░░░] 33%
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 76 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 3)
+- Total plans completed: 77 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 4)
 - Total project time: ~5 days (2026-03-03 -> 2026-03-07)
 - Total LOC: ~40,833 TypeScript/TSX
 
@@ -52,6 +52,9 @@ All decisions logged in PROJECT.md Key Decisions table (55 decisions total throu
 - [Phase 36-backend-engine-api-routes]: Deck structure identity now resolves through a shared { touchType, artifactType } contract instead of touchType-only branching
 - [Phase 36-backend-engine-api-routes]: Touch 4 inference persists empty artifact rows when no matching examples exist rather than reviving the generic null-artifact fallback
 - [Phase 36-backend-engine-api-routes]: Cron uses an explicit six-key builder so pre_call stays in the API contract but out of auto-inference
+- [Phase 36-backend-engine-api-routes]: Keep the existing :touchType route family and validate Touch 4 artifact keys through query params at the route boundary
+- [Phase 36-backend-engine-api-routes]: Use resolveDeckStructureKey() inside agent detail, infer, chat, and chat-refinement flows so every Touch 4 operation resolves to a single artifact row
+- [Phase 36-backend-engine-api-routes]: Use URLSearchParams in web helpers and proxy routing so optional artifactType stays encoded consistently without a second endpoint family
 
 ### Pending Todos
 
@@ -75,6 +78,7 @@ None.
 | Phase 35 P01 | 1 min | 2 tasks | 2 files |
 | Phase 35 P02 | 6 min | 2 tasks | 6 files |
 | Phase 36-backend-engine-api-routes P01 | 7 min | 3 tasks | 6 files |
+| Phase 36-backend-engine-api-routes P02 | 3 min | 2 tasks | 7 files |
 
 ### Blockers/Concerns
 
@@ -83,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T21:44:15.688Z
-Stopped at: Completed 36-backend-engine-api-routes-01-PLAN.md
-Next action: /gsd-execute-phase 36
+Last session: 2026-03-07T21:53:52.208Z
+Stopped at: Completed 36-backend-engine-api-routes-02-PLAN.md
+Next action: /gsd-plan-phase 37

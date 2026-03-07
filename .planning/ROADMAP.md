@@ -87,7 +87,7 @@
 **Milestone Goal:** Add artifact type sub-classification (Proposal / Talk Track / FAQ) to Touch 4 Examples and display per-artifact-type deck structures in Settings.
 
 - [x] **Phase 35: Schema & Constants Foundation** (2/2 plans) - Prisma migrations for artifactType columns and shared constants (completed 2026-03-07)
-- [ ] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation
+- [x] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation (completed 2026-03-07)
 - [ ] **Phase 37: Frontend UI** - Classify UI artifact selector and Settings tabbed deck structure views
 
 ## Phase Details
@@ -176,5 +176,5 @@ Plans:
 | 33. Slide Intelligence Foundation | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 34. Deck Intelligence | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
-| 36. Backend Engine & API Routes | v1.6 | 1/2 | In Progress | - |
+| 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 37. Frontend UI | v1.6 | 0/TBD | Not started | - |
