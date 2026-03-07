@@ -33,8 +33,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { TemplateStatusBadge } from "@/components/template-status-badge";
+import { IngestionStatusBadge } from "@/components/ingestion-status";
+import { IngestionProgress } from "@/components/ingestion-progress";
 import { getTemplateStatus, type TemplateStatus } from "@/lib/template-utils";
 import {
   deleteTemplateAction,
@@ -273,7 +273,7 @@ export function TemplateCard({
           </div>
 
           <div className="flex items-center justify-between">
-            <TemplateStatusBadge status={status} />
+            <IngestionStatusBadge status={status} />
             <div className="flex items-center gap-3 text-xs text-slate-500">
               <span className="flex items-center gap-1" title="Slide count">
                 <Layers className="h-3.5 w-3.5" />
@@ -304,15 +304,10 @@ export function TemplateCard({
           {status === "ingesting" && (
             <div className="space-y-1.5">
               {progress ? (
-                <>
-                  <Progress
-                    value={(progress.current / progress.total) * 100}
-                    className="h-1.5"
-                  />
-                  <p className="text-xs text-indigo-600">
-                    Slide {progress.current} of {progress.total}
-                  </p>
-                </>
+                <IngestionProgress
+                  current={progress.current}
+                  total={progress.total}
+                />
               ) : (
                 <p className="text-xs text-indigo-600">
                   Extracting slides...

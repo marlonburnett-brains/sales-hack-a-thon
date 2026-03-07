@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   Brain,
   Search,
@@ -13,10 +14,18 @@ import {
   Loader2,
   RotateCcw,
   Check,
-  AlertCircle,
-  Clock,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DocumentTypeIcon } from "@/components/document-type-icon";
+import { IngestionStatusBadge } from "@/components/ingestion-status";
+import { IngestionProgress } from "@/components/ingestion-progress";
+import { isIngestible } from "@/lib/document-types";
+import { getTemplateStatus, type TemplateStatus } from "@/lib/template-utils";
 import {
   browseDocumentsAction,
   searchDocumentsAction,
@@ -33,6 +42,24 @@ interface DiscoveryClientProps {
 }
 
 type ItemStatus = "idle" | "pending" | "ingesting" | "done" | "error";
+
+/**
+ * Map local ItemStatus to TemplateStatus for rendering with shared IngestionStatusBadge.
+ */
+function itemStatusToTemplateStatus(status: ItemStatus): TemplateStatus {
+  switch (status) {
+    case "pending":
+      return "queued";
+    case "ingesting":
+      return "ingesting";
+    case "done":
+      return "ready";
+    case "error":
+      return "failed";
+    default:
+      return "not_ingested";
+  }
+}
 
 export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
   // Browse state
@@ -73,10 +100,14 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
   );
   const [isIngesting, setIsIngesting] = useState(false);
 
+  // Thumbnail loading state
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+
   // Refs
   const sentinelRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout>(null);
   const pollIntervalsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+  const ingestingRef = useRef<Set<string>>(new Set());
 
   // Cleanup polling intervals on unmount
   useEffect(() => {
@@ -86,7 +117,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     };
   }, []);
 
-  // ── Infinite scroll ──────────────────────────────────────────
+  // -- Infinite scroll --
   const loadMore = useCallback(async () => {
     if (!hasMore || isLoadingMore || mode !== "browse") return;
     setIsLoadingMore(true);
@@ -99,7 +130,6 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
       setNextCursor(result.nextCursor);
       setHasMore(!!result.nextCursor);
     } catch {
-      // Non-fatal: stop loading more on error
       setHasMore(false);
     } finally {
       setIsLoadingMore(false);
@@ -125,7 +155,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     return () => observer.disconnect();
   }, [mode, hasMore, loadMore]);
 
-  // ── Search with debounce ─────────────────────────────────────
+  // -- Search with debounce --
   function handleSearchChange(value: string) {
     setSearchQuery(value);
 
@@ -176,7 +206,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
       .finally(() => setIsSearching(false));
   }
 
-  // ── Escape key to close preview ──────────────────────────────
+  // -- Escape key to close preview --
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape" && selectedPreview) {
@@ -187,18 +217,17 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedPreview]);
 
-  // ── Check if document is a Google Slides presentation ────────
+  // -- Check if document is a Google Slides presentation --
   function isGoogleSlides(doc: DiscoveryDocument): boolean {
-    // Use server-provided flag (Drive API MIME type lookup)
     return doc.isGoogleSlides === true;
   }
 
-  // ── Extract presentationId from document ───────────────────
+  // -- Extract presentationId from document --
   function getPresentationId(doc: DiscoveryDocument): string | undefined {
     return doc.presentationId;
   }
 
-  // ── Check if document is ingested ────────────────────────────
+  // -- Check if document is ingested --
   function isIngested(doc: DiscoveryDocument): boolean {
     const status = itemStatuses.get(doc.slideId);
     if (status === "done") return true;
@@ -207,7 +236,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     return presId ? hashes.has(presId) : false;
   }
 
-  // ── Get item status ──────────────────────────────────────────
+  // -- Get item status --
   function getItemStatus(doc: DiscoveryDocument): ItemStatus {
     const status = itemStatuses.get(doc.slideId);
     if (status) return status;
@@ -215,7 +244,26 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     return "idle";
   }
 
-  // ── Selection toggle ─────────────────────────────────────────
+  // -- Compute display status for a document --
+  // Prioritizes local itemStatuses (more current during active ingestion) over templateData
+  function getDisplayStatus(doc: DiscoveryDocument): TemplateStatus | null {
+    const localStatus = itemStatuses.get(doc.slideId);
+    if (localStatus && localStatus !== "idle") {
+      return itemStatusToTemplateStatus(localStatus);
+    }
+    if (doc.templateData) {
+      return getTemplateStatus({
+        ...doc.templateData,
+        slideCount: doc.templateData.slideCount ?? undefined,
+      });
+    }
+    if (isIngested(doc)) {
+      return "ready";
+    }
+    return null;
+  }
+
+  // -- Selection toggle --
   function toggleSelection(doc: DiscoveryDocument) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -232,8 +280,8 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     setSelectedIds(new Set());
   }
 
-  // ── Batch ingestion ──────────────────────────────────────────
-  function startPolling(batchId: string) {
+  // -- Batch ingestion --
+  function startPolling(batchId: string, slideIds: string[]) {
     const intervalId = setInterval(async () => {
       try {
         const progress = await getDiscoveryIngestionProgressAction(batchId);
@@ -250,6 +298,15 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
                     ? "ingesting"
                     : "pending";
             next.set(item.id, mappedStatus);
+
+            // Update per-item toast
+            if (mappedStatus === "ingesting") {
+              toast(`Ingesting...`, { id: `ingest-${item.id}` });
+            } else if (mappedStatus === "done") {
+              toast.success("Ingestion complete", { id: `ingest-${item.id}` });
+            } else if (mappedStatus === "error") {
+              toast.error("Ingestion failed", { id: `ingest-${item.id}` });
+            }
           }
           return next;
         });
@@ -267,8 +324,13 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
         if (progress.complete) {
           clearInterval(intervalId);
           pollIntervalsRef.current.delete(intervalId);
+
+          // Remove from ingestingRef
+          for (const sid of slideIds) {
+            ingestingRef.current.delete(sid);
+          }
+
           setIsIngesting((prev) => {
-            // Only set false if no other polls are running
             if (pollIntervalsRef.current.size === 0) return false;
             return prev;
           });
@@ -280,14 +342,17 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
             (i) => i.status === "error" || i.status === "failed"
           ).length;
 
-          if (errorCount === progress.items.length) {
-            toast.error(
-              "Ingestion failed. Check individual items for details."
-            );
-          } else if (doneCount > 0) {
-            toast.success(
-              `Ingestion complete: ${doneCount} item${doneCount !== 1 ? "s" : ""} ingested`
-            );
+          // Summary toast for batch operations
+          if (progress.items.length > 1) {
+            if (errorCount > 0) {
+              toast.success(
+                `${doneCount} of ${progress.items.length} documents ingested, ${errorCount} failed`
+              );
+            } else {
+              toast.success(
+                `All ${doneCount} documents ingested`
+              );
+            }
           }
         }
       } catch {
@@ -315,43 +380,70 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
       return;
     }
 
+    // Client-side duplicate prevention: skip already in-flight docs
+    const newItems = slidesItems.filter(
+      (doc) => !ingestingRef.current.has(doc.slideId)
+    );
+    if (newItems.length === 0) {
+      toast.info("These documents are already being ingested.");
+      return;
+    }
+
+    // Add to ingestingRef immediately (synchronous, no React state delay)
+    for (const doc of newItems) {
+      ingestingRef.current.add(doc.slideId);
+    }
+
     // Enrich items with googleSlidesUrl for the agent
-    const enrichedItems = slidesItems.map((doc) => {
+    const enrichedItems = newItems.map((doc) => {
       const presId = getPresentationId(doc)!;
       const googleSlidesUrl = `https://docs.google.com/presentation/d/${presId}`;
       return { ...doc, presentationId: presId, googleSlidesUrl };
     });
 
-    // Set all selected to pending
+    // Set all selected to pending (optimistic)
     setItemStatuses((prev) => {
       const next = new Map(prev);
-      for (const item of slidesItems) {
+      for (const item of newItems) {
         next.set(item.slideId, "pending");
       }
       return next;
     });
 
     setIsIngesting(true);
-    setSelectedIds(new Set()); // Clear selection -- tracked by status now
+    setSelectedIds(new Set()); // Clear selection
+
+    // Show per-item queued toast
+    for (const item of newItems) {
+      toast("Queued for ingestion", { id: `ingest-${item.slideId}` });
+    }
+
+    const slideIds = newItems.map((d) => d.slideId);
 
     try {
       const { batchId } = await startDiscoveryIngestionAction(enrichedItems);
-      startPolling(batchId);
+      startPolling(batchId, slideIds);
     } catch {
-      // Reset statuses on start failure
+      // Rollback: reset statuses and remove from ingestingRef
       setItemStatuses((prev) => {
         const next = new Map(prev);
-        for (const item of slidesItems) {
+        for (const item of newItems) {
           next.delete(item.slideId);
         }
         return next;
       });
+      for (const sid of slideIds) {
+        ingestingRef.current.delete(sid);
+      }
       setIsIngesting(false);
-      toast.error("Failed to start ingestion. Please try again.");
+      // Replace queued toasts with error
+      for (const item of newItems) {
+        toast.error("Failed to start ingestion", { id: `ingest-${item.slideId}` });
+      }
     }
   }
 
-  // ── Individual retry ─────────────────────────────────────────
+  // -- Individual retry --
   async function handleRetry(doc: DiscoveryDocument) {
     toast.info("Retrying ingestion...");
     setItemStatuses((prev) => {
@@ -370,8 +462,9 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
       const googleSlidesUrl = `https://docs.google.com/presentation/d/${presId}`;
       const enrichedDoc = { ...doc, presentationId: presId, googleSlidesUrl };
       const { batchId } = await startDiscoveryIngestionAction([enrichedDoc]);
+      ingestingRef.current.add(doc.slideId);
       setIsIngesting(true);
-      startPolling(batchId);
+      startPolling(batchId, [doc.slideId]);
     } catch {
       setItemStatuses((prev) => {
         const next = new Map(prev);
@@ -387,74 +480,18 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     }
   }
 
-  // ── Status indicator component ────────────────────────────────
-  function StatusIndicator({ doc }: { doc: DiscoveryDocument }) {
-    const status = getItemStatus(doc);
-
-    switch (status) {
-      case "pending":
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-600">
-            <Clock className="h-3 w-3" />
-            Queued
-          </span>
-        );
-      case "ingesting":
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Ingesting...
-          </span>
-        );
-      case "done":
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
-            <Check className="h-3 w-3" />
-            Ingested
-          </span>
-        );
-      case "error": {
-        const errorMsg = itemErrors.get(doc.slideId) ?? "Unknown error";
-        return (
-          <span className="inline-flex items-center gap-1">
-            <span
-              className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600"
-              title={errorMsg}
-            >
-              <AlertCircle className="h-3 w-3" />
-              Failed
-            </span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRetry(doc);
-              }}
-              className="cursor-pointer rounded p-1 text-red-500 transition-colors duration-150 hover:bg-red-50 hover:text-red-700"
-              aria-label="Retry ingestion"
-            >
-              <RotateCcw className="h-3 w-3" />
-            </button>
-          </span>
-        );
-      }
-      default:
-        return null;
-    }
-  }
-
-  // ── Item checkbox ─────────────────────────────────────────────
+  // -- Item checkbox --
   function ItemCheckbox({ doc }: { doc: DiscoveryDocument }) {
     const status = getItemStatus(doc);
     const alreadyIngested = isIngested(doc);
-    const isSlides = isGoogleSlides(doc);
+    const canIngest = isIngestible(doc.mimeType);
     const isProcessing = status === "pending" || status === "ingesting";
     const isDone = status === "done" || alreadyIngested;
-    const isDisabled = !isSlides || isDone || isProcessing;
+    const isDisabled = !canIngest || isDone || isProcessing || ingestingRef.current.has(doc.slideId);
     const isChecked =
       isDone || isProcessing || selectedIds.has(doc.slideId);
 
-    if (!isSlides) return null; // Hide checkbox entirely for non-Slides docs
+    if (!canIngest) return null; // Hide checkbox for non-ingestible docs
 
     return (
       <input
@@ -475,7 +512,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     );
   }
 
-  // ── Relevance badge ──────────────────────────────────────────
+  // -- Relevance badge --
   function RelevanceBadge({ score }: { score?: number }) {
     if (score == null) return null;
     const pct = Math.round(score * 100);
@@ -493,7 +530,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     return <span className={classes}>{pct}%</span>;
   }
 
-  // ── Source badge ─────────────────────────────────────────────
+  // -- Source badge --
   function SourceBadge({ source }: { source?: string }) {
     if (!source) return null;
     return (
@@ -503,92 +540,209 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     );
   }
 
-  // ── Card grid view ───────────────────────────────────────────
-  function CardGrid({ docs }: { docs: DiscoveryDocument[] }) {
+  // -- Thumbnail with skeleton shimmer --
+  function ThumbnailArea({ doc }: { doc: DiscoveryDocument }) {
+    const hasThumb = !!doc.thumbnailUrl;
+    const imageLoaded = loadedImages.has(doc.slideId);
+
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {docs.map((doc) => (
-          <div
-            key={doc.slideId}
-            role="button"
-            tabIndex={0}
-            className="relative cursor-pointer rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow duration-200 hover:shadow-md"
-            onClick={() => setSelectedPreview(doc)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setSelectedPreview(doc);
+      <div className="relative aspect-video bg-slate-100">
+        {hasThumb ? (
+          <>
+            {!imageLoaded && (
+              <Skeleton className="absolute inset-0 rounded-none" />
+            )}
+            <Image
+              src={doc.thumbnailUrl!}
+              alt={doc.documentTitle}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 25vw"
+              onLoad={() =>
+                setLoadedImages((prev) => new Set(prev).add(doc.slideId))
               }
-            }}
-          >
-            {/* Checkbox */}
-            <div className="absolute right-3 top-3">
-              <ItemCheckbox doc={doc} />
-            </div>
-
-            <h3 className="line-clamp-2 pr-6 text-sm font-medium text-slate-900">
-              {doc.documentTitle}
-            </h3>
-            <p className="mt-1 line-clamp-3 text-xs text-slate-500">
-              {doc.textContent}
-            </p>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <SourceBadge source={doc.source} />
-              <StatusIndicator doc={doc} />
-            </div>
+            />
+          </>
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <DocumentTypeIcon mimeType={doc.mimeType} size="lg" />
           </div>
-        ))}
+        )}
+        {/* Corner file-type badge */}
+        <div className="absolute bottom-2 right-2">
+          <DocumentTypeIcon mimeType={doc.mimeType} size="sm" />
+        </div>
       </div>
     );
   }
 
-  // ── List view ────────────────────────────────────────────────
+  // -- Status row for cards --
+  function CardStatusRow({ doc }: { doc: DiscoveryDocument }) {
+    const displayStatus = getDisplayStatus(doc);
+    const slideCount = doc.templateData?.slideCount;
+    const isActivelyIngesting =
+      displayStatus === "ingesting" || displayStatus === "queued";
+    const progress = doc.templateData?.ingestionProgress;
+    const totalSlides = doc.templateData?.slideCount;
+
+    return (
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {displayStatus && <IngestionStatusBadge status={displayStatus} />}
+          {slideCount != null && slideCount > 0 && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              <Layers className="h-3 w-3" />
+              {slideCount} slides
+            </Badge>
+          )}
+        </div>
+        {isActivelyIngesting && displayStatus === "ingesting" && totalSlides != null && totalSlides > 0 && (
+          <IngestionProgress
+            current={progress ?? 0}
+            total={totalSlides}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // -- Card grid view --
+  function CardGrid({ docs }: { docs: DiscoveryDocument[] }) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {docs.map((doc) => {
+          const canIngest = isIngestible(doc.mimeType);
+
+          return (
+            <Card
+              key={doc.slideId}
+              role="button"
+              tabIndex={0}
+              className={cn(
+                "overflow-hidden cursor-pointer transition-shadow duration-200 hover:shadow-md",
+                !canIngest && "opacity-80"
+              )}
+              onClick={() => setSelectedPreview(doc)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelectedPreview(doc);
+                }
+              }}
+            >
+              {/* Hero thumbnail */}
+              <ThumbnailArea doc={doc} />
+
+              <CardContent className="p-4">
+                {/* Checkbox row */}
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="line-clamp-2 text-sm font-medium text-slate-900">
+                    {doc.documentTitle}
+                  </h3>
+                  <div
+                    className="flex-shrink-0 pt-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ItemCheckbox doc={doc} />
+                  </div>
+                </div>
+
+                {/* Status + slide count */}
+                <div className="mt-3">
+                  <CardStatusRow doc={doc} />
+                </div>
+
+                {/* Source badge */}
+                <div className="mt-2">
+                  <SourceBadge source={doc.source} />
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // -- List view --
   function ListView({ docs }: { docs: DiscoveryDocument[] }) {
     return (
       <div className="overflow-hidden rounded-lg border border-slate-200">
         {/* Header */}
-        <div className="grid grid-cols-[auto_1fr_2fr_auto] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-600">
+        <div className="grid grid-cols-[auto_40px_1fr_2fr_auto] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-medium text-slate-600">
           <span className="w-6" />
+          <span />
           <span>Title</span>
           <span>Preview</span>
           <span>Status</span>
         </div>
 
-        {docs.map((doc, idx) => (
-          <div
-            key={doc.slideId}
-            role="button"
-            tabIndex={0}
-            className={`grid cursor-pointer grid-cols-[auto_1fr_2fr_auto] gap-4 px-4 py-3 transition-colors duration-150 hover:bg-slate-100 ${idx % 2 === 0 ? "" : "bg-slate-50"}`}
-            onClick={() => setSelectedPreview(doc)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setSelectedPreview(doc);
-              }
-            }}
-          >
-            <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-              <ItemCheckbox doc={doc} />
+        {docs.map((doc, idx) => {
+          const canIngest = isIngestible(doc.mimeType);
+          const displayStatus = getDisplayStatus(doc);
+          const slideCount = doc.templateData?.slideCount;
+
+          return (
+            <div
+              key={doc.slideId}
+              role="button"
+              tabIndex={0}
+              className={cn(
+                "grid cursor-pointer grid-cols-[auto_40px_1fr_2fr_auto] gap-4 px-4 py-3 transition-colors duration-150 hover:bg-slate-100",
+                idx % 2 !== 0 && "bg-slate-50",
+                !canIngest && "opacity-80"
+              )}
+              onClick={() => setSelectedPreview(doc)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelectedPreview(doc);
+                }
+              }}
+            >
+              <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                <ItemCheckbox doc={doc} />
+              </div>
+              {/* Thumbnail or icon */}
+              <div className="flex items-center justify-center">
+                {doc.thumbnailUrl ? (
+                  <div className="relative h-[30px] w-[40px] overflow-hidden rounded">
+                    <Image
+                      src={doc.thumbnailUrl}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                    />
+                  </div>
+                ) : (
+                  <DocumentTypeIcon mimeType={doc.mimeType} size="sm" />
+                )}
+              </div>
+              <span className="truncate text-sm font-medium text-slate-900">
+                {doc.documentTitle}
+              </span>
+              <span className="max-w-md truncate text-xs text-slate-500">
+                {doc.textContent}
+              </span>
+              <div className="flex items-center gap-2">
+                <SourceBadge source={doc.source} />
+                {displayStatus && <IngestionStatusBadge status={displayStatus} />}
+                {slideCount != null && slideCount > 0 && (
+                  <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                    <Layers className="h-3 w-3" />
+                    {slideCount}
+                  </span>
+                )}
+              </div>
             </div>
-            <span className="truncate text-sm font-medium text-slate-900">
-              {doc.documentTitle}
-            </span>
-            <span className="max-w-md truncate text-xs text-slate-500">
-              {doc.textContent}
-            </span>
-            <div className="flex items-center gap-2">
-              <SourceBadge source={doc.source} />
-              <StatusIndicator doc={doc} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
 
-  // ── Search results display ───────────────────────────────────
+  // -- Search results display --
   function SearchResultsHeader({ count }: { count: number }) {
     if (isSearching || count === 0) return null;
     return (
@@ -644,51 +798,59 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
 
     return (
       <div className="space-y-1">
-        {results.map((doc) => (
-          <div
-            key={doc.slideId}
-            role="button"
-            tabIndex={0}
-            className="relative cursor-pointer rounded-lg px-4 py-3 transition-colors duration-150 hover:bg-slate-50"
-            onClick={() => setSelectedPreview(doc)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setSelectedPreview(doc);
-              }
-            }}
-          >
-            {/* Checkbox */}
-            <div
-              className="absolute left-4 top-1/2 -translate-y-1/2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ItemCheckbox doc={doc} />
-            </div>
+        {results.map((doc) => {
+          const displayStatus = getDisplayStatus(doc);
+          const canIngest = isIngestible(doc.mimeType);
 
-            <div className="flex items-start gap-3 pl-8 pr-8">
-              <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-medium text-slate-900">
-                  {doc.documentTitle}
-                </h3>
-                <p className="mt-1 text-xs text-slate-600">
-                  {doc.textContent.length > 200
-                    ? doc.textContent.slice(0, 200) + "..."
-                    : doc.textContent}
-                </p>
+          return (
+            <div
+              key={doc.slideId}
+              role="button"
+              tabIndex={0}
+              className={cn(
+                "relative cursor-pointer rounded-lg px-4 py-3 transition-colors duration-150 hover:bg-slate-50",
+                !canIngest && "opacity-80"
+              )}
+              onClick={() => setSelectedPreview(doc)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelectedPreview(doc);
+                }
+              }}
+            >
+              {/* Checkbox */}
+              <div
+                className="absolute left-4 top-1/2 -translate-y-1/2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ItemCheckbox doc={doc} />
               </div>
-              <div className="flex flex-shrink-0 items-center gap-2">
-                <RelevanceBadge score={doc.relevanceScore} />
-                <StatusIndicator doc={doc} />
+
+              <div className="flex items-start gap-3 pl-8 pr-8">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium text-slate-900">
+                    {doc.documentTitle}
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-600">
+                    {doc.textContent.length > 200
+                      ? doc.textContent.slice(0, 200) + "..."
+                      : doc.textContent}
+                  </p>
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <RelevanceBadge score={doc.relevanceScore} />
+                  {displayStatus && <IngestionStatusBadge status={displayStatus} />}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
 
-  // ── Preview side panel ───────────────────────────────────────
+  // -- Preview side panel --
   function PreviewPanel() {
     const doc = selectedPreview;
     const isOpen = doc !== null;
@@ -696,8 +858,8 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     function renderIngestButton() {
       if (!doc) return null;
 
-      // Non-Google Slides documents cannot be ingested
-      if (!isGoogleSlides(doc)) {
+      // Non-ingestible documents cannot be ingested
+      if (!isIngestible(doc.mimeType)) {
         return (
           <p className="text-center text-xs text-slate-400">
             Only Google Slides documents can be ingested as templates.
@@ -706,6 +868,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
       }
 
       const status = getItemStatus(doc);
+      const isInFlight = ingestingRef.current.has(doc.slideId);
 
       if (status === "done" || isIngested(doc)) {
         return (
@@ -722,7 +885,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
         );
       }
 
-      if (status === "pending" || status === "ingesting") {
+      if (status === "pending" || status === "ingesting" || isInFlight) {
         return (
           <button
             type="button"
@@ -756,7 +919,8 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
         <button
           type="button"
           onClick={() => handleBatchIngest([doc])}
-          className="w-full cursor-pointer rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-blue-700"
+          disabled={isInFlight}
+          className="w-full cursor-pointer rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-150 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
         >
           Ingest Document
         </button>
@@ -802,11 +966,33 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
 
               {/* Scrollable body */}
               <div className="flex-1 overflow-y-auto px-5 py-4">
+                {/* Thumbnail preview */}
+                {doc.thumbnailUrl && (
+                  <div className="relative mb-4 aspect-video overflow-hidden rounded-lg bg-slate-100">
+                    <Image
+                      src={doc.thumbnailUrl}
+                      alt={doc.documentTitle}
+                      fill
+                      className="object-cover"
+                      sizes="480px"
+                    />
+                  </div>
+                )}
+
                 {/* Status badges */}
-                <div className="mb-4 flex items-center gap-2">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
                   <RelevanceBadge score={doc.relevanceScore} />
-                  <StatusIndicator doc={doc} />
+                  {(() => {
+                    const displayStatus = getDisplayStatus(doc);
+                    return displayStatus ? <IngestionStatusBadge status={displayStatus} /> : null;
+                  })()}
                   <SourceBadge source={doc.source} />
+                  {doc.templateData?.slideCount != null && doc.templateData.slideCount > 0 && (
+                    <Badge variant="outline" className="gap-1 text-xs">
+                      <Layers className="h-3 w-3" />
+                      {doc.templateData.slideCount} slides
+                    </Badge>
+                  )}
                 </div>
 
                 {/* Full content */}
@@ -879,7 +1065,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     );
   }
 
-  // ── Floating toolbar ─────────────────────────────────────────
+  // -- Floating toolbar --
   function FloatingToolbar() {
     const count = selectedIds.size;
     if (count === 0) return null;
@@ -925,21 +1111,26 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     );
   }
 
-  // ── Skeleton loaders for infinite scroll ─────────────────────
+  // -- Skeleton loaders for infinite scroll --
   function LoadingSkeletons() {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="h-40 animate-pulse rounded-lg bg-slate-100"
-          />
+          <Card key={i} className="overflow-hidden">
+            <div className="aspect-video">
+              <Skeleton className="h-full w-full rounded-none" />
+            </div>
+            <CardContent className="p-4">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="mt-2 h-3 w-1/2" />
+            </CardContent>
+          </Card>
         ))}
       </div>
     );
   }
 
-  // ── Main render ──────────────────────────────────────────────
+  // -- Main render --
   const displayDocs = mode === "browse" ? documents : searchResults;
 
   return (
