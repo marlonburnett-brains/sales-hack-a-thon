@@ -14,6 +14,8 @@ import { extractSlidesFromPresentation } from "../lib/slide-extractor";
 import type { GoogleAuthOptions } from "../lib/google-auth";
 import { classifySlide } from "./classify-metadata";
 import { generateEmbedding } from "./embed-slide";
+import { generateSlideDescription } from "./describe-slide";
+import { extractElements } from "./extract-elements";
 import {
   computeContentHash,
   computeMerge,
@@ -123,6 +125,8 @@ export async function ingestTemplate(
           slideIndex: true,
           confidence: true,
           classificationJson: true,
+          description: true,
+          _count: { select: { elements: true } },
         },
       });
 
@@ -158,6 +162,18 @@ export async function ingestTemplate(
         const classified = await classifySlide(slide, titleSlideText, []);
         const confidence = classified.confidence ?? 50;
 
+        // Generate AI description
+        let descriptionJson: string | null = null;
+        try {
+          descriptionJson = await generateSlideDescription(slide, titleSlideText);
+          await delay(300);
+        } catch (descErr) {
+          console.warn(
+            `[ingest] Description generation failed for slide ${slide.slideIndex} (non-fatal):`,
+            descErr
+          );
+        }
+
         // Embed
         const embeddingText =
           slide.textContent + " " + slide.speakerNotes;
@@ -182,7 +198,7 @@ export async function ingestTemplate(
             id, "templateId", "slideIndex", "slideObjectId", "contentText",
             "speakerNotes", embedding, industry, "solutionPillar", persona,
             "funnelStage", "contentType", "classificationJson", confidence,
-            "contentHash", archived, "needsReReview", "createdAt", "updatedAt"
+            "contentHash", description, archived, "needsReReview", "createdAt", "updatedAt"
           ) VALUES (
             ${id}, ${templateId}, ${slide.slideIndex}, ${slide.slideObjectId},
             ${slide.textContent}, ${slide.speakerNotes},
@@ -193,6 +209,7 @@ export async function ingestTemplate(
             ${classified.metadata.funnelStages[0] ?? null},
             ${classified.metadata.contentType},
             ${classJson}, ${confidence}, ${contentHash},
+            ${descriptionJson},
             false, false, NOW(), NOW()
           )
           ON CONFLICT ("templateId", "contentHash")
@@ -209,10 +226,47 @@ export async function ingestTemplate(
             "contentType" = EXCLUDED."contentType",
             "classificationJson" = EXCLUDED."classificationJson",
             confidence = EXCLUDED.confidence,
+            description = EXCLUDED.description,
             archived = false,
             "needsReReview" = false,
             "updatedAt" = NOW()
         `;
+
+        // Extract and store element map
+        if (slide.pageElements) {
+          const elements = extractElements(slide.pageElements);
+          if (elements.length > 0) {
+            // Get the actual slideEmbedding ID (may be new or existing from upsert)
+            const slideRows = await prisma.$queryRaw<{ id: string }[]>`
+              SELECT id FROM "SlideEmbedding"
+              WHERE "templateId" = ${templateId} AND "contentHash" = ${contentHash}
+              LIMIT 1
+            `;
+            const slideEmbeddingId = slideRows[0]?.id ?? id;
+
+            // Clear existing elements for re-ingestion
+            await prisma.slideElement.deleteMany({
+              where: { slideId: slideEmbeddingId },
+            });
+
+            // Store new elements
+            await prisma.slideElement.createMany({
+              data: elements.map((el) => ({
+                slideId: slideEmbeddingId,
+                elementId: el.elementId,
+                elementType: el.elementType,
+                positionX: el.positionX,
+                positionY: el.positionY,
+                width: el.width,
+                height: el.height,
+                contentText: el.contentText,
+                fontSize: el.fontSize,
+                fontColor: el.fontColor,
+                isBold: el.isBold,
+              })),
+            });
+          }
+        }
 
         processed++;
       } catch (err) {
@@ -242,6 +296,18 @@ export async function ingestTemplate(
         const newConfidence = Math.round(
           ((classified.confidence ?? 50) * 0.5)
         );
+
+        // Generate AI description for changed slide
+        let descriptionJsonChanged: string | null = null;
+        try {
+          descriptionJsonChanged = await generateSlideDescription(slide, titleSlideText);
+          await delay(300);
+        } catch (descErr) {
+          console.warn(
+            `[ingest] Description generation failed for changed slide ${slide.slideIndex} (non-fatal):`,
+            descErr
+          );
+        }
 
         const embeddingText =
           slide.textContent + " " + slide.speakerNotes;
@@ -273,10 +339,36 @@ export async function ingestTemplate(
             "classificationJson" = ${classJson},
             confidence = ${newConfidence},
             "contentHash" = ${contentHash},
+            description = ${descriptionJsonChanged},
             "needsReReview" = true,
             "updatedAt" = NOW()
           WHERE id = ${existing.id}
         `;
+
+        // Extract and store element map for changed slide
+        if (slide.pageElements) {
+          const elements = extractElements(slide.pageElements);
+          if (elements.length > 0) {
+            await prisma.slideElement.deleteMany({
+              where: { slideId: existing.id },
+            });
+            await prisma.slideElement.createMany({
+              data: elements.map((el) => ({
+                slideId: existing.id,
+                elementId: el.elementId,
+                elementType: el.elementType,
+                positionX: el.positionX,
+                positionY: el.positionY,
+                width: el.width,
+                height: el.height,
+                contentText: el.contentText,
+                fontSize: el.fontSize,
+                fontColor: el.fontColor,
+                isBold: el.isBold,
+              })),
+            });
+          }
+        }
 
         processed++;
       } catch (err) {
@@ -288,6 +380,74 @@ export async function ingestTemplate(
       }
 
       await delay(300);
+    }
+
+    // 9b. Backfill descriptions + elements for unchanged slides that need them
+    if (mergeResult.needsDescription.length > 0) {
+      console.log(
+        `[ingest] Backfilling descriptions/elements for ${mergeResult.needsDescription.length} unchanged slides`
+      );
+      await updateProgress(templateId, {
+        phase: "describing",
+        current: 0,
+        total: mergeResult.needsDescription.length,
+      });
+
+      let backfilled = 0;
+      for (const { existing, slide } of mergeResult.needsDescription) {
+        try {
+          // Generate description if missing
+          if (!existing.description) {
+            const desc = await generateSlideDescription(slide, titleSlideText);
+            await prisma.$executeRaw`
+              UPDATE "SlideEmbedding"
+              SET description = ${desc}, "updatedAt" = NOW()
+              WHERE id = ${existing.id}
+            `;
+            await delay(300);
+          }
+
+          // Extract elements if missing
+          const elementCount = existing._count?.elements ?? 0;
+          if (elementCount === 0 && slide.pageElements) {
+            const elements = extractElements(slide.pageElements);
+            if (elements.length > 0) {
+              await prisma.slideElement.createMany({
+                data: elements.map((el) => ({
+                  slideId: existing.id,
+                  elementId: el.elementId,
+                  elementType: el.elementType,
+                  positionX: el.positionX,
+                  positionY: el.positionY,
+                  width: el.width,
+                  height: el.height,
+                  contentText: el.contentText,
+                  fontSize: el.fontSize,
+                  fontColor: el.fontColor,
+                  isBold: el.isBold,
+                })),
+              });
+            }
+          }
+
+          backfilled++;
+        } catch (err) {
+          console.warn(
+            `[ingest] Backfill failed for slide ${existing.id} (non-fatal):`,
+            err
+          );
+        }
+
+        await updateProgress(templateId, {
+          phase: "describing",
+          current: backfilled,
+          total: mergeResult.needsDescription.length,
+        });
+      }
+
+      console.log(
+        `[ingest] Backfilled ${backfilled}/${mergeResult.needsDescription.length} slides`
+      );
     }
 
     // 10. Archive removed slides

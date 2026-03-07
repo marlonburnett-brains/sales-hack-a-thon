@@ -12,6 +12,7 @@ import { getDriveClient, getSlidesClient, getPooledGoogleAuth } from "../lib/goo
 import { extractGoogleAuth } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
+import { detectAndQueueBackfill } from "../ingestion/backfill-descriptions";
 import { encryptToken } from "../lib/token-encryption";
 import {
   detectAtlusAccess,
@@ -488,6 +489,11 @@ const auth = new SimpleAuth({
 // Clear stale ingestion states on startup (crash recovery)
 void clearStaleIngestions().catch((err) =>
   console.error("[startup] Failed to clear stale ingestions:", err)
+);
+
+// Detect slides with missing descriptions/elements and queue for backfill
+void detectAndQueueBackfill().catch((err) =>
+  console.error("[startup] Failed to queue description backfill:", err)
 );
 
 export const mastra = new Mastra({

@@ -85,7 +85,7 @@ describe("SLIDE-06: Smart merge idempotency via computeMerge", () => {
     const hash = computeContentHash(slide.textContent, slide.speakerNotes, slide.slideObjectId);
 
     const existing: ExistingSlideData[] = [
-      { id: "emb_1", contentHash: hash, slideIndex: 0, confidence: 80, classificationJson: "{}" },
+      { id: "emb_1", contentHash: hash, slideIndex: 0, confidence: 80, classificationJson: "{}", description: null },
     ];
 
     const result = computeMerge([slide], existing);
@@ -105,8 +105,8 @@ describe("SLIDE-06: Smart merge idempotency via computeMerge", () => {
     const hashB = computeContentHash("Slide B", slideB.speakerNotes, "obj_B");
 
     const existing: ExistingSlideData[] = [
-      { id: "emb_A", contentHash: hashA, slideIndex: 0, confidence: 90, classificationJson: "{}" },
-      { id: "emb_B", contentHash: hashB, slideIndex: 1, confidence: 85, classificationJson: "{}" },
+      { id: "emb_A", contentHash: hashA, slideIndex: 0, confidence: 90, classificationJson: "{}", description: null },
+      { id: "emb_B", contentHash: hashB, slideIndex: 1, confidence: 85, classificationJson: "{}", description: null },
     ];
 
     const result = computeMerge([slideA, slideB], existing);
@@ -128,8 +128,8 @@ describe("SLIDE-06: Smart merge idempotency via computeMerge", () => {
     const hash = computeContentHash(slide.textContent, slide.speakerNotes, slide.slideObjectId);
 
     const existing: ExistingSlideData[] = [
-      { id: "emb_1", contentHash: hash, slideIndex: 0, confidence: 80, classificationJson: "{}" },
-      { id: "emb_2", contentHash: "orphaned_hash", slideIndex: 1, confidence: 70, classificationJson: "{}" },
+      { id: "emb_1", contentHash: hash, slideIndex: 0, confidence: 80, classificationJson: "{}", description: null },
+      { id: "emb_2", contentHash: "orphaned_hash", slideIndex: 1, confidence: 70, classificationJson: "{}", description: null },
     ];
 
     const result = computeMerge([slide], existing);
@@ -146,7 +146,7 @@ describe("SLIDE-06: Smart merge idempotency via computeMerge", () => {
     const newSlide = makeSlide({ slideIndex: 1, slideObjectId: "obj_new", textContent: "Brand new content" });
 
     const existing: ExistingSlideData[] = [
-      { id: "emb_1", contentHash: existingHash, slideIndex: 0, confidence: 80, classificationJson: "{}" },
+      { id: "emb_1", contentHash: existingHash, slideIndex: 0, confidence: 80, classificationJson: "{}", description: null },
     ];
 
     const result = computeMerge([existingSlide, newSlide], existing);
@@ -167,8 +167,8 @@ describe("SLIDE-06: Smart merge idempotency via computeMerge", () => {
 
   it("archives all existing when new slides list is empty (all slides removed)", () => {
     const existing: ExistingSlideData[] = [
-      { id: "emb_1", contentHash: "hash1", slideIndex: 0, confidence: 80, classificationJson: "{}" },
-      { id: "emb_2", contentHash: "hash2", slideIndex: 1, confidence: 70, classificationJson: "{}" },
+      { id: "emb_1", contentHash: "hash1", slideIndex: 0, confidence: 80, classificationJson: "{}", description: null },
+      { id: "emb_2", contentHash: "hash2", slideIndex: 1, confidence: 70, classificationJson: "{}", description: null },
     ];
 
     const result = computeMerge([], existing);
@@ -182,7 +182,7 @@ describe("SLIDE-06: Smart merge idempotency via computeMerge", () => {
     const slide = makeSlide({ slideIndex: 0 });
 
     const existing: ExistingSlideData[] = [
-      { id: "emb_legacy", contentHash: null, slideIndex: 0, confidence: 50, classificationJson: null },
+      { id: "emb_legacy", contentHash: null, slideIndex: 0, confidence: 50, classificationJson: null, description: null },
     ];
 
     const result = computeMerge([slide], existing);

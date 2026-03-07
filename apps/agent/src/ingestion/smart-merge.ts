@@ -19,6 +19,8 @@ export interface ExistingSlideData {
   slideIndex: number;
   confidence: number | null;
   classificationJson: string | null;
+  description: string | null;
+  _count?: { elements: number };
 }
 
 export interface MergeResult {
@@ -30,6 +32,8 @@ export interface MergeResult {
   added: ExtractedSlide[];
   /** Existing slides no longer present in new set -- should be archived */
   toArchive: ExistingSlideData[];
+  /** Unchanged slides that need description backfill (description is null or no elements) */
+  needsDescription: { existing: ExistingSlideData; slide: ExtractedSlide }[];
 }
 
 // ────────────────────────────────────────────────────────────
@@ -67,6 +71,7 @@ export function computeMerge(
   const unchanged: MergeResult["unchanged"] = [];
   const changed: MergeResult["changed"] = [];
   const added: MergeResult["added"] = [];
+  const needsDescription: MergeResult["needsDescription"] = [];
 
   // Build lookup of existing embeddings by content hash
   const existingByHash = new Map<string, ExistingSlideData>();
@@ -74,6 +79,17 @@ export function computeMerge(
     if (existing.contentHash) {
       existingByHash.set(existing.contentHash, existing);
     }
+  }
+
+  // Build lookup of new slides by content hash for backfill identification
+  const newSlideByHash = new Map<string, ExtractedSlide>();
+  for (const slide of newSlides) {
+    const hash = computeContentHash(
+      slide.textContent,
+      slide.speakerNotes,
+      slide.slideObjectId
+    );
+    newSlideByHash.set(hash, slide);
   }
 
   // Track which existing embeddings are matched
@@ -92,6 +108,13 @@ export function computeMerge(
       // Same content hash found -- slide is unchanged (may need index update)
       matchedExistingIds.add(existing.id);
       unchanged.push({ existing, newIndex: slide.slideIndex });
+
+      // Check if this unchanged slide needs description or element backfill
+      const missingDescription = !existing.description;
+      const missingElements = existing._count?.elements === 0;
+      if (missingDescription || missingElements) {
+        needsDescription.push({ existing, slide });
+      }
     } else {
       // No matching hash -- this is a new slide
       added.push(slide);
@@ -103,5 +126,5 @@ export function computeMerge(
     (e) => !matchedExistingIds.has(e.id)
   );
 
-  return { unchanged, changed, added, toArchive };
+  return { unchanged, changed, added, toArchive, needsDescription };
 }
