@@ -108,12 +108,12 @@ Plans:
   3. User re-ingests a template and previously-ingested slides receive backfilled descriptions and element maps
   4. User can classify any presentation as "Template" or "Example" and bind examples to a specific touch type (Touch 1-4)
   5. User sees "Action Required" indicator on unclassified presentations, and classification is visible on template cards and detail views
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 33-01: TBD
-- [ ] 33-02: TBD
-- [ ] 33-03: TBD
+- [ ] 33-01-PLAN.md — Schema migration, AI description generator, element extractor, pipeline wiring, and backfill logic
+- [ ] 33-02-PLAN.md — Content classification API, status helpers, and classification UI in template cards and detail views
+- [ ] 33-03-PLAN.md — Description and element map display in slide viewer with visual verification
 
 ### Phase 34: Deck Intelligence
 **Goal**: Users can view AI-inferred deck structures per touch type and refine them via conversational chat
@@ -166,6 +166,6 @@ Plans:
 | 29. Discovery UI | v1.4 | 3/3 | Complete | 2026-03-07 |
 | 30. Verification & Doc Reconciliation | v1.4 | 1/1 | Complete | 2026-03-07 |
 | 31. Tech Debt Cleanup | v1.4 | 1/1 | Complete | 2026-03-07 |
-| 32. UX Polish | 2/2 | Complete   | 2026-03-07 | - |
-| 33. Slide Intelligence Foundation | v1.5 | 0/TBD | Not started | - |
+| 32. UX Polish | v1.5 | 2/2 | Complete | 2026-03-07 |
+| 33. Slide Intelligence Foundation | v1.5 | 0/3 | Not started | - |
 | 34. Deck Intelligence | v1.5 | 0/TBD | Not started | - |
