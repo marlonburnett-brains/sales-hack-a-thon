@@ -126,29 +126,39 @@ For subsequent deployments, `prisma migrate deploy` applies only new migrations.
 
 The pipeline runs: lint > build > migrate > deploy-agent > deploy-web on push to main.
 
-#### Slack success notifications
+#### Slack success notifications via Resend email
 
-CircleCI can post one Slack success notification after the full deployment workflow finishes, including for a private Slack channel, as long as the Slack app or bot is invited to that private channel first.
+CircleCI now sends one success email after the full deployment workflow finishes. Slack posts that email into the private `atlus-deck` channel through the channel email address you already have, so no Slack admin access or Slack bot install is required.
 
 Add these CircleCI environment variables in Project Settings or a Context:
 
 | Variable | Description | Source |
 |----------|-------------|--------|
-| `SLACK_ACCESS_TOKEN` | Slack bot token used by the CircleCI Slack orb | Slack API app > OAuth & Permissions > Bot User OAuth Token |
-| `SLACK_DEFAULT_CHANNEL` | Default Slack channel ID for notifications | Slack private channel details or copied channel link |
+| `RESEND_API_KEY` | API key used to send the notification email | Resend dashboard > API Keys |
+| `RESEND_FROM_EMAIL` | Verified sender address used by Resend, for example `deploys@updates.yourdomain.com` | Resend dashboard > Domains / Verified senders |
+| `SLACK_CHANNEL_EMAIL` | Slack channel email target; defaults in config to the current `atlus-deck` email if omitted | Slack channel email address |
 
-Setup steps:
+Recommended Resend setup:
 
-1. Create or reuse a Slack app that has a bot token.
-2. Invite that Slack app or bot to the target private channel before testing notifications.
-3. Store `SLACK_ACCESS_TOKEN` and `SLACK_DEFAULT_CHANNEL` in CircleCI.
-4. Optional: set `SLACK_CHANNEL` in CircleCI if you need to override the default channel for a specific pipeline or context.
+1. Create a Resend account.
+2. Verify a sending domain in Resend, or verify a sender identity if your plan supports it.
+3. Create an API key with permission to send email.
+4. Copy the key into CircleCI as `RESEND_API_KEY`.
+5. Copy your verified sender address into CircleCI as `RESEND_FROM_EMAIL`.
+6. Optional: set `SLACK_CHANNEL_EMAIL` explicitly to `atlus-deck-aaaatjj2cixlodxayed2erpcme@lumenalta.slack.com` so the target is visible in CircleCI settings instead of relying on the config default.
+
+Slack checks:
+
+1. Confirm emails sent to `atlus-deck-aaaatjj2cixlodxayed2erpcme@lumenalta.slack.com` still appear in the `atlus-deck` private channel.
+2. If Slack restricts allowed senders for that channel email integration, allow the same `RESEND_FROM_EMAIL` address or sending domain you configured in Resend.
 
 Verification flow:
 
-1. Push a small commit to `main`.
-2. Wait for the CircleCI workflow to complete successfully.
-3. Confirm exactly one success message lands in the target private channel after `deploy-web` finishes.
+1. Add the CircleCI variables above.
+2. Push a small commit to `main`.
+3. Wait for the CircleCI workflow to complete successfully.
+4. Confirm exactly one message lands in the `atlus-deck` private channel after `deploy-web` finishes.
+5. If no message appears, check the `notify-success` CircleCI job logs for the Resend API response first, then verify Slack still accepts mail from the configured sender.
 
 ---
 

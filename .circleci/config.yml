@@ -1,8 +1,5 @@
 version: 2.1
 
-orbs:
-  slack: circleci/slack@4.13.3
-
 executors:
   node:
     docker:
@@ -155,42 +152,29 @@ jobs:
     docker:
       - image: cimg/base:stable
     steps:
-      - slack/notify:
-          channel: "${SLACK_CHANNEL:-$SLACK_DEFAULT_CHANNEL}"
-          custom: |
+      - run:
+          name: Email Slack channel via Resend
+          command: |
+            set -eu
+
+            RECIPIENT="${SLACK_CHANNEL_EMAIL:-atlus-deck-aaaatjj2cixlodxayed2erpcme@lumenalta.slack.com}"
+            WORKFLOW_URL="https://app.circleci.com/pipelines/workflows/$CIRCLE_WORKFLOW_ID"
+            SUBJECT="[Deploy Success] $CIRCLE_PROJECT_REPONAME on $CIRCLE_BRANCH"
+
+            cat > /tmp/resend-payload.json <<EOF
             {
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": ":white_check_mark: *$CIRCLE_PROJECT_REPONAME* deployed successfully on *$CIRCLE_BRANCH*."
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Commit*\n`$CIRCLE_SHA1`"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Workflow*\n<$CIRCLE_BUILD_URL|Open CircleCI job>"
-                    }
-                  ]
-                },
-                {
-                  "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "Workflow URL: https://app.circleci.com/pipelines/workflows/$CIRCLE_WORKFLOW_ID"
-                    }
-                  ]
-                }
-              ]
+              "from": "$RESEND_FROM_EMAIL",
+              "to": ["$RECIPIENT"],
+              "subject": "$SUBJECT",
+              "text": "Hi team, a new AtlusDeck build is ready for testing: https://lumenalta-hackathon.vercel.app\n\nCommit: $CIRCLE_SHA1\nWorkflow: $WORKFLOW_URL",
+              "html": "<p>Hi team, a new AtlusDeck build is ready for testing: <a href=\"https://lumenalta-hackathon.vercel.app\">https://lumenalta-hackathon.vercel.app</a>.</p><p><strong>Commit:</strong> <code>$CIRCLE_SHA1</code><br /><strong>Workflow:</strong> <a href=\"$WORKFLOW_URL\">Open workflow</a></p>"
             }
+            EOF
+
+            curl --fail --silent --show-error https://api.resend.com/emails \
+              -H "Authorization: Bearer $RESEND_API_KEY" \
+              -H "Content-Type: application/json" \
+              --data @/tmp/resend-payload.json
 
 workflows:
   deploy:
