@@ -11,7 +11,7 @@ Requirements for Touch 4 Artifact Intelligence. Each maps to roadmap phases.
 
 - [ ] **SCHM-01**: Prisma migration adds nullable `artifactType` column to Template model
 - [ ] **SCHM-02**: Prisma migration adds nullable `artifactType` column to DeckStructure model with composite unique constraint `(touchType, artifactType)` replacing single-column `touchType @unique`
-- [ ] **SCHM-03**: Shared `ARTIFACT_TYPES` constant (`proposal`, `talk_track`, `faq`) defined in `@lumenalta/schemas`
+- [x] **SCHM-03**: Shared `ARTIFACT_TYPES` constant (`proposal`, `talk_track`, `faq`) defined in `@lumenalta/schemas`
 
 ### Classification
 
@@ -55,7 +55,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | SCHM-01 | Phase 35 | Pending |
 | SCHM-02 | Phase 35 | Pending |
-| SCHM-03 | Phase 35 | Pending |
+| SCHM-03 | Phase 35 | Complete |
 | CLSF-01 | Phase 37 | Pending |
 | CLSF-02 | Phase 37 | Pending |
 | DECK-01 | Phase 36 | Pending |

@@ -86,7 +86,7 @@
 
 **Milestone Goal:** Add artifact type sub-classification (Proposal / Talk Track / FAQ) to Touch 4 Examples and display per-artifact-type deck structures in Settings.
 
-- [ ] **Phase 35: Schema & Constants Foundation** (0/2 plans) - Prisma migrations for artifactType columns and shared constants
+- [ ] **Phase 35: Schema & Constants Foundation** (1/2 plans) - Prisma migrations for artifactType columns and shared constants
 - [ ] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation
 - [ ] **Phase 37: Frontend UI** - Classify UI artifact selector and Settings tabbed deck structure views
 
@@ -105,7 +105,7 @@
 **Plans**: 2 plans
 
 Plans:
-- [ ] 35-01-PLAN.md — Publish shared artifact type constants, labels, and type exports from `@lumenalta/schemas`
+- [x] 35-01-PLAN.md — Publish shared artifact type constants, labels, and type exports from `@lumenalta/schemas`
 - [ ] 35-02-PLAN.md — Add `artifactType` schema migration and preserve non-Touch-4 deck structure compatibility
 
 ### Phase 36: Backend Engine & API Routes
@@ -171,6 +171,6 @@ Plans:
 | 32. UX Polish | v1.5 | 2/2 | Complete | 2026-03-07 |
 | 33. Slide Intelligence Foundation | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 34. Deck Intelligence | v1.5 | 3/3 | Complete | 2026-03-07 |
-| 35. Schema & Constants Foundation | v1.6 | 0/2 | Not started | - |
+| 35. Schema & Constants Foundation | v1.6 | 1/2 | In Progress | - |
 | 36. Backend Engine & API Routes | v1.6 | 0/TBD | Not started | - |
 | 37. Frontend UI | v1.6 | 0/TBD | Not started | - |

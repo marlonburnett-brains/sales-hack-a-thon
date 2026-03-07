@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
 status: active
-stopped_at: null
-last_updated: "2026-03-07T22:30:00.000Z"
-last_activity: "2026-03-07 — Roadmap created for v1.6 (3 phases, 10 requirements)"
+stopped_at: Completed 35-01-PLAN.md
+last_updated: "2026-03-07T20:44:23.343Z"
+last_activity: 2026-03-07 — Completed Phase 35 Plan 01 shared artifact constants
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 50
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 35 of 37 (Schema & Constants Foundation)
-Plan: Ready to plan
-Status: Ready to plan Phase 35
-Last activity: 2026-03-07 — Roadmap created for v1.6
+Plan: 2 of 2
+Status: Ready to execute Phase 35 Plan 02
+Last activity: 2026-03-07 — Completed Phase 35 Plan 01 shared artifact constants
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -44,6 +44,8 @@ Progress: [░░░░░░░░░░] 0%
 ### Decisions
 
 All decisions logged in PROJECT.md Key Decisions table (55 decisions total through v1.5).
+- [Phase 35]: Keep artifact raw values and friendly labels together in packages/schemas/constants.ts. — This keeps one shared contract for storage values and UI copy across agent and web.
+- [Phase 35]: Expose artifact constants and ArtifactType from the public @lumenalta/schemas barrel. — Downstream phases can import from the package surface without reaching into internal file paths.
 
 ### Pending Todos
 
@@ -63,6 +65,7 @@ None.
 | 9 | Cache Google Slides Thumbnails in GCS | 2026-03-07 | 40fc6d6 | [9-cache-google-slides-thumbnails-in-gcs](./quick/9-cache-google-slides-thumbnails-in-gcs/) |
 | 10 | Auto-resolve share_with_sa Action Items | 2026-03-07 | de08f7e | [10-auto-resolve-share-with-sa-action-items-](./quick/10-auto-resolve-share-with-sa-action-items-/) |
 | 11 | Add Periodic Cron Job for Auto Slide Classification | 2026-03-07 | 24c7b7e | [11-add-periodic-cron-job-for-automatic-slid](./quick/11-add-periodic-cron-job-for-automatic-slid/) |
+| Phase 35 P01 | 1 min | 2 tasks | 2 files |
 
 ### Blockers/Concerns
 
@@ -71,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T22:30:00.000Z
-Stopped at: Roadmap created for v1.6
-Next action: /gsd:plan-phase 35
+Last session: 2026-03-07T20:44:23.340Z
+Stopped at: Completed 35-01-PLAN.md
+Next action: /gsd-execute-phase 35
