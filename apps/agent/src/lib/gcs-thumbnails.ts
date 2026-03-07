@@ -10,7 +10,7 @@
 import { Readable } from "node:stream";
 import { google } from "googleapis";
 import { prisma } from "./db";
-import { getSlidesClient, type GoogleAuthOptions } from "./google-auth";
+import { getDriveClient, getSlidesClient, type GoogleAuthOptions } from "./google-auth";
 import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
@@ -195,4 +195,133 @@ export async function cacheThumbnailsForTemplate(
     `[gcs-thumbnails] Cached ${cached}/${slides.length} thumbnails`
   );
   return cached;
+}
+
+// ────────────────────────────────────────────────────────────
+// Document cover caching (for Discovery browse)
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Check if a document cover already exists in GCS and return its URL if fresh.
+ * Returns null if not found or expired.
+ */
+export async function checkGcsCoverExists(
+  presentationId: string,
+): Promise<string | null> {
+  const bucket = env.GCS_THUMBNAIL_BUCKET;
+  if (!bucket) return null;
+
+  const key = `document-covers/${presentationId}.png`;
+  const storage = getStorageClient();
+
+  try {
+    const res = await storage.objects.get({ bucket, object: key });
+    const updated = res.data.updated;
+    if (updated) {
+      const age = Date.now() - new Date(updated).getTime();
+      if (age > THUMBNAIL_TTL_MS) return null; // expired
+    }
+    return `https://storage.googleapis.com/${bucket}/${key}`;
+  } catch {
+    // 404 or any error — cover does not exist
+    return null;
+  }
+}
+
+/**
+ * Cache a document cover image to GCS.
+ *
+ * For Google Slides: uses Slides API to get thumbnail of the first page.
+ * For other types (Docs, Sheets, PDF): uses Drive API thumbnailLink.
+ *
+ * Non-blocking — logs warnings on failure and returns null.
+ */
+export async function cacheDocumentCover(
+  presentationId: string,
+  mimeType: string,
+  authOptions?: GoogleAuthOptions,
+): Promise<string | null> {
+  const bucket = env.GCS_THUMBNAIL_BUCKET;
+  if (!bucket) {
+    console.warn("[gcs-thumbnails] GCS_THUMBNAIL_BUCKET not configured, skipping cover cache");
+    return null;
+  }
+
+  const key = `document-covers/${presentationId}.png`;
+
+  // Check if cover already exists and is fresh
+  const existing = await checkGcsCoverExists(presentationId);
+  if (existing) return existing;
+
+  try {
+    let imageBuffer: Buffer | null = null;
+
+    if (mimeType === "application/vnd.google-apps.presentation") {
+      // Google Slides: get thumbnail of first page via Slides API
+      const slidesApi = getSlidesClient(authOptions);
+      const pres = await slidesApi.presentations.get({
+        presentationId,
+        fields: "slides.objectId",
+      });
+      const firstPageId = pres.data.slides?.[0]?.objectId;
+      if (!firstPageId) {
+        console.warn(`[gcs-thumbnails] No slides found for ${presentationId}`);
+        return null;
+      }
+
+      const thumbResult = await slidesApi.presentations.pages.getThumbnail({
+        presentationId,
+        pageObjectId: firstPageId,
+        "thumbnailProperties.thumbnailSize": "LARGE",
+      });
+
+      const contentUrl = thumbResult.data.contentUrl;
+      if (!contentUrl) {
+        console.warn(`[gcs-thumbnails] No contentUrl for ${presentationId}`);
+        return null;
+      }
+
+      const response = await fetch(contentUrl);
+      if (!response.ok) {
+        console.warn(`[gcs-thumbnails] Failed to fetch slide thumbnail: ${response.status}`);
+        return null;
+      }
+      imageBuffer = Buffer.from(await response.arrayBuffer());
+    } else {
+      // Other types: use Drive API thumbnailLink
+      const drive = getDriveClient(authOptions);
+      const fileRes = await drive.files.get({
+        fileId: presentationId,
+        fields: "thumbnailLink",
+        supportsAllDrives: true,
+      });
+
+      const thumbnailLink = fileRes.data.thumbnailLink;
+      if (!thumbnailLink) {
+        console.warn(`[gcs-thumbnails] No thumbnailLink for ${presentationId}`);
+        return null;
+      }
+
+      // Append =s800 for higher quality
+      const highResUrl = thumbnailLink.replace(/=s\d+$/, "=s800");
+      const response = await fetch(highResUrl);
+      if (!response.ok) {
+        console.warn(`[gcs-thumbnails] Failed to fetch drive thumbnail: ${response.status}`);
+        return null;
+      }
+      imageBuffer = Buffer.from(await response.arrayBuffer());
+    }
+
+    if (!imageBuffer || imageBuffer.length === 0) {
+      console.warn(`[gcs-thumbnails] Empty image buffer for ${presentationId}`);
+      return null;
+    }
+
+    const gcsUrl = await uploadThumbnailToGCS(bucket, key, imageBuffer, "image/png");
+    console.log(`[gcs-thumbnails] Cached cover for ${presentationId}`);
+    return gcsUrl;
+  } catch (err) {
+    console.warn(`[gcs-thumbnails] Failed to cache cover for ${presentationId}:`, err);
+    return null;
+  }
 }

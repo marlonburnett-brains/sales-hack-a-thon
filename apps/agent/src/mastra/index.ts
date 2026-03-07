@@ -23,7 +23,7 @@ import { ACTION_TYPES } from "@lumenalta/schemas";
 import { env } from "../env";
 import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
 import { searchSlides } from "../lib/atlusai-search";
-import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS } from "../lib/gcs-thumbnails";
+import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS, cacheDocumentCover, checkGcsCoverExists } from "../lib/gcs-thumbnails";
 import crypto from "node:crypto";
 
 // ────────────────────────────────────────────────────────────
@@ -2033,6 +2033,68 @@ export const mastra = new Mastra({
             console.log(`[discovery/browse] Google auth: hasToken=${!!googleAuth.accessToken}, userId=${googleAuth.userId ?? "none"}, docs=${documents.length}`);
             await enrichDocsWithDriveMetadata(documents as Record<string, unknown>[], googleAuth);
 
+            // Template cross-reference: attach templateData for documents with matching templates
+            const typedDocs = documents as Record<string, unknown>[];
+            const presentationIds = typedDocs
+              .map((d) => String(d.presentationId ?? ""))
+              .filter(Boolean);
+
+            if (presentationIds.length > 0) {
+              const matchingTemplates = await prisma.template.findMany({
+                where: { presentationId: { in: presentationIds } },
+                select: {
+                  presentationId: true,
+                  ingestionStatus: true,
+                  lastIngestedAt: true,
+                  sourceModifiedAt: true,
+                  slideCount: true,
+                  ingestionProgress: true,
+                  accessStatus: true,
+                },
+              });
+              const templateMap = new Map(
+                matchingTemplates.map((t) => [t.presentationId, t]),
+              );
+
+              for (const doc of typedDocs) {
+                const pid = String(doc.presentationId ?? "");
+                const tmpl = templateMap.get(pid);
+                if (tmpl) {
+                  doc.templateData = {
+                    ingestionStatus: tmpl.ingestionStatus,
+                    lastIngestedAt: tmpl.lastIngestedAt?.toISOString() ?? null,
+                    sourceModifiedAt: tmpl.sourceModifiedAt?.toISOString() ?? null,
+                    slideCount: tmpl.slideCount,
+                    ingestionProgress: tmpl.ingestionProgress
+                      ? (typeof tmpl.ingestionProgress === "string"
+                          ? JSON.parse(tmpl.ingestionProgress)?.current
+                          : undefined)
+                      : undefined,
+                    accessStatus: tmpl.accessStatus,
+                  };
+                }
+              }
+            }
+
+            // Cover thumbnail enrichment: check GCS for existing covers, fire background cache for missing
+            for (const doc of typedDocs) {
+              const pid = String(doc.presentationId ?? "");
+              const mime = String(doc.mimeType ?? "");
+              if (!pid) continue;
+
+              try {
+                const cachedUrl = await checkGcsCoverExists(pid);
+                if (cachedUrl) {
+                  doc.thumbnailUrl = cachedUrl;
+                } else if (mime) {
+                  // Fire background caching (non-blocking)
+                  void cacheDocumentCover(pid, mime, googleAuth);
+                }
+              } catch {
+                // Non-blocking — skip thumbnail on error
+              }
+            }
+
             return c.json({ documents, nextCursor, totalDocuments, ingestedHashes });
           } catch (err) {
             console.error("[discovery/browse] Error:", err);
@@ -2062,6 +2124,67 @@ export const mastra = new Mastra({
             // Enrich results with Drive MIME type to detect Google Slides
             const googleAuth = await extractGoogleAuth(c);
             await enrichDocsWithDriveMetadata(results as unknown as Record<string, unknown>[], googleAuth);
+
+            // Template cross-reference: attach templateData for results with matching templates
+            const typedResults = results as unknown as Record<string, unknown>[];
+            const searchPresentationIds = typedResults
+              .map((d) => String(d.presentationId ?? ""))
+              .filter(Boolean);
+
+            if (searchPresentationIds.length > 0) {
+              const matchingTemplates = await prisma.template.findMany({
+                where: { presentationId: { in: searchPresentationIds } },
+                select: {
+                  presentationId: true,
+                  ingestionStatus: true,
+                  lastIngestedAt: true,
+                  sourceModifiedAt: true,
+                  slideCount: true,
+                  ingestionProgress: true,
+                  accessStatus: true,
+                },
+              });
+              const templateMap = new Map(
+                matchingTemplates.map((t) => [t.presentationId, t]),
+              );
+
+              for (const doc of typedResults) {
+                const pid = String(doc.presentationId ?? "");
+                const tmpl = templateMap.get(pid);
+                if (tmpl) {
+                  doc.templateData = {
+                    ingestionStatus: tmpl.ingestionStatus,
+                    lastIngestedAt: tmpl.lastIngestedAt?.toISOString() ?? null,
+                    sourceModifiedAt: tmpl.sourceModifiedAt?.toISOString() ?? null,
+                    slideCount: tmpl.slideCount,
+                    ingestionProgress: tmpl.ingestionProgress
+                      ? (typeof tmpl.ingestionProgress === "string"
+                          ? JSON.parse(tmpl.ingestionProgress)?.current
+                          : undefined)
+                      : undefined,
+                    accessStatus: tmpl.accessStatus,
+                  };
+                }
+              }
+            }
+
+            // Cover thumbnail enrichment for search results
+            for (const doc of typedResults) {
+              const pid = String(doc.presentationId ?? "");
+              const mime = String(doc.mimeType ?? "");
+              if (!pid) continue;
+
+              try {
+                const cachedUrl = await checkGcsCoverExists(pid);
+                if (cachedUrl) {
+                  doc.thumbnailUrl = cachedUrl;
+                } else if (mime) {
+                  void cacheDocumentCover(pid, mime, googleAuth);
+                }
+              } catch {
+                // Non-blocking
+              }
+            }
 
             // Query already-ingested presentation IDs from Template table
             const ingestedTemplates = await prisma.template.findMany({
@@ -2129,9 +2252,31 @@ export const mastra = new Mastra({
                   // Check if Template already exists for this presentationId
                   const existing = await prisma.template.findUnique({
                     where: { presentationId: item.presentationId },
-                    select: { id: true },
+                    select: { id: true, ingestionStatus: true },
                   });
                   if (existing) {
+                    // Duplicate guard: reject items already ingesting or queued
+                    if (
+                      existing.ingestionStatus === "ingesting" ||
+                      existing.ingestionStatus === "queued"
+                    ) {
+                      batchItems.set(item.slideId, {
+                        status: "skipped",
+                        error: "Already ingesting",
+                      });
+                      continue;
+                    }
+                    // Template exists but idle — allow re-ingestion
+                    if (existing.ingestionStatus === "idle") {
+                      await prisma.template.update({
+                        where: { id: existing.id },
+                        data: { ingestionStatus: "queued" },
+                      });
+                      ingestionQueue.enqueue(existing.id);
+                      batchItems.set(item.slideId, { status: "done" });
+                      continue;
+                    }
+                    // Other states (failed, etc.) — mark as done, template already exists
                     batchItems.set(item.slideId, { status: "done" });
                     continue;
                   }
