@@ -48,6 +48,7 @@ export function DeckStructureView() {
               confidenceColor: summary.confidenceColor,
               confidenceLabel: summary.confidenceLabel,
               chatMessages: [],
+              slideIdToThumbnail: {},
               inferredAt: summary.inferredAt,
               lastChatAt: summary.lastChatAt,
             } as DeckStructureDetail,
@@ -107,10 +108,6 @@ export function DeckStructureView() {
     );
   }
 
-  // Build slide ID to thumbnail mapping (empty for now -- thumbnails
-  // can be enhanced later to fetch from GCS cache)
-  const slideIdToThumbnail: Record<string, string> = {};
-
   return (
     <Accordion
       type="multiple"
@@ -122,7 +119,7 @@ export function DeckStructureView() {
           key={tt}
           touchType={tt}
           structure={structures[tt] ?? null}
-          slideIdToThumbnail={slideIdToThumbnail}
+          slideIdToThumbnail={structures[tt]?.slideIdToThumbnail ?? {}}
         />
       ))}
     </Accordion>
