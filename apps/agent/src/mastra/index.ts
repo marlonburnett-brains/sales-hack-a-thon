@@ -27,6 +27,10 @@ import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-cl
 import { searchSlides } from "../lib/atlusai-search";
 import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS, cacheDocumentCover, checkGcsCoverExists } from "../lib/gcs-thumbnails";
 import crypto from "node:crypto";
+import { TOUCH_TYPES } from "@lumenalta/schemas";
+import { startDeckInferenceCron } from "../deck-intelligence/auto-infer-cron";
+import { inferDeckStructure } from "../deck-intelligence/infer-deck-structure";
+import { calculateConfidence } from "../deck-intelligence/deck-structure-schema";
 
 // ────────────────────────────────────────────────────────────
 // Background Staleness Polling
@@ -2483,6 +2487,157 @@ export const mastra = new Mastra({
           return c.json({ items, complete });
         },
       }),
+
+      // ────────────────────────────────────────────────────────────
+      // Phase 34: Deck Intelligence — Structure Inference Endpoints
+      // ────────────────────────────────────────────────────────────
+
+      // GET /deck-structures -- Returns all DeckStructure records (one per touch type)
+      registerApiRoute("/deck-structures", {
+        method: "GET",
+        handler: async (c) => {
+          const records = await prisma.deckStructure.findMany({
+            orderBy: { touchType: "asc" },
+          });
+
+          // Build a map of existing records
+          const byTouchType = new Map(records.map((r) => [r.touchType, r]));
+
+          // Return one entry per touch type (placeholder for missing ones)
+          const results = TOUCH_TYPES.map((tt) => {
+            const record = byTouchType.get(tt);
+            if (record) {
+              const conf = calculateConfidence(record.exampleCount);
+              return {
+                id: record.id,
+                touchType: record.touchType,
+                exampleCount: record.exampleCount,
+                confidence: record.confidence,
+                confidenceColor: conf.color,
+                confidenceLabel: conf.label,
+                sectionCount: (() => {
+                  try {
+                    const parsed = JSON.parse(record.structureJson) as { sections?: unknown[] };
+                    return parsed.sections?.length ?? 0;
+                  } catch {
+                    return 0;
+                  }
+                })(),
+                inferredAt: record.inferredAt,
+                lastChatAt: record.lastChatAt,
+                updatedAt: record.updatedAt,
+              };
+            }
+            return {
+              id: null,
+              touchType: tt,
+              exampleCount: 0,
+              confidence: 0,
+              confidenceColor: "red" as const,
+              confidenceLabel: "No examples",
+              sectionCount: 0,
+              inferredAt: null,
+              lastChatAt: null,
+              updatedAt: null,
+            };
+          });
+
+          return c.json(results);
+        },
+      }),
+
+      // GET /deck-structures/:touchType -- Returns single DeckStructure with parsed structure and chat messages
+      registerApiRoute("/deck-structures/:touchType", {
+        method: "GET",
+        handler: async (c) => {
+          const touchType = c.req.param("touchType");
+
+          const record = await prisma.deckStructure.findUnique({
+            where: { touchType },
+            include: {
+              chatMessages: {
+                orderBy: { createdAt: "desc" },
+                take: 20,
+              },
+            },
+          });
+
+          if (!record) {
+            const conf = calculateConfidence(0);
+            return c.json({
+              touchType,
+              structure: { sections: [], sequenceRationale: "" },
+              exampleCount: 0,
+              confidence: 0,
+              confidenceColor: conf.color,
+              confidenceLabel: conf.label,
+              chatMessages: [],
+              inferredAt: null,
+              lastChatAt: null,
+            });
+          }
+
+          const conf = calculateConfidence(record.exampleCount);
+          let structure: unknown;
+          try {
+            structure = JSON.parse(record.structureJson);
+          } catch {
+            structure = { sections: [], sequenceRationale: "" };
+          }
+
+          return c.json({
+            touchType: record.touchType,
+            structure,
+            exampleCount: record.exampleCount,
+            confidence: record.confidence,
+            confidenceColor: conf.color,
+            confidenceLabel: conf.label,
+            chatMessages: record.chatMessages.reverse(), // chronological order
+            inferredAt: record.inferredAt,
+            lastChatAt: record.lastChatAt,
+          });
+        },
+      }),
+
+      // POST /deck-structures/:touchType/infer -- Manually trigger re-inference
+      registerApiRoute("/deck-structures/:touchType/infer", {
+        method: "POST",
+        handler: async (c) => {
+          const touchType = c.req.param("touchType");
+
+          // Load existing chat constraints if any
+          const existing = await prisma.deckStructure.findUnique({
+            where: { touchType },
+            select: { chatContextJson: true },
+          });
+
+          try {
+            const result = await inferDeckStructure(
+              touchType,
+              existing?.chatContextJson ?? undefined,
+            );
+
+            const conf = calculateConfidence(
+              (await prisma.deckStructure.findUnique({
+                where: { touchType },
+                select: { exampleCount: true },
+              }))?.exampleCount ?? 0,
+            );
+
+            return c.json({
+              touchType,
+              structure: result,
+              confidence: conf.score,
+              confidenceColor: conf.color,
+              confidenceLabel: conf.label,
+            });
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[deck-structures] Inference failed for ${touchType}: ${message}`);
+            return c.json({ error: "Inference failed", details: message }, 500);
+          }
+        },
+      }),
     ],
   },
 });
@@ -2500,6 +2655,9 @@ setTimeout(() => {
   setInterval(() => void runAutoTasks(), AUTO_CLASSIFY_INTERVAL);
   console.log("[auto-tasks] Background auto-classify/ingest started (interval: 10m)");
 }, AUTO_CLASSIFY_INITIAL_DELAY);
+
+// ── Deck Intelligence Cron ──
+startDeckInferenceCron();
 
 // ── MCP Client Initialization ──
 initMcp().catch((err) => console.error("[mcp] Init failed:", err));
