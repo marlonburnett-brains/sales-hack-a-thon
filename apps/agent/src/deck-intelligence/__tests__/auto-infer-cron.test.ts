@@ -71,8 +71,9 @@ describe("Phase 36 cron deck keys", () => {
     expect(startupCallback).toBeTypeOf("function");
     startupCallback?.();
 
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let i = 0; i < 25; i += 1) {
+      await Promise.resolve();
+    }
   }
 
   it("iterates exactly the six cron keys and excludes pre_call", async () => {

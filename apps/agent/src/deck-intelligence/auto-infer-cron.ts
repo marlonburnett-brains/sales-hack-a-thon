@@ -7,13 +7,8 @@
  * skipping touch types with recent chat activity.
  */
 
-import { TOUCH_TYPES } from "@lumenalta/schemas";
-
-/** Touch types that produce slide decks (pre_call is a text/research artifact) */
-const DECK_TOUCH_TYPES = TOUCH_TYPES.filter(
-  (tt) => tt !== "pre_call" && tt !== "touch_4",
-);
 import { prisma } from "../lib/db";
+import { getDeckStructureCronKeys } from "./deck-structure-key";
 import { inferDeckStructure, computeDataHash } from "./infer-deck-structure";
 
 const INFERENCE_INTERVAL = 600_000; // 10 minutes
@@ -40,21 +35,23 @@ export function startDeckInferenceCron(): void {
 }
 
 /**
- * Run one full inference cycle across all touch types.
+ * Run one full inference cycle across all deck structure keys.
  */
 async function runInferenceCycle(): Promise<void> {
   console.log("[deck-infer-cron] Starting inference cycle...");
 
-  for (const touchType of DECK_TOUCH_TYPES) {
+  for (const key of getDeckStructureCronKeys()) {
+    const keyLabel = `${key.touchType}${key.artifactType ? `/${key.artifactType}` : ""}`;
+
     try {
       // 1. Compute current data hash
-      const currentHash = await computeDataHash(touchType);
+      const currentHash = await computeDataHash(key);
 
       // 2. Load existing structure
       const existing = await prisma.deckStructure.findFirst({
         where: {
-          touchType,
-          artifactType: null,
+          touchType: key.touchType,
+          artifactType: key.artifactType,
         },
       });
 
@@ -70,7 +67,7 @@ async function runInferenceCycle(): Promise<void> {
           Date.now() - existing.lastChatAt.getTime();
         if (msSinceLastChat < ACTIVE_SESSION_WINDOW) {
           console.log(
-            `[deck-infer-cron] Skipping ${touchType} — active chat session (${Math.round(msSinceLastChat / 60_000)}m ago)`,
+            `[deck-infer-cron] Skipping ${keyLabel} — active chat session (${Math.round(msSinceLastChat / 60_000)}m ago)`,
           );
           continue;
         }
@@ -78,21 +75,18 @@ async function runInferenceCycle(): Promise<void> {
 
       // 5. Run inference
       console.log(
-        `[deck-infer-cron] Re-inferring ${touchType} (hash changed: ${existing?.dataHash?.substring(0, 8) ?? "none"} -> ${currentHash.substring(0, 8)})`,
+        `[deck-infer-cron] Re-inferring ${keyLabel} (hash changed: ${existing?.dataHash?.substring(0, 8) ?? "none"} -> ${currentHash.substring(0, 8)})`,
       );
 
-      const result = await inferDeckStructure(
-        touchType,
-        existing?.chatContextJson ?? undefined,
-      );
+      const result = await inferDeckStructure(key, existing?.chatContextJson ?? undefined);
 
       console.log(
-        `[deck-infer-cron] ${touchType}: ${result.sections.length} sections inferred`,
+        `[deck-infer-cron] ${keyLabel}: ${result.sections.length} sections inferred`,
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(
-        `[deck-infer-cron] Error inferring ${touchType}: ${message}`,
+        `[deck-infer-cron] Error inferring ${keyLabel}: ${message}`,
       );
     }
   }
