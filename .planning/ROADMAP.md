@@ -115,13 +115,12 @@ Plans:
   3. If the user (or pool) lacks AtlusAI access, the discovery page shows the appropriate ActionRequired state instead of content
   4. Users can select items from browse or search results and ingest them into the local SlideEmbedding pipeline, with per-item progress indication
   5. Already-ingested content is visually marked in results to prevent duplicate ingestion
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 29-01: Sidebar nav, /discovery route, and access gating
-- [ ] 29-02: Browse view with paginated document inventory
-- [ ] 29-03: Search view with semantic search and result previews
-- [ ] 29-04: Selective ingestion with progress tracking and dedup markers
+- [ ] 29-01-PLAN.md -- Agent API endpoints, server actions, sidebar nav, /discovery route with access gating
+- [ ] 29-02-PLAN.md -- Browse view with infinite scroll, card/list toggle, search with debounce, relevance scoring, preview panel
+- [ ] 29-03-PLAN.md -- Batch selection, floating toolbar, ingestion progress polling, dedup markers
 
 ## Progress
 
@@ -158,4 +157,4 @@ Phases execute in numeric order: 27 -> 28 -> 29
 | 26. Tech Debt Cleanup | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 27. Auth Foundation | 5/5 | Complete   | 2026-03-06 | - |
 | 28. MCP Integration | 2/2 | Complete    | 2026-03-07 | - |
-| 29. Discovery UI | v1.4 | 0/4 | Not started | - |
+| 29. Discovery UI | v1.4 | 0/3 | Not started | - |
