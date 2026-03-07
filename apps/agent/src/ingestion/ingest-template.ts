@@ -19,6 +19,7 @@ import {
   computeMerge,
   type ExistingSlideData,
 } from "./smart-merge";
+import { cacheThumbnailsForTemplate } from "../lib/gcs-thumbnails";
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -170,7 +171,7 @@ export async function ingestTemplate(
         );
 
         // Store classification as JSON (include classifiedBy for UI visibility)
-        const classJson = JSON.stringify({ ...classified.metadata, classifiedBy: classified.classifiedBy });
+        const classJson = JSON.stringify(classified.metadata);
 
         // Upsert via raw SQL (Prisma cannot handle vector type)
         const id = generateCuid();
@@ -251,7 +252,7 @@ export async function ingestTemplate(
           slide.speakerNotes,
           slide.slideObjectId
         );
-        const classJson = JSON.stringify({ ...classified.metadata, classifiedBy: classified.classifiedBy });
+        const classJson = JSON.stringify(classified.metadata);
         const vec = toSql(embedding);
 
         // Update existing row: set needsReReview, store previous classification
@@ -325,6 +326,19 @@ export async function ingestTemplate(
         slideCount: totalActive,
       },
     });
+
+    // Cache thumbnails in GCS (best-effort, non-blocking for ingestion result)
+    await updateProgress(templateId, { phase: "thumbnails", current: 0, total: 1 });
+    try {
+      const cachedCount = await cacheThumbnailsForTemplate(
+        templateId,
+        template.presentationId,
+        authOptions
+      );
+      console.log(`[ingest] Cached ${cachedCount} thumbnails in GCS`);
+    } catch (err) {
+      console.error("[ingest] Thumbnail caching failed (non-fatal):", err);
+    }
 
     if (skipped > 0) {
       console.warn(

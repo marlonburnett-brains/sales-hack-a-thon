@@ -23,6 +23,7 @@ import { ACTION_TYPES } from "@lumenalta/schemas";
 import { env } from "../env";
 import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
 import { searchSlides } from "../lib/atlusai-search";
+import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS } from "../lib/gcs-thumbnails";
 import { generateEmbedding } from "../ingestion/embed-slide";
 import { computeContentHash } from "../ingestion/smart-merge";
 import { toSql } from "pgvector";
@@ -1188,37 +1189,102 @@ export const mastra = new Mastra({
         },
       }),
 
-      // GET /templates/:id/thumbnails -- Batch fetch all slide thumbnail URLs from Google Slides API
+      // GET /templates/:id/thumbnails -- Return cached GCS thumbnail URLs (falls back to live Slides API)
       registerApiRoute("/templates/:id/thumbnails", {
         method: "GET",
         handler: async (c) => {
           const templateId = c.req.param("id");
           const template = await prisma.template.findUniqueOrThrow({ where: { id: templateId } });
+          const googleAuth = await extractGoogleAuth(c);
+
+          // 1. Query slides with cached thumbnail info
           const slides = await prisma.slideEmbedding.findMany({
             where: { templateId, archived: false },
             orderBy: { slideIndex: "asc" },
-            select: { slideObjectId: true, slideIndex: true },
+            select: { slideObjectId: true, slideIndex: true, thumbnailUrl: true, thumbnailFetchedAt: true },
           });
-          const googleAuth = await extractGoogleAuth(c);
-          const slidesApi = getSlidesClient(googleAuth.accessToken ? googleAuth : undefined);
+
+          const ttlCutoff = new Date(Date.now() - THUMBNAIL_TTL_MS);
+          const allCached = slides.every(
+            (s) => s.thumbnailUrl && s.thumbnailFetchedAt && s.thumbnailFetchedAt > ttlCutoff
+          );
+
+          // 2. If cache HIT: return immediately (no Slides API calls)
+          if (allCached) {
+            const thumbnails = slides
+              .filter((s) => s.slideObjectId)
+              .map((s) => ({
+                slideObjectId: s.slideObjectId!,
+                slideIndex: s.slideIndex,
+                thumbnailUrl: s.thumbnailUrl!,
+              }));
+            return c.json({ thumbnails });
+          }
+
+          // 3. Cache MISS or stale: refresh via GCS caching
+          try {
+            await cacheThumbnailsForTemplate(
+              templateId,
+              template.presentationId,
+              googleAuth.accessToken ? googleAuth : undefined
+            );
+          } catch (err) {
+            console.error("[thumbnails] GCS cache refresh failed:", err);
+          }
+
+          // 4. Re-query after refresh
+          const refreshed = await prisma.slideEmbedding.findMany({
+            where: { templateId, archived: false },
+            orderBy: { slideIndex: "asc" },
+            select: { slideObjectId: true, slideIndex: true, thumbnailUrl: true },
+          });
+
+          // 5. Separate cached vs uncached slides
           const thumbnails: Array<{ slideObjectId: string; slideIndex: number; thumbnailUrl: string }> = [];
-          for (const slide of slides) {
-            if (!slide.slideObjectId) continue;
-            try {
-              const result = await slidesApi.presentations.pages.getThumbnail({
-                presentationId: template.presentationId,
-                pageObjectId: slide.slideObjectId,
-                "thumbnailProperties.thumbnailSize": "LARGE",
-              });
+          const uncached = refreshed.filter((s) => s.slideObjectId && !s.thumbnailUrl);
+
+          for (const s of refreshed) {
+            if (!s.slideObjectId) continue;
+            if (s.thumbnailUrl) {
               thumbnails.push({
-                slideObjectId: slide.slideObjectId,
-                slideIndex: slide.slideIndex,
-                thumbnailUrl: result.data.contentUrl ?? "",
+                slideObjectId: s.slideObjectId,
+                slideIndex: s.slideIndex,
+                thumbnailUrl: s.thumbnailUrl,
               });
-            } catch (err) {
-              console.error(`[thumbnails] Failed for slide ${slide.slideObjectId}:`, err);
             }
           }
+
+          // 6. Fall back to live Slides API for any still-uncached slides (backward compat)
+          if (uncached.length > 0) {
+            const slidesApi = getSlidesClient(googleAuth.accessToken ? googleAuth : undefined);
+            const BATCH_SIZE = 5;
+            const BATCH_DELAY_MS = 1500;
+            for (let i = 0; i < uncached.length; i += BATCH_SIZE) {
+              if (i > 0) await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
+              const batch = uncached.slice(i, i + BATCH_SIZE);
+              const results = await Promise.allSettled(
+                batch.map(async (slide) => {
+                  const result = await slidesApi.presentations.pages.getThumbnail({
+                    presentationId: template.presentationId,
+                    pageObjectId: slide.slideObjectId!,
+                    "thumbnailProperties.thumbnailSize": "LARGE",
+                  });
+                  return {
+                    slideObjectId: slide.slideObjectId!,
+                    slideIndex: slide.slideIndex,
+                    thumbnailUrl: result.data.contentUrl ?? "",
+                  };
+                })
+              );
+              for (const r of results) {
+                if (r.status === "fulfilled") thumbnails.push(r.value);
+                else console.error(`[thumbnails] Live fallback failed:`, r.reason?.message ?? r.reason);
+              }
+            }
+          }
+
+          // Sort by slideIndex to maintain consistent order
+          thumbnails.sort((a, b) => a.slideIndex - b.slideIndex);
           return c.json({ thumbnails });
         },
       }),
