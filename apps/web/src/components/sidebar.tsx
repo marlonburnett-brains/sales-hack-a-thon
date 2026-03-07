@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   AlertTriangle,
+  Brain,
   Briefcase,
   Layers,
   LayoutTemplate,
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/deals", label: "Deals", icon: Briefcase },
   { href: "/templates", label: "Templates", icon: LayoutTemplate },
   { href: "/slides", label: "Slide Library", icon: Layers },
+  { href: "/discovery", label: "AtlusAI", icon: Brain },
   { href: "/actions", label: "Action Required", icon: AlertTriangle },
 ];
 

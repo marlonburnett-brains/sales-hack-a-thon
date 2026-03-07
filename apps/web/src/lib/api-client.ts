@@ -798,3 +798,68 @@ export async function storeAtlusOAuthToken(
     },
   );
 }
+
+// ────────────────────────────────────────────────────────────
+// Discovery (Phase 29)
+// ────────────────────────────────────────────────────────────
+
+export interface DiscoveryDocument {
+  slideId: string;
+  documentTitle: string;
+  textContent: string;
+  speakerNotes: string;
+  metadata: Record<string, unknown>;
+  presentationId?: string;
+  slideObjectId?: string;
+  source?: "mcp" | "drive";
+  relevanceScore?: number;
+}
+
+export interface BrowseResult {
+  documents: DiscoveryDocument[];
+  nextCursor?: string;
+  ingestedHashes: string[];
+}
+
+export interface SearchResult {
+  results: DiscoveryDocument[];
+  ingestedHashes: string[];
+}
+
+export interface AccessCheckResult {
+  hasAccess: boolean;
+  reason?: "no_tokens" | "mcp_unavailable" | "disabled";
+}
+
+export interface IngestionProgressResult {
+  items: Array<{ id: string; status: string; error?: string }>;
+  complete: boolean;
+}
+
+export async function checkAtlusAccess(): Promise<AccessCheckResult> {
+  return fetchJSON<AccessCheckResult>("/discovery/access-check");
+}
+
+export async function browseDiscovery(params: { cursor?: string; limit?: number }): Promise<BrowseResult> {
+  const qs = new URLSearchParams({ limit: String(params.limit ?? 20) });
+  if (params.cursor) qs.set("cursor", params.cursor);
+  return fetchJSON<BrowseResult>(`/discovery/browse?${qs}`);
+}
+
+export async function searchDiscovery(query: string): Promise<SearchResult> {
+  return fetchJSON<SearchResult>("/discovery/search", {
+    method: "POST",
+    body: JSON.stringify({ query }),
+  });
+}
+
+export async function startDiscoveryIngestion(items: DiscoveryDocument[]): Promise<{ batchId: string }> {
+  return fetchJSON<{ batchId: string }>("/discovery/ingest", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+}
+
+export async function getDiscoveryIngestionProgress(batchId: string): Promise<IngestionProgressResult> {
+  return fetchJSON<IngestionProgressResult>(`/discovery/ingest/${batchId}/progress`);
+}
