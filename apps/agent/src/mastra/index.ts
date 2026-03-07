@@ -20,6 +20,7 @@ import {
 } from "../lib/atlus-auth";
 import { ACTION_TYPES } from "@lumenalta/schemas";
 import { env } from "../env";
+import { initMcp, shutdownMcp } from "../lib/mcp-client";
 
 // ────────────────────────────────────────────────────────────
 // Background Staleness Polling
@@ -1077,7 +1078,7 @@ export const mastra = new Mastra({
               const drive = getDriveClient(googleAuth.accessToken ? googleAuth : undefined);
               const fileRes = await drive.files.get({
                 fileId: template.presentationId,
-                fields: "id,modifiedTime",
+                fields: "id,name,modifiedTime",
                 supportsAllDrives: true,
               });
 
@@ -1089,11 +1090,12 @@ export const mastra = new Mastra({
                   new Date(modifiedTime) > new Date(template.lastIngestedAt);
               }
 
-              // Update access status and sourceModifiedAt
+              // Update access status, name, and sourceModifiedAt
               await prisma.template.update({
                 where: { id },
                 data: {
                   accessStatus: "accessible",
+                  ...(fileRes.data.name ? { name: fileRes.data.name } : {}),
                   sourceModifiedAt: modifiedTime
                     ? new Date(modifiedTime)
                     : undefined,
@@ -1506,3 +1508,13 @@ export const mastra = new Mastra({
 
 // Start background staleness polling after Mastra is initialized
 startStalenessPolling();
+
+// ── MCP Client Initialization ──
+initMcp().catch((err) => console.error("[mcp] Init failed:", err));
+
+// ── Graceful Shutdown ──
+process.on("SIGTERM", async () => {
+  console.log("[shutdown] SIGTERM received");
+  await shutdownMcp();
+  process.exit(0);
+});
