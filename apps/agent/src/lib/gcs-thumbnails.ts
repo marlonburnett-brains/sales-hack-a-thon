@@ -7,6 +7,7 @@
  * SlideEmbedding table for instant retrieval.
  */
 
+import { readFileSync } from "node:fs";
 import { Readable } from "node:stream";
 import { google } from "googleapis";
 import { prisma } from "./db";
@@ -20,15 +21,23 @@ import { env } from "../env";
 /** How long a cached thumbnail is considered fresh (7 days). */
 export const THUMBNAIL_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-const BATCH_SIZE = 5;
-const BATCH_DELAY_MS = 1500; // stay under Slides API "expensive read" quota
+const BATCH_SIZE = 2;
+const BATCH_DELAY_MS = 3000; // stay under Slides API "expensive read" quota (60/min)
 
 // ────────────────────────────────────────────────────────────
 // GCS Client (googleapis, NOT @google-cloud/storage)
 // ────────────────────────────────────────────────────────────
 
 function getStorageClient() {
-  const credentials = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_KEY);
+  // Use the Vertex AI service account (GOOGLE_APPLICATION_CREDENTIALS) for GCS
+  // since it already has Google Cloud project access with storage permissions.
+  const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (!credPath) {
+    throw new Error(
+      "GOOGLE_APPLICATION_CREDENTIALS must be set for GCS thumbnail uploads"
+    );
+  }
+  const credentials = JSON.parse(readFileSync(credPath, "utf-8"));
   const auth = new google.auth.GoogleAuth({
     credentials,
     scopes: ["https://www.googleapis.com/auth/devstorage.full_control"],
