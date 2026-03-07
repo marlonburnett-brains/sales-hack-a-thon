@@ -187,12 +187,24 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedPreview]);
 
+  // ── Check if document is a Google Slides presentation ────────
+  function isGoogleSlides(doc: DiscoveryDocument): boolean {
+    // Use server-provided flag (Drive API MIME type lookup)
+    return doc.isGoogleSlides === true;
+  }
+
+  // ── Extract presentationId from document ───────────────────
+  function getPresentationId(doc: DiscoveryDocument): string | undefined {
+    return doc.presentationId;
+  }
+
   // ── Check if document is ingested ────────────────────────────
   function isIngested(doc: DiscoveryDocument): boolean {
     const status = itemStatuses.get(doc.slideId);
     if (status === "done") return true;
     const hashes = mode === "search" ? searchIngestedHashes : ingestedHashes;
-    return hashes.has(doc.slideId);
+    const presId = getPresentationId(doc);
+    return presId ? hashes.has(presId) : false;
   }
 
   // ── Get item status ──────────────────────────────────────────
@@ -296,12 +308,24 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
       selectedIds.has(d.slideId)
     );
 
-    if (selectedItems.length === 0) return;
+    // Only ingest Google Slides documents
+    const slidesItems = selectedItems.filter(isGoogleSlides);
+    if (slidesItems.length === 0) {
+      toast.error("Only Google Slides documents can be ingested.");
+      return;
+    }
+
+    // Enrich items with googleSlidesUrl for the agent
+    const enrichedItems = slidesItems.map((doc) => {
+      const presId = getPresentationId(doc)!;
+      const googleSlidesUrl = `https://docs.google.com/presentation/d/${presId}`;
+      return { ...doc, presentationId: presId, googleSlidesUrl };
+    });
 
     // Set all selected to pending
     setItemStatuses((prev) => {
       const next = new Map(prev);
-      for (const item of selectedItems) {
+      for (const item of slidesItems) {
         next.set(item.slideId, "pending");
       }
       return next;
@@ -311,13 +335,13 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     setSelectedIds(new Set()); // Clear selection -- tracked by status now
 
     try {
-      const { batchId } = await startDiscoveryIngestionAction(selectedItems);
+      const { batchId } = await startDiscoveryIngestionAction(enrichedItems);
       startPolling(batchId);
     } catch {
       // Reset statuses on start failure
       setItemStatuses((prev) => {
         const next = new Map(prev);
-        for (const item of selectedItems) {
+        for (const item of slidesItems) {
           next.delete(item.slideId);
         }
         return next;
@@ -342,7 +366,10 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
     });
 
     try {
-      const { batchId } = await startDiscoveryIngestionAction([doc]);
+      const presId = getPresentationId(doc)!;
+      const googleSlidesUrl = `https://docs.google.com/presentation/d/${presId}`;
+      const enrichedDoc = { ...doc, presentationId: presId, googleSlidesUrl };
+      const { batchId } = await startDiscoveryIngestionAction([enrichedDoc]);
       setIsIngesting(true);
       startPolling(batchId);
     } catch {
@@ -420,11 +447,14 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
   function ItemCheckbox({ doc }: { doc: DiscoveryDocument }) {
     const status = getItemStatus(doc);
     const alreadyIngested = isIngested(doc);
+    const isSlides = isGoogleSlides(doc);
     const isProcessing = status === "pending" || status === "ingesting";
     const isDone = status === "done" || alreadyIngested;
-    const isDisabled = isDone || isProcessing;
+    const isDisabled = !isSlides || isDone || isProcessing;
     const isChecked =
       isDone || isProcessing || selectedIds.has(doc.slideId);
+
+    if (!isSlides) return null; // Hide checkbox entirely for non-Slides docs
 
     return (
       <input
@@ -665,6 +695,16 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
 
     function renderIngestButton() {
       if (!doc) return null;
+
+      // Non-Google Slides documents cannot be ingested
+      if (!isGoogleSlides(doc)) {
+        return (
+          <p className="text-center text-xs text-slate-400">
+            Only Google Slides documents can be ingested as templates.
+          </p>
+        );
+      }
+
       const status = getItemStatus(doc);
 
       if (status === "done" || isIngested(doc)) {

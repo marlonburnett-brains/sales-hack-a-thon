@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { NavProgress } from "@/components/nav-progress";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={cn(inter.variable, "font-sans antialiased")}>
+        <NavProgress />
         {children}
         <Toaster position="top-right" richColors />
       </body>

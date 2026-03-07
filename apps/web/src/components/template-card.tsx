@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -187,9 +188,9 @@ export function TemplateCard({
 
   return (
     <>
+      <Link href={`/templates/${template.id}/slides`} className="block cursor-pointer">
       <Card
-        className="cursor-pointer shadow-sm transition-shadow duration-200 hover:shadow-md"
-        onClick={() => router.push(`/templates/${template.id}/slides`)}
+        className="shadow-sm transition-shadow duration-200 hover:shadow-md"
       >
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
           <h3 className="line-clamp-1 text-sm font-semibold text-slate-900">
@@ -202,7 +203,7 @@ export function TemplateCard({
                 size="icon"
                 className="h-8 w-8 cursor-pointer"
                 aria-label="Template actions"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
@@ -211,6 +212,7 @@ export function TemplateCard({
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   router.push(`/templates/${template.id}/slides`);
                 }}
                 className="cursor-pointer"
@@ -222,6 +224,7 @@ export function TemplateCard({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     handleRetryAccess();
                   }}
                   className="cursor-pointer"
@@ -234,6 +237,7 @@ export function TemplateCard({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     handleTriggerIngestion();
                   }}
                   className="cursor-pointer"
@@ -245,6 +249,7 @@ export function TemplateCard({
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   setDeleteOpen(true);
                 }}
                 className="cursor-pointer text-red-600 focus:text-red-600"
@@ -323,6 +328,7 @@ export function TemplateCard({
           )}
         </CardContent>
       </Card>
+      </Link>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

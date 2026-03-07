@@ -39,9 +39,10 @@ export async function extractGoogleAuth(
   if (userId) {
     const resolved = await getAccessTokenForUser(userId);
     if (resolved) {
+      console.log(`[request-auth] Resolved access token for userId=${userId} via refresh`);
       return { accessToken: resolved, userId };
     }
-    // Refresh failed or no stored token -- fall through to service account
+    console.warn(`[request-auth] No access token resolved for userId=${userId} — falling back to SA`);
     return { userId };
   }
 

@@ -17,59 +17,59 @@ export {
   SOLUTION_PILLARS,
   ACTION_TYPES,
   type ActionType,
-} from "./constants";
+} from "./constants.ts";
 
 // Helper
-export { zodToLlmJsonSchema } from "./llm-json-schema";
+export { zodToLlmJsonSchema } from "./llm-json-schema.ts";
 
 // LLM schemas (LLM-safe: flat, no transforms)
 export {
   TranscriptFieldsLlmSchema,
   type TranscriptFields,
-} from "./llm/transcript-fields";
-export { SalesBriefLlmSchema, type SalesBrief } from "./llm/sales-brief";
+} from "./llm/transcript-fields.ts";
+export { SalesBriefLlmSchema, type SalesBrief } from "./llm/sales-brief.ts";
 export {
   SlideAssemblyLlmSchema,
   type SlideAssembly,
-} from "./llm/slide-assembly";
-export { ROIFramingLlmSchema, type ROIFraming } from "./llm/roi-framing";
-export { PagerContentLlmSchema, type PagerContent } from "./llm/pager-content";
+} from "./llm/slide-assembly.ts";
+export { ROIFramingLlmSchema, type ROIFraming } from "./llm/roi-framing.ts";
+export { PagerContentLlmSchema, type PagerContent } from "./llm/pager-content.ts";
 export {
   IntroDeckSelectionLlmSchema,
   type IntroDeckSelection,
-} from "./llm/intro-deck-selection";
+} from "./llm/intro-deck-selection.ts";
 export {
   CapabilityDeckSelectionLlmSchema,
   type CapabilityDeckSelection,
-} from "./llm/capability-deck-selection";
+} from "./llm/capability-deck-selection.ts";
 export {
   CompanyResearchLlmSchema,
   type CompanyResearch,
-} from "./llm/company-research";
-export { HypothesesLlmSchema, type Hypotheses } from "./llm/hypotheses";
+} from "./llm/company-research.ts";
+export { HypothesesLlmSchema, type Hypotheses } from "./llm/hypotheses.ts";
 export {
   DiscoveryQuestionsLlmSchema,
   type DiscoveryQuestions,
-} from "./llm/discovery-questions";
+} from "./llm/discovery-questions.ts";
 export {
   SlideMetadataSchema,
   type SlideMetadata,
-} from "./llm/slide-metadata";
+} from "./llm/slide-metadata.ts";
 export {
   ProposalCopyLlmSchema,
   type ProposalCopy,
-} from "./llm/proposal-copy";
+} from "./llm/proposal-copy.ts";
 export {
   BuyerFaqLlmSchema,
   type BuyerFaq,
-} from "./llm/buyer-faq";
+} from "./llm/buyer-faq.ts";
 
 // App schemas (internal, may use transforms/optionals)
 export {
   InteractionRecordSchema,
   type InteractionRecord,
-} from "./app/interaction-record";
+} from "./app/interaction-record.ts";
 export {
   FeedbackSignalSchema,
   type FeedbackSignal,
-} from "./app/feedback-signal";
+} from "./app/feedback-signal.ts";

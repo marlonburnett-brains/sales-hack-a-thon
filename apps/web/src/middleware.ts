@@ -25,11 +25,23 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // IMPORTANT: Do not remove this call. It refreshes the auth token
-  // AND checks authentication status.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Detect client-side navigation (RSC fetches) vs full page loads.
+  // RSC requests send "RSC: 1" header — these should be fast since
+  // the user was already authenticated on the initial page load.
+  const isRSC = request.headers.get("RSC") === "1";
+
+  let user: { id: string } | null = null;
+
+  if (isRSC) {
+    // Fast path: read session from cookie (local JWT decode, no network call).
+    // Token refresh + server validation already happened on the initial page load.
+    const { data: { session } } = await supabase.auth.getSession();
+    user = session?.user ?? null;
+  } else {
+    // Full page load: validate with Supabase server + refresh token if needed.
+    const { data: { user: serverUser } } = await supabase.auth.getUser();
+    user = serverUser;
+  }
 
   // If user is authenticated and hits /login, redirect to /deals
   if (user && request.nextUrl.pathname.startsWith("/login")) {
@@ -61,11 +73,14 @@ export async function middleware(request: NextRequest) {
 
   // ────────────────────────────────────────────────────────────
   // Google Token Status Check (informational only)
+  // Only on full page loads — skip for RSC requests to keep
+  // client-side navigation instant.
   // Sets a cookie so client components can show re-auth banners.
   // NEVER signs the user out — Supabase auth and Google token
   // are independent concerns.
   // ────────────────────────────────────────────────────────────
   if (
+    !isRSC &&
     user &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth")

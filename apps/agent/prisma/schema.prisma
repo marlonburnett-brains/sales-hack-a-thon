@@ -293,6 +293,28 @@ model UserAtlusToken {
 }
 
 // ────────────────────────────────────────────────────────────
+// AtlusAI Document → Google Drive file resolution cache
+// Maps AtlusAI internal document IDs to resolved Drive file metadata
+// so we only hit the Drive API once per document.
+// ────────────────────────────────────────────────────────────
+
+model DiscoveryDocCache {
+  id              String    @id @default(cuid())
+  atlusDocId      String    @unique // AtlusAI document ID (slideId)
+  documentTitle   String    // Title from AtlusAI
+  driveFileId     String?   // Resolved Google Drive file ID (null if not found)
+  mimeType        String?   // e.g., "application/vnd.google-apps.presentation"
+  isGoogleSlides  Boolean   @default(false)
+  googleSlidesUrl String?   // e.g., "https://docs.google.com/presentation/d/FILE_ID/edit"
+  resolvedAt      DateTime  @default(now()) // When the Drive lookup was performed
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([isGoogleSlides])
+  @@index([driveFileId])
+}
+
+// ────────────────────────────────────────────────────────────
 // Phase 24: ActionRequired — tracks manual user actions needed
 // (e.g., re-auth, share with SA, drive access)
 // ────────────────────────────────────────────────────────────

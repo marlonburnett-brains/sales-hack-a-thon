@@ -24,9 +24,6 @@ import { env } from "../env";
 import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
 import { searchSlides } from "../lib/atlusai-search";
 import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS } from "../lib/gcs-thumbnails";
-import { generateEmbedding } from "../ingestion/embed-slide";
-import { computeContentHash } from "../ingestion/smart-merge";
-import { toSql } from "pgvector";
 import crypto from "node:crypto";
 
 // ────────────────────────────────────────────────────────────
@@ -44,6 +41,329 @@ const discoveryBatches = new Map<
   string,
   Map<string, { status: string; error?: string }>
 >();
+
+const GOOGLE_SLIDES_MIME = "application/vnd.google-apps.presentation";
+
+/**
+ * Enrich discovery documents with Drive metadata. Uses a DB cache
+ * (DiscoveryDocCache) so we only hit the Drive API once per document.
+ *
+ * Flow per document:
+ *   1. Check cache by atlusDocId → if hit, apply cached fields
+ *   2. On cache miss, search Drive by document title in background
+ *   3. Write result to cache for future requests
+ *
+ * Mutates the documents in place.
+ */
+async function enrichDocsWithDriveMetadata(
+  docs: Record<string, unknown>[],
+  googleAuth?: { accessToken?: string },
+): Promise<void> {
+  if (docs.length === 0) return;
+
+  // Collect atlusDocIds for cache lookup
+  const docIds = docs.map((d) => String(d.slideId ?? "")).filter(Boolean);
+  if (docIds.length === 0) return;
+
+  // 1. Batch cache lookup
+  const cached = await prisma.discoveryDocCache.findMany({
+    where: { atlusDocId: { in: docIds } },
+  });
+  const cacheMap = new Map(cached.map((c) => [c.atlusDocId, c]));
+
+  // Apply cached values and collect cache misses
+  const misses: { idx: number; atlusDocId: string; title: string }[] = [];
+  for (let i = 0; i < docs.length; i++) {
+    const atlusDocId = String(docs[i].slideId ?? "");
+    const hit = cacheMap.get(atlusDocId);
+    if (hit) {
+      docs[i].mimeType = hit.mimeType ?? undefined;
+      docs[i].isGoogleSlides = hit.isGoogleSlides;
+      if (hit.isGoogleSlides && hit.driveFileId) {
+        docs[i].presentationId = hit.driveFileId;
+        docs[i].googleSlidesUrl = hit.googleSlidesUrl ?? undefined;
+      }
+    } else {
+      const title = String(docs[i].documentTitle ?? "").trim();
+      if (title && atlusDocId) {
+        misses.push({ idx: i, atlusDocId, title });
+      }
+    }
+  }
+
+  if (misses.length === 0) return;
+
+  // 2. Build ordered list of Drive clients to try: user token → pooled tokens → SA
+  const clientLabels: string[] = [];
+  const driveClients: ReturnType<typeof getDriveClient>[] = [];
+  if (googleAuth?.accessToken) {
+    driveClients.push(getDriveClient(googleAuth));
+    clientLabels.push("user-token");
+  }
+  try {
+    const { accessToken } = await getPooledGoogleAuth();
+    if (accessToken && accessToken !== googleAuth?.accessToken) {
+      driveClients.push(getDriveClient({ accessToken }));
+      clientLabels.push("pooled-token");
+    }
+  } catch { /* pooled auth unavailable */ }
+  driveClients.push(getDriveClient()); // SA fallback
+  clientLabels.push("service-account");
+  console.log(`[discovery] Drive clients available: [${clientLabels.join(", ")}]`);
+
+  // Helper: try a Drive files.list query across all clients with fallback on 429/403
+  async function driveQuery(
+    q: string,
+    pageSize = 20,
+  ): Promise<{ id: string; name: string; mimeType: string }[]> {
+    for (const drive of driveClients) {
+      try {
+        const res = await drive.files.list({
+          q,
+          fields: "files(id,name,mimeType)",
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+          pageSize,
+        });
+        return (res.data.files ?? []).filter(
+          (f): f is { id: string; name: string; mimeType: string } =>
+            !!f.id && !!f.name && !!f.mimeType,
+        );
+      } catch (err: unknown) {
+        const code =
+          err && typeof err === "object" && "code" in err
+            ? (err as { code: number }).code
+            : 0;
+        if (code === 429 || code === 403) continue;
+        console.warn("[discovery] Drive query failed:", err);
+        continue;
+      }
+    }
+    return [];
+  }
+
+  // Helper: paginated Drive list across all clients
+  async function driveListAll(
+    q: string,
+  ): Promise<{ id: string; name: string; mimeType: string }[]> {
+    for (const drive of driveClients) {
+      try {
+        const all: { id: string; name: string; mimeType: string }[] = [];
+        let pageToken: string | undefined;
+        do {
+          const res = await drive.files.list({
+            q,
+            fields: "nextPageToken,files(id,name,mimeType)",
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true,
+            pageSize: 200,
+            ...(pageToken ? { pageToken } : {}),
+          });
+          for (const f of res.data.files ?? []) {
+            if (f.id && f.name && f.mimeType) {
+              all.push({ id: f.id, name: f.name, mimeType: f.mimeType });
+            }
+          }
+          pageToken = res.data.nextPageToken ?? undefined;
+        } while (pageToken);
+        return all;
+      } catch (err: unknown) {
+        const code =
+          err && typeof err === "object" && "code" in err
+            ? (err as { code: number }).code
+            : 0;
+        if (code === 429 || code === 403) continue;
+        console.warn("[discovery] Drive list failed:", err);
+        continue;
+      }
+    }
+    return [];
+  }
+
+  // Normalize for comparison: lowercase, strip extensions, normalize dashes/whitespace
+  function normalize(s: string): string {
+    return s
+      .toLowerCase()
+      .replace(/\.(pptx?|pdf|key|gslides)$/i, "")
+      .replace(/[\u2013\u2014]/g, "-")
+      .replace(/[_]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // Score how well a Drive filename matches the AtlusAI title (higher = better)
+  function matchScore(atlusTitle: string, driveName: string): number {
+    const a = normalize(atlusTitle);
+    const d = normalize(driveName);
+    if (a === d) return 100;
+    if (a.startsWith(d) || d.startsWith(a)) return 80;
+    if (a.includes(d) || d.includes(a)) return 60;
+    const aWords = new Set(a.split(/\s+/));
+    const dWords = new Set(d.split(/\s+/));
+    const overlap = [...aWords].filter((w) => dWords.has(w)).length;
+    const totalWords = Math.max(aWords.size, dWords.size);
+    if (totalWords > 0 && overlap / totalWords >= 0.5)
+      return 40 * (overlap / totalWords);
+    return 0;
+  }
+
+  // Find best match from a list of files for a given title
+  function pickBestMatch(
+    title: string,
+    files: { id: string; name: string; mimeType: string }[],
+  ): { id: string; name: string; mimeType: string; score: number } | null {
+    let best: (typeof files)[0] | null = null;
+    let bestScore = 0;
+    for (const f of files) {
+      const score = matchScore(title, f.name);
+      if (score > bestScore) {
+        bestScore = score;
+        best = f;
+      }
+    }
+    return best && bestScore >= 30 ? { ...best, score: bestScore } : null;
+  }
+
+  // Helper: apply result to docs + write cache
+  function applyResult(
+    group: typeof misses,
+    title: string,
+    match: { id: string; mimeType: string } | null,
+  ) {
+    const isSlides = match?.mimeType === GOOGLE_SLIDES_MIME;
+    const driveFileId = isSlides ? match!.id : null;
+    const mimeType = match?.mimeType ?? null;
+    const googleSlidesUrl = driveFileId
+      ? `https://docs.google.com/presentation/d/${driveFileId}/edit`
+      : null;
+
+    for (const miss of group) {
+      docs[miss.idx].mimeType = mimeType ?? undefined;
+      docs[miss.idx].isGoogleSlides = isSlides;
+      if (isSlides && driveFileId) {
+        docs[miss.idx].presentationId = driveFileId;
+        docs[miss.idx].googleSlidesUrl = googleSlidesUrl ?? undefined;
+      }
+
+      prisma.discoveryDocCache
+        .upsert({
+          where: { atlusDocId: miss.atlusDocId },
+          create: {
+            atlusDocId: miss.atlusDocId,
+            documentTitle: title,
+            driveFileId,
+            mimeType,
+            isGoogleSlides: isSlides,
+            googleSlidesUrl,
+          },
+          update: {
+            documentTitle: title,
+            driveFileId,
+            mimeType,
+            isGoogleSlides: isSlides,
+            googleSlidesUrl,
+            resolvedAt: new Date(),
+          },
+        })
+        .catch((err) => {
+          console.warn(`[discovery] Cache write failed for ${miss.atlusDocId}:`, err);
+        });
+    }
+  }
+
+  // ── Phase A: Bulk list all Slides presentations (one paginated call) ──
+  const allSlides = await driveListAll(
+    `mimeType = '${GOOGLE_SLIDES_MIME}' and trashed = false`,
+  );
+  console.log(`[discovery] Phase A: bulk listed ${allSlides.length} presentations from Drive`);
+  if (allSlides.length > 0) {
+    console.log(`[discovery] Sample Drive names: ${allSlides.slice(0, 5).map((f) => f.name).join(", ")}`);
+  }
+  const slidesMap = new Map<string, (typeof allSlides)[0]>();
+  for (const f of allSlides) {
+    slidesMap.set(normalize(f.name), f);
+  }
+
+  // Group misses by title for dedup
+  const titleGroups = new Map<string, typeof misses>();
+  for (const miss of misses) {
+    const group = titleGroups.get(miss.title) ?? [];
+    group.push(miss);
+    titleGroups.set(miss.title, group);
+  }
+
+  // Try matching each title against the bulk list
+  const stillUnresolved: [string, typeof misses][] = [];
+  for (const [title, group] of titleGroups) {
+    const match = pickBestMatch(title, allSlides);
+    if (match) {
+      console.log(`[discovery] Phase A matched: "${title}" → "${match.name}" (score: ${match.score})`);
+      applyResult(group, title, match);
+    } else {
+      console.log(`[discovery] Phase A miss: "${title}" (normalized: "${normalize(title)}")`);
+      stillUnresolved.push([title, group]);
+    }
+  }
+
+  // ── Phase B: Targeted keyword search for titles not found in bulk list ──
+  if (stillUnresolved.length > 0) {
+    console.log(`[discovery] Phase B: ${stillUnresolved.length} unresolved titles, doing targeted search`);
+    const targetedLookups = stillUnresolved.map(async ([title, group]) => {
+      const searchTerms = normalize(title)
+        .split(/\s+/)
+        .filter((w) => w.length > 2);
+      const keywords = searchTerms.slice(0, 3);
+
+      if (keywords.length === 0) {
+        console.log(`[discovery] Phase B skip: "${title}" — no usable keywords`);
+        applyResult(group, title, null);
+        return;
+      }
+
+      const nameFilters = keywords.map((kw) => {
+        const escaped = kw.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        return `name contains '${escaped}'`;
+      });
+      const q = [
+        `mimeType = '${GOOGLE_SLIDES_MIME}'`,
+        "trashed = false",
+        ...nameFilters,
+      ].join(" and ");
+
+      console.log(`[discovery] Phase B query for "${title}": ${q}`);
+      const files = await driveQuery(q);
+      console.log(`[discovery] Phase B results for "${title}": ${files.length} files${files.length > 0 ? ` — ${files.map((f) => f.name).join(", ")}` : ""}`);
+      const match = pickBestMatch(title, files);
+
+      // If AND query didn't find anything, try with fewer keywords (OR-style fallback)
+      if (!match && keywords.length > 1) {
+        const longestKw = keywords.sort((a, b) => b.length - a.length)[0];
+        const escaped = longestKw.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        const fallbackQ = `mimeType = '${GOOGLE_SLIDES_MIME}' and trashed = false and name contains '${escaped}'`;
+        console.log(`[discovery] Phase B fallback for "${title}": keyword="${longestKw}"`);
+        const fallbackFiles = await driveQuery(fallbackQ);
+        console.log(`[discovery] Phase B fallback results for "${title}": ${fallbackFiles.length} files${fallbackFiles.length > 0 ? ` — ${fallbackFiles.map((f) => f.name).join(", ")}` : ""}`);
+        const fallbackMatch = pickBestMatch(title, fallbackFiles);
+        if (fallbackMatch) {
+          console.log(`[discovery] Phase B fallback matched: "${title}" → "${fallbackMatch.name}" (score: ${fallbackMatch.score})`);
+        } else {
+          console.log(`[discovery] Phase B: no match found for "${title}"`);
+        }
+        applyResult(group, title, fallbackMatch);
+        return;
+      }
+
+      if (match) {
+        console.log(`[discovery] Phase B matched: "${title}" → "${match.name}" (score: ${match.score})`);
+      } else {
+        console.log(`[discovery] Phase B: no match found for "${title}"`);
+      }
+      applyResult(group, title, match);
+    });
+
+    await Promise.all(targetedLookups);
+  }
+}
 
 function startStalenessPolling() {
   if (!process.env.GOOGLE_CLOUD_PROJECT) {
@@ -1613,14 +1933,11 @@ export const mastra = new Mastra({
               });
             }
 
-            // Query already-ingested content hashes
-            const ingested = await prisma.slideEmbedding.findMany({
-              where: { archived: false },
-              select: { contentHash: true },
+            // Query already-ingested presentation IDs from Template table
+            const ingestedTemplates = await prisma.template.findMany({
+              select: { presentationId: true },
             });
-            const ingestedHashes = ingested
-              .map((r) => r.contentHash)
-              .filter((h): h is string => h !== null);
+            const ingestedHashes = ingestedTemplates.map((t) => t.presentationId);
 
             // Parse raw MCP result — discover_documents returns { text, total }
             // where text is a formatted string with document blocks separated by "=============="
@@ -1702,6 +2019,11 @@ export const mastra = new Mastra({
               documents = [{ textContent: rawResult, source: "mcp" }];
             }
 
+            // Enrich documents with Drive MIME type to detect Google Slides
+            const googleAuth = await extractGoogleAuth(c);
+            console.log(`[discovery/browse] Google auth: hasToken=${!!googleAuth.accessToken}, userId=${googleAuth.userId ?? "none"}, docs=${documents.length}`);
+            await enrichDocsWithDriveMetadata(documents as Record<string, unknown>[], googleAuth);
+
             return c.json({ documents, nextCursor, totalDocuments, ingestedHashes });
           } catch (err) {
             console.error("[discovery/browse] Error:", err);
@@ -1728,14 +2050,15 @@ export const mastra = new Mastra({
               limit: 30,
             });
 
-            // Query already-ingested content hashes
-            const ingested = await prisma.slideEmbedding.findMany({
-              where: { archived: false },
-              select: { contentHash: true },
+            // Enrich results with Drive MIME type to detect Google Slides
+            const googleAuth = await extractGoogleAuth(c);
+            await enrichDocsWithDriveMetadata(results as unknown as Record<string, unknown>[], googleAuth);
+
+            // Query already-ingested presentation IDs from Template table
+            const ingestedTemplates = await prisma.template.findMany({
+              select: { presentationId: true },
             });
-            const ingestedHashes = ingested
-              .map((r) => r.contentHash)
-              .filter((h): h is string => h !== null);
+            const ingestedHashes = ingestedTemplates.map((t) => t.presentationId);
 
             return c.json({ results, ingestedHashes });
           } catch (err) {
@@ -1754,7 +2077,7 @@ export const mastra = new Mastra({
         },
       }),
 
-      // POST /discovery/ingest -- Start batch ingestion of selected discovery items
+      // POST /discovery/ingest -- Create Template records and trigger ingestion for Google Slides
       registerApiRoute("/discovery/ingest", {
         method: "POST",
         handler: async (c) => {
@@ -1768,6 +2091,8 @@ export const mastra = new Mastra({
                     documentTitle: z.string(),
                     textContent: z.string(),
                     speakerNotes: z.string().default(""),
+                    presentationId: z.string().min(1),
+                    googleSlidesUrl: z.string().url(),
                     metadata: z.record(z.string(), z.unknown()).default({}),
                   }),
                 ),
@@ -1792,16 +2117,9 @@ export const mastra = new Mastra({
                 try {
                   batchItems.set(item.slideId, { status: "ingesting" });
 
-                  // Generate content hash
-                  const contentHash = computeContentHash(
-                    item.textContent,
-                    item.speakerNotes,
-                    item.slideId,
-                  );
-
-                  // Check for duplicate
-                  const existing = await prisma.slideEmbedding.findFirst({
-                    where: { contentHash, archived: false },
+                  // Check if Template already exists for this presentationId
+                  const existing = await prisma.template.findUnique({
+                    where: { presentationId: item.presentationId },
                     select: { id: true },
                   });
                   if (existing) {
@@ -1809,35 +2127,58 @@ export const mastra = new Mastra({
                     continue;
                   }
 
-                  // Generate embedding via Vertex AI
-                  const embeddingText = [
-                    item.documentTitle,
-                    item.textContent,
-                    item.speakerNotes,
-                  ]
-                    .filter(Boolean)
-                    .join("\n");
-                  const embedding = await generateEmbedding(embeddingText);
+                  // Check Drive access using pooled auth
+                  let accessStatus = "not_checked";
+                  let sourceModifiedAt: Date | null = null;
+                  let templateName = item.documentTitle || "Untitled Presentation";
 
-                  // Generate a simple cuid-like ID
-                  const id = `c${Date.now().toString(36)}${Math.random().toString(36).substring(2, 12)}`;
+                  try {
+                    const { accessToken } = await getPooledGoogleAuth();
+                    const drive = getDriveClient(accessToken ? { accessToken } : undefined);
+                    const fileRes = await drive.files.get({
+                      fileId: item.presentationId,
+                      fields: "id,name,modifiedTime",
+                      supportsAllDrives: true,
+                    });
+                    accessStatus = "accessible";
+                    templateName = fileRes.data.name || templateName;
+                    if (fileRes.data.modifiedTime) {
+                      sourceModifiedAt = new Date(fileRes.data.modifiedTime);
+                    }
+                  } catch (driveErr: unknown) {
+                    const errCode =
+                      driveErr &&
+                      typeof driveErr === "object" &&
+                      "code" in driveErr
+                        ? (driveErr as { code: number }).code
+                        : 0;
+                    if (errCode === 403 || errCode === 404) {
+                      accessStatus = "not_accessible";
+                    } else {
+                      throw driveErr;
+                    }
+                  }
 
-                  // Store SlideEmbedding record via raw SQL for pgvector
-                  await prisma.$executeRaw`
-                    INSERT INTO "SlideEmbedding" (
-                      id, "templateId", "slideIndex", "slideObjectId",
-                      "contentText", "speakerNotes", "contentHash",
-                      embedding, "classificationJson", confidence,
-                      "reviewStatus", "needsReReview", archived,
-                      "createdAt", "updatedAt"
-                    ) VALUES (
-                      ${id}, 'atlus-discovery', 0, ${item.slideId},
-                      ${item.textContent}, ${item.speakerNotes}, ${contentHash},
-                      ${toSql(embedding)}::vector, ${JSON.stringify(item.metadata)}, ${0.5},
-                      'unreviewed', false, false,
-                      NOW(), NOW()
-                    )
-                  `;
+                  // Create Template record (same as POST /templates flow)
+                  const template = await prisma.template.create({
+                    data: {
+                      name: templateName,
+                      googleSlidesUrl: item.googleSlidesUrl,
+                      presentationId: item.presentationId,
+                      touchTypes: JSON.stringify([]),
+                      accessStatus,
+                      sourceModifiedAt,
+                    },
+                  });
+
+                  // Auto-trigger ingestion if accessible (same as Templates page flow)
+                  if (accessStatus === "accessible") {
+                    await prisma.template.update({
+                      where: { id: template.id },
+                      data: { ingestionStatus: "queued" },
+                    });
+                    ingestionQueue.enqueue(template.id);
+                  }
 
                   batchItems.set(item.slideId, { status: "done" });
                 } catch (err) {

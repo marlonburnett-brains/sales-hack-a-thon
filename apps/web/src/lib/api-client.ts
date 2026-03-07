@@ -807,6 +807,9 @@ export interface DiscoveryDocument {
   slideObjectId?: string;
   source?: "mcp" | "drive";
   relevanceScore?: number;
+  mimeType?: string;
+  isGoogleSlides?: boolean;
+  googleSlidesUrl?: string;
 }
 
 export interface BrowseResult {
@@ -838,18 +841,18 @@ export async function checkAtlusAccess(): Promise<AccessCheckResult> {
 export async function browseDiscovery(params: { cursor?: string; limit?: number }): Promise<BrowseResult> {
   const qs = new URLSearchParams({ limit: String(params.limit ?? 20) });
   if (params.cursor) qs.set("cursor", params.cursor);
-  return fetchJSON<BrowseResult>(`/discovery/browse?${qs}`);
+  return fetchWithGoogleAuth<BrowseResult>(`/discovery/browse?${qs}`);
 }
 
 export async function searchDiscovery(query: string): Promise<SearchResult> {
-  return fetchJSON<SearchResult>("/discovery/search", {
+  return fetchWithGoogleAuth<SearchResult>("/discovery/search", {
     method: "POST",
     body: JSON.stringify({ query }),
   });
 }
 
 export async function startDiscoveryIngestion(items: DiscoveryDocument[]): Promise<{ batchId: string }> {
-  return fetchJSON<{ batchId: string }>("/discovery/ingest", {
+  return fetchWithGoogleAuth<{ batchId: string }>("/discovery/ingest", {
     method: "POST",
     body: JSON.stringify({ items }),
   });
