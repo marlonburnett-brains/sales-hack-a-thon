@@ -85,9 +85,9 @@ export function TemplateCard({
       })
     : "Never";
 
-  // Poll ingestion progress when status is "ingesting"
+  // Poll ingestion progress when status is "ingesting" or "queued"
   useEffect(() => {
-    if (status !== "ingesting") {
+    if (status !== "ingesting" && status !== "queued") {
       setProgress(null);
       return;
     }
@@ -95,6 +95,19 @@ export function TemplateCard({
     const interval = setInterval(async () => {
       try {
         const p = await getIngestionProgressAction(template.id);
+
+        // When queued, check if backend has transitioned to ingesting
+        if (status === "queued") {
+          if (p && (p.status === "ingesting" || p.status === "idle" || p.status === "failed")) {
+            // Status has changed -- refresh template data so the card re-renders
+            // with the correct status, which will re-trigger this effect
+            clearInterval(interval);
+            onRefresh?.();
+          }
+          return;
+        }
+
+        // status === "ingesting" -- track progress
         if (p && p.current > 0) {
           setProgress({ current: p.current, total: p.total });
         }
@@ -217,7 +230,7 @@ export function TemplateCard({
                   Retry Access
                 </DropdownMenuItem>
               )}
-              {(status === "not_ingested" || status === "stale" || status === "ready") && (
+              {(status === "not_ingested" || status === "stale" || status === "ready" || status === "failed") && (
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
@@ -226,7 +239,7 @@ export function TemplateCard({
                   className="cursor-pointer"
                 >
                   <Play className="mr-2 h-4 w-4" />
-                  {status === "ready" ? "Re-ingest" : "Ingest"}
+                  {status === "ready" || status === "failed" ? "Re-ingest" : "Ingest"}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
