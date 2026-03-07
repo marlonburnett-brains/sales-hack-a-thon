@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 29 of 29 (Discovery UI)
 Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-07 - Completed 29-02: Discovery browse/search UI with infinite scroll, debounced search, preview panel
+Last activity: 2026-03-07 - Completed quick task 7: ingestion failed templates should have the re-ingest option available
 
 Progress: [██████████] 95%
 
