@@ -77,7 +77,7 @@
 **Milestone Goal:** Fix UX gaps (thumbnails, ingestion status, feedback latency), deepen slide intelligence (descriptions, element maps), add content classification (Template vs Example), and build Settings page with AI-inferred deck structures per touch.
 
 - [x] **Phase 32: UX Polish** - Discovery thumbnails, consistent ingestion status, and immediate ingest feedback (completed 2026-03-07)
-- [ ] **Phase 33: Slide Intelligence Foundation** - Rich descriptions, element maps, and content classification
+- [x] **Phase 33: Slide Intelligence Foundation** - Rich descriptions, element maps, and content classification (completed 2026-03-07)
 - [ ] **Phase 34: Deck Intelligence** - Settings page with AI-inferred deck structures and chat refinement
 
 ## Phase Details
@@ -167,5 +167,5 @@ Plans:
 | 30. Verification & Doc Reconciliation | v1.4 | 1/1 | Complete | 2026-03-07 |
 | 31. Tech Debt Cleanup | v1.4 | 1/1 | Complete | 2026-03-07 |
 | 32. UX Polish | v1.5 | 2/2 | Complete | 2026-03-07 |
-| 33. Slide Intelligence Foundation | 2/3 | In Progress|  | - |
+| 33. Slide Intelligence Foundation | 3/3 | Complete   | 2026-03-07 | - |
 | 34. Deck Intelligence | v1.5 | 0/TBD | Not started | - |

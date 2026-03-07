@@ -17,11 +17,11 @@ Requirements for milestone v1.5 Review Polish & Deck Intelligence. Each maps to 
 
 ### Slide Intelligence
 
-- [ ] **SLI-01**: System generates rich AI description for each slide during ingestion (purpose, visual composition, key content, use cases)
+- [x] **SLI-01**: System generates rich AI description for each slide during ingestion (purpose, visual composition, key content, use cases)
 - [x] **SLI-02**: Slide descriptions are visible in the per-template slide viewer metadata panel
-- [ ] **SLI-03**: System extracts structured element map from Google Slides API during ingestion (element ID, type, position, content, styling)
-- [ ] **SLI-04**: Element maps are stored per slide and accessible for downstream consumption
-- [ ] **SLI-05**: System backfills descriptions and element maps for already-ingested slides on re-ingestion
+- [x] **SLI-03**: System extracts structured element map from Google Slides API during ingestion (element ID, type, position, content, styling)
+- [x] **SLI-04**: Element maps are stored per slide and accessible for downstream consumption
+- [x] **SLI-05**: System backfills descriptions and element maps for already-ingested slides on re-ingestion
 
 ### Content Classification
 
@@ -74,11 +74,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UXP-03 | Phase 32 | Complete |
 | UXP-04 | Phase 32 | Complete |
 | UXP-05 | Phase 32 | Complete |
-| SLI-01 | Phase 33 | Pending |
+| SLI-01 | Phase 33 | Complete |
 | SLI-02 | Phase 33 | Complete |
-| SLI-03 | Phase 33 | Pending |
-| SLI-04 | Phase 33 | Pending |
-| SLI-05 | Phase 33 | Pending |
+| SLI-03 | Phase 33 | Complete |
+| SLI-04 | Phase 33 | Complete |
+| SLI-05 | Phase 33 | Complete |
 | CCL-01 | Phase 33 | Complete |
 | CCL-02 | Phase 33 | Complete |
 | CCL-03 | Phase 33 | Complete |
