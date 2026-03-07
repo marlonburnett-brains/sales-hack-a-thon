@@ -810,6 +810,15 @@ export interface DiscoveryDocument {
   mimeType?: string;
   isGoogleSlides?: boolean;
   googleSlidesUrl?: string;
+  thumbnailUrl?: string;
+  templateData?: {
+    ingestionStatus: string;
+    lastIngestedAt: string | null;
+    sourceModifiedAt: string | null;
+    slideCount: number | null;
+    ingestionProgress?: number;
+    accessStatus: string;
+  };
 }
 
 export interface BrowseResult {
