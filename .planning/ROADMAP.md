@@ -137,7 +137,7 @@ Plans:
 
 Plans:
 - [x] 37-01-PLAN.md — Add shared Touch 4 artifact classification controls and persist `artifactType` through the classify flow
-- [ ] 37-02-PLAN.md — Convert Touch 4 settings into artifact tabs with per-tab confidence, empty states, and scoped chat
+- [x] 37-02-PLAN.md — Convert Touch 4 settings into artifact tabs with per-tab confidence, empty states, and scoped chat
 - [ ] 37-03-PLAN.md — Wire both classify surfaces to the shared Touch 4 control and show saved artifact badges
 
 ## Progress
