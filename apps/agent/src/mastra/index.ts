@@ -13,6 +13,7 @@ import { extractGoogleAuth } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { detectAndQueueBackfill } from "../ingestion/backfill-descriptions";
+import { autoClassifyTemplates, autoIngestNewTemplates } from "../ingestion/auto-classify-templates";
 import { encryptToken } from "../lib/token-encryption";
 import {
   detectAtlusAccess,
@@ -34,6 +35,9 @@ import crypto from "node:crypto";
 const STALENESS_POLL_INTERVAL = 300_000; // 5 minutes
 const STALENESS_INITIAL_DELAY = 10_000; // 10 seconds after startup
 const DRIVE_API_DELAY = 200; // 200ms between Drive API calls
+
+const AUTO_CLASSIFY_INTERVAL = 600_000; // 10 minutes
+const AUTO_CLASSIFY_INITIAL_DELAY = 30_000; // 30 seconds after startup
 
 // ────────────────────────────────────────────────────────────
 // Discovery Batch Ingestion State (Phase 29)
@@ -2485,6 +2489,17 @@ export const mastra = new Mastra({
 
 // Start background staleness polling after Mastra is initialized
 startStalenessPolling();
+
+// Auto-classify and auto-ingest timer
+setTimeout(() => {
+  async function runAutoTasks() {
+    await autoIngestNewTemplates();
+    await autoClassifyTemplates();
+  }
+  void runAutoTasks();
+  setInterval(() => void runAutoTasks(), AUTO_CLASSIFY_INTERVAL);
+  console.log("[auto-tasks] Background auto-classify/ingest started (interval: 10m)");
+}, AUTO_CLASSIFY_INITIAL_DELAY);
 
 // ── MCP Client Initialization ──
 initMcp().catch((err) => console.error("[mcp] Init failed:", err));
