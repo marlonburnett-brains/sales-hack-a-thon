@@ -897,3 +897,69 @@ export async function startDiscoveryIngestion(items: DiscoveryDocument[]): Promi
 export async function getDiscoveryIngestionProgress(batchId: string): Promise<IngestionProgressResult> {
   return fetchJSON<IngestionProgressResult>(`/discovery/ingest/${batchId}/progress`);
 }
+
+// ────────────────────────────────────────────────────────────
+// Deck Structures (Phase 34 -- DKI-03/04/05/06/07)
+// ────────────────────────────────────────────────────────────
+
+export interface DeckStructureSummary {
+  id: string | null;
+  touchType: string;
+  exampleCount: number;
+  confidence: number;
+  confidenceColor: "green" | "yellow" | "red";
+  confidenceLabel: string;
+  sectionCount: number;
+  inferredAt: string | null;
+  lastChatAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface DeckSectionData {
+  order: number;
+  name: string;
+  purpose: string;
+  isOptional: boolean;
+  variationCount: number;
+  slideIds: string[];
+}
+
+export interface DeckStructureDetail {
+  touchType: string;
+  structure: {
+    sections: DeckSectionData[];
+    sequenceRationale: string;
+  };
+  exampleCount: number;
+  confidence: number;
+  confidenceColor: "green" | "yellow" | "red";
+  confidenceLabel: string;
+  chatMessages: DeckChatMessageData[];
+  inferredAt: string | null;
+  lastChatAt: string | null;
+}
+
+export interface DeckChatMessageData {
+  id: string;
+  deckStructureId: string;
+  role: "user" | "assistant";
+  content: string;
+  structureDiff: string | null;
+  createdAt: string;
+}
+
+export async function getDeckStructures(): Promise<DeckStructureSummary[]> {
+  return fetchJSON<DeckStructureSummary[]>("/deck-structures");
+}
+
+export async function getDeckStructure(touchType: string): Promise<DeckStructureDetail> {
+  return fetchJSON<DeckStructureDetail>(`/deck-structures/${encodeURIComponent(touchType)}`);
+}
+
+export async function triggerDeckInference(
+  touchType: string,
+): Promise<{ touchType: string; structure: unknown; confidence: number }> {
+  return fetchJSON(`/deck-structures/${encodeURIComponent(touchType)}/infer`, {
+    method: "POST",
+  });
+}

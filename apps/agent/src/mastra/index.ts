@@ -31,6 +31,7 @@ import { TOUCH_TYPES } from "@lumenalta/schemas";
 import { startDeckInferenceCron } from "../deck-intelligence/auto-infer-cron";
 import { inferDeckStructure } from "../deck-intelligence/infer-deck-structure";
 import { calculateConfidence } from "../deck-intelligence/deck-structure-schema";
+import { streamChatRefinement } from "../deck-intelligence/chat-refinement";
 
 // ────────────────────────────────────────────────────────────
 // Background Staleness Polling
@@ -2636,6 +2637,65 @@ export const mastra = new Mastra({
             console.error(`[deck-structures] Inference failed for ${touchType}: ${message}`);
             return c.json({ error: "Inference failed", details: message }, 500);
           }
+        },
+      }),
+
+      // POST /deck-structures/:touchType/chat -- Streaming chat refinement
+      registerApiRoute("/deck-structures/:touchType/chat", {
+        method: "POST",
+        handler: async (c) => {
+          const touchType = c.req.param("touchType");
+          const body = await c.req.json<{ message: string }>();
+
+          if (!body.message?.trim()) {
+            return c.json({ error: "Message is required" }, 400);
+          }
+
+          // Use ReadableStream for streaming response
+          const stream = new ReadableStream({
+            async start(controller) {
+              const encoder = new TextEncoder();
+              try {
+                const result = await streamChatRefinement(
+                  touchType,
+                  body.message.trim(),
+                  (chunk) => {
+                    controller.enqueue(encoder.encode(chunk));
+                  },
+                );
+
+                // Write delimiter and structure update payload
+                controller.enqueue(
+                  encoder.encode("\n---STRUCTURE_UPDATE---\n"),
+                );
+                controller.enqueue(
+                  encoder.encode(
+                    JSON.stringify({
+                      updatedStructure: result.updatedStructure,
+                      diff: result.diff,
+                    }),
+                  ),
+                );
+
+                controller.close();
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                console.error(`[deck-chat] Chat failed for ${touchType}: ${message}`);
+                controller.enqueue(
+                  encoder.encode(`\n[Error: ${message}]`),
+                );
+                controller.close();
+              }
+            },
+          });
+
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+              "Transfer-Encoding": "chunked",
+              "Cache-Control": "no-cache",
+            },
+          });
         },
       }),
     ],
