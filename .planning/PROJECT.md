@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. Templates can be registered from Google Slides, AI-ingested with vector embeddings and multi-axis classification, previewed with human rating and tag correction, and searched by similarity. All outputs are saved to shared Lumenalta Drive. Google API access uses user-delegated OAuth credentials (with service account fallback), providing org-wide file access through authenticated users' permissions. AtlusAI content is accessed via Mastra MCP client with pooled token auth, 3-tier access detection, and a discovery UI for browsing/searching/ingesting content via semantic search. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
+A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. Templates can be registered from Google Slides, AI-ingested with vector embeddings, multi-axis classification, rich AI descriptions, and structured element maps, then previewed with human rating and tag correction, and searched by similarity. Content is classified as Template or Example with touch type binding, enabling AI-inferred deck structures per touch type with confidence scoring and conversational chat refinement. A Settings page provides deck structure visualization and integration status. All outputs are saved to shared Lumenalta Drive. Google API access uses user-delegated OAuth credentials (with service account fallback), providing org-wide file access through authenticated users' permissions. AtlusAI content is accessed via Mastra MCP client with pooled token auth, 3-tier access detection, and a discovery UI for browsing/searching/ingesting content via semantic search. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
 
 ## Core Value
 
@@ -118,20 +118,30 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - ✓ Discovery UI with browse/search views, batch selective ingestion, and dedup markers -- v1.4
 - ✓ Chunked LLM extraction for large MCP results (32K threshold) -- v1.4
 
+**UX Polish** -- v1.5
+- ✓ Gallery-style Discovery cards with GCS-cached thumbnails and file-type corner badges -- v1.5
+- ✓ Unified ingestion status (IngestionStatusBadge + IngestionProgress) across Discovery and Templates -- v1.5
+- ✓ Optimistic ingest UI with per-item toast lifecycle and client+server duplicate prevention -- v1.5
+
+**Slide Intelligence v2** -- v1.5
+- ✓ Rich AI-generated slide descriptions (purpose, visual composition, key content, use cases) via Gemini structured output -- v1.5
+- ✓ Structured element map extraction from Google Slides pageElements with per-slide storage -- v1.5
+- ✓ Backfill detection and automatic re-ingestion for slides missing descriptions or element maps -- v1.5
+
+**Content Classification** -- v1.5
+- ✓ Template/Example classification with touch type binding and Popover-based classify UI -- v1.5
+- ✓ "Action Required" amber badge for ingested but unclassified presentations -- v1.5
+
+**Deck Intelligence** -- v1.5
+- ✓ Settings page with sidebar navigation and vertical tab sub-navigation -- v1.5
+- ✓ AI-inferred deck structures per touch type with section flow, variations, and reference slides -- v1.5
+- ✓ Confidence scoring based on classified example count (red/yellow/green tiers) -- v1.5
+- ✓ Streaming chat refinement with LLM re-inference, diff highlights, and context summarization -- v1.5
+- ✓ Cron-based auto-inference with SHA-256 change detection and active session protection -- v1.5
+
 ### Active
 
-## Current Milestone: v1.5 Review Polish & Deck Intelligence
-
-**Goal:** Fix UX gaps identified in review (thumbnail previews, ingestion status consistency, feedback latency), deepen slide intelligence (rich descriptions, structured element maps), add content classification (Template vs Example with touch binding), and build Settings page with AI-inferred deck structures per touch.
-
-**Target features:**
-- Discovery document card thumbnails and file-type icons
-- Consistent ingestion status across Discovery and Templates pages
-- Immediate feedback on ingest click with optimistic UI
-- Rich AI-generated slide descriptions during ingestion
-- Structured element map extraction via Google Slides API
-- Template vs Example classification with touch binding
-- Settings page with Deck Structures and AI chat refinement
+(No active requirements -- planning next milestone)
 
 ### Out of Scope
 
@@ -151,7 +161,7 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ## Context
 
-**Current state:** v1.4 shipped. ~35,315 LOC TypeScript/TSX. 31 phases, 65 plans across 5 milestones over 5 days (2026-03-03 → 2026-03-07). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
+**Current state:** v1.5 shipped. ~40,833 LOC TypeScript/TSX. 34 phases, 73 plans across 6 milestones over 5 days (2026-03-03 → 2026-03-07). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
 
 **Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification fallback), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI via Mastra MCP client (RAG + knowledge base + semantic search), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications), @mastra/mcp (MCP SSE transport).
 
@@ -218,6 +228,17 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | slideId-based ingestion check over SHA-256 | Simpler dedup, avoids client-side hashing | ✓ Good — effective dedup |
 | Chunked LLM extraction at 32K threshold | Array-level chunking with parallel Promise.all | ✓ Good — handles large MCP results without data loss |
 | Fire-and-forget persistAtlusClientId | Avoids blocking MCP init for non-critical persistence | ✓ Good — fast startup |
+| Fire-and-forget GCS cover thumbnail caching | First browse triggers cache, second browse serves; no blocking | ✓ Good — progressive loading UX |
+| useRef<Set> for client-side duplicate prevention | Synchronous guard avoids React state delay on rapid clicks | ✓ Good — complements server-side guard |
+| Gemini structured output for slide descriptions | 4-field JSON (purpose, visualComposition, keyContent, useCases) | ✓ Good — consistent narrative output |
+| Non-fatal description generation | Failed LLM calls log warning, don't block ingestion pipeline | ✓ Good — resilient pipeline |
+| Prisma CRUD for SlideElement (not raw SQL) | No vector column, standard Prisma operations sufficient | ✓ Good — simpler than raw SQL path |
+| Popover for classify UI in template cards | Lightweight inline interaction, not full Dialog/Modal | ✓ Good — fast classification workflow |
+| Forward-only migrations with manual SQL | Prisma migrate dev broken by 0_init drift; manual + resolve --applied | ✓ Good — per CLAUDE.md discipline |
+| Dedicated pages per touch type | User feedback: accordion too dense; individual pages with nested sub-nav | ✓ Good — cleaner information architecture |
+| Streaming chat with delimiter protocol | Text chunks then ---STRUCTURE_UPDATE--- then JSON payload | ✓ Good — simple parsing, no SSE complexity |
+| SHA-256 data hash for cron change detection | Cron skips re-inference if examples haven't changed | ✓ Good — avoids redundant LLM calls |
+| Active session protection (30-min window) | Cron skips re-inference during active chat sessions | ✓ Good — prevents overwriting user refinements |
 
 ---
-*Last updated: 2026-03-07 after v1.5 milestone start*
+*Last updated: 2026-03-07 after v1.5 milestone*

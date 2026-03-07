@@ -2,6 +2,57 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.5 — Review Polish & Deck Intelligence
+
+**Shipped:** 2026-03-07
+**Phases:** 3 | **Plans:** 8 | **Commits:** 49
+
+### What Was Built
+- Gallery-style Discovery cards with GCS-cached thumbnails, file-type corner badges, and unified status components
+- Optimistic ingest UI with per-item toast lifecycle and dual client+server duplicate prevention
+- AI-generated rich slide descriptions (4-field structured output) wired into ingestion pipeline with startup backfill
+- Structured element map extraction from Google Slides pageElements with per-slide SlideElement storage
+- Template/Example content classification with touch type binding, amber badges, and Popover classify UI
+- Settings page with vertical tab sub-navigation, integration status cards, and per-touch-type deck structure pages
+- AI-inferred deck structures with section flow visualization, confidence badges, streaming chat refinement, and cron auto-inference
+
+### What Worked
+- **Wave-based parallel execution:** Plans 33-01/33-02 and 34-01/34-02 executed in parallel — independent data layer and UI shell plans don't need sequencing
+- **Streaming chat protocol:** Simple delimiter (---STRUCTURE_UPDATE---) separating text from JSON avoids SSE complexity while enabling real-time structure updates
+- **Shared UI components:** IngestionStatusBadge and IngestionProgress created in 32-01, consumed across Discovery and Templates immediately in 32-02
+- **Cron change detection:** SHA-256 data hash + 30-min active session protection window prevents both redundant LLM calls and overwriting user refinements
+- **Classification -> Deck inference pipeline:** Clean cross-phase data flow (Phase 33 writes contentClassification, Phase 34 reads it for inference)
+- **User checkpoint feedback:** Phase 34-03 checkpoint caught accordion vs dedicated pages preference — immediate pivot improved UX
+
+### What Was Inefficient
+- **SUMMARY frontmatter still empty:** 6th milestone with `requirements_completed` not populated — recurring tooling gap
+- **Orphaned DeckStructureView component:** Built accordion view in 34-03 Task 2, replaced with dedicated pages in Task 3 — ~127 lines of dead code shipped
+- **pre_call touch type inconsistency:** Agent returns 5 touch types (including pre_call), UI displays 4 — cosmetic but indicates schema/UI mismatch
+- **Nyquist validation gaps:** Phases 32-33 missing VALIDATION.md entirely, Phase 34 has only a draft — validation discipline slipped for this milestone
+- **Migration drift continues:** Forward-only migrations with manual SQL + resolve --applied used 3 more times across v1.5
+
+### Patterns Established
+- **Fire-and-forget GCS caching:** First browse triggers background cache write, second browse serves cached URL — progressive UX
+- **useRef<Set> for synchronous guards:** Prevents React state delay on rapid clicks — complementary to server-side guards
+- **Gemini structured output for narrative generation:** 4-field JSON schema (purpose, visualComposition, keyContent, useCases) works well for slide descriptions
+- **Non-fatal LLM pipeline stages:** Description generation failures log warning but don't block ingestion — resilient pipeline design
+- **Streaming delimiter protocol:** Text chunks then ---STRUCTURE_UPDATE--- then JSON — simple, no SSE infrastructure needed
+- **Per-entity routing with slug mapping:** URL dashes (touch-1) mapped to internal underscores (touch_1)
+
+### Key Lessons
+1. **Dedicated pages > accordion for complex data:** User checkpoint feedback confirmed that per-touch-type pages with sub-navigation are cleaner than collapsing everything into one accordion page.
+2. **Classification is a foundation feature:** Template/Example classification enables deck structure inference, future similarity enhancements, and assembly pipeline improvements — high leverage.
+3. **Cron + change detection is cost-effective:** 10-min interval with data hash comparison avoids expensive LLM calls while keeping structures fresh.
+4. **Dead code from checkpoint pivots is acceptable tech debt:** Building the initial approach (accordion) and pivoting (dedicated pages) is faster than getting the UX right upfront — clean up later.
+5. **Nyquist validation needs enforcement, not reminders:** 3 phases without VALIDATION.md despite it being part of the workflow — needs gating, not optional.
+
+### Cost Observations
+- Model mix: ~60% sonnet (executors, verifiers), ~25% haiku (researchers), ~15% opus (orchestration, audit)
+- Sessions: ~4 sessions in 1 day
+- Notable: Smallest milestone by phase count (3) but highest feature density — classification + inference + chat is 3 interconnected features
+
+---
+
 ## Milestone: v1.4 — AtlusAI Authentication & Discovery
 
 **Shipped:** 2026-03-07
@@ -255,6 +306,7 @@
 | v1.2 | 37 | 4 | Template intelligence — pgvector, AI classification, HITL rating |
 | v1.3 | 17 | 5 | User-delegated Google OAuth — token storage, passthrough, pool |
 | v1.4 | ~60 | 5 | AtlusAI MCP integration — token pool, semantic search, discovery UI |
+| v1.5 | 49 | 3 | UX polish, slide intelligence v2, content classification, deck intelligence |
 
 ### Cumulative Quality
 
@@ -265,16 +317,17 @@
 | v1.2 | 4 | 4 | 0 (all passed automated verification) |
 | v1.3 | 5 | 5 | 0 (52 tests, Nyquist compliant) |
 | v1.4 | 5 | 5 | 0 (35 requirements, partial Nyquist — meta-phases exempt) |
+| v1.5 | 3 | 1 | 2 (phases 32, 33 — UI-heavy, human verification) |
 
 ### Cumulative Stats
 
-| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | Total |
-|--------|------|------|------|------|------|-------|
-| Phases | 13 | 4 | 4 | 5 | 5 | 31 |
-| Plans | 27 | 6 | 10 | 10 | 12 | 65 |
-| Commits | 169 | 55 | 37 | 17 | ~60 | ~338 |
-| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~35,315 |
-| Days | 2 | 1 | 2 | 1 | 2 | 5 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | Total |
+|--------|------|------|------|------|------|------|-------|
+| Phases | 13 | 4 | 4 | 5 | 5 | 3 | 34 |
+| Plans | 27 | 6 | 10 | 10 | 12 | 8 | 73 |
+| Commits | 169 | 55 | 37 | 17 | ~60 | 49 | ~387 |
+| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~40,833 | ~40,833 |
+| Days | 2 | 1 | 2 | 1 | 2 | 1 | 5 |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -291,3 +344,6 @@
 11. MCP client lifecycle needs active management — SSE connections are fragile, health checks and recycling are essential
 12. Pattern reuse across auth milestones accelerates delivery — v1.3 patterns directly applicable to v1.4
 13. Gap closure phases after audit are efficient — targeted scope, no creep, closes verification and tech debt quickly
+14. Dedicated pages beat accordions for complex data views — user checkpoint feedback confirmed this for deck structures (v1.5)
+15. Classification is a high-leverage foundation feature — enables downstream inference, assembly, and similarity improvements (v1.5)
+16. Streaming delimiter protocol is simpler than SSE for chat — text + ---DELIMITER--- + JSON is easy to parse, no infrastructure needed (v1.5)

@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Review Polish & Deck Intelligence
-status: completed
-stopped_at: Completed 34-03-PLAN.md
-last_updated: "2026-03-07T19:10:23.799Z"
-last_activity: "2026-03-07 — Plan 34-03: Deck structure display & chat refinement UI"
+status: archived
+stopped_at: Milestone v1.5 archived
+last_updated: "2026-03-07T21:30:00.000Z"
+last_activity: "2026-03-07 — Milestone v1.5 archived"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -21,50 +21,28 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Phase 34 — Deck Intelligence
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 34 of 34 (Deck Intelligence)
-Plan: 3 of 3 in current phase (COMPLETE)
-Status: complete
-Last activity: 2026-03-07 — Plan 34-03: Deck structure display & chat refinement UI
+Milestone: v1.5 Review Polish & Deck Intelligence -- ARCHIVED
+Status: archived
+Last activity: 2026-03-07 -- Milestone v1.5 complete and archived
 
-Progress: [██████████] 100%
+Progress: [##########] 100% (all milestones through v1.5 shipped)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 68 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 3)
+- Total plans completed: 73 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8)
 - Total project time: ~5 days (2026-03-03 -> 2026-03-07)
-- Total LOC: ~35,315 TypeScript/TSX
+- Total LOC: ~40,833 TypeScript/TSX
 
 ## Accumulated Context
 
 ### Decisions
 
-All decisions logged in PROJECT.md Key Decisions table (43 decisions total).
-- [Phase 34]: Settings link placed in sidebar bottom section above collapse button, separate from main nav
-- [Phase 34]: Left vertical tabs pattern (GitHub/Linear style) for settings sub-navigation
-- [Phase 34]: Integration cards are read-only status displays with external management links
-- [Phase 32]: Cover thumbnails use fire-and-forget GCS caching pattern (first browse triggers, second browse serves)
-- [Phase 32]: Duplicate ingestion guard: reject ingesting/queued, allow re-ingest for idle
-- [Phase 32]: Local itemStatuses prioritized over server templateData for display status during active ingestion
-- [Phase 32]: Removed large centered DocumentTypeIcon from thumbnail area per user feedback -- corner badge only
-- [Phase 33]: Used inline collapsible sections instead of shadcn Collapsible for description/element panels
-- [Phase 33]: Element map panel collapsed by default, description expanded by default
-- [Phase 33]: Elements included inline in slides API response (not separate endpoint)
-- [Phase 33]: Used Popover (not Dialog) for classify UI in template cards -- lightweight inline interaction
-- [Phase 33]: Classify status shown only for ingested templates with null contentClassification
-- [Phase 33]: Template classification props passed through page -> viewer client -> panel chain
-- [Phase 33]: Description generation is non-fatal; failures log warning and continue ingestion
-- [Phase 33]: Element storage uses Prisma CRUD (not raw SQL) since SlideElement has no vector column
-- [Phase 33]: Schema migration created manually due to 0_init drift, forward-only per CLAUDE.md
-- [Phase 34]: Forward-only migration with manual SQL + resolve --applied for deck structure models
-- [Phase 34]: Deck inference cron uses 10-min interval with SHA-256 data hash change detection and 30-min active session protection
-- [Phase 34]: Dedicated pages per touch type with nested sub-navigation instead of single accordion page
-- [Phase 34]: Agent resolves slideIds to thumbnailUrls server-side in deck structure API response
-- [Phase 34]: Streaming chat uses ---STRUCTURE_UPDATE--- delimiter to separate text from JSON payload
+All decisions logged in PROJECT.md Key Decisions table (55 decisions total through v1.5).
 
 ### Pending Todos
 
@@ -92,6 +70,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T19:05:00.000Z
-Stopped at: Completed 34-03-PLAN.md
-Next action: Phase 34 complete. All plans executed.
+Last session: 2026-03-07T21:30:00.000Z
+Stopped at: Milestone v1.5 archived
+Next action: /gsd:new-milestone to start next milestone cycle

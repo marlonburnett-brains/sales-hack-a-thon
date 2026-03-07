@@ -1,5 +1,29 @@
 # Milestones
 
+## v1.5 Review Polish & Deck Intelligence (Shipped: 2026-03-07)
+
+**Phases:** 3 (32-34) | **Plans:** 8 | **Commits:** 49 | **Files changed:** 83 | **LOC:** ~40,833 TypeScript/TSX (total)
+**Timeline:** 1 day (2026-03-07)
+**Git range:** `550b578..13a741b`
+
+**Key accomplishments:**
+- Gallery-style Discovery cards with GCS-cached thumbnails, file-type corner badges, and unified IngestionStatusBadge across Discovery and Templates pages
+- Optimistic ingest UI with per-item toast lifecycle, ref-based client-side duplicate prevention, and server-side duplicate guard
+- AI-generated rich slide descriptions (purpose, visual composition, key content, use cases) via Gemini 2.0 Flash structured output during ingestion
+- Structured element map extraction from Google Slides pageElements with per-slide SlideElement storage and startup backfill detection
+- Template/Example content classification with touch type binding, amber "Action Required" badges, and Popover-based classify UI
+- AI-inferred deck structures per touch type with confidence scoring, section flow visualization, streaming chat refinement, and cron-based auto-inference with change detection
+
+**Tech debt (accepted):**
+- SUMMARY frontmatter `requirements_completed` entries incomplete across all v1.5 phases (metadata gap only)
+- `DeckStructureView` accordion component orphaned after switch to per-touch-type pages (~127 lines dead code)
+- `GET /deck-structures` returns `pre_call` entry but UI only displays 4 touch types (cosmetic, no user impact)
+- Nyquist validation missing for phases 32-33, partial for phase 34
+
+**Archives:** [v1.5-ROADMAP.md](milestones/v1.5-ROADMAP.md) | [v1.5-REQUIREMENTS.md](milestones/v1.5-REQUIREMENTS.md) | [v1.5-MILESTONE-AUDIT.md](milestones/v1.5-MILESTONE-AUDIT.md)
+
+---
+
 ## v1.4 AtlusAI Authentication & Discovery (Shipped: 2026-03-07)
 
 **Phases:** 5 (27-31) | **Plans:** 12 | **Commits:** ~60 (feat/fix) | **Files changed:** 263 | **LOC:** ~35,315 TypeScript/TSX (total)
