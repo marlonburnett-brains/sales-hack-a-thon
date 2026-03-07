@@ -42,12 +42,13 @@ commands:
 
             # Check if any changed file is outside docs/planning-only paths
             HAS_WEB_CHANGES=false
+            printf '%s\n' "$CHANGED_FILES" > /tmp/web_changed_files.txt
             while IFS= read -r file; do
               case "$file" in
                 .planning/*|*.md|docs/*) ;;
                 *) HAS_WEB_CHANGES=true; break ;;
               esac
-            done <<< "$CHANGED_FILES"
+            done < /tmp/web_changed_files.txt
 
             if [ "$HAS_WEB_CHANGES" = "false" ]; then
               echo "Only docs/planning changes detected — skipping web deploy."
@@ -67,12 +68,13 @@ commands:
             echo "$CHANGED_FILES"
 
             HAS_AGENT_CHANGES=false
+            printf '%s\n' "$CHANGED_FILES" > /tmp/agent_changed_files.txt
             while IFS= read -r file; do
               case "$file" in
                 .planning/*|*.md|docs/*) ;;
                 *) HAS_AGENT_CHANGES=true; break ;;
               esac
-            done <<< "$CHANGED_FILES"
+            done < /tmp/agent_changed_files.txt
 
             if [ "$HAS_AGENT_CHANGES" = "false" ]; then
               echo "Only docs/planning changes detected — skipping agent deploy."
@@ -161,15 +163,14 @@ jobs:
             WORKFLOW_URL="https://app.circleci.com/pipelines/workflows/$CIRCLE_WORKFLOW_ID"
             SUBJECT="[Deploy Success] $CIRCLE_PROJECT_REPONAME on $CIRCLE_BRANCH"
 
-            cat > /tmp/resend-payload.json <<EOF
-            {
-              "from": "$RESEND_FROM_EMAIL",
-              "to": ["$RECIPIENT"],
-              "subject": "$SUBJECT",
-              "text": "Hi team, a new AtlusDeck build is ready for testing: https://lumenalta-hackathon.vercel.app\n\nCommit: $CIRCLE_SHA1\nWorkflow: $WORKFLOW_URL",
-              "html": "<p>Hi team, a new AtlusDeck build is ready for testing: <a href=\"https://lumenalta-hackathon.vercel.app\">https://lumenalta-hackathon.vercel.app</a>.</p><p><strong>Commit:</strong> <code>$CIRCLE_SHA1</code><br /><strong>Workflow:</strong> <a href=\"$WORKFLOW_URL\">Open workflow</a></p>"
-            }
-            EOF
+            printf '%s\n' \
+              '{' \
+              "  \"from\": \"$RESEND_FROM_EMAIL\"," \
+              "  \"to\": [\"$RECIPIENT\"]," \
+              "  \"subject\": \"$SUBJECT\"," \
+              "  \"text\": \"Hi team, a new AtlusDeck build is ready for testing: https://lumenalta-hackathon.vercel.app\\n\\nCommit: $CIRCLE_SHA1\\nWorkflow: $WORKFLOW_URL\"," \
+              "  \"html\": \"<p>Hi team, a new AtlusDeck build is ready for testing: <a href=\\\"https://lumenalta-hackathon.vercel.app\\\">https://lumenalta-hackathon.vercel.app</a>.</p><p><strong>Commit:</strong> <code>$CIRCLE_SHA1</code><br /><strong>Workflow:</strong> <a href=\\\"$WORKFLOW_URL\\\">Open workflow</a></p>\"" \
+              '}' > /tmp/resend-payload.json
 
             curl --fail --silent --show-error https://api.resend.com/emails \
               -H "Authorization: Bearer $RESEND_API_KEY" \
