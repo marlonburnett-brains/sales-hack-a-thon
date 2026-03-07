@@ -88,7 +88,7 @@
 
 - [x] **Phase 35: Schema & Constants Foundation** (2/2 plans) - Prisma migrations for artifactType columns and shared constants (completed 2026-03-07)
 - [x] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation (completed 2026-03-07)
-- [x] **Phase 37: Frontend UI** - Classify UI artifact selector and Settings tabbed deck structure views (completed 2026-03-07)
+- [x] **Phase 37: Frontend UI** - Classify UI artifact selector, Settings tabbed deck structure views, and slide-viewer badge hydration (completed 2026-03-07)
 
 ## Phase Details
 
@@ -133,12 +133,13 @@ Plans:
   3. Settings Touch 4 page shows three tabs (Proposal / Talk Track / FAQ) each with its own deck structure display
   4. Each Touch 4 artifact tab shows independent confidence scoring based on classified example count for that specific artifact type
   5. Chat refinement on each tab is scoped to the correct artifact type structure
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
 - [x] 37-01-PLAN.md — Add shared Touch 4 artifact classification controls and persist `artifactType` through the classify flow
 - [x] 37-02-PLAN.md — Convert Touch 4 settings into artifact tabs with per-tab confidence, empty states, and scoped chat
 - [x] 37-03-PLAN.md — Wire both classify surfaces to the shared Touch 4 control and show saved artifact badges
+- [x] 37-04-PLAN.md — Hydrate persisted slide-viewer artifact badges after reload
 
 ## Progress
 
@@ -182,4 +183,4 @@ Plans:
 | 34. Deck Intelligence | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
-| 37. Frontend UI | v1.6 | 3/3 | Complete | 2026-03-07 |
+| 37. Frontend UI | v1.6 | 4/4 | Complete | 2026-03-07 |

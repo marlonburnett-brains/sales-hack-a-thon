@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
 status: complete
-stopped_at: Completed 37-03-PLAN.md
-last_updated: "2026-03-07T23:22:25.708Z"
-last_activity: 2026-03-07 — Completed Phase 37 Plan 03 classify surface wiring
+stopped_at: Completed 37-04-PLAN.md
+last_updated: "2026-03-07T23:45:12.011Z"
+last_activity: 2026-03-07 — Completed Phase 37 Plan 04 slide viewer artifact hydration gap closure
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 37 of 37 (Frontend UI)
-Plan: 3 of 3 complete
+Plan: 4 of 4 complete
 Status: Phase 37 complete
-Last activity: 2026-03-07 — Completed Phase 37 Plan 03 classify surface wiring
+Last activity: 2026-03-07 — Completed Phase 37 Plan 04 slide viewer artifact hydration gap closure
 
 Progress: [██████████] 100%
 
@@ -61,6 +61,8 @@ All decisions logged in PROJECT.md Key Decisions table (55 decisions total throu
 - [Phase 37]: Treat empty Touch 4 artifacts as actionable by keeping chat enabled and sending artifactType with refinement requests.
 - [Phase 37]: Reuse TemplateClassificationControls in both classify surfaces to keep Touch 4 artifact rules in one place.
 - [Phase 37]: Keep local saved classification state in each surface so Touch 4 artifact badges update immediately after save.
+- [Phase 37-frontend-ui]: Hydrate artifactType from the existing template record through the slides page and client boundary instead of adding another fetch path.
+- [Phase 37-frontend-ui]: Keep saved artifact badge text only while the persisted classification remains Example plus touch_4 so stale labels clear on reload.
 
 ### Pending Todos
 
@@ -88,6 +90,7 @@ None.
 | Phase 37-frontend-ui P01 | 6 min | 2 tasks | 8 files |
 | Phase 37 P02 | 5 min | 3 tasks | 8 files |
 | Phase 37 P03 | 7 min | 2 tasks | 4 files |
+| Phase 37 P04 | 2 min | 2 tasks | 6 files |
 
 ### Blockers/Concerns
 
@@ -96,6 +99,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T23:22:25.705Z
-Stopped at: Completed 37-03-PLAN.md
-Next action: /gsd-execute-phase 37
+Last session: 2026-03-07T23:45:12.008Z
+Stopped at: Completed 37-04-PLAN.md
+Next action: /gsd-verify-work 37
