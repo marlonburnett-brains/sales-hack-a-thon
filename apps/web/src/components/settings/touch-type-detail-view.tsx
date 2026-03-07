@@ -1,5 +1,6 @@
 "use client";
 
+import { ARTIFACT_TYPE_LABELS, type ArtifactType } from "@lumenalta/schemas";
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Layers, RefreshCw } from "lucide-react";
 import Link from "next/link";
@@ -14,11 +15,17 @@ import type { DeckStructureDetail, DeckSectionData } from "@/lib/api-client";
 interface TouchTypeDetailViewProps {
   touchType: string;
   label: string;
+  artifactType?: ArtifactType;
+  emptyStateTitle?: string;
+  emptyStateDescription?: string;
 }
 
 export function TouchTypeDetailView({
   touchType,
   label,
+  artifactType,
+  emptyStateTitle,
+  emptyStateDescription,
 }: TouchTypeDetailViewProps) {
   const [structure, setStructure] = useState<DeckStructureDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +44,7 @@ export function TouchTypeDetailView({
     setError(null);
 
     try {
-      const detail = await getDeckStructureAction(touchType);
+      const detail = await getDeckStructureAction(touchType, artifactType);
       setStructure(detail);
       setLocalSections(detail.structure.sections);
       setLocalRationale(detail.structure.sequenceRationale);
@@ -51,7 +58,7 @@ export function TouchTypeDetailView({
     } finally {
       setLoading(false);
     }
-  }, [touchType]);
+  }, [artifactType, touchType]);
 
   useEffect(() => {
     void loadData();
@@ -103,6 +110,15 @@ export function TouchTypeDetailView({
   }
 
   const hasData = structure && structure.exampleCount > 0;
+  const artifactLabel = artifactType ? ARTIFACT_TYPE_LABELS[artifactType] : label;
+  const isTouch4Artifact = touchType === "touch_4" && Boolean(artifactType);
+  const resolvedEmptyStateTitle =
+    emptyStateTitle ?? `No ${artifactLabel} examples classified yet`;
+  const resolvedEmptyStateDescription =
+    emptyStateDescription ??
+    (isTouch4Artifact
+      ? `Classify ${artifactLabel} examples on Templates to improve this structure.`
+      : "Classify presentations as examples and assign touch types on the Templates page to enable AI inference.");
   const effectiveSections = diff ? localSections : structure?.structure.sections ?? [];
   const effectiveRationale = diff
     ? localRationale
@@ -127,11 +143,10 @@ export function TouchTypeDetailView({
         <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-200 py-16 text-center">
           <Layers className="mb-3 h-12 w-12 text-slate-300" />
           <h3 className="text-base font-medium text-slate-900">
-            No examples classified for {label} yet
+            {resolvedEmptyStateTitle}
           </h3>
           <p className="mt-1 max-w-sm text-sm text-slate-500">
-            Classify presentations as examples and assign touch types on the
-            Templates page to enable AI inference.
+            {resolvedEmptyStateDescription}
           </p>
           <Link
             href="/templates"
@@ -145,8 +160,9 @@ export function TouchTypeDetailView({
         <div className="mt-4">
           <ChatBar
             touchType={touchType}
+            artifactType={artifactType}
             onStructureUpdate={handleStructureUpdate}
-            disabled
+            disabled={!isTouch4Artifact}
           />
         </div>
       </div>
@@ -183,6 +199,7 @@ export function TouchTypeDetailView({
       <div className="mt-6">
         <ChatBar
           touchType={touchType}
+          artifactType={artifactType}
           onStructureUpdate={handleStructureUpdate}
           initialMessages={structure.chatMessages}
         />

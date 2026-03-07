@@ -8,6 +8,7 @@ import type { DeckSectionData, DeckChatMessageData } from "@/lib/api-client";
 
 interface ChatBarProps {
   touchType: string;
+  artifactType?: string;
   onStructureUpdate: (
     structure: { sections: DeckSectionData[]; sequenceRationale: string },
     diff: { added: string[]; modified: string[] },
@@ -24,6 +25,7 @@ interface LocalMessage {
 
 export function ChatBar({
   touchType,
+  artifactType,
   onStructureUpdate,
   disabled,
   initialMessages,
@@ -90,7 +92,7 @@ export function ChatBar({
       const res = await fetch("/api/deck-structures/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ touchType, message: trimmed }),
+        body: JSON.stringify({ touchType, artifactType, message: trimmed }),
       });
 
       if (!res.ok || !res.body) {
@@ -168,7 +170,7 @@ export function ChatBar({
     } finally {
       setIsStreaming(false);
     }
-  }, [input, isStreaming, touchType, onStructureUpdate]);
+  }, [artifactType, input, isStreaming, touchType, onStructureUpdate]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
