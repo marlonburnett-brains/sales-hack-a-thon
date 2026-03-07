@@ -78,7 +78,7 @@
 
 - [x] **Phase 32: UX Polish** - Discovery thumbnails, consistent ingestion status, and immediate ingest feedback (completed 2026-03-07)
 - [x] **Phase 33: Slide Intelligence Foundation** - Rich descriptions, element maps, and content classification (completed 2026-03-07)
-- [ ] **Phase 34: Deck Intelligence** - Settings page with AI-inferred deck structures and chat refinement
+- [x] **Phase 34: Deck Intelligence** - Settings page with AI-inferred deck structures and chat refinement (completed 2026-03-07)
 
 ## Phase Details
 
@@ -168,4 +168,4 @@ Plans:
 | 31. Tech Debt Cleanup | v1.4 | 1/1 | Complete | 2026-03-07 |
 | 32. UX Polish | v1.5 | 2/2 | Complete | 2026-03-07 |
 | 33. Slide Intelligence Foundation | v1.5 | 3/3 | Complete | 2026-03-07 |
-| 34. Deck Intelligence | 2/3 | In Progress|  | - |
+| 34. Deck Intelligence | 3/3 | Complete   | 2026-03-07 | - |
