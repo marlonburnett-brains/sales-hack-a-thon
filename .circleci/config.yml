@@ -29,19 +29,81 @@ commands:
             - packages/schemas/node_modules
             - packages/eslint-config/node_modules
 
+  check-web-changes:
+    description: Check if web-relevant files changed since last deploy
+    steps:
+      - run:
+          name: Check for web-relevant changes
+          command: |
+            # Compare current commit against its parent
+            CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD)
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+
+            # Check if any changed file is outside docs/planning-only paths
+            HAS_WEB_CHANGES=false
+            while IFS= read -r file; do
+              case "$file" in
+                .planning/*|*.md|docs/*) ;;
+                *) HAS_WEB_CHANGES=true; break ;;
+              esac
+            done <<< "$CHANGED_FILES"
+
+            if [ "$HAS_WEB_CHANGES" = "false" ]; then
+              echo "Only docs/planning changes detected — skipping web deploy."
+              circleci-agent step halt
+            else
+              echo "Web-relevant changes detected — proceeding with deploy."
+            fi
+
+  check-agent-changes:
+    description: Check if agent-relevant files changed since last deploy
+    steps:
+      - run:
+          name: Check for agent-relevant changes
+          command: |
+            CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD)
+            echo "Changed files:"
+            echo "$CHANGED_FILES"
+
+            HAS_AGENT_CHANGES=false
+            while IFS= read -r file; do
+              case "$file" in
+                .planning/*|*.md|docs/*) ;;
+                *) HAS_AGENT_CHANGES=true; break ;;
+              esac
+            done <<< "$CHANGED_FILES"
+
+            if [ "$HAS_AGENT_CHANGES" = "false" ]; then
+              echo "Only docs/planning changes detected — skipping agent deploy."
+              circleci-agent step halt
+            else
+              echo "Agent-relevant changes detected — proceeding with deploy."
+            fi
+
 jobs:
   lint-and-build:
     executor: node
     steps:
       - setup
+      - restore_cache:
+          keys:
+            - turbo-cache-v1-{{ .Branch }}-{{ .Revision }}
+            - turbo-cache-v1-{{ .Branch }}-
+            - turbo-cache-v1-
       - run:
           name: Lint & Build
-          command: pnpm turbo lint build
+          command: pnpm turbo lint build --cache-dir=.turbo
+      - save_cache:
+          key: turbo-cache-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - .turbo
 
   migrate:
     executor: node
     steps:
       - setup
+      - check-agent-changes
       - run:
           name: Generate Prisma Client
           command: npx prisma generate
@@ -55,6 +117,7 @@ jobs:
     executor: node
     steps:
       - checkout
+      - check-agent-changes
       - run:
           name: Install Railway CLI
           command: sudo npm install -g @railway/cli
@@ -66,6 +129,12 @@ jobs:
     executor: node
     steps:
       - setup
+      - check-web-changes
+      - restore_cache:
+          keys:
+            - turbo-cache-v1-{{ .Branch }}-{{ .Revision }}
+            - turbo-cache-v1-{{ .Branch }}-
+            - turbo-cache-v1-
       - run:
           name: Install Vercel CLI
           command: sudo npm install -g vercel@latest
