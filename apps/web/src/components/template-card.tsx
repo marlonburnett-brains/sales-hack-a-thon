@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
+import type { ArtifactType } from "@lumenalta/schemas";
 import {
   MoreVertical,
   Trash2,
@@ -26,10 +27,10 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,12 +42,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  TemplateClassificationControls,
+  type TemplateClassificationValues,
+} from "@/components/classification/template-classification-controls";
 import { IngestionStatusBadge } from "@/components/ingestion-status";
 import { IngestionProgress } from "@/components/ingestion-progress";
 import {
   getTemplateStatus,
   getClassificationLabel,
-  TOUCH_TYPES,
   type TemplateStatus,
 } from "@/lib/template-utils";
 import {
@@ -85,24 +89,45 @@ export function TemplateCard({
   onRefresh,
 }: TemplateCardProps) {
   const router = useRouter();
+  const touchTypes = parseTouchTypes(template.touchTypes);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [classifyOpen, setClassifyOpen] = useState(false);
-  const [classifyType, setClassifyType] = useState<"template" | "example">("template");
-  const [selectedTouches, setSelectedTouches] = useState<string[]>([]);
   const [isClassifying, setIsClassifying] = useState(false);
+  const [savedClassification, setSavedClassification] = useState<
+    "template" | "example" | null
+  >(
+    template.contentClassification === "template" ||
+      template.contentClassification === "example"
+      ? template.contentClassification
+      : null,
+  );
+  const [savedTouchTypes, setSavedTouchTypes] = useState<string[]>(touchTypes);
+  const [savedArtifactType, setSavedArtifactType] = useState<ArtifactType | null>(
+    template.artifactType,
+  );
   const [progress, setProgress] = useState<{
     current: number;
     total: number;
   } | null>(null);
 
   const status: TemplateStatus = getTemplateStatus(template);
-  const touchTypes = parseTouchTypes(template.touchTypes);
   const lastIngested = template.lastIngestedAt
     ? formatDistanceToNow(new Date(template.lastIngestedAt), {
         addSuffix: true,
       })
     : "Never";
+
+  useEffect(() => {
+    setSavedClassification(
+      template.contentClassification === "template" ||
+        template.contentClassification === "example"
+        ? template.contentClassification
+        : null,
+    );
+    setSavedTouchTypes(parseTouchTypes(template.touchTypes));
+    setSavedArtifactType(template.artifactType);
+  }, [template.artifactType, template.contentClassification, template.touchTypes]);
 
   // Poll ingestion progress when status is "ingesting" or "queued"
   useEffect(() => {
@@ -204,20 +229,20 @@ export function TemplateCard({
     }
   }
 
-  async function handleClassify() {
-    if (classifyType === "example" && selectedTouches.length === 0) {
-      toast.error("Select at least one touch type for examples");
-      return;
-    }
+  async function handleClassify(values: TemplateClassificationValues) {
     setIsClassifying(true);
     try {
       const result = await classifyTemplateAction(
         template.id,
-        classifyType,
-        classifyType === "example" ? selectedTouches : undefined,
+        values.classification,
+        values.classification === "example" ? values.touchTypes : undefined,
+        values.artifactType,
       );
       if (result.success) {
-        toast.success(`Classified as ${classifyType}`);
+        setSavedClassification(values.classification);
+        setSavedTouchTypes(values.classification === "example" ? values.touchTypes : []);
+        setSavedArtifactType(values.artifactType);
+        toast.success(`Classified as ${values.classification}`);
         setClassifyOpen(false);
         onRefresh?.();
       } else {
@@ -232,28 +257,14 @@ export function TemplateCard({
     }
   }
 
-  function handleToggleTouch(value: string) {
-    setSelectedTouches((prev) =>
-      prev.includes(value)
-        ? prev.filter((t) => t !== value)
-        : [...prev, value]
-    );
-  }
-
   function openClassifyPopover() {
-    // Pre-fill with current classification if available
-    if (template.contentClassification === "template" || template.contentClassification === "example") {
-      setClassifyType(template.contentClassification);
-    } else {
-      setClassifyType("template");
-    }
-    setSelectedTouches(template.contentClassification === "example" ? touchTypes : []);
     setClassifyOpen(true);
   }
 
   const classificationLabel = getClassificationLabel(
-    template.contentClassification,
-    touchTypes,
+    savedClassification,
+    savedTouchTypes,
+    savedArtifactType,
   );
 
   return (
@@ -270,67 +281,18 @@ export function TemplateCard({
             <DialogContent className="sm:max-w-xs" onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}>
               <DialogHeader>
                 <DialogTitle className="text-sm">Classify Presentation</DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  Choose whether this presentation is a reusable template or a single-touch example.
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-3">
-                {/* Type selector */}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-                      classifyType === "template"
-                        ? "border-blue-300 bg-blue-50 text-blue-700"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                    }`}
-                    onClick={() => setClassifyType("template")}
-                  >
-                    Template
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-                      classifyType === "example"
-                        ? "border-purple-300 bg-purple-50 text-purple-700"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                    }`}
-                    onClick={() => setClassifyType("example")}
-                  >
-                    Example
-                  </button>
-                </div>
-
-                {/* Touch type selection (only for Example) */}
-                {classifyType === "example" && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-slate-500">
-                      Touch types <span className="text-red-500">*</span>
-                    </p>
-                    <div className="space-y-1.5">
-                      {TOUCH_TYPES.map((t) => (
-                        <label
-                          key={t.value}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Checkbox
-                            checked={selectedTouches.includes(t.value)}
-                            onCheckedChange={() => handleToggleTouch(t.value)}
-                          />
-                          <span className="text-xs text-slate-700">{t.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Save button */}
-                <Button
-                  size="sm"
-                  className="w-full cursor-pointer"
-                  onClick={handleClassify}
-                  disabled={isClassifying || (classifyType === "example" && selectedTouches.length === 0)}
-                >
-                  {isClassifying ? "Saving..." : "Save"}
-                </Button>
-              </div>
+              <TemplateClassificationControls
+                key={`${savedClassification ?? "template"}-${savedTouchTypes.join(",")}-${savedArtifactType ?? "none"}`}
+                initialClassification={savedClassification ?? "template"}
+                initialTouchTypes={savedClassification === "example" ? savedTouchTypes : []}
+                initialArtifactType={savedArtifactType}
+                isSaving={isClassifying}
+                onSave={handleClassify}
+              />
             </DialogContent>
           </Dialog>
           <DropdownMenu>
@@ -413,7 +375,7 @@ export function TemplateCard({
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-1.5">
-            {touchTypes.map((type) => (
+            {savedTouchTypes.map((type) => (
               <span
                 key={type}
                 className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"
@@ -422,10 +384,10 @@ export function TemplateCard({
               </span>
             ))}
             {/* Show classification label if classified */}
-            {template.contentClassification && (
+            {savedClassification && (
               <span
                 className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                  template.contentClassification === "template"
+                  savedClassification === "template"
                     ? "border-blue-200 bg-blue-50 text-blue-700"
                     : "border-purple-200 bg-purple-50 text-purple-700"
                 }`}

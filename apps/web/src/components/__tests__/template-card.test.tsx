@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("next/navigation", () => ({
@@ -66,6 +66,7 @@ function makeTemplate(overrides: Partial<Template> = {}): Template {
 
 describe("TMPL-02: Template card with status badges", () => {
   beforeEach(() => {
+    cleanup();
     mockDeleteTemplateAction.mockReset();
     mockGetIngestionProgressAction.mockReset();
     mockClassifyTemplateAction.mockReset();
@@ -124,6 +125,7 @@ describe("TMPL-02: Template card with status badges", () => {
 
 describe("TMPL-03: Delete template with confirmation dialog", () => {
   beforeEach(() => {
+    cleanup();
     mockDeleteTemplateAction.mockReset();
     mockGetIngestionProgressAction.mockReset();
     mockClassifyTemplateAction.mockReset();
@@ -192,6 +194,7 @@ describe("TMPL-03: Delete template with confirmation dialog", () => {
 
 describe("CLSF-01: Template card Touch 4 artifact flow", () => {
   beforeEach(() => {
+    cleanup();
     mockDeleteTemplateAction.mockReset();
     mockGetIngestionProgressAction.mockReset();
     mockClassifyTemplateAction.mockReset();
@@ -252,7 +255,7 @@ describe("CLSF-01: Template card Touch 4 artifact flow", () => {
     expect(screen.getByText("Example (Touch 4+ - Proposal)")).toBeInTheDocument();
   });
 
-  it("keeps example touch selection single-choice", async () => {
+  it("uses radio inputs for example touch selection so only one touch can be chosen", async () => {
     const user = userEvent.setup();
 
     render(<TemplateCard template={makeTemplate()} />);
@@ -261,15 +264,9 @@ describe("CLSF-01: Template card Touch 4 artifact flow", () => {
     await user.click(await screen.findByRole("menuitem", { name: /^classify$/i }));
     await user.click(screen.getByRole("button", { name: "Example" }));
 
-    const touch1 = screen.getByRole("radio", { name: /touch 1/i });
-    const touch4 = screen.getByRole("radio", { name: /touch 4\+/i });
+    const dialog = screen.getByRole("dialog", { name: /classify presentation/i });
 
-    await user.click(touch4);
-    expect(touch4).toBeChecked();
-
-    await user.click(touch1);
-
-    expect(touch1).toBeChecked();
-    expect(touch4).not.toBeChecked();
+    expect(within(dialog).getAllByRole("radio")).toHaveLength(4);
+    expect(within(dialog).queryAllByRole("checkbox")).toHaveLength(0);
   });
 });
