@@ -65,6 +65,7 @@ None.
 | 7 | Add Re-ingest Option for Failed Templates | 2026-03-07 | 8e900b0 | [7-ingestion-failed-templates-should-have-t](./quick/7-ingestion-failed-templates-should-have-t/) |
 | 8 | Add gpt-oss-120b as Primary Classification | 2026-03-07 | 80f7e1a | [8-add-gpt-oss-120b-as-primary-classificati](./quick/8-add-gpt-oss-120b-as-primary-classificati/) |
 | 9 | Cache Google Slides Thumbnails in GCS | 2026-03-07 | 40fc6d6 | [9-cache-google-slides-thumbnails-in-gcs](./quick/9-cache-google-slides-thumbnails-in-gcs/) |
+| 10 | Auto-resolve share_with_sa Action Items | 2026-03-07 | de08f7e | [10-auto-resolve-share-with-sa-action-items-](./quick/10-auto-resolve-share-with-sa-action-items-/) |
 | Phase 32 P01 | 4min | 2 tasks | 8 files |
 | Phase 32 P02 | 11min | 3 tasks | 2 files |
 
