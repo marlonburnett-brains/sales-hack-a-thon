@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Review Polish & Deck Intelligence
 status: in-progress
-stopped_at: Completed 34-02-PLAN.md
-last_updated: "2026-03-07T18:35:00Z"
-last_activity: "2026-03-07 — Plan 34-02: Settings page shell with sidebar nav and integration cards"
+stopped_at: Completed 34-01-PLAN.md
+last_updated: "2026-03-07T18:39:02.725Z"
+last_activity: "2026-03-07 — Plan 34-01: Deck intelligence data layer with inference engine and API endpoints"
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 8
-  completed_plans: 6
-  percent: 100
+  completed_plans: 7
+  percent: 89
 ---
 
 # Project State
@@ -28,14 +28,14 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 Phase: 34 of 34 (Deck Intelligence)
 Plan: 2 of 3 in current phase (COMPLETE)
 Status: in-progress
-Last activity: 2026-03-07 — Plan 34-02: Settings page shell with sidebar nav and integration cards
+Last activity: 2026-03-07 — Plan 34-01: Deck intelligence data layer with inference engine and API endpoints
 
 Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 65 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12)
+- Total plans completed: 67 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 2)
 - Total project time: ~5 days (2026-03-03 -> 2026-03-07)
 - Total LOC: ~35,315 TypeScript/TSX
 
@@ -60,6 +60,8 @@ All decisions logged in PROJECT.md Key Decisions table (43 decisions total).
 - [Phase 33]: Description generation is non-fatal; failures log warning and continue ingestion
 - [Phase 33]: Element storage uses Prisma CRUD (not raw SQL) since SlideElement has no vector column
 - [Phase 33]: Schema migration created manually due to 0_init drift, forward-only per CLAUDE.md
+- [Phase 34]: Forward-only migration with manual SQL + resolve --applied for deck structure models
+- [Phase 34]: Deck inference cron uses 10-min interval with SHA-256 data hash change detection and 30-min active session protection
 
 ### Pending Todos
 
@@ -87,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T18:35:00Z
-Stopped at: Completed 34-02-PLAN.md
+Last session: 2026-03-07T18:39:02.722Z
+Stopped at: Completed 34-01-PLAN.md
 Next action: Execute Plan 34-03 (Deck Structure Display).

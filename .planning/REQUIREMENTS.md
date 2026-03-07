@@ -34,9 +34,9 @@ Requirements for milestone v1.5 Review Polish & Deck Intelligence. Each maps to 
 
 - [x] **DKI-01**: User can access a Settings page from the main sidebar navigation
 - [x] **DKI-02**: Settings page has nested side navigation for sub-sections
-- [ ] **DKI-03**: User can view AI-inferred deck structure breakdown for each touch type (Touch 1-4)
-- [ ] **DKI-04**: Deck structures show section flow, variations, and reference slides mapped to each section
-- [ ] **DKI-05**: Deck structures show confidence score per touch based on available examples
+- [x] **DKI-03**: User can view AI-inferred deck structure breakdown for each touch type (Touch 1-4)
+- [x] **DKI-04**: Deck structures show section flow, variations, and reference slides mapped to each section
+- [x] **DKI-05**: Deck structures show confidence score per touch based on available examples
 - [ ] **DKI-06**: User can refine AI analysis via chat bar (flag issues, add context, provide feedback)
 - [ ] **DKI-07**: AI updates deck structure based on user chat feedback
 
@@ -85,9 +85,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CCL-04 | Phase 33 | Complete |
 | DKI-01 | Phase 34 | Complete |
 | DKI-02 | Phase 34 | Complete |
-| DKI-03 | Phase 34 | Pending |
-| DKI-04 | Phase 34 | Pending |
-| DKI-05 | Phase 34 | Pending |
+| DKI-03 | Phase 34 | Complete |
+| DKI-04 | Phase 34 | Complete |
+| DKI-05 | Phase 34 | Complete |
 | DKI-06 | Phase 34 | Pending |
 | DKI-07 | Phase 34 | Pending |
 
