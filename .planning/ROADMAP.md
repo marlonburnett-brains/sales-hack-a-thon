@@ -124,12 +124,12 @@ Plans:
   2. User can view AI-inferred deck structure breakdown for each touch type showing section flow, variations, and reference slides mapped to each section
   3. User sees a confidence score per touch type based on the number of available classified examples
   4. User can type feedback in a chat bar to refine the AI analysis (flag issues, add context) and the deck structure updates in response
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 34-01: TBD
-- [ ] 34-02: TBD
-- [ ] 34-03: TBD
+- [ ] 34-01-PLAN.md — Prisma schema, AI inference engine, structured output schema, cron job, and API endpoints
+- [ ] 34-02-PLAN.md — Settings page shell, sidebar link, vertical tab layout, and integrations status cards
+- [ ] 34-03-PLAN.md — Deck structure display UI with section flow, confidence badges, chat refinement, and streaming
 
 ## Progress
 
@@ -167,5 +167,5 @@ Plans:
 | 30. Verification & Doc Reconciliation | v1.4 | 1/1 | Complete | 2026-03-07 |
 | 31. Tech Debt Cleanup | v1.4 | 1/1 | Complete | 2026-03-07 |
 | 32. UX Polish | v1.5 | 2/2 | Complete | 2026-03-07 |
-| 33. Slide Intelligence Foundation | 3/3 | Complete   | 2026-03-07 | - |
-| 34. Deck Intelligence | v1.5 | 0/TBD | Not started | - |
+| 33. Slide Intelligence Foundation | v1.5 | 3/3 | Complete | 2026-03-07 |
+| 34. Deck Intelligence | v1.5 | 0/3 | Not started | - |
