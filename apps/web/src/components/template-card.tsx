@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   Layers,
   Clock,
+  RefreshCw,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -35,6 +37,8 @@ import { TemplateStatusBadge } from "@/components/template-status-badge";
 import { getTemplateStatus, type TemplateStatus } from "@/lib/template-utils";
 import {
   deleteTemplateAction,
+  checkStalenessAction,
+  triggerIngestionAction,
   getIngestionProgressAction,
 } from "@/lib/actions/template-actions";
 import type { Template } from "@/lib/api-client";
@@ -119,6 +123,39 @@ export function TemplateCard({
     return () => clearInterval(interval);
   }, [status, template.id, template.name, onRefresh]);
 
+  async function handleRetryAccess() {
+    try {
+      toast.info("Re-checking access...");
+      await checkStalenessAction(template.id);
+      // checkStaleness updates accessStatus — try ingestion
+      try {
+        await triggerIngestionAction(template.id);
+        toast.success("Access confirmed — ingestion started");
+      } catch {
+        // Ingestion refused (still not accessible or already running)
+        toast.success("Access re-checked");
+      }
+      onRefresh?.();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Still unable to access file"
+      );
+      onRefresh?.();
+    }
+  }
+
+  async function handleTriggerIngestion() {
+    try {
+      await triggerIngestionAction(template.id);
+      toast.success("Ingestion started");
+      onRefresh?.();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to start ingestion"
+      );
+    }
+  }
+
   async function handleDelete() {
     setIsDeleting(true);
     try {
@@ -159,14 +196,44 @@ export function TemplateCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() => router.push(`/templates/${template.id}/slides`)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/templates/${template.id}/slides`);
+                }}
                 className="cursor-pointer"
               >
                 <Eye className="mr-2 h-4 w-4" />
                 View Slides
               </DropdownMenuItem>
+              {status === "no_access" && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRetryAccess();
+                  }}
+                  className="cursor-pointer"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry Access
+                </DropdownMenuItem>
+              )}
+              {(status === "not_ingested" || status === "stale" || status === "ready") && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleTriggerIngestion();
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Play className="mr-2 h-4 w-4" />
+                  {status === "ready" ? "Re-ingest" : "Ingest"}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
-                onClick={() => setDeleteOpen(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteOpen(true);
+                }}
                 className="cursor-pointer text-red-600 focus:text-red-600"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
