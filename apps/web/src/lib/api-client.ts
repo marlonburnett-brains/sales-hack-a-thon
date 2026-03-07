@@ -905,6 +905,7 @@ export async function getDiscoveryIngestionProgress(batchId: string): Promise<In
 export interface DeckStructureSummary {
   id: string | null;
   touchType: string;
+  artifactType?: string | null;
   exampleCount: number;
   confidence: number;
   confidenceColor: "green" | "yellow" | "red";
@@ -926,6 +927,7 @@ export interface DeckSectionData {
 
 export interface DeckStructureDetail {
   touchType: string;
+  artifactType?: string | null;
   structure: {
     sections: DeckSectionData[];
     sequenceRationale: string;
@@ -953,14 +955,32 @@ export async function getDeckStructures(): Promise<DeckStructureSummary[]> {
   return fetchJSON<DeckStructureSummary[]>("/deck-structures");
 }
 
-export async function getDeckStructure(touchType: string): Promise<DeckStructureDetail> {
-  return fetchJSON<DeckStructureDetail>(`/deck-structures/${encodeURIComponent(touchType)}`);
+export async function getDeckStructure(
+  touchType: string,
+  artifactType?: string,
+): Promise<DeckStructureDetail> {
+  const query = new URLSearchParams();
+  if (artifactType) {
+    query.set("artifactType", artifactType);
+  }
+
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return fetchJSON<DeckStructureDetail>(
+    `/deck-structures/${encodeURIComponent(touchType)}${suffix}`,
+  );
 }
 
 export async function triggerDeckInference(
   touchType: string,
+  artifactType?: string,
 ): Promise<{ touchType: string; structure: unknown; confidence: number }> {
-  return fetchJSON(`/deck-structures/${encodeURIComponent(touchType)}/infer`, {
+  const query = new URLSearchParams();
+  if (artifactType) {
+    query.set("artifactType", artifactType);
+  }
+
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return fetchJSON(`/deck-structures/${encodeURIComponent(touchType)}/infer${suffix}`, {
     method: "POST",
   });
 }

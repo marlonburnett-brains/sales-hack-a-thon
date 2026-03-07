@@ -1,5 +1,7 @@
+import { ARTIFACT_TYPES } from "@lumenalta/schemas";
 import { env } from "@/env";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 /**
  * POST /api/deck-structures/chat
@@ -8,16 +10,35 @@ import { NextRequest, NextResponse } from "next/server";
  * Pipes the agent's streaming response directly back to the client.
  */
 export async function POST(request: NextRequest) {
-  const body = await request.json() as { touchType: string; message: string };
+  const body = z
+    .object({
+      touchType: z.string().min(1),
+      artifactType: z.enum(ARTIFACT_TYPES).optional(),
+      message: z.string().min(1),
+    })
+    .safeParse(await request.json());
 
-  if (!body.touchType || !body.message?.trim()) {
+  if (!body.success) {
     return NextResponse.json(
       { error: "touchType and message are required" },
       { status: 400 },
     );
   }
 
-  const agentUrl = `${env.AGENT_SERVICE_URL}/api/deck-structures/${encodeURIComponent(body.touchType)}/chat`;
+  if (body.data.touchType === "touch_4" && !body.data.artifactType) {
+    return NextResponse.json(
+      { error: "artifactType is required for touch_4 chat requests" },
+      { status: 400 },
+    );
+  }
+
+  const query = new URLSearchParams();
+  if (body.data.artifactType) {
+    query.set("artifactType", body.data.artifactType);
+  }
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+
+  const agentUrl = `${env.AGENT_SERVICE_URL}/api/deck-structures/${encodeURIComponent(body.data.touchType)}/chat${suffix}`;
 
   const agentRes = await fetch(agentUrl, {
     method: "POST",
@@ -25,7 +46,7 @@ export async function POST(request: NextRequest) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${env.AGENT_API_KEY}`,
     },
-    body: JSON.stringify({ message: body.message.trim() }),
+    body: JSON.stringify({ message: body.data.message.trim() }),
   });
 
   if (!agentRes.ok) {
