@@ -18,7 +18,7 @@ Requirements for milestone v1.5 Review Polish & Deck Intelligence. Each maps to 
 ### Slide Intelligence
 
 - [ ] **SLI-01**: System generates rich AI description for each slide during ingestion (purpose, visual composition, key content, use cases)
-- [ ] **SLI-02**: Slide descriptions are visible in the per-template slide viewer metadata panel
+- [x] **SLI-02**: Slide descriptions are visible in the per-template slide viewer metadata panel
 - [ ] **SLI-03**: System extracts structured element map from Google Slides API during ingestion (element ID, type, position, content, styling)
 - [ ] **SLI-04**: Element maps are stored per slide and accessible for downstream consumption
 - [ ] **SLI-05**: System backfills descriptions and element maps for already-ingested slides on re-ingestion
@@ -75,7 +75,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UXP-04 | Phase 32 | Complete |
 | UXP-05 | Phase 32 | Complete |
 | SLI-01 | Phase 33 | Pending |
-| SLI-02 | Phase 33 | Pending |
+| SLI-02 | Phase 33 | Complete |
 | SLI-03 | Phase 33 | Pending |
 | SLI-04 | Phase 33 | Pending |
 | SLI-05 | Phase 33 | Pending |

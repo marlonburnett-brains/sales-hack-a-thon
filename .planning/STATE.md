@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Phase 32 — UX Polish
+**Current focus:** Phase 33 — Slide Intelligence Foundation
 
 ## Current Position
 
-Phase: 32 of 34 (UX Polish) -- COMPLETE
-Plan: 2 of 2 in current phase (COMPLETE)
-Status: phase-complete
-Last activity: 2026-03-07 — Completed quick task 10: Auto-resolve share_with_sa action items
+Phase: 33 of 34 (Slide Intelligence Foundation)
+Plan: 3 of 3 in current phase (checkpoint pending)
+Status: executing
+Last activity: 2026-03-07 — Plan 33-03: AI description and element map UI (checkpoint pending)
 
 Progress: [██████████] 100%
 
@@ -48,6 +48,9 @@ All decisions logged in PROJECT.md Key Decisions table (40 decisions total).
 - [Phase 32]: Duplicate ingestion guard: reject ingesting/queued, allow re-ingest for idle
 - [Phase 32]: Local itemStatuses prioritized over server templateData for display status during active ingestion
 - [Phase 32]: Removed large centered DocumentTypeIcon from thumbnail area per user feedback -- corner badge only
+- [Phase 33]: Used inline collapsible sections instead of shadcn Collapsible for description/element panels
+- [Phase 33]: Element map panel collapsed by default, description expanded by default
+- [Phase 33]: Elements included inline in slides API response (not separate endpoint)
 
 ### Pending Todos
 
@@ -74,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T16:51:47.436Z
-Stopped at: Phase 33 context gathered
-Next action: Plan Phase 33 (Slide Intelligence Foundation)
+Last session: 2026-03-07T17:14:56Z
+Stopped at: Plan 33-03 checkpoint:human-verify pending
+Next action: Visual verification of complete slide intelligence flow
