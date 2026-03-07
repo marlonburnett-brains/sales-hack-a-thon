@@ -3,19 +3,29 @@
  *
  * Provides slide content search against the AtlusAI knowledge base.
  *
- * STRATEGY: Since AtlusAI MCP tools require Claude Code's internal auth
- * and cannot be called from standalone Node.js, this module uses a
- * Drive API fallback strategy:
- *   - Searches the _slide-level-ingestion folder in Drive for Google Docs
- *     matching the query via Drive files.list + fullText contains
+ * STRATEGY (Phase 28): Routes search through MCP semantic search first,
+ * falling back to Drive API keyword search when MCP is unavailable or
+ * disabled via ATLUS_USE_MCP=false.
+ *
+ * MCP path:
+ *   - Calls knowledge_base_search_semantic via MCP SSE client
+ *   - Raw results mapped to SlideSearchResult via LLM extraction
+ *   - Adaptive prompt: first call discovers result shape, caches prompt
+ *
+ * Drive fallback path (original):
+ *   - Searches _slide-level-ingestion folder in Drive for Google Docs
  *   - Reads document content via Drive files.export (text/plain)
  *   - Parses document title and description for metadata
- *
- * This approach works because all ingested slide content exists as
- * Google Docs in the monitored Drive folder (created by atlusai-client.ts).
  */
 
 import { getDriveClient } from "./google-auth";
+import {
+  callMcpTool,
+  isMcpAvailable,
+  getCachedExtractionPrompt,
+  setCachedExtractionPrompt,
+} from "./mcp-client";
+import { GoogleGenAI } from "@google/genai";
 import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
@@ -37,10 +47,181 @@ export interface SlideSearchResult {
   presentationId?: string;
   /** Slide object ID within the source presentation */
   slideObjectId?: string;
+  /** Result origin: 'mcp' for semantic search, 'drive' for keyword search */
+  source?: "mcp" | "drive";
+  /** Relevance score from MCP semantic search (0-1), undefined for Drive results */
+  relevanceScore?: number;
 }
 
 // ────────────────────────────────────────────────────────────
-// Internal: Ingestion folder discovery
+// Internal: Search text builder (shared by MCP and Drive)
+// ────────────────────────────────────────────────────────────
+
+function buildSearchText(params: {
+  query: string;
+  industry?: string;
+  touchType?: string;
+}): string {
+  const parts: string[] = [params.query];
+  if (params.industry) parts.push(params.industry);
+  if (params.touchType) parts.push(params.touchType);
+  return parts.join(" ");
+}
+
+// ────────────────────────────────────────────────────────────
+// Internal: MCP semantic search
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Search via MCP knowledge_base_search_semantic tool.
+ * Results are mapped to SlideSearchResult via LLM extraction.
+ */
+async function searchSlidesMcp(params: {
+  query: string;
+  industry?: string;
+  touchType?: string;
+  limit?: number;
+}): Promise<SlideSearchResult[]> {
+  const searchText = buildSearchText(params);
+
+  // Build MCP tool args
+  const args: Record<string, unknown> = { query: searchText };
+  if (env.ATLUS_PROJECT_ID) {
+    args.project_id = env.ATLUS_PROJECT_ID;
+  }
+
+  const rawResult = await callMcpTool("knowledge_base_search_semantic", args);
+
+  // Pass through LLM extraction to map to SlideSearchResult[]
+  const results = await extractSlideResults(rawResult, searchText);
+
+  // Tag all results with MCP source
+  return results.map((r) => ({ ...r, source: "mcp" as const }));
+}
+
+// ────────────────────────────────────────────────────────────
+// Internal: LLM extraction layer (adaptive prompt)
+// ────────────────────────────────────────────────────────────
+
+/** SlideSearchResult interface definition for LLM prompt */
+const SLIDE_RESULT_SCHEMA = `interface SlideSearchResult {
+  slideId: string;         // Unique identifier for the slide
+  documentTitle: string;   // Title or name of the slide/document
+  textContent: string;     // Main text content of the slide
+  speakerNotes: string;    // Speaker notes (empty string if none)
+  metadata: object;        // Any additional metadata as key-value pairs
+  presentationId?: string; // Source presentation identifier if available
+  slideObjectId?: string;  // Slide object ID within presentation if available
+  relevanceScore?: number; // Semantic relevance score 0-1 based on match quality
+}`;
+
+/**
+ * Extract SlideSearchResult[] from raw MCP results using LLM.
+ *
+ * Uses adaptive prompt pattern:
+ * - First call: discovery prompt that includes raw result shape + target schema
+ * - Subsequent calls: cached prompt template for efficiency
+ *
+ * On LLM failure: returns empty array (graceful degradation).
+ */
+async function extractSlideResults(
+  rawResult: unknown,
+  searchQuery: string,
+): Promise<SlideSearchResult[]> {
+  try {
+    const rawStr = JSON.stringify(rawResult);
+    // Truncate to 8000 chars to stay within LLM context
+    const truncatedRaw = rawStr.length > 8000 ? rawStr.substring(0, 8000) + "..." : rawStr;
+
+    const cachedPrompt = getCachedExtractionPrompt();
+    let prompt: string;
+
+    if (cachedPrompt) {
+      // Subsequent calls: use cached template
+      prompt = cachedPrompt
+        .replace("{{RAW_RESULTS}}", truncatedRaw)
+        .replace("{{SEARCH_QUERY}}", searchQuery);
+    } else {
+      // First call: discovery prompt
+      prompt = [
+        "You are extracting structured slide search results from a knowledge base API response.",
+        "",
+        "The raw API response is:",
+        "```json",
+        truncatedRaw,
+        "```",
+        "",
+        `The search query was: "${searchQuery}"`,
+        "",
+        "Map the raw results into an array of objects matching this TypeScript interface:",
+        "```typescript",
+        SLIDE_RESULT_SCHEMA,
+        "```",
+        "",
+        "Instructions:",
+        "- Extract ALL result items from the raw response into SlideSearchResult objects",
+        "- Map fields as closely as possible to the target interface",
+        "- For slideId: use any unique identifier field from the raw result",
+        "- For documentTitle: use any title/name field",
+        "- For textContent: use the main content/text/body field",
+        "- For speakerNotes: use notes field if present, otherwise empty string",
+        "- For metadata: include any remaining fields not mapped above",
+        "- For relevanceScore: assign a 0-1 score based on semantic match quality if discernible from the data, or 0.5 as default",
+        "- Return a JSON array of SlideSearchResult objects",
+        "- If the raw result is empty or contains no searchable items, return an empty array []",
+      ].join("\n");
+    }
+
+    const ai = new GoogleGenAI({
+      vertexai: true,
+      project: env.GOOGLE_CLOUD_PROJECT,
+      location: env.GOOGLE_CLOUD_LOCATION,
+    });
+
+    const response = await ai.models.generateContent({
+      model: "openai/gpt-oss-120b-maas",
+      contents: prompt,
+      config: { responseMimeType: "application/json" },
+    });
+
+    const text = response.text ?? "[]";
+    const parsed = JSON.parse(text) as SlideSearchResult[];
+
+    // After first successful extraction: build and cache a prompt template
+    if (!cachedPrompt && parsed.length > 0) {
+      const template = [
+        "You are extracting structured slide search results from a knowledge base API response.",
+        "",
+        "The raw API response is:",
+        "```json",
+        "{{RAW_RESULTS}}",
+        "```",
+        "",
+        `The search query was: "{{SEARCH_QUERY}}"`,
+        "",
+        "Map the raw results into an array of SlideSearchResult objects.",
+        "```typescript",
+        SLIDE_RESULT_SCHEMA,
+        "```",
+        "",
+        "Instructions:",
+        "- Extract ALL result items into SlideSearchResult objects",
+        "- Map fields using the same field mapping as before",
+        "- For relevanceScore: assign a 0-1 score based on semantic match quality",
+        "- Return a JSON array",
+      ].join("\n");
+      setCachedExtractionPrompt(template);
+    }
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.error("[search] LLM extraction failed:", err);
+    return [];
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Internal: Drive API keyword search (original implementation)
 // ────────────────────────────────────────────────────────────
 
 const INGESTION_FOLDER_NAME = "_slide-level-ingestion";
@@ -73,24 +254,17 @@ async function getIngestionFolderId(): Promise<string | null> {
   return null;
 }
 
-// ────────────────────────────────────────────────────────────
-// Internal: Title parsing
-// ────────────────────────────────────────────────────────────
-
 /**
  * Parse the ingestion document title to extract presentationId and slideObjectId.
  *
  * Title format from atlusai-client.ts:
  *   [SLIDE] PresentationName - Slide N [documentId]
- *
- * The document description (JSON) contains presentationId and slideObjectId directly.
  */
 function parseDocumentTitle(title: string): {
   presentationName: string;
   slideIndex: number;
   documentId: string;
 } {
-  // Match: [SLIDE] PresentationName - Slide N [documentId]
   const match = title.match(
     /^\[SLIDE\]\s+(.+?)\s+-\s+Slide\s+(\d+)\s+\[([a-f0-9]+)\]$/
   );
@@ -98,12 +272,11 @@ function parseDocumentTitle(title: string): {
   if (match) {
     return {
       presentationName: match[1],
-      slideIndex: parseInt(match[2], 10) - 1, // Convert to 0-based
+      slideIndex: parseInt(match[2], 10) - 1,
       documentId: match[3],
     };
   }
 
-  // Fallback: return raw title info
   return {
     presentationName: title,
     slideIndex: 0,
@@ -113,9 +286,6 @@ function parseDocumentTitle(title: string): {
 
 /**
  * Parse the document description JSON to extract metadata.
- * The description is set by atlusai-client.ts ingestDocument() and contains
- * documentId, presentationId, slideObjectId, slideIndex, isLowContent, and
- * any additional metadata from the original SlideDocument.
  */
 function parseDocumentDescription(
   description: string | null | undefined
@@ -131,8 +301,6 @@ function parseDocumentDescription(
 
 /**
  * Parse document content to extract slide text and speaker notes sections.
- * The content format follows the structure created by buildDocumentContent()
- * in atlusai-client.ts.
  */
 function parseDocumentContent(content: string): {
   textContent: string;
@@ -141,7 +309,6 @@ function parseDocumentContent(content: string): {
   let textContent = "";
   let speakerNotes = "";
 
-  // Extract "Slide Content:" section
   const slideContentMatch = content.match(
     /Slide Content:\n([\s\S]*?)(?=\nSpeaker Notes:|\nClassification:|\n*$)/
   );
@@ -149,7 +316,6 @@ function parseDocumentContent(content: string): {
     textContent = slideContentMatch[1].trim();
   }
 
-  // Extract "Speaker Notes:" section
   const speakerNotesMatch = content.match(
     /Speaker Notes:\n([\s\S]*?)(?=\nClassification:|\n*$)/
   );
@@ -160,22 +326,11 @@ function parseDocumentContent(content: string): {
   return { textContent, speakerNotes };
 }
 
-// ────────────────────────────────────────────────────────────
-// Public API
-// ────────────────────────────────────────────────────────────
-
 /**
- * Search for slides matching a natural language query.
- *
- * Uses Drive API fullText search against Google Docs in the ingestion folder.
- * Returns slide content with parsed metadata for AI-driven slide selection.
- *
- * @param params.query - Natural language search query
- * @param params.industry - Optional industry filter (included in search query)
- * @param params.touchType - Optional touch type filter (included in search query)
- * @param params.limit - Maximum number of results (default 20)
+ * Drive API keyword search (original searchSlides implementation).
+ * Now internal -- used as fallback when MCP is unavailable.
  */
-export async function searchSlides(params: {
+async function searchSlidesDrive(params: {
   query: string;
   industry?: string;
   touchType?: string;
@@ -192,18 +347,7 @@ export async function searchSlides(params: {
   const drive = getDriveClient();
   const limit = params.limit ?? 20;
 
-  // Build search query combining the user query with optional filters
-  const queryParts: string[] = [params.query];
-  if (params.industry) {
-    queryParts.push(params.industry);
-  }
-  if (params.touchType) {
-    queryParts.push(params.touchType);
-  }
-  const searchText = queryParts.join(" ");
-
-  // Search for Google Docs in the ingestion folder matching the query
-  // Drive API fullText search indexes the document content
+  const searchText = buildSearchText(params);
   const escapedQuery = searchText.replace(/'/g, "\\'");
   const result = await drive.files.list({
     q: `'${ingestionFolderId}' in parents and fullText contains '${escapedQuery}' and mimeType = 'application/vnd.google-apps.document' and trashed = false`,
@@ -221,7 +365,6 @@ export async function searchSlides(params: {
     const description = parseDocumentDescription(file.description);
     const titleParts = parseDocumentTitle(title);
 
-    // Export the document content as plain text
     let textContent = "";
     let speakerNotes = "";
 
@@ -258,6 +401,42 @@ export async function searchSlides(params: {
 }
 
 // ────────────────────────────────────────────────────────────
+// Public API
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Search for slides matching a natural language query.
+ *
+ * Routes through MCP semantic search first, falling back to Drive API
+ * keyword search when MCP is unavailable or disabled.
+ *
+ * @param params.query - Natural language search query
+ * @param params.industry - Optional industry filter (included in search query)
+ * @param params.touchType - Optional touch type filter (included in search query)
+ * @param params.limit - Maximum number of results (default 20)
+ */
+export async function searchSlides(params: {
+  query: string;
+  industry?: string;
+  touchType?: string;
+  limit?: number;
+}): Promise<SlideSearchResult[]> {
+  const useMcp = env.ATLUS_USE_MCP !== "false";
+
+  if (useMcp && isMcpAvailable()) {
+    try {
+      return await searchSlidesMcp(params);
+    } catch (err) {
+      console.warn("[search] MCP search failed, falling back to Drive:", err);
+      // Fall through to Drive
+    }
+  }
+
+  const results = await searchSlidesDrive(params);
+  return results.map((r) => ({ ...r, source: "drive" as const }));
+}
+
+// ────────────────────────────────────────────────────────────
 // Proposal-level multi-pass retrieval
 // ────────────────────────────────────────────────────────────
 
@@ -289,12 +468,8 @@ export interface ProposalSearchResult {
  *   - If still < 3 total: query cross-industry capabilities
  *   - Never fails -- returns whatever candidates are found
  *
- * @param params.industry - Target industry
- * @param params.subsector - Target subsector within industry
- * @param params.primaryPillar - Primary Lumenalta solution pillar
- * @param params.secondaryPillars - Additional solution pillars
- * @param params.useCases - Use cases from the brief (for context)
- * @param params.limit - Maximum slides for primary pass (default 20)
+ * Multi-pass logic is unchanged (SRCH-03) -- only the inner searchSlides()
+ * now routes through MCP semantic search.
  */
 export async function searchForProposal(params: {
   industry: string;
@@ -307,7 +482,7 @@ export async function searchForProposal(params: {
   const primaryLimit = params.limit ?? 20;
   const map = new Map<string, SlideSearchResult>();
 
-  // ── Pass 1: Primary pillar ──
+  // -- Pass 1: Primary pillar --
   const primaryResults = await searchSlides({
     query: `${params.primaryPillar} ${params.industry} solution proposal capabilities`,
     industry: params.industry,
@@ -345,7 +520,7 @@ export async function searchForProposal(params: {
     }
   }
 
-  // ── Pass 2: Secondary pillars ──
+  // -- Pass 2: Secondary pillars --
   const beforeSecondary = map.size;
   for (const pillar of params.secondaryPillars) {
     const secondaryResults = await searchSlides({
@@ -361,7 +536,7 @@ export async function searchForProposal(params: {
   }
   const secondaryCount = map.size - beforeSecondary;
 
-  // ── Pass 3: Case studies ──
+  // -- Pass 3: Case studies --
   const beforeCaseStudy = map.size;
   const caseStudyResults = await searchSlides({
     query: `case study ${params.industry} ${params.subsector} results outcomes`,
@@ -386,19 +561,14 @@ export async function searchForProposal(params: {
 /**
  * Search for slides matching specific capability areas and industry.
  *
- * Constructs a combined query from capability areas and industry context
- * to find the most relevant slides for capability alignment decks.
- *
- * @param params.capabilityAreas - Capability areas to search for
- * @param params.industry - Target industry for relevance filtering
- * @param params.limit - Maximum number of results (default 20)
+ * Constructs a combined query from capability areas and industry context.
+ * Delegates to searchSlides() which routes through MCP or Drive (SRCH-04).
  */
 export async function searchByCapability(params: {
   capabilityAreas: string[];
   industry: string;
   limit?: number;
 }): Promise<SlideSearchResult[]> {
-  // Combine capability areas with industry for a comprehensive search
   const query = [...params.capabilityAreas, params.industry].join(" ");
 
   return searchSlides({
