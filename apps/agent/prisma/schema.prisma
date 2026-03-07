@@ -323,6 +323,41 @@ model UserAtlusToken {
 }
 
 // ────────────────────────────────────────────────────────────
+// Phase 34: Deck Intelligence — AI-inferred deck structures per touch type
+// Stores section flow, variations, mapped reference slides, and confidence scores
+// ────────────────────────────────────────────────────────────
+
+model DeckStructure {
+  id              String   @id @default(cuid())
+  touchType       String   @unique // "touch_1" | "touch_2" | "touch_3" | "touch_4" | "pre_call"
+  structureJson   String   // JSON: { sections: [...], sequenceRationale: "..." }
+  exampleCount    Int      @default(0)
+  confidence      Float    @default(0) // 0-100 confidence score
+  chatContextJson String?  // Summarized chat constraints for re-inference
+  dataHash        String?  // SHA-256 hash of example IDs + classifications for change detection
+  inferredAt      DateTime @default(now())
+  lastChatAt      DateTime? // For active session protection from cron
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  chatMessages DeckChatMessage[]
+
+  @@index([touchType])
+}
+
+model DeckChatMessage {
+  id              String        @id @default(cuid())
+  deckStructureId String
+  deckStructure   DeckStructure @relation(fields: [deckStructureId], references: [id], onDelete: Cascade)
+  role            String        // "user" | "assistant"
+  content         String        // Message text
+  structureDiff   String?       // JSON diff of structure changes (if assistant message caused updates)
+  createdAt       DateTime      @default(now())
+
+  @@index([deckStructureId])
+}
+
+// ────────────────────────────────────────────────────────────
 // AtlusAI Document → Google Drive file resolution cache
 // Maps AtlusAI internal document IDs to resolved Drive file metadata
 // so we only hit the Drive API once per document.
