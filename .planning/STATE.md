@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
 status: planning
-stopped_at: null
-last_updated: "2026-03-07T20:52:10.075Z"
-last_activity: 2026-03-07 — Completed Phase 35 Schema & Constants Foundation
+stopped_at: Completed 36-backend-engine-api-routes-01-PLAN.md
+last_updated: "2026-03-07T21:44:15.690Z"
+last_activity: 2026-03-07 — Completed Phase 36 Plan 01 backend keying foundation
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 33
 ---
 
@@ -26,16 +26,16 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 36 of 37 (Backend Engine & API Routes)
-Plan: Ready to plan
-Status: Ready to plan Phase 36
-Last activity: 2026-03-07 — Completed Phase 35 Schema & Constants Foundation
+Plan: 1 of 2 complete (next: 36-02)
+Status: In progress on Phase 36
+Last activity: 2026-03-07 — Completed Phase 36 Plan 01 backend keying foundation
 
 Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 75 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 2)
+- Total plans completed: 76 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 3)
 - Total project time: ~5 days (2026-03-03 -> 2026-03-07)
 - Total LOC: ~40,833 TypeScript/TSX
 
@@ -49,6 +49,9 @@ All decisions logged in PROJECT.md Key Decisions table (55 decisions total throu
 - [Phase 35]: Keep artifactType as nullable string fields with SQL check constraints
 - [Phase 35]: Serve placeholders for generic touch_4 until artifact-aware backend work lands
 - [Phase 35]: Use findFirst plus update/create for legacy null-artifact deck structures
+- [Phase 36-backend-engine-api-routes]: Deck structure identity now resolves through a shared { touchType, artifactType } contract instead of touchType-only branching
+- [Phase 36-backend-engine-api-routes]: Touch 4 inference persists empty artifact rows when no matching examples exist rather than reviving the generic null-artifact fallback
+- [Phase 36-backend-engine-api-routes]: Cron uses an explicit six-key builder so pre_call stays in the API contract but out of auto-inference
 
 ### Pending Todos
 
@@ -71,6 +74,7 @@ None.
 | 12 | Private Slack Notifications for CircleCI Success Builds | 2026-03-07 | e1a609b | [12-is-it-possible-to-send-notifications-to-](./quick/12-is-it-possible-to-send-notifications-to-/) |
 | Phase 35 P01 | 1 min | 2 tasks | 2 files |
 | Phase 35 P02 | 6 min | 2 tasks | 6 files |
+| Phase 36-backend-engine-api-routes P01 | 7 min | 3 tasks | 6 files |
 
 ### Blockers/Concerns
 
@@ -79,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T20:49:31.000Z
-Stopped at: Completed quick task 12
-Next action: /gsd-plan-phase 36
+Last session: 2026-03-07T21:44:15.688Z
+Stopped at: Completed 36-backend-engine-api-routes-01-PLAN.md
+Next action: /gsd-execute-phase 36

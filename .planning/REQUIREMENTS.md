@@ -20,8 +20,8 @@ Requirements for Touch 4 Artifact Intelligence. Each maps to roadmap phases.
 
 ### Deck Structures
 
-- [ ] **DECK-01**: AI inference engine filters Touch 4 examples by artifact type, producing 3 separate deck structures
-- [ ] **DECK-02**: Cron auto-inference iterates over 6 keys (Touch 1-3 + Touch 4 x3 artifact types) with per-key change detection
+- [x] **DECK-01**: AI inference engine filters Touch 4 examples by artifact type, producing 3 separate deck structures
+- [x] **DECK-02**: Cron auto-inference iterates over 6 keys (Touch 1-3 + Touch 4 x3 artifact types) with per-key change detection
 - [ ] **DECK-03**: Settings Touch 4 page shows tabbed view (Proposal / Talk Track / FAQ) with separate structure per tab
 - [ ] **DECK-04**: Each Touch 4 artifact tab shows independent confidence scoring based on classified example count for that artifact type
 - [ ] **DECK-05**: Chat refinement threads artifact type, allowing per-artifact-type conversation scoped to the correct structure
@@ -58,8 +58,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCHM-03 | Phase 35 | Complete |
 | CLSF-01 | Phase 37 | Pending |
 | CLSF-02 | Phase 37 | Pending |
-| DECK-01 | Phase 36 | Pending |
-| DECK-02 | Phase 36 | Pending |
+| DECK-01 | Phase 36 | Complete |
+| DECK-02 | Phase 36 | Complete |
 | DECK-03 | Phase 37 | Pending |
 | DECK-04 | Phase 37 | Pending |
 | DECK-05 | Phase 36 | Pending |

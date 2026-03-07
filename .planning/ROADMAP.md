@@ -116,8 +116,12 @@ Plans:
   1. `inferDeckStructure()` accepts `artifactType` parameter and filters Touch 4 examples to only that artifact type before sending to the LLM
   2. Cron auto-inference iterates 6 keys (Touch 1-3 + Touch 4 x3 artifact types) with per-key change detection including `artifactType` in hash
   3. Chat refinement threads `artifactType` through the entire chain, scoping conversation to the correct artifact-type structure
-  4. API routes accept `?artifactType=` query parameter and return 6 deck structure entries (3 for Touch 4)
-**Plans**: TBD
+  4. API routes accept `?artifactType=` query parameter and return 7 deck structure entries: Touch 1, Touch 2, Touch 3, Pre-call, and 3 artifact-specific Touch 4 entries
+**Plans**: 2 plans
+
+Plans:
+- [x] 36-01-PLAN.md — Add shared artifact-aware deck keys plus Touch 4 inference and cron isolation
+- [ ] 36-02-PLAN.md — Thread artifactType through deck-structure routes, chat refinement, and web proxies
 
 ### Phase 37: Frontend UI
 **Goal**: Users can classify Touch 4 examples by artifact type and view per-artifact deck structures in Settings
@@ -172,5 +176,5 @@ Plans:
 | 33. Slide Intelligence Foundation | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 34. Deck Intelligence | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
-| 36. Backend Engine & API Routes | v1.6 | 0/TBD | Not started | - |
+| 36. Backend Engine & API Routes | v1.6 | 1/2 | In Progress | - |
 | 37. Frontend UI | v1.6 | 0/TBD | Not started | - |
