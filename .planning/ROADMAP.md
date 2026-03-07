@@ -183,4 +183,4 @@ Plans:
 | 34. Deck Intelligence | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
-| 37. Frontend UI | v1.6 | 4/4 | Complete | 2026-03-07 |
+| 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
