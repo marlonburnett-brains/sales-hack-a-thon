@@ -285,6 +285,15 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
   }
 
   // ── Search results display ───────────────────────────────────
+  function SearchResultsHeader({ count }: { count: number }) {
+    if (isSearching || count === 0) return null;
+    return (
+      <p className="text-xs text-slate-500">
+        {count} result{count !== 1 ? "s" : ""} for &ldquo;{searchQuery}&rdquo;
+      </p>
+    );
+  }
+
   function SearchResults({ results }: { results: DiscoveryDocument[] }) {
     if (isSearching) {
       return (
@@ -390,7 +399,7 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
 
         {/* Panel */}
         <div
-          className={`fixed inset-y-0 right-0 z-30 w-full transform border-l border-slate-200 bg-white shadow-xl transition-transform duration-200 ease-in-out md:w-[480px] ${
+          className={`fixed inset-y-0 right-0 z-30 w-full transform border-l border-slate-200 bg-white shadow-xl transition-transform duration-200 ease-in-out motion-reduce:transition-none md:w-[480px] ${
             isOpen ? "translate-x-0" : "translate-x-full"
           }`}
           role="dialog"
@@ -607,7 +616,10 @@ export function DiscoveryClient({ initialBrowse }: DiscoveryClientProps) {
           {hasMore && <div ref={sentinelRef} className="h-1" />}
         </>
       ) : (
-        <SearchResults results={searchResults} />
+        <>
+          <SearchResultsHeader count={searchResults.length} />
+          <SearchResults results={searchResults} />
+        </>
       )}
 
       {/* Preview panel */}
