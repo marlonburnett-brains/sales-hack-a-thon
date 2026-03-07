@@ -2,6 +2,52 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.4 — AtlusAI Authentication & Discovery
+
+**Shipped:** 2026-03-07
+**Phases:** 5 | **Plans:** 12 | **Commits:** ~60 (feat/fix)
+
+### What Was Built
+- AtlusAI token storage with AES-256-GCM encryption, pool rotation, env var fallback, and 3-tier access detection cascade
+- Mastra MCP client singleton with lifecycle management, OAuth refresh mutex, max lifetime recycling, and graceful SIGTERM shutdown
+- MCP semantic search adapter replacing Drive API fallback with LLM extraction -- all 5 consumer files unchanged
+- Discovery UI with browse (infinite scroll, card/list toggle), search (debounced semantic, relevance scoring, preview panel), and batch selective ingestion
+- ActionRequired integration for AtlusAI account/project access with silence, dimming, and resolution guidance
+- Chunked LLM extraction for large MCP results (32K threshold with array-level chunking)
+
+### What Worked
+- **Pattern reuse across auth milestones:** v1.3 Google token patterns (pool rotation, AES-256-GCM, ActionRequired) cloned directly for AtlusAI tokens — reduced design time significantly
+- **MCP adapter pattern:** Mapping MCP results to existing SlideSearchResult interface meant zero changes to 5 consumer files — clean separation of concerns
+- **Adaptive LLM prompt caching:** First MCP call discovers result shape, caches extraction template — handles unknown MCP response formats gracefully
+- **Server-side access gating:** Discovery page checks AtlusAI access before rendering content — prevents confusing UI states
+- **Gap closure phases worked:** Phases 30-31 (audit-driven) efficiently closed verification and tech debt gaps without scope creep
+
+### What Was Inefficient
+- **SUMMARY frontmatter still empty:** `requirements_completed` and `one_liner` not populated across any v1.4 SUMMARY files — 4th milestone with same tooling gap
+- **Mock drift from Phase 31:** Phase 31 tech debt changes broke 8 mcp-client unit tests via mock export mismatch — should have updated tests in same commit
+- **No discovery unit tests:** Phase 29 verified via code inspection + VERIFICATION.md only — no test file created despite wave 0 validation strategy
+- **Phase 29-03 absorbed:** Plan 29-03 scope was absorbed into 29-01 and 29-02 — plan scoping was too granular for the feature
+
+### Patterns Established
+- **MCP singleton with lifecycle:** Health check via listTools(), max lifetime recycling, graceful SIGTERM shutdown — reusable for any MCP integration
+- **Token refresh mutex:** refreshPromise serializes concurrent 401 recovery — prevents thundering herd on token refresh
+- **Module-level Map for batch state:** In-memory Map sufficient for single-instance agent; avoids DB complexity for transient state
+- **slideId-based dedup:** Simpler than SHA-256 content hashing; effective for preventing duplicate ingestion
+
+### Key Lessons
+1. **MCP client lifecycle needs active management:** SSE connections are fragile — health checks, max lifetime, and graceful shutdown are essential, not optional.
+2. **LLM extraction is viable for unknown schemas:** Adaptive prompting can handle MCP results without knowing the response shape upfront — flexible but adds latency.
+3. **Chunking at array level preserves structure:** Splitting arrays (not raw text) for LLM extraction maintains JSON validity and allows parallel processing.
+4. **Gap closure phases should update tests:** When tech debt changes affect existing test mocks, test updates must be in the same commit — otherwise mock drift accumulates.
+5. **Absorbed plans indicate over-scoping:** If a plan's scope fits naturally into adjacent plans, the original plan was probably too granular.
+
+### Cost Observations
+- Model mix: ~65% sonnet (executors, verifiers), ~20% haiku (researchers), ~15% opus (orchestration, audit)
+- Sessions: ~8 sessions across 2 days
+- Notable: Two audit rounds (gaps_found → tech_debt) — second audit confirmed all 35 requirements satisfied with verified evidence
+
+---
+
 ## Milestone: v1.3 — Google API Auth: User-Delegated Credentials
 
 **Shipped:** 2026-03-06
@@ -208,6 +254,7 @@
 | v1.1 | 55 | 4 | Infrastructure hardening — platform deploy, auth, Postgres |
 | v1.2 | 37 | 4 | Template intelligence — pgvector, AI classification, HITL rating |
 | v1.3 | 17 | 5 | User-delegated Google OAuth — token storage, passthrough, pool |
+| v1.4 | ~60 | 5 | AtlusAI MCP integration — token pool, semantic search, discovery UI |
 
 ### Cumulative Quality
 
@@ -217,16 +264,17 @@
 | v1.1 | 4 | 2 | 2 (phases 14, 16 — runtime auth flows) |
 | v1.2 | 4 | 4 | 0 (all passed automated verification) |
 | v1.3 | 5 | 5 | 0 (52 tests, Nyquist compliant) |
+| v1.4 | 5 | 5 | 0 (35 requirements, partial Nyquist — meta-phases exempt) |
 
 ### Cumulative Stats
 
-| Metric | v1.0 | v1.1 | v1.2 | v1.3 | Total |
-|--------|------|------|------|------|-------|
-| Phases | 13 | 4 | 4 | 5 | 26 |
-| Plans | 27 | 6 | 10 | 10 | 53 |
-| Commits | 169 | 55 | 37 | 17 | 278 |
-| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~30,203 |
-| Days | 2 | 1 | 2 | 1 | 4 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | Total |
+|--------|------|------|------|------|------|-------|
+| Phases | 13 | 4 | 4 | 5 | 5 | 31 |
+| Plans | 27 | 6 | 10 | 10 | 12 | 65 |
+| Commits | 169 | 55 | 37 | 17 | ~60 | ~338 |
+| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~35,315 |
+| Days | 2 | 1 | 2 | 1 | 2 | 5 |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -236,7 +284,10 @@
 4. Container deployment requires iteration even with working local builds — budget for debugging
 5. Design auth strategy holistically across phases to avoid mid-milestone header switches
 6. Choose CI/CD platform before building the pipeline — avoid mid-milestone migrations
-7. SUMMARY.md frontmatter gap is a recurring tooling issue — fix the executor, not the auditor
+7. SUMMARY.md frontmatter gap is a recurring tooling issue — fix the executor, not the auditor (v1.0-v1.4, 5 milestones)
 8. Prisma + pgvector requires raw SQL escape hatches — accept and design around it
 9. User-delegated OAuth tokens solve org-wide file access without domain-wide delegation
 10. Regression test suites should be a mandatory deliverable for auth/security milestones
+11. MCP client lifecycle needs active management — SSE connections are fragile, health checks and recycling are essential
+12. Pattern reuse across auth milestones accelerates delivery — v1.3 patterns directly applicable to v1.4
+13. Gap closure phases after audit are efficient — targeted scope, no creep, closes verification and tech debt quickly

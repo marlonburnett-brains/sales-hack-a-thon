@@ -12,6 +12,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Copy workspace dependencies
 COPY packages/ ./packages/
 
+# Copy patches (referenced by pnpm patchedDependencies)
+COPY patches/ ./patches/
+
 # Copy agent app
 COPY apps/agent/ ./apps/agent/
 

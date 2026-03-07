@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. Templates can be registered from Google Slides, AI-ingested with vector embeddings and multi-axis classification, previewed with human rating and tag correction, and searched by similarity. All outputs are saved to shared Lumenalta Drive. Google API access uses user-delegated OAuth credentials (with service account fallback), providing org-wide file access through authenticated users' permissions. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
+A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. Templates can be registered from Google Slides, AI-ingested with vector embeddings and multi-axis classification, previewed with human rating and tag correction, and searched by similarity. All outputs are saved to shared Lumenalta Drive. Google API access uses user-delegated OAuth credentials (with service account fallback), providing org-wide file access through authenticated users' permissions. AtlusAI content is accessed via Mastra MCP client with pooled token auth, 3-tier access detection, and a discovery UI for browsing/searching/ingesting content via semantic search. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
 
 ## Core Value
 
@@ -110,18 +110,17 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - ✓ Middleware re-consent detection with cookie-cached token status -- v1.3
 - ✓ 52-test regression suite for auth priority chain -- v1.3
 
+**AtlusAI Authentication & Discovery** -- v1.4
+- ✓ AtlusAI token storage with AES-256-GCM encryption, pool rotation, and env var fallback -- v1.4
+- ✓ 3-tier access detection (account → project → full access) with ActionRequired integration -- v1.4
+- ✓ Mastra MCP client singleton with lifecycle management, OAuth refresh, and graceful shutdown -- v1.4
+- ✓ MCP semantic search replacing Drive API fallback with LLM extraction adapter -- v1.4
+- ✓ Discovery UI with browse/search views, batch selective ingestion, and dedup markers -- v1.4
+- ✓ Chunked LLM extraction for large MCP results (32K threshold) -- v1.4
+
 ### Active
 
-## Current Milestone: v1.4 AtlusAI Authentication & Discovery
-
-**Goal:** Direct AtlusAI integration via Mastra MCP client with token pool auth, access detection, and a discovery UI for browsing/searching/ingesting AtlusAI content.
-
-**Target features:**
-- Auth & Token Pool -- UserAtlusToken model, AES-256-GCM encryption, pool rotation, 3-tier access detection
-- Mastra MCP Client -- Wire @mastra/mcp to AtlusAI SSE endpoint with pooled auth credentials
-- Replace Drive Fallback -- Swap atlusai-search.ts Drive-based search with direct MCP semantic search
-- Action Required Integration -- New action types (atlus_account_required, atlus_project_required) in existing ActionRequired model
-- Discovery UI -- New AtlusAI sidebar page with browse, semantic search, and selective ingestion into SlideEmbedding pipeline
+(No active milestone — run `/gsd:new-milestone` to define next)
 
 ### Out of Scope
 
@@ -141,13 +140,13 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ## Context
 
-**Current state:** v1.4 started. ~30,203 LOC TypeScript/TSX. 26 phases, 53 plans across 4 milestones over 4 days (2026-03-03 → 2026-03-06). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
+**Current state:** v1.4 shipped. ~35,315 LOC TypeScript/TSX. 31 phases, 65 plans across 5 milestones over 5 days (2026-03-03 → 2026-03-07). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
 
-**Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI (RAG + knowledge base), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications).
+**Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification fallback), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI via Mastra MCP client (RAG + knowledge base + semantic search), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications), @mastra/mcp (MCP SSE transport).
 
-**Architecture:** Two-app monorepo — `apps/web` (Next.js 15 on Vercel with Server Actions) and `apps/agent` (Mastra Hono server on Railway). Shared `packages/schemas` for Zod types and constants. Mastra workflows use suspend/resume for HITL checkpoints. Google API access uses user-delegated OAuth credentials with service account fallback for background jobs. Service-to-service auth via shared API key (Authorization: Bearer header). User auth via Supabase Google OAuth restricted to @lumenalta.com. pgvector HNSW index for cosine similarity search across slide embeddings.
+**Architecture:** Two-app monorepo — `apps/web` (Next.js 15 on Vercel with Server Actions) and `apps/agent` (Mastra Hono server on Railway). Shared `packages/schemas` for Zod types and constants. Mastra workflows use suspend/resume for HITL checkpoints. Google API access uses user-delegated OAuth credentials with service account fallback for background jobs. AtlusAI access via pooled token auth with 3-tier detection and MCP singleton client (agent-only, no MCP imports in web). Service-to-service auth via shared API key (Authorization: Bearer header). User auth via Supabase Google OAuth restricted to @lumenalta.com. pgvector HNSW index for cosine similarity search across slide embeddings.
 
-**Content library status:** 38 slides ingested from 5 accessible presentations in AtlusAI. Brand guidelines ingested. Template management system now enables registering additional Google Slides sources with AI classification. 14/17 known Drive sources need Viewer access on target Shared Drives (shortcut container access is insufficient).
+**Content library status:** 38 slides ingested from 5 accessible presentations in AtlusAI. Brand guidelines ingested. Template management system enables registering additional Google Slides sources with AI classification. AtlusAI content now discoverable and ingestible via Discovery UI (MCP semantic search). 14/17 known Drive sources need Viewer access on target Shared Drives (shortcut container access is insufficient).
 
 **Demo scenario:** Meridian Capital Group (Financial Services) — seeded company, deal, and Touch 1 interaction. 167-line transcript fixture covering all 6 extraction fields.
 
@@ -197,6 +196,17 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | User-delegated Google credentials | Service account can't access all org files; user OAuth tokens inherit org permissions | ✓ Good — transparent fallback chain (user token -> pool -> service account) |
 | Vitest smoke tests for v1.3 verification | Mocked Google APIs verify auth path selection without real API calls | ✓ Good — permanent regression suite for auth priority chain |
 | DEPLOY.md as environment setup reference | Practical new-environment guide vs. scattered env var notes | ✓ Good — single source of truth for all deployment config |
+| Generic `encryptedToken` field for AtlusAI | Auth mechanism TBD at design time; flexible field name | ✓ Good — worked for OAuth tokens |
+| Clone getPooledGoogleAuth for AtlusAI pool | Same ordering, fire-and-forget, health check pattern | ✓ Good — consistent pool behavior |
+| Network errors treated as auth failure in AtlusAI probes | Safe default prevents false positives | ✓ Good — conservative approach |
+| MCPClient singleton with lifecycle management | Health check, max lifetime, graceful shutdown | ✓ Good — handles SSE connection instability |
+| Thin fetch callback for MCP auth injection | Fresh token per request without breaking connections | ✓ Good — token rotation transparent to MCP |
+| LLM extraction always for MCP results | Consistency over cost savings (user decision) | ✓ Good — reliable structured output |
+| Adaptive LLM prompt for MCP result shape | First call discovers shape, caches template for subsequent | ✓ Good — handles unknown MCP response formats |
+| Module-level Map for batch ingestion state | Simple in-memory state sufficient for single-instance agent | ✓ Good — avoids DB complexity |
+| slideId-based ingestion check over SHA-256 | Simpler dedup, avoids client-side hashing | ✓ Good — effective dedup |
+| Chunked LLM extraction at 32K threshold | Array-level chunking with parallel Promise.all | ✓ Good — handles large MCP results without data loss |
+| Fire-and-forget persistAtlusClientId | Avoids blocking MCP init for non-critical persistence | ✓ Good — fast startup |
 
 ---
-*Last updated: 2026-03-06 after v1.4 milestone start*
+*Last updated: 2026-03-07 after v1.4 milestone*

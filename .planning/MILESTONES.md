@@ -1,5 +1,28 @@
 # Milestones
 
+## v1.4 AtlusAI Authentication & Discovery (Shipped: 2026-03-07)
+
+**Phases:** 5 (27-31) | **Plans:** 12 | **Commits:** ~60 (feat/fix) | **Files changed:** 263 | **LOC:** ~35,315 TypeScript/TSX (total)
+**Timeline:** 2 days (2026-03-06 -> 2026-03-07)
+**Git range:** `5700873..f247482`
+
+**Key accomplishments:**
+- AtlusAI token storage with AES-256-GCM encryption, pool rotation with env var fallback, and 3-tier access detection cascade (account -> project -> full access)
+- Mastra MCP client singleton with lifecycle management, OAuth refresh mutex, configurable max lifetime, and graceful SIGTERM shutdown
+- MCP semantic search replacing Drive API fallback with adaptive LLM extraction adapter -- all 5 consumer files unchanged
+- Discovery UI with browse (infinite scroll, card/list toggle) and search (debounced semantic search with relevance scoring and preview panel)
+- Batch selective ingestion with floating toolbar, per-item progress polling, and dedup markers for already-ingested content
+- Chunked LLM extraction for large MCP results (32K threshold), persisted OAuth client_id to skip re-registration
+
+**Tech debt (accepted):**
+- 8 mcp-client unit tests fail due to mock drift from Phase 31 changes (not production bugs)
+- No discovery-specific unit test file created (verified via code inspection + VERIFICATION.md)
+- SUMMARY.md frontmatter `requirements_completed` not populated across v1.4 plans (metadata gap)
+
+**Archives:** [v1.4-ROADMAP.md](milestones/v1.4-ROADMAP.md) | [v1.4-REQUIREMENTS.md](milestones/v1.4-REQUIREMENTS.md) | [v1.4-MILESTONE-AUDIT.md](milestones/v1.4-MILESTONE-AUDIT.md)
+
+---
+
 ## v1.3 Google API Auth: User-Delegated Credentials (Shipped: 2026-03-06)
 
 **Phases:** 5 (22-26) | **Plans:** 10 | **Commits:** 17 | **Files changed:** 82 | **LOC:** ~30,203 TypeScript/TSX (total)
