@@ -10,7 +10,9 @@
 import { TOUCH_TYPES } from "@lumenalta/schemas";
 
 /** Touch types that produce slide decks (pre_call is a text/research artifact) */
-const DECK_TOUCH_TYPES = TOUCH_TYPES.filter((tt) => tt !== "pre_call");
+const DECK_TOUCH_TYPES = TOUCH_TYPES.filter(
+  (tt) => tt !== "pre_call" && tt !== "touch_4",
+);
 import { prisma } from "../lib/db";
 import { inferDeckStructure, computeDataHash } from "./infer-deck-structure";
 
@@ -49,8 +51,11 @@ async function runInferenceCycle(): Promise<void> {
       const currentHash = await computeDataHash(touchType);
 
       // 2. Load existing structure
-      const existing = await prisma.deckStructure.findUnique({
-        where: { touchType },
+      const existing = await prisma.deckStructure.findFirst({
+        where: {
+          touchType,
+          artifactType: null,
+        },
       });
 
       // 3. Check if re-inference is needed

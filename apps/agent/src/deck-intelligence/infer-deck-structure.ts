@@ -17,6 +17,61 @@ import {
   type DeckStructureOutput,
 } from "./deck-structure-schema";
 
+export const GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE =
+  'Generic Touch 4 deck structures are unavailable until artifact-aware inference ships.';
+
+export function isUnsupportedGenericTouch4(touchType: string, artifactType: string | null = null): boolean {
+  return touchType === "touch_4" && artifactType === null;
+}
+
+export function buildEmptyDeckStructureOutput(
+  touchType: string,
+  reason?: string,
+): DeckStructureOutput {
+  return {
+    sections: [],
+    sequenceRationale:
+      reason ??
+      `No classified examples or templates found for touch type "${touchType}". Classify presentations as examples and assign touch types to enable AI inference.`,
+  };
+}
+
+async function upsertLegacyDeckStructure(
+  touchType: string,
+  data: {
+    structureJson: string;
+    exampleCount: number;
+    confidence: number;
+    chatContextJson?: string | null;
+    dataHash: string;
+    inferredAt: Date;
+  },
+): Promise<void> {
+  const existing = await prisma.deckStructure.findFirst({
+    where: {
+      touchType,
+      artifactType: null,
+    },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await prisma.deckStructure.update({
+      where: { id: existing.id },
+      data,
+    });
+    return;
+  }
+
+  await prisma.deckStructure.create({
+    data: {
+      touchType,
+      artifactType: null,
+      ...data,
+    },
+  });
+}
+
 // ────────────────────────────────────────────────────────────
 // Data Hash for Change Detection
 // ────────────────────────────────────────────────────────────
@@ -213,6 +268,13 @@ export async function inferDeckStructure(
   touchType: string,
   chatConstraints?: string,
 ): Promise<DeckStructureOutput> {
+  if (isUnsupportedGenericTouch4(touchType)) {
+    return buildEmptyDeckStructureOutput(
+      touchType,
+      GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
+    );
+  }
+
   // 1. Query example templates (primary data)
   const allExamples = await prisma.template.findMany({
     where: { contentClassification: "example" },
@@ -304,31 +366,17 @@ export async function inferDeckStructure(
 
   // 4. If no slides at all, return empty structure
   if (slideData.length === 0) {
-    const emptyOutput: DeckStructureOutput = {
-      sections: [],
-      sequenceRationale: `No classified examples or templates found for touch type "${touchType}". Classify presentations as examples and assign touch types to enable AI inference.`,
-    };
+    const emptyOutput = buildEmptyDeckStructureOutput(touchType);
 
     const confidence = calculateConfidence(0);
     const dataHash = await computeDataHash(touchType);
 
-    await prisma.deckStructure.upsert({
-      where: { touchType },
-      create: {
-        touchType,
-        structureJson: JSON.stringify(emptyOutput),
-        exampleCount: 0,
-        confidence: confidence.score,
-        dataHash,
-        inferredAt: new Date(),
-      },
-      update: {
-        structureJson: JSON.stringify(emptyOutput),
-        exampleCount: 0,
-        confidence: confidence.score,
-        dataHash,
-        inferredAt: new Date(),
-      },
+    await upsertLegacyDeckStructure(touchType, {
+      structureJson: JSON.stringify(emptyOutput),
+      exampleCount: 0,
+      confidence: confidence.score,
+      dataHash,
+      inferredAt: new Date(),
     });
 
     return emptyOutput;
@@ -379,25 +427,13 @@ export async function inferDeckStructure(
   const confidence = calculateConfidence(exampleCount);
   const dataHash = await computeDataHash(touchType);
 
-  await prisma.deckStructure.upsert({
-    where: { touchType },
-    create: {
-      touchType,
-      structureJson: JSON.stringify(output),
-      exampleCount,
-      confidence: confidence.score,
-      chatContextJson: chatConstraints ?? null,
-      dataHash,
-      inferredAt: new Date(),
-    },
-    update: {
-      structureJson: JSON.stringify(output),
-      exampleCount,
-      confidence: confidence.score,
-      chatContextJson: chatConstraints ?? null,
-      dataHash,
-      inferredAt: new Date(),
-    },
+  await upsertLegacyDeckStructure(touchType, {
+    structureJson: JSON.stringify(output),
+    exampleCount,
+    confidence: confidence.score,
+    chatContextJson: chatConstraints ?? null,
+    dataHash,
+    inferredAt: new Date(),
   });
 
   console.log(

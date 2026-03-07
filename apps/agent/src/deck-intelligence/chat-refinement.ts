@@ -9,7 +9,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../env";
 import { prisma } from "../lib/db";
-import { inferDeckStructure } from "./infer-deck-structure";
+import {
+  buildEmptyDeckStructureOutput,
+  GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
+  inferDeckStructure,
+  isUnsupportedGenericTouch4,
+} from "./infer-deck-structure";
 import type { DeckStructureOutput, DeckSection } from "./deck-structure-schema";
 
 // ────────────────────────────────────────────────────────────
@@ -129,9 +134,24 @@ export async function streamChatRefinement(
   userMessage: string,
   onChunk: (text: string) => void,
 ): Promise<ChatRefinementResult> {
+  if (isUnsupportedGenericTouch4(touchType)) {
+    onChunk(GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE);
+    return {
+      aiResponse: GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
+      updatedStructure: buildEmptyDeckStructureOutput(
+        touchType,
+        GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
+      ),
+      diff: { added: [], modified: [], removed: [] },
+    };
+  }
+
   // 1. Load existing DeckStructure
-  const existing = await prisma.deckStructure.findUnique({
-    where: { touchType },
+  const existing = await prisma.deckStructure.findFirst({
+    where: {
+      touchType,
+      artifactType: null,
+    },
     include: {
       chatMessages: {
         orderBy: { createdAt: "asc" },
@@ -160,7 +180,10 @@ export async function streamChatRefinement(
     touchType,
     currentStructureJson,
     existingContext,
-    recentMessages.map((m) => ({ role: m.role, content: m.content })),
+    recentMessages.map((m: { role: string; content: string }) => ({
+      role: m.role,
+      content: m.content,
+    })),
     userMessage,
   );
 
@@ -215,8 +238,11 @@ export async function streamChatRefinement(
   const diff = computeStructureDiff(oldSections, updatedStructure.sections);
 
   // 6. Save messages
-  const deckStructure = await prisma.deckStructure.findUnique({
-    where: { touchType },
+  const deckStructure = await prisma.deckStructure.findFirst({
+    where: {
+      touchType,
+      artifactType: null,
+    },
   });
 
   if (deckStructure) {
@@ -241,7 +267,7 @@ export async function streamChatRefinement(
 
     // Update lastChatAt for active session protection
     await prisma.deckStructure.update({
-      where: { touchType },
+      where: { id: deckStructure.id },
       data: {
         lastChatAt: new Date(),
         chatContextJson: updatedConstraints,
@@ -267,7 +293,7 @@ export async function streamChatRefinement(
 
       // Update context with summary and delete old messages
       await prisma.deckStructure.update({
-        where: { touchType },
+        where: { id: deckStructure.id },
         data: {
           chatContextJson: `## Summarized conversation history\n${summary}\n\n--- Latest refinement ---\n${constraintSummary}`,
         },

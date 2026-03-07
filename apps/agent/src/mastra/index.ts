@@ -29,7 +29,12 @@ import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS, cacheDocumentCover, check
 import crypto from "node:crypto";
 import { TOUCH_TYPES } from "@lumenalta/schemas";
 import { startDeckInferenceCron } from "../deck-intelligence/auto-infer-cron";
-import { inferDeckStructure } from "../deck-intelligence/infer-deck-structure";
+import {
+  buildEmptyDeckStructureOutput,
+  GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
+  inferDeckStructure,
+  isUnsupportedGenericTouch4,
+} from "../deck-intelligence/infer-deck-structure";
 import { calculateConfidence } from "../deck-intelligence/deck-structure-schema";
 import { streamChatRefinement } from "../deck-intelligence/chat-refinement";
 
@@ -2498,6 +2503,7 @@ export const mastra = new Mastra({
         method: "GET",
         handler: async (c) => {
           const records = await prisma.deckStructure.findMany({
+            where: { artifactType: null },
             orderBy: { touchType: "asc" },
           });
 
@@ -2553,8 +2559,30 @@ export const mastra = new Mastra({
         handler: async (c) => {
           const touchType = c.req.param("touchType");
 
-          const record = await prisma.deckStructure.findUnique({
-            where: { touchType },
+          if (isUnsupportedGenericTouch4(touchType)) {
+            const conf = calculateConfidence(0);
+            return c.json({
+              touchType,
+              structure: buildEmptyDeckStructureOutput(
+                touchType,
+                GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
+              ),
+              exampleCount: 0,
+              confidence: 0,
+              confidenceColor: conf.color,
+              confidenceLabel: conf.label,
+              chatMessages: [],
+              slideIdToThumbnail: {},
+              inferredAt: null,
+              lastChatAt: null,
+            });
+          }
+
+          const record = await prisma.deckStructure.findFirst({
+            where: {
+              touchType,
+              artifactType: null,
+            },
             include: {
               chatMessages: {
                 orderBy: { createdAt: "desc" },
@@ -2623,9 +2651,26 @@ export const mastra = new Mastra({
         handler: async (c) => {
           const touchType = c.req.param("touchType");
 
+          if (isUnsupportedGenericTouch4(touchType)) {
+            const conf = calculateConfidence(0);
+            return c.json({
+              touchType,
+              structure: buildEmptyDeckStructureOutput(
+                touchType,
+                GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
+              ),
+              confidence: conf.score,
+              confidenceColor: conf.color,
+              confidenceLabel: conf.label,
+            });
+          }
+
           // Load existing chat constraints if any
-          const existing = await prisma.deckStructure.findUnique({
-            where: { touchType },
+          const existing = await prisma.deckStructure.findFirst({
+            where: {
+              touchType,
+              artifactType: null,
+            },
             select: { chatContextJson: true },
           });
 
@@ -2636,8 +2681,11 @@ export const mastra = new Mastra({
             );
 
             const conf = calculateConfidence(
-              (await prisma.deckStructure.findUnique({
-                where: { touchType },
+              (await prisma.deckStructure.findFirst({
+                where: {
+                  touchType,
+                  artifactType: null,
+                },
                 select: { exampleCount: true },
               }))?.exampleCount ?? 0,
             );
