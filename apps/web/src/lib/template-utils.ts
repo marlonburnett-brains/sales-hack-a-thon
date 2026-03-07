@@ -20,6 +20,7 @@ export function getTemplateStatus(template: {
   lastIngestedAt: string | null;
   sourceModifiedAt: string | null;
   ingestionStatus?: string;
+  slideCount?: number;
 }): TemplateStatus {
   // Check ingestion status first (takes priority during active ingestion)
   if (template.ingestionStatus === "ingesting") return "ingesting";
@@ -28,6 +29,18 @@ export function getTemplateStatus(template: {
 
   if (template.accessStatus === "not_accessible") return "no_access";
   if (!template.lastIngestedAt) return "not_ingested";
+
+  // If ingestion ran but produced zero slides, treat as failed.
+  // This catches cases where per-slide processing errors caused all
+  // slides to be skipped (e.g., Vertex AI configuration issues).
+  if (
+    template.slideCount !== undefined &&
+    template.slideCount === 0 &&
+    template.ingestionStatus === "idle"
+  ) {
+    return "failed";
+  }
+
   if (template.sourceModifiedAt && template.lastIngestedAt) {
     const modified = new Date(template.sourceModifiedAt);
     const ingested = new Date(template.lastIngestedAt);

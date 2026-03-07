@@ -1560,16 +1560,44 @@ export const mastra = new Mastra({
 
             const cursor = c.req.query("cursor") || undefined;
             const limit = parseInt(c.req.query("limit") || "20", 10);
+            const debug = c.req.query("debug") === "1";
 
             const args: Record<string, unknown> = { limit };
             if (env.ATLUS_PROJECT_ID) {
-              args.project_id = env.ATLUS_PROJECT_ID;
+              args.aiProjectId = env.ATLUS_PROJECT_ID;
             }
             if (cursor) {
-              args.cursor = cursor;
+              args.offset = parseInt(cursor, 10);
+            }
+            // Filter to Google Drive docs with successful ingestion only
+            args.preFilters = {
+              condition: "and",
+              filters: [
+                { key: "source", operator: "==", value: "google-drive" },
+                { key: "ingest_status", operator: "==", value: "SUCCESS" },
+              ],
+            };
+
+            let rawResult: unknown;
+            try {
+              rawResult = await callMcpTool("discover_documents", args);
+            } catch (callErr) {
+              console.error("[discovery/browse] callMcpTool threw:", callErr);
+              return c.json({ documents: [], error: String(callErr), _debug: debug ? { stage: "callMcpTool", err: String(callErr) } : undefined }, 500);
             }
 
-            const rawResult = await callMcpTool("discover_documents", args);
+            if (debug) {
+              return c.json({
+                _debug: {
+                  rawResultType: typeof rawResult,
+                  rawResultPreview: JSON.stringify(rawResult)?.substring(0, 2000),
+                  isNull: rawResult === null,
+                  isUndefined: rawResult === undefined,
+                  isArray: Array.isArray(rawResult),
+                  args,
+                },
+              });
+            }
 
             // Query already-ingested content hashes
             const ingested = await prisma.slideEmbedding.findMany({
@@ -1580,24 +1608,87 @@ export const mastra = new Mastra({
               .map((r) => r.contentHash)
               .filter((h): h is string => h !== null);
 
-            // Return raw MCP result under documents key
-            const rawObj =
-              rawResult && typeof rawResult === "object"
-                ? (rawResult as Record<string, unknown>)
-                : {};
-            const documents = Array.isArray(rawObj.documents)
-              ? rawObj.documents
-              : Array.isArray(rawResult)
-                ? rawResult
-                : [];
-            const nextCursor =
-              typeof rawObj.nextCursor === "string"
-                ? rawObj.nextCursor
-                : typeof rawObj.next_cursor === "string"
-                  ? rawObj.next_cursor
-                  : undefined;
+            // Parse raw MCP result — discover_documents returns { text, total }
+            // where text is a formatted string with document blocks separated by "=============="
+            let documents: unknown[] = [];
+            let nextCursor: string | undefined;
+            let totalDocuments: number | undefined;
 
-            return c.json({ documents, nextCursor, ingestedHashes });
+            if (rawResult && typeof rawResult === "object") {
+              const rawObj = rawResult as Record<string, unknown>;
+
+              if (typeof rawObj.total === "number") {
+                totalDocuments = rawObj.total;
+              }
+
+              // Text format: parse document blocks from formatted string
+              if (typeof rawObj.text === "string" && rawObj.text.length > 0) {
+                // Strip the "Showing X of Y..." header line before splitting
+                const textBody = rawObj.text.replace(/^Showing \d+ of \d+[^\n]*\n*/m, "");
+                const blocks = textBody.split(/={10,}/);
+                for (const block of blocks) {
+                  const trimmed = block.trim();
+                  if (!trimmed) continue;
+
+                  // Extract fields from the text block
+                  const idMatch = trimmed.match(/ID:\s*(.+)/);
+                  const urlMatch = trimmed.match(/URL:\s*(.+)/);
+                  const statusMatch = trimmed.match(/Ingestion Status:\s*(.+)/);
+                  const createdMatch = trimmed.match(/Created At:\s*(.+)/);
+                  const sourceMatch = trimmed.match(/source:\s*(.+)/);
+                  const pathMatch = trimmed.match(/path:\s*(.+)/);
+                  const channelMatch = trimmed.match(/channelName:\s*(.+)/);
+                  const dateMatch = trimmed.match(/date:\s*(.+)/);
+
+                  if (!idMatch) continue;
+
+                  const ingestionStatus = statusMatch?.[1]?.trim();
+
+                  const url = urlMatch?.[1]?.trim() ?? "";
+                  const path = pathMatch?.[1]?.trim() ?? "";
+                  const channel = channelMatch?.[1]?.trim() ?? "";
+                  const source = sourceMatch?.[1]?.trim() ?? "unknown";
+
+                  // Derive a human-readable title
+                  let title = path
+                    ? path.split("/").pop() ?? path
+                    : channel
+                      ? `#${channel}`
+                      : url;
+
+                  documents.push({
+                    slideId: idMatch[1].trim(),
+                    documentTitle: title,
+                    textContent: trimmed,
+                    speakerNotes: "",
+                    source,
+                    metadata: {
+                      id: idMatch[1]?.trim(),
+                      url,
+                      ingestionStatus,
+                      createdAt: createdMatch?.[1]?.trim(),
+                      date: dateMatch?.[1]?.trim(),
+                      source,
+                      path,
+                      channelName: channel || undefined,
+                    },
+                  });
+                }
+
+                // Calculate next cursor for pagination
+                const offset = cursor ? parseInt(cursor, 10) : 0;
+                if (totalDocuments && offset + limit < totalDocuments) {
+                  nextCursor = String(offset + limit);
+                }
+              } else if (Array.isArray(rawObj.documents)) {
+                // Structured format (future-proofing)
+                documents = rawObj.documents;
+              }
+            } else if (typeof rawResult === "string" && rawResult.length > 0) {
+              documents = [{ textContent: rawResult, source: "mcp" }];
+            }
+
+            return c.json({ documents, nextCursor, totalDocuments, ingestedHashes });
           } catch (err) {
             console.error("[discovery/browse] Error:", err);
             return c.json(

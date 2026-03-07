@@ -60,8 +60,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // ────────────────────────────────────────────────────────────
-  // Google Token Re-consent Check (Phase 22)
-  // Only for authenticated users NOT on /login or /auth pages
+  // Google Token Status Check (informational only)
+  // Sets a cookie so client components can show re-auth banners.
+  // NEVER signs the user out — Supabase auth and Google token
+  // are independent concerns.
   // ────────────────────────────────────────────────────────────
   if (
     user &&
@@ -70,18 +72,7 @@ export async function middleware(request: NextRequest) {
   ) {
     const tokenStatus = request.cookies.get("google-token-status")?.value;
 
-    if (tokenStatus === "valid") {
-      // Cookie cache hit — user has a token, proceed normally
-    } else if (tokenStatus === "missing") {
-      // Cookie cache hit — user has no token, force re-consent
-      await supabase.auth.signOut();
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      url.searchParams.set("reconsent", "1");
-      const returnTo = request.nextUrl.pathname + request.nextUrl.search;
-      url.searchParams.set("next", returnTo);
-      return NextResponse.redirect(url);
-    } else {
+    if (!tokenStatus) {
       // No cookie — check agent API for token existence
       const agentUrl = process.env.AGENT_SERVICE_URL || "http://localhost:4111";
       const agentKey = process.env.AGENT_API_KEY;
@@ -95,7 +86,6 @@ export async function middleware(request: NextRequest) {
                 Authorization: `Bearer ${agentKey}`,
                 "Content-Type": "application/json",
               },
-              // Short timeout to avoid blocking page loads if agent is down
               signal: AbortSignal.timeout(3000),
             }
           );
@@ -105,49 +95,31 @@ export async function middleware(request: NextRequest) {
               hasToken: boolean;
             };
 
-            if (hasToken) {
-              // Token exists — set cache cookie and proceed
-              supabaseResponse.cookies.set("google-token-status", "valid", {
+            supabaseResponse.cookies.set(
+              "google-token-status",
+              hasToken ? "valid" : "missing",
+              {
                 httpOnly: false,
                 maxAge: 3600,
                 sameSite: "lax",
                 path: "/",
-              });
-            } else {
-              // No token — set cache cookie, sign out, redirect to re-consent
-              supabaseResponse.cookies.set("google-token-status", "missing", {
-                httpOnly: false,
-                maxAge: 3600,
-                sameSite: "lax",
-                path: "/",
-              });
-              await supabase.auth.signOut();
-              const url = request.nextUrl.clone();
-              url.pathname = "/login";
-              url.searchParams.set("reconsent", "1");
-              const returnTo =
-                request.nextUrl.pathname + request.nextUrl.search;
-              url.searchParams.set("next", returnTo);
-              return NextResponse.redirect(url);
-            }
-          } else {
-            // Agent returned non-OK — graceful degradation, proceed without check
-            console.warn(
-              `[middleware] Token check failed with status ${checkResponse.status}`
+              }
             );
           }
         } catch {
-          // Agent unreachable — cache "valid" briefly so we don't retry every request
+          // Agent unreachable — assume valid briefly so we don't retry every request
           supabaseResponse.cookies.set("google-token-status", "valid", {
             httpOnly: false,
-            maxAge: 300, // 5 minutes
+            maxAge: 300,
             sameSite: "lax",
             path: "/",
           });
         }
       }
-      // If no AGENT_API_KEY set, skip check (graceful degradation)
     }
+    // If cookie exists ("valid" or "missing"), trust it until it expires.
+    // Client components (google-token-badge, actions page) read this cookie
+    // to show appropriate re-auth banners without forcing sign-out.
   }
 
   return supabaseResponse;

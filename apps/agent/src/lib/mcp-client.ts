@@ -236,16 +236,21 @@ export async function initMcp(): Promise<void> {
     client = createClient();
     createdAt = Date.now();
 
-    // Health check with 5s timeout
+    // Health check: verify SSE connection works by getting the internal client.
+    // We skip listTools() because Mastra's Zod schema conversion crashes on
+    // AtlusAI's complex preFilters schema. Instead, we verify the transport
+    // connects successfully via getConnectedClientForServer.
     const healthTimeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Health check timeout")), 5_000),
+      setTimeout(() => reject(new Error("Health check timeout")), 10_000),
     );
 
     try {
-      const tools = await Promise.race([client.listTools(), healthTimeout]);
-      const toolCount = Object.keys(tools).length;
+      await Promise.race([
+        client.getConnectedClientForServer("atlus"),
+        healthTimeout,
+      ]);
       fallbackMode = false;
-      console.log(`[mcp] Connected -- ${toolCount} tool(s) available`);
+      console.log("[mcp] Connected to AtlusAI");
     } catch (healthErr) {
       fallbackMode = true;
       console.warn("[mcp] Health check failed -- fallback mode enabled:", healthErr);
@@ -322,18 +327,60 @@ export async function callMcpTool(
     throw new Error("MCP not available");
   }
 
-  const namespacedName = `atlus_${toolName}`;
-
   async function attemptCall(c: MCPClient): Promise<unknown> {
-    const tools = await c.listTools();
-    const tool = tools[namespacedName];
-    if (!tool) {
-      throw new Error(`MCP tool not found: ${namespacedName}`);
+    // Use raw MCP protocol callTool via getConnectedClientForServer
+    // to bypass Mastra's broken Zod schema conversion (stack overflow
+    // on AtlusAI's complex preFilters JSON schema).
+    const internalClient = await c.getConnectedClientForServer("atlus");
+    // InternalMastraMCPClient has a `.client` property (MCP SDK Client)
+    const sdkClient = (internalClient as unknown as Record<string, unknown>).client as {
+      callTool: (
+        params: Record<string, unknown>,
+        schema?: unknown,
+        options?: Record<string, unknown>,
+      ) => Promise<Record<string, unknown>>;
+    };
+    if (!sdkClient?.callTool) {
+      throw new Error("MCP internal client does not expose callTool method");
     }
-    if (!tool.execute) {
-      throw new Error(`MCP tool has no execute method: ${namespacedName}`);
+    const result = await sdkClient.callTool(
+      { name: toolName, arguments: args },
+      undefined,
+      { timeout: 30_000 },
+    );
+    // Log only errors or unexpected states
+    if (result.isError) {
+      console.error("[mcp] callTool returned isError:", result);
     }
-    return tool.execute(args, {} as never);
+    // Check for MCP error response
+    if (result.isError) {
+      const errContent = Array.isArray(result.content)
+        ? (result.content as Array<{ type: string; text?: string }>)
+            .filter((c) => c.type === "text")
+            .map((c) => c.text ?? "")
+            .join("")
+        : String(result);
+      throw new Error(`MCP tool error: ${errContent}`);
+    }
+    // Parse text content as JSON
+    if (result.content && Array.isArray(result.content)) {
+      const textContent = (result.content as Array<{ type: string; text?: string }>)
+        .filter((c) => c.type === "text")
+        .map((c) => c.text ?? "")
+        .join("");
+      if (textContent.length > 0) {
+        try {
+          return JSON.parse(textContent);
+        } catch {
+          return textContent;
+        }
+      }
+    }
+    // Return structuredContent if present (newer MCP protocol)
+    if (result.structuredContent !== undefined) {
+      return result.structuredContent;
+    }
+    return result;
   }
 
   try {

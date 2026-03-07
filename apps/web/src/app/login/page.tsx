@@ -56,7 +56,7 @@ function LoginContent() {
         queryParams: {
           hd: "lumenalta.com",
           access_type: "offline",
-          prompt: needsConsent ? "consent" : "select_account",
+          prompt: "consent",
         },
       },
     });

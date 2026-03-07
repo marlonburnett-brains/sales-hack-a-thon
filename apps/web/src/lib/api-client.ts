@@ -818,6 +818,7 @@ export interface DiscoveryDocument {
 export interface BrowseResult {
   documents: DiscoveryDocument[];
   nextCursor?: string;
+  totalDocuments?: number;
   ingestedHashes: string[];
 }
 
