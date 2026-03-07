@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  mockFindMany,
+  mockTemplateFindMany,
+  mockSlideEmbeddingFindMany,
   mockFindFirst,
   mockUpdate,
   mockCreate,
   mockGenerateContent,
 } = vi.hoisted(() => ({
-  mockFindMany: vi.fn(),
+  mockTemplateFindMany: vi.fn(),
+  mockSlideEmbeddingFindMany: vi.fn(),
   mockFindFirst: vi.fn(),
   mockUpdate: vi.fn(),
   mockCreate: vi.fn(),
@@ -16,8 +18,8 @@ const {
 
 vi.mock("../../lib/db", () => ({
   prisma: {
-    template: { findMany: mockFindMany },
-    slideEmbedding: { findMany: mockFindMany },
+    template: { findMany: mockTemplateFindMany },
+    slideEmbedding: { findMany: mockSlideEmbeddingFindMany },
     deckStructure: {
       findFirst: mockFindFirst,
       update: mockUpdate,
@@ -41,11 +43,11 @@ vi.mock("@google/genai", () => ({
     NUMBER: "NUMBER",
     BOOLEAN: "BOOLEAN",
   },
-  GoogleGenAI: vi.fn().mockImplementation(() => ({
-    models: {
+  GoogleGenAI: class {
+    models = {
       generateContent: mockGenerateContent,
-    },
-  })),
+    };
+  },
 }));
 
 import { computeDataHash, inferDeckStructure } from "../infer-deck-structure";
@@ -75,6 +77,8 @@ function makeSlide(templateId: string, contentText: string) {
 describe("Phase 36 artifact-aware inference", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockTemplateFindMany.mockReset();
+    mockSlideEmbeddingFindMany.mockReset();
     mockFindFirst.mockResolvedValue(null);
     mockUpdate.mockResolvedValue(undefined);
     mockCreate.mockResolvedValue(undefined);
@@ -96,18 +100,19 @@ describe("Phase 36 artifact-aware inference", () => {
   });
 
   it("filters touch_4 primary examples to the requested artifact", async () => {
-    mockFindMany
+    mockTemplateFindMany
       .mockResolvedValueOnce([
         makeTemplate({ id: "example-proposal", name: "Proposal Example", artifactType: "proposal" }),
         makeTemplate({ id: "example-faq", name: "FAQ Example", artifactType: "faq" }),
       ])
       .mockResolvedValueOnce([makeTemplate({ id: "template-shared", name: "Shared Template", contentClassification: "template" })])
-      .mockResolvedValueOnce([makeSlide("example-proposal", "Proposal primary slide")])
-      .mockResolvedValueOnce([makeSlide("template-shared", "Shared template slide")])
       .mockResolvedValueOnce([
         { id: "example-proposal", touchTypes: JSON.stringify(["touch_4"]), artifactType: "proposal", contentClassification: "example" },
         { id: "example-faq", touchTypes: JSON.stringify(["touch_4"]), artifactType: "faq", contentClassification: "example" },
       ]);
+    mockSlideEmbeddingFindMany
+      .mockResolvedValueOnce([makeSlide("example-proposal", "Proposal primary slide")])
+      .mockResolvedValueOnce([makeSlide("template-shared", "Shared template slide")]);
 
     await inferDeckStructure({ touchType: "touch_4", artifactType: "proposal" });
 
@@ -117,7 +122,7 @@ describe("Phase 36 artifact-aware inference", () => {
   });
 
   it("keeps all touch_4 templates as secondary variation sources", async () => {
-    mockFindMany
+    mockTemplateFindMany
       .mockResolvedValueOnce([
         makeTemplate({ id: "example-proposal", name: "Proposal Example", artifactType: "proposal" }),
       ])
@@ -125,12 +130,13 @@ describe("Phase 36 artifact-aware inference", () => {
         makeTemplate({ id: "template-shared", name: "Shared Template A", contentClassification: "template", artifactType: null }),
         makeTemplate({ id: "template-faq", name: "FAQ Template", contentClassification: "template", artifactType: "faq" }),
       ])
-      .mockResolvedValueOnce([makeSlide("example-proposal", "Proposal primary slide")])
-      .mockResolvedValueOnce([makeSlide("template-shared", "Shared template slide")])
-      .mockResolvedValueOnce([makeSlide("template-faq", "FAQ template slide")])
       .mockResolvedValueOnce([
         { id: "example-proposal", touchTypes: JSON.stringify(["touch_4"]), artifactType: "proposal", contentClassification: "example" },
       ]);
+    mockSlideEmbeddingFindMany
+      .mockResolvedValueOnce([makeSlide("example-proposal", "Proposal primary slide")])
+      .mockResolvedValueOnce([makeSlide("template-shared", "Shared template slide")])
+      .mockResolvedValueOnce([makeSlide("template-faq", "FAQ template slide")]);
 
     await inferDeckStructure({ touchType: "touch_4", artifactType: "proposal" });
 
@@ -140,7 +146,7 @@ describe("Phase 36 artifact-aware inference", () => {
   });
 
   it("persists empty touch_4 artifact rows without falling back to null artifact", async () => {
-    mockFindMany
+    mockTemplateFindMany
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
@@ -158,7 +164,7 @@ describe("Phase 36 artifact-aware inference", () => {
   });
 
   it("hashes touch_4 example inputs separately per artifact", async () => {
-    mockFindMany.mockResolvedValue([
+    mockTemplateFindMany.mockResolvedValue([
       { id: "proposal-1", touchTypes: JSON.stringify(["touch_4"]), artifactType: "proposal", contentClassification: "example" },
       { id: "faq-1", touchTypes: JSON.stringify(["touch_4"]), artifactType: "faq", contentClassification: "example" },
     ]);

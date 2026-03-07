@@ -12,6 +12,10 @@ import crypto from "node:crypto";
 import { env } from "../env";
 import { prisma } from "../lib/db";
 import {
+  resolveDeckStructureKey,
+  type DeckStructureKey,
+} from "./deck-structure-key";
+import {
   DECK_STRUCTURE_SCHEMA,
   calculateConfidence,
   type DeckStructureOutput,
@@ -20,8 +24,21 @@ import {
 export const GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE =
   'Generic Touch 4 deck structures are unavailable until artifact-aware inference ships.';
 
+type DeckStructureKeyInput = string | DeckStructureKey;
+
 export function isUnsupportedGenericTouch4(touchType: string, artifactType: string | null = null): boolean {
   return touchType === "touch_4" && artifactType === null;
+}
+
+function getDeckStructureKey(
+  input: DeckStructureKeyInput,
+  artifactType: string | null = null,
+): DeckStructureKey {
+  if (typeof input === "string") {
+    return resolveDeckStructureKey(input, artifactType);
+  }
+
+  return resolveDeckStructureKey(input.touchType, input.artifactType);
 }
 
 export function buildEmptyDeckStructureOutput(
@@ -36,8 +53,8 @@ export function buildEmptyDeckStructureOutput(
   };
 }
 
-async function upsertLegacyDeckStructure(
-  touchType: string,
+async function upsertDeckStructure(
+  key: DeckStructureKey,
   data: {
     structureJson: string;
     exampleCount: number;
@@ -49,8 +66,8 @@ async function upsertLegacyDeckStructure(
 ): Promise<void> {
   const existing = await prisma.deckStructure.findFirst({
     where: {
-      touchType,
-      artifactType: null,
+      touchType: key.touchType,
+      artifactType: key.artifactType,
     },
     select: { id: true },
   });
@@ -65,8 +82,8 @@ async function upsertLegacyDeckStructure(
 
   await prisma.deckStructure.create({
     data: {
-      touchType,
-      artifactType: null,
+      touchType: key.touchType,
+      artifactType: key.artifactType,
       ...data,
     },
   });
@@ -81,7 +98,11 @@ async function upsertLegacyDeckStructure(
  * classification data for a given touch type. Used by the cron job
  * to detect when underlying data has changed.
  */
-export async function computeDataHash(touchType: string): Promise<string> {
+export async function computeDataHash(
+  input: DeckStructureKeyInput,
+  artifactType: string | null = null,
+): Promise<string> {
+  const key = getDeckStructureKey(input, artifactType);
   const examples = await prisma.template.findMany({
     where: {
       contentClassification: "example",
@@ -90,6 +111,7 @@ export async function computeDataHash(touchType: string): Promise<string> {
       id: true,
       touchTypes: true,
       contentClassification: true,
+      artifactType: true,
     },
     orderBy: { id: "asc" },
   });
@@ -98,14 +120,25 @@ export async function computeDataHash(touchType: string): Promise<string> {
   const relevant = examples.filter((t) => {
     try {
       const types = JSON.parse(t.touchTypes) as string[];
-      return Array.isArray(types) && types.includes(touchType);
+      if (!Array.isArray(types) || !types.includes(key.touchType)) {
+        return false;
+      }
+
+      if (key.touchType !== "touch_4") {
+        return true;
+      }
+
+      return t.artifactType === key.artifactType;
     } catch {
       return false;
     }
   });
 
   const hashInput = relevant
-    .map((t) => `${t.id}:${t.contentClassification}:${t.touchTypes}`)
+    .map(
+      (t) =>
+        `${t.id}:${t.contentClassification}:${t.touchTypes}:${t.artifactType ?? "null"}`,
+    )
     .join("|");
 
   return crypto.createHash("sha256").update(hashInput).digest("hex");
@@ -265,12 +298,14 @@ Return the deck structure as a JSON object matching the required schema.`;
  * classified examples and templates.
  */
 export async function inferDeckStructure(
-  touchType: string,
+  input: DeckStructureKeyInput,
   chatConstraints?: string,
 ): Promise<DeckStructureOutput> {
-  if (isUnsupportedGenericTouch4(touchType)) {
+  const key = getDeckStructureKey(input);
+
+  if (isUnsupportedGenericTouch4(key.touchType, key.artifactType)) {
     return buildEmptyDeckStructureOutput(
-      touchType,
+      key.touchType,
       GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
     );
   }
@@ -278,12 +313,20 @@ export async function inferDeckStructure(
   // 1. Query example templates (primary data)
   const allExamples = await prisma.template.findMany({
     where: { contentClassification: "example" },
-    select: { id: true, name: true, touchTypes: true },
+    select: { id: true, name: true, touchTypes: true, artifactType: true },
   });
   const exampleTemplates = allExamples.filter((t) => {
     try {
       const types = JSON.parse(t.touchTypes) as string[];
-      return Array.isArray(types) && types.includes(touchType);
+      if (!Array.isArray(types) || !types.includes(key.touchType)) {
+        return false;
+      }
+
+      if (key.touchType !== "touch_4") {
+        return true;
+      }
+
+      return t.artifactType === key.artifactType;
     } catch {
       return false;
     }
@@ -292,18 +335,35 @@ export async function inferDeckStructure(
   // 2. Query template templates (secondary data)
   const allTemplates = await prisma.template.findMany({
     where: { contentClassification: "template" },
-    select: { id: true, name: true, touchTypes: true },
+    select: { id: true, name: true, touchTypes: true, artifactType: true },
   });
   const templateTemplates = allTemplates.filter((t) => {
     try {
       const types = JSON.parse(t.touchTypes) as string[];
-      return Array.isArray(types) && types.includes(touchType);
+      return Array.isArray(types) && types.includes(key.touchType);
     } catch {
       return false;
     }
   });
 
   const exampleCount = exampleTemplates.length;
+
+  if (key.touchType === "touch_4" && exampleCount === 0) {
+    const emptyOutput = buildEmptyDeckStructureOutput(key.touchType);
+    const confidence = calculateConfidence(0);
+    const dataHash = await computeDataHash(key);
+
+    await upsertDeckStructure(key, {
+      structureJson: JSON.stringify(emptyOutput),
+      exampleCount: 0,
+      confidence: confidence.score,
+      chatContextJson: chatConstraints ?? null,
+      dataHash,
+      inferredAt: new Date(),
+    });
+
+    return emptyOutput;
+  }
 
   // 3. Load slides with descriptions and elements for all relevant templates
   const slideData: SlideData[] = [];
@@ -366,12 +426,12 @@ export async function inferDeckStructure(
 
   // 4. If no slides at all, return empty structure
   if (slideData.length === 0) {
-    const emptyOutput = buildEmptyDeckStructureOutput(touchType);
+    const emptyOutput = buildEmptyDeckStructureOutput(key.touchType);
 
     const confidence = calculateConfidence(0);
-    const dataHash = await computeDataHash(touchType);
+    const dataHash = await computeDataHash(key);
 
-    await upsertLegacyDeckStructure(touchType, {
+    await upsertDeckStructure(key, {
       structureJson: JSON.stringify(emptyOutput),
       exampleCount: 0,
       confidence: confidence.score,
@@ -383,7 +443,11 @@ export async function inferDeckStructure(
   }
 
   // 5. Build prompt and call GenAI
-  const prompt = buildInferencePrompt(touchType, slideData, chatConstraints ?? undefined);
+  const prompt = buildInferencePrompt(
+    key.touchType,
+    slideData,
+    chatConstraints ?? undefined,
+  );
 
   const ai = new GoogleGenAI({
     vertexai: true,
@@ -414,7 +478,7 @@ export async function inferDeckStructure(
     }
   } catch {
     console.error(
-      `[deck-inference] Failed to parse GenAI response for ${touchType}:`,
+      `[deck-inference] Failed to parse GenAI response for ${key.touchType}${key.artifactType ? `/${key.artifactType}` : ""}:`,
       text.substring(0, 200),
     );
     output = {
@@ -425,9 +489,9 @@ export async function inferDeckStructure(
 
   // 6. Calculate confidence and persist
   const confidence = calculateConfidence(exampleCount);
-  const dataHash = await computeDataHash(touchType);
+  const dataHash = await computeDataHash(key);
 
-  await upsertLegacyDeckStructure(touchType, {
+  await upsertDeckStructure(key, {
     structureJson: JSON.stringify(output),
     exampleCount,
     confidence: confidence.score,
@@ -437,7 +501,7 @@ export async function inferDeckStructure(
   });
 
   console.log(
-    `[deck-inference] Inferred structure for ${touchType}: ${output.sections.length} sections, ${exampleCount} examples, confidence ${confidence.score}% (${confidence.label})`,
+    `[deck-inference] Inferred structure for ${key.touchType}${key.artifactType ? `/${key.artifactType}` : ""}: ${output.sections.length} sections, ${exampleCount} examples, confidence ${confidence.score}% (${confidence.label})`,
   );
 
   return output;
