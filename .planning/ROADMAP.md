@@ -121,7 +121,7 @@ Plans:
 
 Plans:
 - [x] 36-01-PLAN.md — Add shared artifact-aware deck keys plus Touch 4 inference and cron isolation
-- [ ] 36-02-PLAN.md — Thread artifactType through deck-structure routes, chat refinement, and web proxies
+- [x] 36-02-PLAN.md — Thread artifactType through deck-structure routes, chat refinement, and web proxies
 
 ### Phase 37: Frontend UI
 **Goal**: Users can classify Touch 4 examples by artifact type and view per-artifact deck structures in Settings
