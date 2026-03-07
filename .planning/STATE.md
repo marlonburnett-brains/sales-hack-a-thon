@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: AtlusAI Authentication & Discovery
 status: executing
-stopped_at: Completed 29-02-PLAN.md
-last_updated: "2026-03-07T01:14:52.392Z"
-last_activity: "2026-03-07 - Completed 29-02: Discovery browse/search UI with infinite scroll, debounced search, preview panel"
+stopped_at: "Completed quick-8: add gpt-oss-120b as primary classification"
+last_updated: "2026-03-07T02:33:50.101Z"
+last_activity: "2026-03-07 - Completed quick task 7: ingestion failed templates should have the re-ingest option available"
 progress:
   total_phases: 3
   completed_phases: 2
@@ -66,6 +66,7 @@ All decisions logged in PROJECT.md Key Decisions table (28 decisions total).
 - Phase 29-01: templateId='atlus-discovery' synthetic marker for discovery-originated SlideEmbedding records
 - Phase 29-01: Skipped LLM classification in discovery ingest (stores raw metadata, can be enriched later)
 - [Phase 29]: Used slideId-based ingestion check instead of client-side SHA-256 hashing
+- [Phase quick-8]: Fresh OpenAI client per call for gpt-oss (Vertex AI access tokens are short-lived, google-auth-library caches internally)
 
 ### Pending Todos
 
@@ -81,6 +82,7 @@ None.
 | 5 | Rewrite All Gemini References to LLM-Agnostic | 2026-03-06 | 0da192b | [5-rewrite-all-gemini-references-and-relate](./quick/5-rewrite-all-gemini-references-and-relate/) |
 | 6 | Fix Template Re-ingest Auto-Navigation & Add Breadcrumbs | 2026-03-07 | 75256c4 | [6-fix-template-re-ingest-auto-navigation-a](./quick/6-fix-template-re-ingest-auto-navigation-a/) |
 | 7 | Add Re-ingest Option for Failed Templates | 2026-03-07 | 8e900b0 | [7-ingestion-failed-templates-should-have-t](./quick/7-ingestion-failed-templates-should-have-t/) |
+| 8 | Add gpt-oss-120b as Primary Classification | 2026-03-07 | 80f7e1a | [8-add-gpt-oss-120b-as-primary-classificati](./quick/8-add-gpt-oss-120b-as-primary-classificati/) |
 | Phase 28 P02 | 9min | 2 tasks | 2 files |
 | Phase 29 P02 | 4min | 2 tasks | 1 files |
 
@@ -94,6 +96,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T01:14:52.389Z
-Stopped at: Completed 29-02-PLAN.md
+Last session: 2026-03-07T02:33:46.023Z
+Stopped at: Completed quick-8: add gpt-oss-120b as primary classification
 Next action: Execute 29-02-PLAN.md (Browse/Search UI)
