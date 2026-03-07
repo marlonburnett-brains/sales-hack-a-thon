@@ -32,12 +32,12 @@
 
 ### Mastra MCP Client
 
-- [ ] **MCP-01**: `@mastra/mcp` MCPClient connects to AtlusAI SSE endpoint at `knowledge-base-api.lumenalta.com/sse` with pooled auth credentials
-- [ ] **MCP-02**: MCPClient lives ONLY on the agent service (Railway) -- no MCP imports in `apps/web`
-- [ ] **MCP-03**: Singleton MCPClient wrapper with health check: `listTools()` probe before use, disconnect+recreate on failure
-- [ ] **MCP-04**: Auth injection via `fetch` callback so each request gets a fresh token from the pool (handles token rotation)
-- [ ] **MCP-05**: MCPClient has a max lifetime (configurable, default 1 hour) after which it is forcibly recycled with fresh credentials
-- [ ] **MCP-06**: Graceful shutdown on `SIGTERM` (disconnects MCPClient before Railway kills the container)
+- [x] **MCP-01**: `@mastra/mcp` MCPClient connects to AtlusAI SSE endpoint at `knowledge-base-api.lumenalta.com/sse` with pooled auth credentials
+- [x] **MCP-02**: MCPClient lives ONLY on the agent service (Railway) -- no MCP imports in `apps/web`
+- [x] **MCP-03**: Singleton MCPClient wrapper with health check: `listTools()` probe before use, disconnect+recreate on failure
+- [x] **MCP-04**: Auth injection via `fetch` callback so each request gets a fresh token from the pool (handles token rotation)
+- [x] **MCP-05**: MCPClient has a max lifetime (configurable, default 1 hour) after which it is forcibly recycled with fresh credentials
+- [x] **MCP-06**: Graceful shutdown on `SIGTERM` (disconnects MCPClient before Railway kills the container)
 
 ### Drive Fallback Replacement
 
@@ -114,12 +114,12 @@
 | ACTN-03 | Phase 27 | Complete |
 | ACTN-04 | Phase 27 | Complete |
 | ACTN-05 | Phase 27 | Complete |
-| MCP-01 | Phase 28 | Pending |
-| MCP-02 | Phase 28 | Pending |
-| MCP-03 | Phase 28 | Pending |
-| MCP-04 | Phase 28 | Pending |
-| MCP-05 | Phase 28 | Pending |
-| MCP-06 | Phase 28 | Pending |
+| MCP-01 | Phase 28 | Complete |
+| MCP-02 | Phase 28 | Complete |
+| MCP-03 | Phase 28 | Complete |
+| MCP-04 | Phase 28 | Complete |
+| MCP-05 | Phase 28 | Complete |
+| MCP-06 | Phase 28 | Complete |
 | SRCH-01 | Phase 28 | Pending |
 | SRCH-02 | Phase 28 | Pending |
 | SRCH-03 | Phase 28 | Pending |

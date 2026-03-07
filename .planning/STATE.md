@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Phase 27 -- Auth Foundation
+**Current focus:** Phase 28 -- MCP Integration
 
 ## Current Position
 
-Phase: 27 of 29 (Auth Foundation)
-Plan: 4 of 4 in current phase (COMPLETE)
-Status: Phase 27 Complete
-Last activity: 2026-03-06 - Completed quick task 5: Rewrite all Gemini references and related code to be LLM agnostic
+Phase: 28 of 29 (MCP Integration)
+Plan: 1 of 2 in current phase
+Status: Plan 28-01 Complete
+Last activity: 2026-03-07 - Completed Plan 28-01: MCP Client Foundation
 
 Progress: [██████████] 100%
 
@@ -55,6 +55,9 @@ All decisions logged in PROJECT.md Key Decisions table (28 decisions total).
 - Phase 27-04: Re-check Access button disabled with TODO for phase-28 -- Google OAuth provider_token not available from Supabase session
 - Phase 27-04: Silenced items kept visible with opacity-50 dimming rather than filtered out
 - Phase 27-04: Optimistic UI update on silence with revert on error
+- Phase 28-01: Thin fetch callback for MCPClient -- only injects Bearer header, refresh/rotate in wrapper
+- Phase 28-01: Token refresh mutex (refreshPromise) serializes concurrent 401 recovery
+- Phase 28-01: Used `{} as never` for tool.execute() second arg -- MastraToolInvocationOptions internal type
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-06T21:46:12.921Z
-Stopped at: Phase 28 context gathered
-Next action: Phase 28 planning or next milestone
+Last session: 2026-03-07T00:12:10Z
+Stopped at: Completed 28-01-PLAN.md
+Next action: Execute Plan 28-02 (search adapter)
