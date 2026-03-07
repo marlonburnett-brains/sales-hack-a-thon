@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: AtlusAI Authentication & Discovery
 status: completed
-stopped_at: Phase 28 context gathered
-last_updated: "2026-03-06T22:24:43.716Z"
-last_activity: "2026-03-06 - Completed quick task 5: Rewrite all Gemini references and related code to be LLM agnostic"
+stopped_at: Completed 28-02-PLAN.md
+last_updated: "2026-03-07T00:26:15.703Z"
+last_activity: "2026-03-07 - Completed Plan 28-02: Search Adapter"
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 7
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 28 of 29 (MCP Integration)
-Plan: 1 of 2 in current phase
-Status: Plan 28-01 Complete
-Last activity: 2026-03-07 - Completed Plan 28-01: MCP Client Foundation
+Plan: 2 of 2 in current phase
+Status: Phase 28 Complete
+Last activity: 2026-03-07 - Completed Plan 28-02: Search Adapter
 
 Progress: [██████████] 100%
 
@@ -58,6 +58,10 @@ All decisions logged in PROJECT.md Key Decisions table (28 decisions total).
 - Phase 28-01: Thin fetch callback for MCPClient -- only injects Bearer header, refresh/rotate in wrapper
 - Phase 28-01: Token refresh mutex (refreshPromise) serializes concurrent 401 recovery
 - Phase 28-01: Used `{} as never` for tool.execute() second arg -- MastraToolInvocationOptions internal type
+- Phase 28-02: LLM extraction always used for MCP results (consistency over cost savings per user decision)
+- Phase 28-02: Multi-pass searchForProposal() preserved unchanged -- semantic search improves individual passes but multi-pass provides topic diversity
+- Phase 28-02: Adaptive prompt: first call discovers MCP result shape, caches template for subsequent calls
+- Phase 28-02: On LLM extraction failure: return empty array (graceful degradation)
 
 ### Pending Todos
 
@@ -71,6 +75,7 @@ None.
 | 3 | Auto-populate Template Name from Google Slides | 2026-03-06 | ce26721 | [3-auto-populate-template-name-from-google-](./quick/3-auto-populate-template-name-from-google-/) |
 | 4 | Make Touch Type Selection Optional | 2026-03-06 | bb4803c | [4-make-touch-type-selection-optional-when-](./quick/4-make-touch-type-selection-optional-when-/) |
 | 5 | Rewrite All Gemini References to LLM-Agnostic | 2026-03-06 | 0da192b | [5-rewrite-all-gemini-references-and-relate](./quick/5-rewrite-all-gemini-references-and-relate/) |
+| Phase 28 P02 | 9min | 2 tasks | 2 files |
 
 ### Blockers/Concerns
 
@@ -82,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T00:12:10Z
-Stopped at: Completed 28-01-PLAN.md
-Next action: Execute Plan 28-02 (search adapter)
+Last session: 2026-03-07T00:26:15.700Z
+Stopped at: Completed 28-02-PLAN.md
+Next action: Phase 28 complete -- proceed to Phase 29 (Discovery UI) or close milestone

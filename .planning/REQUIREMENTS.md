@@ -41,12 +41,12 @@
 
 ### Drive Fallback Replacement
 
-- [ ] **SRCH-01**: `searchSlides()` in `atlusai-search.ts` uses MCP `knowledge_base_search_semantic` tool instead of Drive API fullText search
-- [ ] **SRCH-02**: Adapter maps MCP search results to existing `SlideSearchResult` interface -- all callers (5 files) unchanged
-- [ ] **SRCH-03**: `searchForProposal()` multi-pass retrieval logic (primary, secondary, case study, 3-tier fallback) is preserved -- only inner `searchSlides()` implementation changes
-- [ ] **SRCH-04**: `searchByCapability()` uses MCP semantic search with the same public API
-- [ ] **SRCH-05**: Drive API search is retained as a degraded-mode fallback (behind env flag `ATLUS_USE_MCP=true|false`, default `true`)
-- [ ] **SRCH-06**: MCP search scoped to configured project via `ATLUS_PROJECT_ID` env var
+- [x] **SRCH-01**: `searchSlides()` in `atlusai-search.ts` uses MCP `knowledge_base_search_semantic` tool instead of Drive API fullText search
+- [x] **SRCH-02**: Adapter maps MCP search results to existing `SlideSearchResult` interface -- all callers (5 files) unchanged
+- [x] **SRCH-03**: `searchForProposal()` multi-pass retrieval logic (primary, secondary, case study, 3-tier fallback) is preserved -- only inner `searchSlides()` implementation changes
+- [x] **SRCH-04**: `searchByCapability()` uses MCP semantic search with the same public API
+- [x] **SRCH-05**: Drive API search is retained as a degraded-mode fallback (behind env flag `ATLUS_USE_MCP=true|false`, default `true`)
+- [x] **SRCH-06**: MCP search scoped to configured project via `ATLUS_PROJECT_ID` env var
 
 ### Action Required Integration
 
@@ -120,12 +120,12 @@
 | MCP-04 | Phase 28 | Complete |
 | MCP-05 | Phase 28 | Complete |
 | MCP-06 | Phase 28 | Complete |
-| SRCH-01 | Phase 28 | Pending |
-| SRCH-02 | Phase 28 | Pending |
-| SRCH-03 | Phase 28 | Pending |
-| SRCH-04 | Phase 28 | Pending |
-| SRCH-05 | Phase 28 | Pending |
-| SRCH-06 | Phase 28 | Pending |
+| SRCH-01 | Phase 28 | Complete |
+| SRCH-02 | Phase 28 | Complete |
+| SRCH-03 | Phase 28 | Complete |
+| SRCH-04 | Phase 28 | Complete |
+| SRCH-05 | Phase 28 | Complete |
+| SRCH-06 | Phase 28 | Complete |
 | DISC-01 | Phase 29 | Pending |
 | DISC-02 | Phase 29 | Pending |
 | DISC-03 | Phase 29 | Pending |

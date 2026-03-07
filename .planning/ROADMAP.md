@@ -65,7 +65,7 @@
 **Milestone Goal:** Direct AtlusAI integration via Mastra MCP client with token pool auth, access detection, and a discovery UI for browsing/searching/ingesting AtlusAI content -- replacing the Drive API fallback with semantic search.
 
 - [x] **Phase 27: Auth Foundation** - AtlusAI token storage, pool rotation, 3-tier access detection, and ActionRequired integration (completed 2026-03-06)
-- [ ] **Phase 28: MCP Integration** - MCPClient singleton wired to AtlusAI SSE with Drive fallback replacement
+- [x] **Phase 28: MCP Integration** - MCPClient singleton wired to AtlusAI SSE with Drive fallback replacement (completed 2026-03-07)
 - [ ] **Phase 29: Discovery UI** - Sidebar nav, browse/search page, and selective ingestion into SlideEmbedding pipeline
 
 ## Phase Details
@@ -157,5 +157,5 @@ Phases execute in numeric order: 27 -> 28 -> 29
 | 25. Integration Verification & Cutover | v1.3 | 2/2 | Complete | 2026-03-06 |
 | 26. Tech Debt Cleanup | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 27. Auth Foundation | 5/5 | Complete   | 2026-03-06 | - |
-| 28. MCP Integration | 1/2 | In Progress|  | - |
+| 28. MCP Integration | 2/2 | Complete   | 2026-03-07 | - |
 | 29. Discovery UI | v1.4 | 0/4 | Not started | - |
