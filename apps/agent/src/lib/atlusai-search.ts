@@ -124,96 +124,147 @@ const SLIDE_RESULT_SCHEMA = `interface SlideSearchResult {
  *
  * On LLM failure: returns empty array (graceful degradation).
  */
+/**
+ * Extract a single batch of raw JSON into SlideSearchResult[].
+ * Receives pre-sized JSON string and returns extracted results.
+ */
+async function extractSingleBatch(
+  rawStr: string,
+  searchQuery: string,
+): Promise<SlideSearchResult[]> {
+  const cachedPrompt = getCachedExtractionPrompt();
+  let prompt: string;
+
+  if (cachedPrompt) {
+    // Subsequent calls: use cached template
+    prompt = cachedPrompt
+      .replace("{{RAW_RESULTS}}", rawStr)
+      .replace("{{SEARCH_QUERY}}", searchQuery);
+  } else {
+    // First call: discovery prompt
+    prompt = [
+      "You are extracting structured slide search results from a knowledge base API response.",
+      "",
+      "The raw API response is:",
+      "```json",
+      rawStr,
+      "```",
+      "",
+      `The search query was: "${searchQuery}"`,
+      "",
+      "Map the raw results into an array of objects matching this TypeScript interface:",
+      "```typescript",
+      SLIDE_RESULT_SCHEMA,
+      "```",
+      "",
+      "Instructions:",
+      "- Extract ALL result items from the raw response into SlideSearchResult objects",
+      "- Map fields as closely as possible to the target interface",
+      "- For slideId: use any unique identifier field from the raw result",
+      "- For documentTitle: use any title/name field",
+      "- For textContent: use the main content/text/body field",
+      "- For speakerNotes: use notes field if present, otherwise empty string",
+      "- For metadata: include any remaining fields not mapped above",
+      "- For relevanceScore: assign a 0-1 score based on semantic match quality if discernible from the data, or 0.5 as default",
+      "- Return a JSON array of SlideSearchResult objects",
+      "- If the raw result is empty or contains no searchable items, return an empty array []",
+    ].join("\n");
+  }
+
+  const ai = new GoogleGenAI({
+    vertexai: true,
+    project: env.GOOGLE_CLOUD_PROJECT,
+    location: env.GOOGLE_CLOUD_LOCATION,
+  });
+
+  const response = await ai.models.generateContent({
+    model: "openai/gpt-oss-120b-maas",
+    contents: prompt,
+    config: { responseMimeType: "application/json" },
+  });
+
+  const text = response.text ?? "[]";
+  const parsed = JSON.parse(text) as SlideSearchResult[];
+
+  // After first successful extraction: build and cache a prompt template
+  if (!cachedPrompt && parsed.length > 0) {
+    const template = [
+      "You are extracting structured slide search results from a knowledge base API response.",
+      "",
+      "The raw API response is:",
+      "```json",
+      "{{RAW_RESULTS}}",
+      "```",
+      "",
+      `The search query was: "{{SEARCH_QUERY}}"`,
+      "",
+      "Map the raw results into an array of SlideSearchResult objects.",
+      "```typescript",
+      SLIDE_RESULT_SCHEMA,
+      "```",
+      "",
+      "Instructions:",
+      "- Extract ALL result items into SlideSearchResult objects",
+      "- Map fields using the same field mapping as before",
+      "- For relevanceScore: assign a 0-1 score based on semantic match quality",
+      "- Return a JSON array",
+    ].join("\n");
+    setCachedExtractionPrompt(template);
+  }
+
+  return Array.isArray(parsed) ? parsed : [];
+}
+
 async function extractSlideResults(
   rawResult: unknown,
   searchQuery: string,
 ): Promise<SlideSearchResult[]> {
   try {
     const rawStr = JSON.stringify(rawResult);
-    // Truncate to 8000 chars to stay within LLM context
-    const truncatedRaw = rawStr.length > 8000 ? rawStr.substring(0, 8000) + "..." : rawStr;
 
-    const cachedPrompt = getCachedExtractionPrompt();
-    let prompt: string;
-
-    if (cachedPrompt) {
-      // Subsequent calls: use cached template
-      prompt = cachedPrompt
-        .replace("{{RAW_RESULTS}}", truncatedRaw)
-        .replace("{{SEARCH_QUERY}}", searchQuery);
-    } else {
-      // First call: discovery prompt
-      prompt = [
-        "You are extracting structured slide search results from a knowledge base API response.",
-        "",
-        "The raw API response is:",
-        "```json",
-        truncatedRaw,
-        "```",
-        "",
-        `The search query was: "${searchQuery}"`,
-        "",
-        "Map the raw results into an array of objects matching this TypeScript interface:",
-        "```typescript",
-        SLIDE_RESULT_SCHEMA,
-        "```",
-        "",
-        "Instructions:",
-        "- Extract ALL result items from the raw response into SlideSearchResult objects",
-        "- Map fields as closely as possible to the target interface",
-        "- For slideId: use any unique identifier field from the raw result",
-        "- For documentTitle: use any title/name field",
-        "- For textContent: use the main content/text/body field",
-        "- For speakerNotes: use notes field if present, otherwise empty string",
-        "- For metadata: include any remaining fields not mapped above",
-        "- For relevanceScore: assign a 0-1 score based on semantic match quality if discernible from the data, or 0.5 as default",
-        "- Return a JSON array of SlideSearchResult objects",
-        "- If the raw result is empty or contains no searchable items, return an empty array []",
-      ].join("\n");
+    // Small results: single batch (up to 32000 chars)
+    if (rawStr.length <= 32000) {
+      return await extractSingleBatch(rawStr, searchQuery);
     }
 
-    const ai = new GoogleGenAI({
-      vertexai: true,
-      project: env.GOOGLE_CLOUD_PROJECT,
-      location: env.GOOGLE_CLOUD_LOCATION,
-    });
+    // Large results: split at array boundaries
+    console.log(`[atlusai-search] Large result (${rawStr.length} chars) -- splitting into chunks`);
 
-    const response = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: prompt,
-      config: { responseMimeType: "application/json" },
-    });
-
-    const text = response.text ?? "[]";
-    const parsed = JSON.parse(text) as SlideSearchResult[];
-
-    // After first successful extraction: build and cache a prompt template
-    if (!cachedPrompt && parsed.length > 0) {
-      const template = [
-        "You are extracting structured slide search results from a knowledge base API response.",
-        "",
-        "The raw API response is:",
-        "```json",
-        "{{RAW_RESULTS}}",
-        "```",
-        "",
-        `The search query was: "{{SEARCH_QUERY}}"`,
-        "",
-        "Map the raw results into an array of SlideSearchResult objects.",
-        "```typescript",
-        SLIDE_RESULT_SCHEMA,
-        "```",
-        "",
-        "Instructions:",
-        "- Extract ALL result items into SlideSearchResult objects",
-        "- Map fields using the same field mapping as before",
-        "- For relevanceScore: assign a 0-1 score based on semantic match quality",
-        "- Return a JSON array",
-      ].join("\n");
-      setCachedExtractionPrompt(template);
+    let items: unknown[];
+    try {
+      const parsed = typeof rawResult === "string" ? JSON.parse(rawResult) : rawResult;
+      items = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      items = [rawResult];
     }
 
-    return Array.isArray(parsed) ? parsed : [];
+    // Accumulate items into chunks where each chunk serializes to <= 30000 chars
+    const chunks: unknown[][] = [];
+    let currentChunk: unknown[] = [];
+    let currentSize = 2; // account for "[]" wrapper
+
+    for (const item of items) {
+      const itemSize = JSON.stringify(item).length + 1; // +1 for comma separator
+      if (currentChunk.length > 0 && currentSize + itemSize > 30000) {
+        chunks.push(currentChunk);
+        currentChunk = [];
+        currentSize = 2;
+      }
+      currentChunk.push(item);
+      currentSize += itemSize;
+    }
+    if (currentChunk.length > 0) {
+      chunks.push(currentChunk);
+    }
+
+    console.log(`[atlusai-search] Large result (${rawStr.length} chars) -- splitting into ${chunks.length} chunks`);
+
+    // Process all chunks in parallel
+    const results = await Promise.all(
+      chunks.map((chunk) => extractSingleBatch(JSON.stringify(chunk), searchQuery)),
+    );
+
+    return results.flat();
   } catch (err) {
     console.error("[search] LLM extraction failed:", err);
     return [];
