@@ -64,9 +64,9 @@
 - [x] **DISC-04**: Search view: semantic search bar powered by MCP `knowledge_base_search_semantic` with debounced input (300ms)
 - [x] **DISC-05**: Search results show content previews with relevance scoring
 - [x] **DISC-06**: Access gating: if user (or no user in pool) lacks AtlusAI access, page shows appropriate Action Required state instead of content
-- [ ] **DISC-07**: Selective ingestion: users can select content from browse/search results and ingest into the local `SlideEmbedding` pipeline
-- [ ] **DISC-08**: Ingestion progress shown per item (polling pattern matching existing template ingestion)
-- [ ] **DISC-09**: Already-ingested content marked in browse/search results to prevent duplicate ingestion
+- [x] **DISC-07**: Selective ingestion: users can select content from browse/search results and ingest into the local `SlideEmbedding` pipeline
+- [x] **DISC-08**: Ingestion progress shown per item (polling pattern matching existing template ingestion)
+- [x] **DISC-09**: Already-ingested content marked in browse/search results to prevent duplicate ingestion
 
 ## v1.4+ Requirements (Deferred)
 
@@ -132,9 +132,9 @@
 | DISC-04 | Phase 29 | Complete |
 | DISC-05 | Phase 29 | Complete |
 | DISC-06 | Phase 29 | Complete |
-| DISC-07 | Phase 29 | Pending |
-| DISC-08 | Phase 29 | Pending |
-| DISC-09 | Phase 29 | Pending |
+| DISC-07 | Phase 29 | Complete |
+| DISC-08 | Phase 29 | Complete |
+| DISC-09 | Phase 29 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 35 total
@@ -143,4 +143,4 @@
 
 ---
 *Requirements defined: 2026-03-06*
-*Last updated: 2026-03-06 after initial definition*
+*Last updated: 2026-03-07 after gap closure audit reconciliation*
