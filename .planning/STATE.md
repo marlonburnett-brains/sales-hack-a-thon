@@ -80,6 +80,7 @@ None.
 | 4 | Make Touch Type Selection Optional | 2026-03-06 | bb4803c | [4-make-touch-type-selection-optional-when-](./quick/4-make-touch-type-selection-optional-when-/) |
 | 5 | Rewrite All Gemini References to LLM-Agnostic | 2026-03-06 | 0da192b | [5-rewrite-all-gemini-references-and-relate](./quick/5-rewrite-all-gemini-references-and-relate/) |
 | 6 | Fix Template Re-ingest Auto-Navigation & Add Breadcrumbs | 2026-03-07 | 75256c4 | [6-fix-template-re-ingest-auto-navigation-a](./quick/6-fix-template-re-ingest-auto-navigation-a/) |
+| 7 | Add Re-ingest Option for Failed Templates | 2026-03-07 | 8e900b0 | [7-ingestion-failed-templates-should-have-t](./quick/7-ingestion-failed-templates-should-have-t/) |
 | Phase 28 P02 | 9min | 2 tasks | 2 files |
 | Phase 29 P02 | 4min | 2 tasks | 1 files |
 
