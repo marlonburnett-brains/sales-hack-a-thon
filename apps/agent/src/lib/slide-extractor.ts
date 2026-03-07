@@ -31,6 +31,8 @@ export interface ExtractedSlide {
   speakerNotes: string;
   /** true if combined text + notes < 20 chars */
   isLowContent: boolean;
+  /** Raw page elements from Google Slides API (for element map extraction) */
+  pageElements?: slides_v1.Schema$PageElement[];
 }
 
 // ────────────────────────────────────────────────────────────
@@ -177,6 +179,7 @@ export async function extractSlidesFromPresentation(
       textContent,
       speakerNotes,
       isLowContent,
+      pageElements: slide.pageElements ?? undefined,
     });
   }
 
