@@ -58,12 +58,12 @@
 
 ### Discovery UI
 
-- [ ] **DISC-01**: New "AtlusAI" sidebar nav item in `sidebar.tsx` with appropriate icon
-- [ ] **DISC-02**: New `/discovery` route with browse and search views (tab or toggle)
+- [x] **DISC-01**: New "AtlusAI" sidebar nav item in `sidebar.tsx` with appropriate icon
+- [x] **DISC-02**: New `/discovery` route with browse and search views (tab or toggle)
 - [ ] **DISC-03**: Browse view: paginated document inventory from MCP `discover_documents` tool, filtered to configured project
 - [ ] **DISC-04**: Search view: semantic search bar powered by MCP `knowledge_base_search_semantic` with debounced input (300ms)
 - [ ] **DISC-05**: Search results show content previews with relevance scoring
-- [ ] **DISC-06**: Access gating: if user (or no user in pool) lacks AtlusAI access, page shows appropriate Action Required state instead of content
+- [x] **DISC-06**: Access gating: if user (or no user in pool) lacks AtlusAI access, page shows appropriate Action Required state instead of content
 - [ ] **DISC-07**: Selective ingestion: users can select content from browse/search results and ingest into the local `SlideEmbedding` pipeline
 - [ ] **DISC-08**: Ingestion progress shown per item (polling pattern matching existing template ingestion)
 - [ ] **DISC-09**: Already-ingested content marked in browse/search results to prevent duplicate ingestion
@@ -126,12 +126,12 @@
 | SRCH-04 | Phase 28 | Complete |
 | SRCH-05 | Phase 28 | Complete |
 | SRCH-06 | Phase 28 | Complete |
-| DISC-01 | Phase 29 | Pending |
-| DISC-02 | Phase 29 | Pending |
+| DISC-01 | Phase 29 | Complete |
+| DISC-02 | Phase 29 | Complete |
 | DISC-03 | Phase 29 | Pending |
 | DISC-04 | Phase 29 | Pending |
 | DISC-05 | Phase 29 | Pending |
-| DISC-06 | Phase 29 | Pending |
+| DISC-06 | Phase 29 | Complete |
 | DISC-07 | Phase 29 | Pending |
 | DISC-08 | Phase 29 | Pending |
 | DISC-09 | Phase 29 | Pending |

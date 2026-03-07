@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 28 of 29 (MCP Integration)
-Plan: 2 of 2 in current phase
-Status: Phase 28 Complete
-Last activity: 2026-03-07 - Completed quick task 6: Fix template re-ingest auto-navigation and add breadcrumbs
+Phase: 29 of 29 (Discovery UI)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-07 - Completed 29-01: Discovery UI infrastructure (endpoints, actions, sidebar, page)
 
 Progress: [██████████] 100%
 
@@ -62,6 +62,9 @@ All decisions logged in PROJECT.md Key Decisions table (28 decisions total).
 - Phase 28-02: Multi-pass searchForProposal() preserved unchanged -- semantic search improves individual passes but multi-pass provides topic diversity
 - Phase 28-02: Adaptive prompt: first call discovers MCP result shape, caches template for subsequent calls
 - Phase 28-02: On LLM extraction failure: return empty array (graceful degradation)
+- Phase 29-01: Module-level Map for batch ingestion state (simple, in-memory, sufficient for single-instance agent)
+- Phase 29-01: templateId='atlus-discovery' synthetic marker for discovery-originated SlideEmbedding records
+- Phase 29-01: Skipped LLM classification in discovery ingest (stores raw metadata, can be enriched later)
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T00:41:23.046Z
-Stopped at: Phase 29 context gathered
-Next action: Phase 28 complete -- proceed to Phase 29 (Discovery UI) or close milestone
+Last session: 2026-03-07T01:07:01Z
+Stopped at: Completed 29-01-PLAN.md
+Next action: Execute 29-02-PLAN.md (Browse/Search UI)

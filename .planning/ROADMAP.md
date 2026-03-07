@@ -157,4 +157,4 @@ Phases execute in numeric order: 27 -> 28 -> 29
 | 26. Tech Debt Cleanup | v1.3 | 1/1 | Complete | 2026-03-06 |
 | 27. Auth Foundation | 5/5 | Complete   | 2026-03-06 | - |
 | 28. MCP Integration | 2/2 | Complete    | 2026-03-07 | - |
-| 29. Discovery UI | v1.4 | 0/3 | Not started | - |
+| 29. Discovery UI | 1/3 | In Progress|  | - |
