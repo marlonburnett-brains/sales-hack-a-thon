@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Review Polish & Deck Intelligence
-status: completed
-stopped_at: Phase 34 context gathered
-last_updated: "2026-03-07T18:13:14.424Z"
-last_activity: "2026-03-07 — Plan 33-01: Slide intelligence data pipeline complete"
+status: in-progress
+stopped_at: Completed 34-02-PLAN.md
+last_updated: "2026-03-07T18:35:00Z"
+last_activity: "2026-03-07 — Plan 34-02: Settings page shell with sidebar nav and integration cards"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 6
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Phase 33 — Slide Intelligence Foundation
+**Current focus:** Phase 34 — Deck Intelligence
 
 ## Current Position
 
-Phase: 33 of 34 (Slide Intelligence Foundation)
-Plan: 3 of 3 in current phase (COMPLETE)
-Status: phase-complete
-Last activity: 2026-03-07 — Plan 33-01: Slide intelligence data pipeline complete
+Phase: 34 of 34 (Deck Intelligence)
+Plan: 2 of 3 in current phase (COMPLETE)
+Status: in-progress
+Last activity: 2026-03-07 — Plan 34-02: Settings page shell with sidebar nav and integration cards
 
-Progress: [██████████] 100%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -43,7 +43,10 @@ Progress: [██████████] 100%
 
 ### Decisions
 
-All decisions logged in PROJECT.md Key Decisions table (40 decisions total).
+All decisions logged in PROJECT.md Key Decisions table (43 decisions total).
+- [Phase 34]: Settings link placed in sidebar bottom section above collapse button, separate from main nav
+- [Phase 34]: Left vertical tabs pattern (GitHub/Linear style) for settings sub-navigation
+- [Phase 34]: Integration cards are read-only status displays with external management links
 - [Phase 32]: Cover thumbnails use fire-and-forget GCS caching pattern (first browse triggers, second browse serves)
 - [Phase 32]: Duplicate ingestion guard: reject ingesting/queued, allow re-ingest for idle
 - [Phase 32]: Local itemStatuses prioritized over server templateData for display status during active ingestion
@@ -84,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T18:13:14.416Z
-Stopped at: Phase 34 context gathered
-Next action: Phase 33 complete — all 3 plans done. Proceed to Phase 34 (Deck Intelligence) or verify.
+Last session: 2026-03-07T18:35:00Z
+Stopped at: Completed 34-02-PLAN.md
+Next action: Execute Plan 34-03 (Deck Structure Display).

@@ -168,4 +168,4 @@ Plans:
 | 31. Tech Debt Cleanup | v1.4 | 1/1 | Complete | 2026-03-07 |
 | 32. UX Polish | v1.5 | 2/2 | Complete | 2026-03-07 |
 | 33. Slide Intelligence Foundation | v1.5 | 3/3 | Complete | 2026-03-07 |
-| 34. Deck Intelligence | v1.5 | 0/3 | Not started | - |
+| 34. Deck Intelligence | 1/3 | In Progress|  | - |
