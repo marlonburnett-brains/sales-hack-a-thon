@@ -1,152 +1,166 @@
 # Project Research Summary
 
-**Project:** AtlusAI v1.5 Review Polish & Deck Intelligence
-**Domain:** Agentic sales platform -- UX polish, slide intelligence, content classification, AI-assisted deck structure management
+**Project:** AtlusAI Agentic Sales Orchestration -- v1.6 Touch 4 Artifact Intelligence
+**Domain:** Artifact type sub-classification and per-artifact deck structures for existing sales intelligence platform
 **Researched:** 2026-03-07
 **Confidence:** HIGH
 
 ## Executive Summary
 
-AtlusAI v1.5 is a feature milestone that layers intelligence and polish onto an existing, working agentic sales platform. The milestone covers 7 features spanning three tiers: UX gap fixes (Discovery thumbnails, ingestion status consistency, optimistic ingest feedback), slide intelligence deepening (element map extraction, rich AI descriptions, template/example classification), and a new deck structure management capability (Settings page with AI chat). The critical finding across all research is that **zero new package dependencies are required** -- every feature builds on existing installed libraries (googleapis v144, React 19, Prisma 6.19, shadcn/ui, Mastra AI). This dramatically reduces integration risk and keeps the milestone focused on product value rather than infrastructure.
+v1.6 extends the existing deck intelligence system to recognize that Touch 4 produces three distinct artifact types -- Proposal decks, Talk Tracks, and Buyer FAQs -- rather than treating all Touch 4 examples as a single undifferentiated pool. The core problem is simple: the current system infers one deck structure per touch type, but Touch 4's three output formats have fundamentally different section flows. Mixing them in a single inference produces incoherent structures. The fix requires zero new dependencies and builds entirely on existing infrastructure: two Prisma schema migrations (adding `artifactType` columns to `Template` and `DeckStructure`), logic changes to the inference engine/cron/chat refinement pipeline, and UI changes to the classify popover and Settings page.
 
-The recommended approach is a three-phase build ordered by dependency chains and risk profile. UX polish features (F1-F3) come first because they are independent, low-risk, and close visible gaps users have reported. Slide intelligence features (F4-F6) come second because they modify the ingestion pipeline -- a shared subsystem where changes must be coordinated. The deck structure capstone (F7) comes last because it depends on both element maps (F5) and content classification (F6) to produce meaningful AI analysis. This ordering also ensures the content library grows (more classified examples) before AI structural inference runs, mitigating the low-data reliability pitfall.
+The recommended approach is a composite key pattern: replace the single-column `touchType @unique` constraint on `DeckStructure` with `@@unique([touchType, artifactType])`. Touch 1-3 keep `artifactType = null` (unchanged behavior). Touch 4 gets up to three rows: one per artifact type. This is the minimal schema evolution that cleanly separates the three artifact structures while preserving backward compatibility. The same nullable `artifactType` column is added to `Template` for classification filtering.
 
-The primary risks are: (1) Google Drive thumbnailLink URLs expiring and CORS-blocking if not proxied through GCS, (2) optimistic UI state being overwritten by stale polling responses, (3) oversized Slides API responses bloating the database if element maps are not reduced before storage, and (4) Prisma migrations interacting badly with existing pgvector columns. All four have proven mitigation patterns already established in the codebase -- the key is applying them consistently rather than reinventing.
+The primary risk is the cascading impact of changing the `DeckStructure` unique constraint. At least 6 call sites use `findUnique({ where: { touchType } })`, and every one breaks after the schema change. The cron, inference engine, chat refinement, and all API routes must be updated atomically. The mitigation is clear phasing: land the schema migration first (including cleanup of the old mixed Touch 4 row), then update all backend consumers, then wire up the frontend. There are no ambiguous technical decisions -- all four research files converge on the same approach.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new packages. All 7 features use existing dependencies. The only CLI action is potentially adding the `ScrollArea` shadcn/ui component for the chat interface and running 5 Prisma migrations (4 ALTER TABLE, 1 CREATE TABLE).
+No new packages. No new infrastructure. No new API providers. Every capability needed for v1.6 is already installed in the monorepo. The work is purely schema evolution, logic changes, and UI extension.
 
-**Core technologies (all existing):**
-- **googleapis v144** -- Google Slides API element extraction + Drive API thumbnail fetching. Already called in `slide-extractor.ts` and `mastra/index.ts`; just parse more of the response.
-- **React 19 useOptimistic** -- Instant ingest feedback. Already used in `actions-client.tsx`; extend to Discovery and Template cards.
-- **Gemini 2.0 Flash via Mastra AI** -- Rich slide descriptions. Add `description` field to the existing classification prompt -- single LLM call, zero additional API cost.
-- **shadcn/ui primitives** -- AI chat interface built from existing Card, Input, Button, Avatar components. No Vercel AI SDK (conflicts with Mastra route architecture).
-- **Prisma 6.19 + PostgreSQL** -- Schema additions (5 migrations). Stay on 6.19.x; Prisma 7.x has vector regression (#28867).
+**Core technologies (unchanged):**
+- **Prisma 6.19.x**: ORM and migrations -- extended with `artifactType` columns and composite unique constraint
+- **@google/genai 1.43.x**: Gemini structured output for deck inference -- only prompt text changes, schema unchanged
+- **@radix-ui/react-tabs 1.1.x**: Already installed -- reused for Touch 4 artifact sub-tabs in Settings
+- **@lumenalta/schemas**: Shared constants package -- extended with `ARTIFACT_TYPES` constant
 
-**Explicitly rejected:** `@ai-sdk/react` (conflicts with Mastra), `@google-cloud/storage` (redundant with googleapis), `socket.io` (overkill for ~20 users), `@tanstack/react-query` (conflicts with Next.js server-first architecture).
+**Critical version note:** Prisma `@@unique([touchType, artifactType])` with nullable columns works correctly in PostgreSQL 15 (`NULLS DISTINCT` is default). Use `--create-only` to verify Prisma does not generate `NULLS NOT DISTINCT`.
 
 ### Expected Features
 
-**Must have (table stakes -- closes UX gaps):**
-- **F1: Discovery document card thumbnails** -- Grid cards are indistinguishable without visual previews. Reuse GCS caching pattern from v1.4.
-- **F2: Consistent ingestion status across pages** -- Discovery and Templates show contradictory states. Fix: both pages read from Template.ingestionStatus as single source of truth.
-- **F3: Immediate feedback on ingest click** -- 2-5 second delay feels broken. Fix: useOptimistic + immediate toast + button disable.
+**Must have (table stakes -- P1):**
+- **F1: Artifact type selector in classify UI** -- conditional radio group when Touch 4 Example selected
+- **F2: Artifact type persisted on Template model** -- nullable `artifactType` column, forward-only migration
+- **F3: Artifact type visible on template cards** -- "Example (Touch 4+, Proposal)" labeling
+- **F4: Three deck structure views for Touch 4** -- tabbed Settings page (Proposal / Talk Track / FAQ)
+- **F5: Independent inference per artifact type** -- composite key upsert, filtered example queries
+- **F7: Per-artifact chat refinement** -- chat scoped to specific artifact type structure
+- **F8: Cron per artifact type** -- three separate inference runs for Touch 4 per cycle
 
-**Should have (differentiators -- builds intelligence layer):**
-- **F4: Rich AI-generated slide descriptions** -- Browsable slide library without opening each slide. Generated alongside classification in single Gemini call.
-- **F5: Structured element map extraction** -- Foundation for intelligent deck assembly. Parses 8 element types from existing presentations.get response. Novel -- no competitor analyzes existing Google Slides for structure.
-- **F6: Template vs Example classification** -- Distinguishes reusable skeletons from real deliverables. Enables filtered retrieval and feeds deck structure inference.
+**Should have (falls out naturally -- P1):**
+- **F6: Per-artifact confidence scoring** -- no new logic, just filtered example counts
 
-**Capstone (depends on differentiators):**
-- **F7: Settings page with deck structures + AI chat** -- Per-touch-type deck section ordering with AI inference from classified examples. Must come last.
-
-**Defer to v1.6+:** Element map visual editor, drag-and-drop slide reordering, in-browser content editing, auto-classification, streaming AI chat, WebSocket status updates.
+**Defer (v1.7+):**
+- **F9: Template list artifact type filter** -- nice to have, not essential
+- AI-suggested artifact type classification
+- Cross-artifact structural comparison
+- Custom artifact types beyond the fixed three
 
 ### Architecture Approach
 
-Two-app monorepo (Next.js 15 web + Mastra Hono agent) with strict separation: web has zero direct database access, all data flows through api-client.ts to agent REST routes. v1.5 maintains this pattern with no architectural changes. All 7 features integrate into existing code paths -- ingestion pipeline extension (element maps + descriptions), Drive metadata enrichment extension (thumbnails), CRUD route additions (classification, deck structures), and client-side UX improvements (optimistic UI, polling fixes).
+The architecture adds a single new dimension (`artifactType`) threaded through four existing layers: data model (Prisma), inference engine (Gemini), API routes (Hono), and UI (Next.js). No new components or services. The composite key pattern on `DeckStructure` is the linchpin -- it enables per-artifact structures while preserving Touch 1-3 behavior unchanged. The UI uses tabs within the existing Touch 4 Settings page rather than new routes, keeping the information architecture clean.
 
-**Major components affected:**
-1. **Ingestion pipeline** (`slide-extractor.ts`, `classify-metadata.ts`, `ingest-template.ts`) -- Extend to extract element maps from same presentations.get response and generate descriptions in same Gemini call
-2. **Discovery enrichment** (`mastra/index.ts` browse/search routes) -- Add thumbnail caching via existing GCS pattern, include ingestion status from Template model
-3. **Settings subsystem** (new) -- DeckStructure model, CRUD routes, AI refinement endpoint, Settings page with touch-type tabs and chat UI
-4. **Client state management** (`discovery-client.tsx`, `template-card.tsx`) -- Replace in-memory status tracking with server-sourced polling, add optimistic guards with monotonic state transitions
+**Major components modified:**
+1. **Template model** -- adds `artifactType` column for classification storage
+2. **DeckStructure model** -- adds `artifactType` column + composite unique constraint for per-artifact structures
+3. **Inference engine** (`infer-deck-structure.ts`) -- accepts `artifactType` param, filters examples, uses composite key upsert
+4. **Cron job** (`auto-infer-cron.ts`) -- expands Touch 4 loop to iterate three artifact types
+5. **Chat refinement** (`chat-refinement.ts`) -- threads `artifactType` through entire chain
+6. **API routes** (`mastra/index.ts`) -- adds `?artifactType=` query param to deck structure endpoints
+7. **Classify UI** (`template-card.tsx`) -- conditional artifact type selector
+8. **Settings UI** (`deck-structure-view.tsx`) -- tabbed Touch 4 page with per-artifact detail views
 
 ### Critical Pitfalls
 
-1. **Drive thumbnailLink expiration + CORS** -- URLs expire in hours and are CORS-blocked. Always proxy through GCS using existing `uploadThumbnailToGCS()`. Never store raw thumbnailLink as display URL. Verify thumbnails survive 24hr+ gap.
+1. **DeckStructure unique constraint breaks 6+ call sites** -- Every `findUnique({ where: { touchType } })` must be updated to use the composite key `{ touchType_artifactType: { touchType, artifactType } }`. Miss even one and you get runtime failures. Audit all consumers before shipping the migration.
 
-2. **Optimistic UI overwritten by stale polls** -- Background polling returns stale "idle" status that overwrites optimistic "queued" state, causing flickering. Fix: monotonic status transitions (status can only move forward), timestamp-based stale rejection, disable button immediately on click.
+2. **Cron treats Touch 4 as one unit instead of three** -- The cron loop iterates `DECK_TOUCH_TYPES` which has one "touch_4" entry. Must expand to iterate three artifact types for Touch 4. Without this, only one artifact type gets inferred.
 
-3. **Slides API response bloat** -- Full presentations.get for a 50-slide deck can be 5-15MB. Use `fields` parameter to mask response (60-80% reduction). Store reduced element maps only (objectId, type, placeholder, bounds), not full text runs or styles.
+3. **Data hash collision across artifact types** -- `computeDataHash` does not include artifact type, so all three Touch 4 types produce identical hashes. Cron skips re-inference or redundantly re-infers all three. Include `artifactType` in both the hash input and the example query filter.
 
-4. **Prisma + pgvector migration drift** -- Adding columns to tables with `Unsupported("vector(768)")` can trigger schema drift. Always use `--create-only` first, inspect SQL, never modify SlideEmbedding in same migration as new models.
+4. **Inference conflates examples across artifact types** -- Without filtering by `artifactType`, Gemini sees all Touch 4 examples mixed together and produces incoherent structures. The query AND the prompt must be artifact-type-aware.
 
-5. **Deck structure AI unreliable with few examples** -- With only 5 presentations across 4 touch types, AI will present N=1 patterns as authoritative. Show "Based on N examples" prominently, warn when N < 3, graceful empty state when N = 0. Build classification (F6) before deck structures (F7) so examples accumulate.
+5. **Existing Touch 4 DeckStructure row becomes stale** -- The old mixed-data row must be deleted in the migration. Its chat context contains cross-artifact constraints that would pollute artifact-specific inference. Accept the one-time loss of Touch 4 chat history.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: UX Polish
-**Rationale:** Independent features with no cross-dependencies. Closes the most visible user-reported gaps. Low risk, high impact. Can ship and validate while Phase 2 is built.
-**Delivers:** Visual Discovery cards, consistent cross-page ingestion status, instant ingest feedback.
-**Addresses:** F3 (immediate feedback), F1 (Discovery thumbnails), F2 (ingestion status consistency)
-**Avoids:** Pitfall 1 (thumbnailLink expiration -- use GCS caching), Pitfall 2 (optimistic UI race -- monotonic transitions), Pitfall 4 (status inconsistency -- single source of truth)
-**Schema changes:** 1 migration (DiscoveryDocCache.thumbnailUrl)
-**Estimated scope:** Small-medium. F3 is a 30-minute fix. F1 reuses existing GCS pattern. F2 requires polling refactor on Discovery page.
+### Phase 1: Schema + Constants Foundation
 
-### Phase 2: Slide Intelligence Foundation
-**Rationale:** F4 and F5 both modify the ingestion pipeline -- implement together to avoid double-migration and double-deployment. F6 is a prerequisite for F7 and low complexity. All three extend existing data models with additive columns.
-**Delivers:** Structured element maps per slide, rich AI descriptions, template/example classification with touch binding.
-**Addresses:** F5 (element map extraction), F4 (rich descriptions), F6 (classification)
-**Avoids:** Pitfall 3 (response bloat -- field masking), Pitfall 5 (migration drift -- separate migrations, --create-only), Pitfall 6 (rate limits -- single presentations.get call), Pitfall 8 (LLM cost -- combine description with classification in single call)
-**Schema changes:** 3 migrations (SlideEmbedding.description, SlideEmbedding.elementMap, Template.contentRole)
-**Estimated scope:** Medium-high. Element map extraction (F5) is the largest single feature. Classification (F6) is straightforward.
+**Rationale:** Everything depends on the data model. The composite unique constraint on `DeckStructure` and the `artifactType` column on `Template` are prerequisites for all other work. Landing this first means all subsequent phases can build on stable schema.
 
-### Phase 3: Deck Intelligence Capstone
-**Rationale:** Depends on Phase 2 completion -- deck structure AI needs element maps (F5) and touch-bound examples (F6) to produce meaningful results. Building this last also gives users time to classify more examples, improving AI reliability.
-**Delivers:** Settings page with per-touch deck structure CRUD, AI inference from classified examples, chat-based refinement.
-**Addresses:** F7 (Settings + deck structures + AI chat)
-**Avoids:** Pitfall 7 (insufficient data -- show confidence indicators, require 2+ examples, graceful empty states)
-**Schema changes:** 1 migration (CREATE TABLE DeckStructure)
-**Estimated scope:** High. New page, new model, new agent routes, AI chat component.
+**Delivers:**
+- `ARTIFACT_TYPES` constant in `@lumenalta/schemas`
+- `artifactType` column on `Template` model (migration 1)
+- `artifactType` column on `DeckStructure` + composite `@@unique([touchType, artifactType])` (migration 2)
+- Cleanup of existing Touch 4 DeckStructure row (in migration 2)
+
+**Addresses:** F2 (artifact type on Template model)
+**Avoids:** Pitfall 1 (unique constraint), Pitfall 3 (hash collision foundation), Pitfall 8 (stale Touch 4 data)
+
+### Phase 2: Backend Engine + API Routes
+
+**Rationale:** Backend must be ready before frontend can consume it. The inference engine, cron, chat refinement, and API routes form a tight cluster that should be updated together -- they all share the same `artifactType` parameter threading.
+
+**Delivers:**
+- `inferDeckStructure()` accepts and filters by `artifactType`
+- `computeDataHash()` includes `artifactType` in hash
+- `auto-infer-cron.ts` iterates artifact types for Touch 4
+- `streamChatRefinement()` uses composite key
+- `POST /templates/:id/classify` accepts `artifactType`
+- All deck structure API routes accept `?artifactType=` query param
+- `GET /deck-structures` returns 6 entries (3 for Touch 4)
+
+**Addresses:** F5 (independent inference), F7 (per-artifact chat), F8 (cron per artifact type)
+**Avoids:** Pitfall 2 (cron single unit), Pitfall 3 (hash collision), Pitfall 4 (mixed inference), Pitfall 5 (chat wrong scope)
+
+### Phase 3: Frontend UI
+
+**Rationale:** Frontend is the final layer that consumes all backend changes. The classify UI and Settings UI changes depend on the API endpoints being ready.
+
+**Delivers:**
+- Artifact type selector in classify popover (conditional on Touch 4 Example)
+- Updated classification labels ("Example (Touch 4+, Proposal)")
+- `api-client.ts` updated with `artifactType` on all deck structure functions
+- Touch 4 Settings page with Proposal / Talk Track / FAQ tabs
+- Each tab has independent structure display, confidence badge, and chat bar
+- `deck-structure-actions.ts` passes `artifactType` through
+
+**Addresses:** F1 (classify UI), F3 (labels), F4 (Settings views), F6 (per-artifact confidence)
+**Avoids:** Pitfall 6 (missing artifact type UI), Pitfall 7 (Settings routing assumes 1:1)
 
 ### Phase Ordering Rationale
 
-- **F3 before F1/F2:** Immediate feedback is the quickest win (pure frontend, no backend changes). Establishes the optimistic UI pattern used by F1/F2.
-- **F1 before F2:** Thumbnails are independent and visually impactful. Status consistency requires the polling refactor which is more complex.
-- **F4+F5 together:** Both modify the ingestion pipeline. F5 provides element map data that enriches F4's description prompts. Single deployment of pipeline changes.
-- **F6 before F7:** Classification is a prerequisite -- deck structures query examples by touch type. F6 also lets users start classifying content while F7 is built.
-- **F7 last:** Highest complexity, most dependencies, and benefits from accumulated classified examples.
+- **Schema first** because every subsequent change depends on the `artifactType` column existing and the composite unique constraint being in place. Attempting backend changes before the migration causes compile errors.
+- **Backend second** because the inference engine, cron, and API routes form a dependency cluster. The cron calls inference, inference uses the composite key, chat uses the composite key, and API routes wire it all to HTTP. They must be updated together.
+- **Frontend last** because it is pure consumer of backend APIs. No frontend change is meaningful without the backend endpoints accepting `artifactType`.
+- **All three phases avoid the biggest pitfall** (unique constraint breakage) by sequencing the migration before any code that depends on the new schema.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 2 (element map extraction):** Google Slides API `fields` parameter syntax for masking pageElements is not trivial. Test field masks against real presentation responses to confirm correct syntax before implementation. Also audit rate budget across thumbnails + element extraction combined.
-- **Phase 3 (deck structure AI):** LLM prompt engineering for structured deck outline responses needs iteration. The "refine" endpoint's system prompt must be carefully designed to produce valid DeckSection[] JSON consistently.
+- **Phase 1 (Schema):** Needs `/gsd:research-phase` to verify Prisma generates correct `NULLS DISTINCT` behavior on the composite unique index. Use `--create-only` and inspect SQL. PostgreSQL 15 default is correct, but Prisma 6.19.x behavior should be confirmed.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (UX polish):** All three features use well-documented, established patterns already proven in the codebase (GCS thumbnail caching, useOptimistic, server-side polling). No research needed.
-- **Phase 2 (descriptions + classification):** Rich descriptions extend existing Gemini classification prompt. Classification is a standard Prisma column + UI dropdown. Standard patterns.
+- **Phase 2 (Backend):** All changes are parameter threading through existing functions. Well-understood patterns, direct codebase analogs exist for every change.
+- **Phase 3 (Frontend):** Conditional UI rendering, tab components, and API client updates are all established patterns in this codebase. No novel work.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Zero new dependencies. All features verified against existing installed packages and codebase. |
-| Features | HIGH | All 7 features mapped from milestone spec with clear implementation paths. Dependency chain validated. Competitor analysis confirms element map approach is novel. |
-| Architecture | HIGH | Deep codebase analysis of all affected files (~15 source files reviewed). Integration points are precise (file + line references). Build order accounts for all dependencies. |
-| Pitfalls | HIGH | 8 pitfalls identified with codebase-verified root causes. Google API limitations confirmed via official docs and issue tracker. Prisma vector constraint confirmed via GitHub issue. |
+| Stack | HIGH | Zero new dependencies. All packages already installed and verified in production. |
+| Features | HIGH | All features build directly on v1.5 infrastructure. Clear implementation paths with existing code analogs. |
+| Architecture | HIGH | Every affected file was read directly. All integration points documented with line numbers. |
+| Pitfalls | HIGH | Based on direct codebase analysis of all 13+ affected files. Every pitfall maps to specific code paths. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Element map field masking syntax:** The exact `fields` parameter string for presentations.get that returns only needed pageElement properties needs to be tested against a real Google Slides API response. Documentation shows the pattern but complex nested field masks can be tricky.
-- **Backfill strategy for existing slides:** 38 slides ingested before v1.5 will lack descriptions and element maps. Need a backfill approach (background re-ingestion job vs on-demand re-classification). Not yet designed.
-- **Deck structure prompt engineering:** The system prompt for deck structure AI inference and chat refinement needs iteration with real examples. Cannot be fully designed until classified examples exist.
-- **Multiple browser tab polling:** If users have Discovery and Templates open simultaneously, polling doubles. Consider using Page Visibility API to pause polling in background tabs. Not yet implemented.
+- **PostgreSQL NULLS DISTINCT verification:** Must confirm Prisma 6.19.x migration output. Low risk (PG 15 default is correct) but must be verified with `--create-only` before applying.
+- **Auto-classify vs manual artifact type:** ARCHITECTURE.md suggests extending `auto-classify-templates.ts` to include `artifactType` in LLM classification. FEATURES.md lists AI-suggested artifact type as an anti-feature. Recommendation: do NOT auto-classify artifact type in v1.6 -- keep it manual. If auto-classify is extended later, treat it as a separate enhancement.
+- **Touch 4 Settings empty state UX:** When no Touch 4 examples are classified with artifact types, the tabbed view shows three empty tabs. Consider a single helpful message instead of three empty states. Handle during Phase 3 UI implementation.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Google Slides API -- Page Elements](https://developers.google.com/workspace/slides/api/concepts/page-elements) -- 8 element types, properties, placeholder types
-- [Google Slides API -- Pages Resource](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations.pages) -- full response schema
-- [Google Drive API -- File Metadata](https://developers.google.com/workspace/drive/api/guides/file-metadata) -- thumbnailLink behavior, hasThumbnail, iconLink
-- [Google Slides API Usage Limits](https://developers.google.com/workspace/slides/api/limits) -- 60/min expensive reads, 600/min regular reads
-- [React 19 useOptimistic](https://react.dev/reference/react/useOptimistic) -- official hook documentation
-- [Prisma 7.x vector regression](https://github.com/prisma/prisma/issues/28867) -- confirmed breaking change
-- Codebase: `slide-extractor.ts`, `gcs-thumbnails.ts`, `classify-metadata.ts`, `ingest-template.ts`, `api-client.ts`, `discovery-client.tsx`, `template-card.tsx`, `schema.prisma`
-
-### Secondary (MEDIUM confidence)
-- [Drive API thumbnailLink 404 issues](https://issuetracker.google.com/issues/229184403) -- known instability with short-lived URLs
-- [RTK Query polling race condition](https://github.com/reduxjs/redux-toolkit/issues/1512) -- documented pattern matching optimistic UI pitfall
-- [Beautiful.ai Smart Slides](https://www.beautiful.ai/smart-slides) -- competitor structure approach (predefined, not inferred)
-- [Optimistic UI Architecture Patterns](https://javascript.plainenglish.io/optimistic-ui-in-frontend-architecture-do-it-right-avoid-pitfalls-7507d713c19c) -- rollback and idempotency patterns
+- Direct codebase analysis of all affected files: `schema.prisma`, `infer-deck-structure.ts`, `chat-refinement.ts`, `auto-infer-cron.ts`, `template-card.tsx`, `deck-structure-view.tsx`, `touch-type-detail-view.tsx`, `api-client.ts`, `template-utils.ts`, `deck-structure-actions.ts`, `constants.ts`, `mastra/index.ts`, `auto-classify-templates.ts`
+- PostgreSQL 15 documentation on NULLS DISTINCT in unique indexes
+- Prisma 6.x documentation on compound unique constraints
+- PROJECT.md milestone definitions
 
 ---
 *Research completed: 2026-03-07*

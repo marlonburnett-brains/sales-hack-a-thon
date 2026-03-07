@@ -1,542 +1,596 @@
-# Architecture Patterns
+# Architecture Research
 
-**Domain:** v1.5 Review Polish & Deck Intelligence -- integration architecture for 7 features into existing AtlusAI sales platform
+**Domain:** Touch 4 Artifact Type Sub-Classification and Per-Artifact Deck Structures
 **Researched:** 2026-03-07
-**Confidence:** HIGH (based on deep codebase analysis of all relevant source files)
+**Confidence:** HIGH
 
-## Existing Architecture Summary
-
-Two-app monorepo with clear separation:
+## System Overview
 
 ```
-apps/web (Next.js 15, Vercel)          apps/agent (Mastra Hono, Railway)
-  - Server Components + Server Actions    - REST API routes (registerApiRoute)
-  - Supabase Auth (Google OAuth)          - Prisma + PostgreSQL + pgvector
-  - api-client.ts (typed fetch wrapper)   - Google Workspace APIs
-  - shadcn/ui components                  - Gemini 2.0 Flash (classification)
-  - Sonner toasts                         - Vertex AI text-embedding-005
-  - NavProgress (global)                  - Mastra workflows (HITL)
-  - loading.tsx skeletons (all routes)    - IngestionQueue (sequential, singleton)
-                                          - GCS thumbnail cache
-                                          - MCP client (AtlusAI)
++----------------------------------------------------------------------+
+|                        apps/web (Next.js 15)                          |
+|                                                                       |
+|  +-------------+  +--------------+  +------------------------------+ |
+|  |TemplateCard |  | Settings     |  | deck-structure-actions.ts    | |
+|  | Classify UI |  | Layout +     |  | template-actions.ts          | |
+|  | (Dialog)    |  | Sub-Nav      |  | api-client.ts                | |
+|  +------+------+  +------+-------+  +--------------+---------------+ |
+|         |                |                          |                 |
+|         |    +-----------+-----------+              |                 |
+|         |    | TouchTypeDetailView   |              |                 |
+|         |    | SectionFlow + ChatBar |              |                 |
+|         |    | ConfidenceBadge       |              |                 |
+|         |    +-----------------------+              |                 |
++---------|-------------------------------------------+-----------------|
+|                    HTTP (Authorization: Bearer)                       |
++---------|-------------------------------------------+-----------------|
+|                       apps/agent (Mastra Hono)                        |
+|                                                                       |
+|  +--------------------+  +---------------------+  +----------------+ |
+|  | POST /templates/   |  | GET/POST            |  | auto-infer     | |
+|  |   :id/classify     |  | /deck-structures/   |  | cron (10-min)  | |
+|  |                    |  |   :touchType         |  |                | |
+|  +--------+-----------+  |   :touchType/infer   |  +--------+------+ |
+|           |              |   :touchType/chat     |           |        |
+|           |              |   :touchType/:artType |  <-- NEW  |        |
+|           |              +----------+------------+           |        |
+|           |                         |                        |        |
+|  +--------+-------------------------+------------------------+------+ |
+|  |               deck-intelligence/                                 | |
+|  |  infer-deck-structure.ts  chat-refinement.ts  auto-infer-cron.ts | |
+|  |  deck-structure-schema.ts                                        | |
+|  +-----------------------------+------------------------------------+ |
++--------------------------------+--------------------------------------+
+|                       Prisma + Supabase PostgreSQL                     |
+|  +----------+  +--------------+  +---------------+  +--------------+ |
+|  | Template |  |DeckStructure |  |DeckChatMessage|  |SlideEmbedding| |
+|  | +artType |  | +artType     |  |               |  |              | |
+|  +----------+  +--------------+  +---------------+  +--------------+ |
++-----------------------------------------------------------------------+
 ```
 
-Communication: `fetchJSON` / `fetchWithGoogleAuth` in api-client.ts. Service auth via `Authorization: Bearer` API key. Google auth passthrough via `X-Google-Access-Token` header.
+## What Exists Today (Baseline)
 
-State sync: Polling-based. TemplateCard polls `GET /templates/:id/progress` every 2s during ingestion. DiscoveryClient polls `GET /discovery/ingest/:batchId/progress` every 2s.
+### Current Classification Model
 
-**Critical invariants:**
-- Web has ZERO direct database access -- all data flows through api-client.ts to agent
-- Agent owns database via Prisma; only vector operations use raw SQL
-- MCP client lives on agent only (Railway long-running vs Vercel serverless)
-- Ingestion queue is sequential and in-memory (single agent instance)
+The `Template` model has two classification fields:
 
----
+| Field | Type | Values | Purpose |
+|-------|------|--------|---------|
+| `contentClassification` | `String?` | `"template"` / `"example"` / `null` | Whether this is a reusable template or a real-world example |
+| `touchTypes` | `String` | JSON array: `["touch_4"]` | Which GTM touch types this presentation belongs to |
 
-## Feature Integration Map
+Classification happens via:
+1. **Manual:** User clicks "Classify" on a TemplateCard, selects template/example + touch types, calls `POST /templates/:id/classify`
+2. **Auto:** `auto-classify-templates.ts` runs periodically, uses Gemini to infer classification for unclassified ingested templates
 
-### Feature 1: Discovery Document Card Thumbnails
+There is **no artifact type field** today. Touch 4 examples are just classified as `example` with `touchTypes: ["touch_4"]` -- no distinction between Proposal, Talk Track, and FAQ.
 
-**What changes:** Discovery cards currently show text-only (title + textContent preview). Need thumbnails for Google Slides documents and file-type icons for non-Slides documents.
+### Current Deck Structure Model
 
-**Integration point:** The DiscoveryDocCache model already caches Drive metadata per AtlusAI document. The existing `enrichDocsWithDriveMetadata()` in browse/search endpoints already calls `drive.files.get` per document. Extend the `fields` parameter to include `thumbnailLink,hasThumbnail,iconLink`.
+The `DeckStructure` model stores one structure per touch type:
 
-**Architecture decision:** Reuse the existing GCS thumbnail caching pattern from `gcs-thumbnails.ts`. Drive `thumbnailLink` URLs are short-lived and CORS-blocked -- they MUST be fetched server-side and cached to GCS.
+| Field | Type | Purpose |
+|-------|------|---------|
+| `touchType` | `String @unique` | e.g., `"touch_4"` -- **one record per touch type** |
+| `structureJson` | `String` | JSON: `{ sections: [...], sequenceRationale: "..." }` |
+| `exampleCount` | `Int` | Number of classified examples used for inference |
+| `confidence` | `Float` | 0-100 confidence score |
+| `dataHash` | `String?` | SHA-256 for change detection |
+| `chatContextJson` | `String?` | Accumulated chat refinement constraints |
+| `lastChatAt` | `DateTime?` | Active session protection |
+
+The unique constraint is on `touchType`. Today, Touch 4 has exactly one DeckStructure record that mixes all artifact types together.
+
+### Current Inference Pipeline
+
+`inferDeckStructure(touchType)`:
+1. Queries all `Template` records where `contentClassification = "example"` and touchTypes JSON array includes the given touchType
+2. Loads all `SlideEmbedding` + `SlideElement` data for those templates
+3. Sends everything to Gemini structured output with `DECK_STRUCTURE_SCHEMA`
+4. Upserts into `DeckStructure` keyed by `touchType`
+
+### Current Settings UI Routing
 
 ```
-Drive API files.get (MODIFIED fields)
-  |-- hasThumbnail=true --> fetch thumbnailLink server-side
-  |                          --> uploadThumbnailToGCS() (EXISTING)
-  |                          --> store in DiscoveryDocCache.thumbnailUrl
-  |-- hasThumbnail=false --> Client uses mimeType to select lucide-react icon
+/settings/deck-structures/          --> redirect to /touch-1
+/settings/deck-structures/touch-1   --> TouchTypeDetailView(touchType="touch_1")
+/settings/deck-structures/touch-2   --> TouchTypeDetailView(touchType="touch_2")
+/settings/deck-structures/touch-3   --> TouchTypeDetailView(touchType="touch_3")
+/settings/deck-structures/touch-4   --> TouchTypeDetailView(touchType="touch_4")
 ```
 
-**New/Modified components:**
+Layout has vertical left nav with Touch 1-4 sub-items under "Deck Structures".
 
-| Layer | File | Change |
-|-------|------|--------|
-| Agent | `mastra/index.ts` (browse/search) | Add thumbnailUrl to enriched doc response; expand Drive fields |
-| Agent | `lib/gcs-thumbnails.ts` | Add `cacheDiscoveryThumbnail(driveFileId, thumbnailLink)` helper |
-| Agent | `prisma/schema.prisma` | Add `thumbnailUrl String?` to DiscoveryDocCache |
-| Web | `api-client.ts` | Add `thumbnailUrl` to DiscoveryDocument interface |
-| Web | `discovery-client.tsx` | Render `<img>` from GCS URL or file-type icon fallback |
+## Integration Points for New Features
 
-**No new Prisma model.** One migration: ADD COLUMN.
+### Feature 1: Artifact Type Sub-Classification
 
-### Feature 2: Consistent Ingestion Status Across Pages
+**What changes:** Touch 4 examples need a third classification dimension -- `artifactType` -- beyond `contentClassification` and `touchTypes`.
 
-**What changes:** Discovery and Templates pages each maintain independent ingestion state. Navigate between them and status resets.
+#### Schema Change (Template model)
 
-**Root cause analysis:**
-- Discovery page: tracks `itemStatuses` Map in React state. Lost on unmount/remount.
-- Templates page: fetches fresh `listTemplatesAction()` on mount, reads `ingestionStatus` from Template model.
-- Template model IS the source of truth (stores `ingestionStatus`, `ingestionProgress`).
-- Discovery page does NOT read Template model status. It only tracks its own client-side state.
+**NEW column on Template:**
 
-**Architecture decision: Polling with server-side source of truth.** NOT SSE, NOT shared client state.
-
-Rationale:
-- SSE adds deployment complexity (Railway sticky sessions needed). Overkill for ~20 users.
-- React Context at layout level couples unrelated pages and is lost on refresh anyway.
-- The Template model already stores ingestion state. Discovery just needs to read it.
-
-**Specific approach:**
-1. On mount, DiscoveryClient fetches `GET /templates?status=ingesting` to get currently-ingesting template presentationIds.
-2. Cross-reference with document list to seed initial statuses.
-3. After triggering ingestion, poll `GET /templates/:id/progress` (same endpoint TemplateCard uses).
-
-| Layer | File | Change |
-|-------|------|--------|
-| Agent | `mastra/index.ts` | Add optional `?status=ingesting` filter to GET /templates |
-| Web | `discovery-client.tsx` | Mount-time check for ingesting templates; poll Template progress endpoint |
-
-**No new models.** Template.ingestionStatus is the single source of truth for both pages.
-
-### Feature 3: Immediate Feedback on Ingest Click (Optimistic UI)
-
-**What changes:** Delay between click and visual feedback on Discovery page.
-
-**Analysis of current code:** `handleBatchIngest()` already sets `itemStatuses.set(doc.slideId, "pending")` BEFORE awaiting the server action. The toast ("Ingestion complete") only fires on polling completion. The gap is:
-1. No immediate toast when ingest is triggered.
-2. The `await startDiscoveryIngestionAction(enrichedItems)` blocks before `startPolling(batchId)`.
-
-**Architecture decision:** Optimistic state is already partially implemented. Complete it:
-1. Add immediate toast: `toast.info("Queuing N items for ingestion...")` before the await.
-2. The existing optimistic state setting is correct -- status updates to "pending" before the server call.
-3. If the server call fails, the existing catch block already reverts status.
-
-**Alternatively, use React 19 `useOptimistic`** for a cleaner pattern (already used in `actions-client.tsx`). However, given the complexity of the Map-based status tracking, the current pattern with an immediate toast is simpler and sufficient.
-
-| Layer | File | Change |
-|-------|------|--------|
-| Web | `discovery-client.tsx` | Add immediate toast on ingest click |
-
-**No backend changes.** Pure client-side UX.
-
-### Feature 4: Rich AI-Generated Slide Descriptions
-
-**What changes:** During ingestion, generate a 1-3 sentence description per slide alongside classification.
-
-**Architecture decision: Add `description` column to SlideEmbedding. Generate in the SAME Gemini call as classification.**
-
-Rationale:
-- Description is a first-class display field (shown in slide viewer, search results).
-- Adding to `classificationJson` would couple display data with classification and require JSON parsing everywhere.
-- Dedicated column enables `SELECT description` without JSON parsing, consistent with `contentText` and `speakerNotes`.
-- Same Gemini 2.0 Flash call already processes each slide -- add `description` to the response schema. Zero additional API cost.
-
-**Generation approach:** Add to the Gemini response schema in `classify-metadata.ts`:
-```javascript
-description: {
-  type: Type.STRING,
-  description: "A 1-3 sentence description of this slide's content and purpose within the deck."
+```prisma
+model Template {
+  // ... existing fields ...
+  artifactType   String?  // null | "proposal" | "talk_track" | "faq"
 }
 ```
 
-Add to the classification prompt:
-```
-9. Write a 1-3 sentence description of what this slide communicates and how it fits in the deck context.
-```
+**Rationale for nullable String (not enum):**
+- Only Touch 4 examples use this field. Touch 1-3 examples and all templates have `artifactType = null`.
+- Prisma enums require migration if values change. A nullable String with application-level validation is consistent with how `contentClassification` is already stored.
+- Forward-compatible if more artifact types are added later.
 
-| Layer | File | Change |
-|-------|------|--------|
-| Agent | `prisma/schema.prisma` | Add `description String?` to SlideEmbedding |
-| Agent | `ingestion/classify-metadata.ts` | Add `description` to LLM_RESPONSE_SCHEMA and prompt |
-| Agent | `ingestion/ingest-template.ts` | Store description in INSERT/UPDATE raw SQL |
-| Agent | `mastra/index.ts` | Include description in GET /templates/:id/slides response |
-| Web | `api-client.ts` | Add `description` to SlideData interface |
-| Web | `slide-viewer-client.tsx` | Display description below slide thumbnail |
-| Schemas | `llm/slide-metadata.ts` | Add optional `description: z.string().optional()` |
+#### Shared Constants
 
-**One migration:** ADD COLUMN.
-
-### Feature 5: Structured Element Map via Google Slides API
-
-**This is the biggest architectural decision in v1.5.**
-
-**What changes:** Extract structural composition of each slide (text boxes, images, tables, shapes, groups) as a typed element map.
-
-#### Data Model: JSON Column vs New Model
-
-**Decision: JSON column (`elementMap Json?`) on SlideEmbedding.**
-
-Rationale:
-- Element map is 1:1 with a slide -- no independent querying needed.
-- Always read as a unit (never "find all slides with a table element").
-- Separate model adds JOINs for zero benefit.
-- Data is structured but variable per slide. JSON is the natural fit.
-- Prisma handles `Json` type natively (unlike vector, which needs raw SQL).
-
-#### Element Map Shape (Zod schema in packages/schemas)
+**NEW in `packages/schemas/constants.ts`:**
 
 ```typescript
-interface SlideElementMap {
-  width: number;   // Slide width in EMU
-  height: number;  // Slide height in EMU
-  elements: SlideElement[];
-}
-
-interface SlideElement {
-  objectId: string;
-  type: "text_box" | "image" | "table" | "shape" | "group" | "video" | "line";
-  position: { x: number; y: number; width: number; height: number }; // EMU
-  textContent?: string;       // For text_box, shape
-  imageUrl?: string;          // For image elements
-  tableSize?: { rows: number; cols: number };
-  placeholderType?: string;   // "TITLE", "SUBTITLE", "BODY", etc.
-  children?: SlideElement[];  // For groups
-}
+export const ARTIFACT_TYPES = [
+  "proposal",
+  "talk_track",
+  "faq",
+] as const;
 ```
 
-#### Extraction Point
+#### Classification API Change
 
-**Zero additional API calls.** `extractSlidesFromPresentation()` in `slide-extractor.ts` already calls `presentations.get` which returns full `pageElements` with positions, types, and properties. Currently only text is extracted via `extractTextFromPageElements()`. Extend to also build the element map from the same response.
+**MODIFY `POST /templates/:id/classify`:**
 
-The existing code already handles shapes, tables, and groups (for text extraction). The element map extraction reuses these traversals and adds position/type data.
-
-| Layer | File | Change |
-|-------|------|--------|
-| Agent | `prisma/schema.prisma` | Add `elementMap Json?` to SlideEmbedding |
-| Agent | `lib/slide-extractor.ts` | Add `elementMap` to ExtractedSlide interface; build from pageElements |
-| Agent | `ingestion/ingest-template.ts` | Store elementMap as JSON in INSERT/UPDATE SQL |
-| Agent | `mastra/index.ts` | Include elementMap in GET /templates/:id/slides response |
-| Web | `api-client.ts` | Add `elementMap` to SlideData interface |
-| Web | `slide-viewer-client.tsx` | Render element map summary (element count, types) |
-| Schemas | New `slide-element-map.ts` | Zod schema for SlideElementMap |
-
-**One migration:** ADD COLUMN (JSONB).
-
-### Feature 6: Template vs Example Classification with Touch Binding
-
-**What changes:** Distinguish between templates (reusable deck structures) and examples (real client decks). Bind examples to specific touch types.
-
-**Architecture decision: Add two columns to Template model.**
-
-```prisma
-contentRole    String   @default("template") // "template" | "example"
+Current Zod schema:
+```typescript
+z.object({
+  classification: z.enum(["template", "example"]),
+  touchTypes: z.array(z.string()).optional(),
+})
 ```
 
-Note: `touchTypes` already exists as a JSON array on Template. For examples, this field gets populated with the specific touch type(s) the example deck represents.
-
-Rationale:
-- Template model is where the operational data lives (not ContentSource, which is a discovery tracking table).
-- `contentRole` (not `contentType`) to avoid confusion with the existing `contentType` field on SlideEmbedding classification.
-- Default `"template"` preserves backward compatibility with existing data.
-
-**How classification affects deck assembly:**
-- Templates: used as structural patterns (copy-and-prune approach)
-- Examples: used as content patterns (AI learns from real decks what content goes where)
-- The deck structure inference (Feature 7) queries examples grouped by touch type.
-
-| Layer | File | Change |
-|-------|------|--------|
-| Agent | `prisma/schema.prisma` | Add `contentRole String @default("template")` to Template |
-| Agent | `mastra/index.ts` | Accept/return contentRole in template CRUD routes |
-| Web | `api-client.ts` | Add `contentRole` to Template interface |
-| Web | `templates-page-client.tsx` | Add filter tabs: All / Templates / Examples |
-| Web | `template-card.tsx` | Show contentRole badge, dropdown to change |
-| Web | `discovery-client.tsx` | Allow setting contentRole when ingesting from Discovery |
-| Schemas | `constants.ts` | Add `CONTENT_ROLES = ["template", "example"] as const` |
-
-**One migration:** ADD COLUMN with default.
-
-### Feature 7: Settings Page with Deck Structures + AI Chat
-
-**Two architectural decisions here: data model and chat approach.**
-
-#### Route Structure
-
-```
-apps/web/src/app/(authenticated)/settings/
-  page.tsx              -- Server component, fetches deck structures
-  settings-client.tsx   -- Client component with touch-type tabs
-  loading.tsx           -- Skeleton
+New Zod schema:
+```typescript
+z.object({
+  classification: z.enum(["template", "example"]),
+  touchTypes: z.array(z.string()).optional(),
+  artifactType: z.enum(["proposal", "talk_track", "faq"]).nullable().optional(),
+})
 ```
 
-Fits the existing `(authenticated)` layout pattern. Add `{ href: "/settings", label: "Settings", icon: Settings }` to `navItems` in `sidebar.tsx`.
+**Validation rule:** `artifactType` is only accepted when `classification === "example"` AND `touchTypes` includes `"touch_4"`. Otherwise reject with 400.
 
-#### Deck Structure Data Model
+**Handler change:** Save `artifactType` to the Template record. If reclassifying away from Touch 4 example, clear `artifactType` to null.
 
-**New Prisma model: `DeckStructure`.**
+#### Classification UI Change
 
+**MODIFY `TemplateCard` classify Dialog:**
+
+When `classifyType === "example"` AND `selectedTouches` includes `"touch_4"`, show a third section: "Artifact Type" with three radio buttons (Proposal / Talk Track / FAQ). Required when Touch 4 is selected.
+
+#### Auto-Classification Change
+
+**MODIFY `auto-classify-templates.ts`:**
+
+Extend the Gemini classification schema to include `artifactType`:
+```typescript
+const CLASSIFICATION_SCHEMA = {
+  // ... existing ...
+  properties: {
+    contentClassification: { /* existing */ },
+    touchTypes: { /* existing */ },
+    artifactType: {
+      type: Type.STRING,
+      enum: ["proposal", "talk_track", "faq"],
+      description: "For Touch 4 examples only: the artifact type...",
+    },
+  },
+  required: ["contentClassification", "touchTypes"],
+  // artifactType intentionally NOT required -- LLM returns it only when relevant
+};
+```
+
+#### Classification Label Change
+
+**MODIFY `template-utils.ts` `getClassificationLabel()`:**
+
+When `classification === "example"` and artifactType is set, display:
+- `Example (Touch 4+, Proposal)`
+- `Example (Touch 4+, Talk Track)`
+- `Example (Touch 4+, FAQ)`
+
+### Feature 2: Per-Artifact-Type Deck Structures
+
+**What changes:** Instead of one DeckStructure for `touch_4`, there are three: one for Proposals, one for Talk Tracks, one for FAQs.
+
+#### Schema Change (DeckStructure model)
+
+**MODIFY `DeckStructure` unique constraint:**
+
+Current:
 ```prisma
 model DeckStructure {
-  id          String   @id @default(cuid())
-  touchType   String   @unique // "touch_1" | "touch_2" | "touch_3" | "touch_4"
-  name        String   // "First Contact Pager" | "Intro Deck" | etc.
-  sections    String   // JSON array of DeckSection objects
-  createdBy   String?  // User ID who last modified
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  touchType  String  @unique
+  // ...
+}
+```
 
+New:
+```prisma
+model DeckStructure {
+  touchType     String
+  artifactType  String?  // null for touch_1-3, "proposal"/"talk_track"/"faq" for touch_4
+  // ...
+
+  @@unique([touchType, artifactType])
   @@index([touchType])
 }
 ```
 
-Rationale for NEW model (not extending Template):
-- Deck structures are per-touch-type (one structure for ALL Touch 2 decks).
-- Templates are individual Google Slides files.
-- 1:1 relationship between touch type and deck structure (@@unique on touchType).
-- Separate model avoids coupling template CRUD with structure management.
+**Migration strategy:** The existing `touchType @unique` constraint must be dropped and replaced with `@@unique([touchType, artifactType])`. Existing Touch 1-3 records will have `artifactType = null` and remain unique. The existing Touch 4 record should be deleted (it was inferred from mixed data that is no longer valid).
 
-Sections JSON shape:
+**Critical note:** This is a forward-only migration per CLAUDE.md. The migration must:
+1. Add nullable `artifactType` column
+2. Drop the unique index on `touchType`
+3. Add the composite unique index on `[touchType, artifactType]`
+4. Delete the existing `touch_4` DeckStructure record (inferred from mixed data)
+
+#### Inference Pipeline Change
+
+**MODIFY `inferDeckStructure()`:**
+
+Current signature: `inferDeckStructure(touchType: string, chatConstraints?: string)`
+
+New signature: `inferDeckStructure(touchType: string, artifactType?: string, chatConstraints?: string)`
+
+For touch_4, the function must:
+1. Filter examples not just by touchType but also by `artifactType` on the Template model
+2. Use the composite key `{ touchType, artifactType }` for upsert (Prisma `@@unique` enables `findUnique` on the pair)
+3. Adjust the prompt to explain this is specifically a Proposal / Talk Track / FAQ structure
+
+For touch_1-3, behavior is unchanged (artifactType is undefined/null).
+
+**MODIFY `computeDataHash()`:**
+
+Must accept artifactType parameter and include it in the hash computation so that changes to artifact type classification trigger re-inference.
+
+#### Cron Job Change
+
+**MODIFY `auto-infer-cron.ts`:**
+
+Current loop: iterates over `DECK_TOUCH_TYPES` (touch_1 through touch_4).
+
+New loop: for touch_1-3, iterate normally. For touch_4, iterate over each artifact type:
+
 ```typescript
-interface DeckSection {
-  name: string;           // "Title Slide", "About Us", "Industry Focus"
-  description: string;    // Purpose description
-  required: boolean;      // Must appear in every deck of this type?
-  order: number;          // Assembly order
-  slideCategory?: string; // Maps to SLIDE_CATEGORIES for auto-matching
+const INFERENCE_KEYS: Array<{ touchType: string; artifactType?: string }> = [
+  { touchType: "touch_1" },
+  { touchType: "touch_2" },
+  { touchType: "touch_3" },
+  { touchType: "touch_4", artifactType: "proposal" },
+  { touchType: "touch_4", artifactType: "talk_track" },
+  { touchType: "touch_4", artifactType: "faq" },
+];
+```
+
+#### Chat Refinement Change
+
+**MODIFY `streamChatRefinement()`:**
+
+Must accept `artifactType` parameter. Lookup uses composite key. Re-inference passes artifactType through.
+
+#### API Route Changes
+
+**MODIFY `GET /deck-structures`:**
+
+Return 6 entries instead of 4 (touch_1, touch_2, touch_3, touch_4/proposal, touch_4/talk_track, touch_4/faq).
+
+**MODIFY `GET /deck-structures/:touchType`:**
+
+Accept optional `artifactType` query param: `GET /deck-structures/touch_4?artifactType=proposal`
+
+Alternative approach: encode in the path: `GET /deck-structures/touch_4/proposal`. This is cleaner for routing.
+
+**Recommended:** Use query parameter approach because it avoids ambiguity with existing `:touchType/infer` and `:touchType/chat` routes. Path segments like `/touch_4/proposal` could collide with `/touch_4/infer`.
+
+New/modified routes:
+```
+GET  /deck-structures                                   (returns 6 entries)
+GET  /deck-structures/:touchType?artifactType=X         (touch_1-3: no param, touch_4: required)
+POST /deck-structures/:touchType/infer?artifactType=X   (touch_4: required)
+POST /deck-structures/:touchType/chat?artifactType=X    (touch_4: required)
+```
+
+#### Web API Client Changes
+
+**MODIFY `api-client.ts`:**
+
+```typescript
+export interface DeckStructureSummary {
+  // ... existing fields ...
+  artifactType: string | null;  // NEW
 }
+
+export interface DeckStructureDetail {
+  // ... existing fields ...
+  artifactType: string | null;  // NEW
+}
+
+export async function getDeckStructure(
+  touchType: string,
+  artifactType?: string,  // NEW
+): Promise<DeckStructureDetail> { ... }
+
+export async function triggerDeckInference(
+  touchType: string,
+  artifactType?: string,  // NEW
+): Promise<...> { ... }
 ```
 
-#### AI Chat Architecture
+#### Settings UI Routing Change
 
-**Where it runs: Agent side, as a simple Hono route. NOT a Mastra workflow.**
+**MODIFY settings layout and routing:**
 
-Rationale:
-- Stateless request/response. No HITL checkpoints, no suspend/resume.
-- Deck structure refinement is a single LLM call, not a multi-step pipeline.
-- Mastra workflows are overkill here.
-
-**Why NOT streaming:** Responses are structured JSON (deck outline, 10-20 sections). Entire response must be valid JSON to update the structure. Streaming partial JSON adds complexity for zero UX benefit (responses complete in <3s).
+Current Touch 4 sub-nav item is a single link. Replace with three sub-items:
 
 ```
-POST /settings/deck-structures/:touchType/refine
-  Body: { message: string, currentSections: DeckSection[] }
-  Response: { sections: DeckSection[], explanation: string }
+/settings/deck-structures/touch-4/proposal    --> TouchTypeDetailView(touch_4, proposal)
+/settings/deck-structures/touch-4/talk-track  --> TouchTypeDetailView(touch_4, talk_track)
+/settings/deck-structures/touch-4/faq         --> TouchTypeDetailView(touch_4, faq)
 ```
 
-The LLM call uses GPT-OSS 120b via Mastra's `generate()` with:
-- System prompt: Lumenalta deck structure expert context
-- Current sections as structured context
-- User message as the refinement request
-- Response schema enforcing DeckSection[] output
-
-| Layer | File | Change |
-|-------|------|--------|
-| Agent | `prisma/schema.prisma` | New DeckStructure model |
-| Agent | `mastra/index.ts` | CRUD routes + refine endpoint |
-| Web | `sidebar.tsx` | Add Settings nav item |
-| Web | `settings/page.tsx` | Server component |
-| Web | `settings/settings-client.tsx` | Client with touch-type tabs + section editor + chat |
-| Web | `settings/loading.tsx` | Skeleton |
-| Web | `api-client.ts` | DeckStructure types + API functions |
-| Web | `lib/actions/settings-actions.ts` | Server actions |
-| Schemas | New `deck-structure.ts` | Zod schema for DeckSection |
-
-**One migration** (CREATE TABLE).
-
----
-
-## Complete Schema Changes Summary
-
-### New Models
-
-| Model | Purpose | Columns |
-|-------|---------|---------|
-| DeckStructure | Per-touch deck section ordering | id, touchType (unique), name, sections (JSON), createdBy, timestamps |
-
-### Modified Models
-
-| Model | Column | Type | Default | Purpose |
-|-------|--------|------|---------|---------|
-| SlideEmbedding | `description` | `String?` | null | AI-generated slide description |
-| SlideEmbedding | `elementMap` | `Json?` | null | Structural element map from Slides API |
-| Template | `contentRole` | `String` | `"template"` | Template vs Example classification |
-| DiscoveryDocCache | `thumbnailUrl` | `String?` | null | Cached GCS thumbnail URL |
-
-**Total: 5 migrations** (4 ALTER TABLE + 1 CREATE TABLE). All additive, no data loss.
-
----
-
-## Complete API Routes Summary
-
-### New Routes
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/settings/deck-structures` | List all deck structures |
-| GET | `/settings/deck-structures/:touchType` | Get structure for touch type |
-| PUT | `/settings/deck-structures/:touchType` | Create/update structure |
-| POST | `/settings/deck-structures/:touchType/refine` | AI chat refinement |
-
-### Modified Routes
-
-| Method | Path | Change |
-|--------|------|--------|
-| GET | `/templates` | Add optional `?status=ingesting` filter |
-| POST | `/templates` | Accept `contentRole` field |
-| PATCH | `/templates/:id` | New: update `contentRole` |
-| GET | `/templates/:id/slides` | Include `description` + `elementMap` in response |
-| GET | `/discovery/browse` | Include `thumbnailUrl` in enriched docs |
-| POST | `/discovery/search` | Include `thumbnailUrl` in enriched docs |
-
----
-
-## Data Flow Changes
-
-### v1.5 Ingestion Flow (additions marked with +)
+Layout change: the left nav expands Touch 4 into three sub-sub-items:
 
 ```
-User clicks Ingest
-  -> + Immediate toast ("Queuing N items...")
-  -> + Optimistic "pending" status in UI
-  -> Server Action -> POST /discovery/ingest
-  -> Creates Template record (+ with contentRole)
-  -> Enqueues in IngestionQueue
-  -> IngestionQueue processes:
-     -> extract (+ element map from same presentations.get call)
-     -> classify (+ description from same Gemini call)
-     -> embed -> store (+ description + elementMap columns)
-     -> cache thumbnails (+ discovery thumbnail via GCS)
-  -> Client polls progress every 2s (+ uses Template progress endpoint)
-  -> + On mount, cross-check with ingesting templates for consistency
+Deck Structures
+  Touch 1
+  Touch 2
+  Touch 3
+  Touch 4
+    Proposal
+    Talk Track
+    FAQ
 ```
 
-### Settings Data Flow
-
+**File structure:**
 ```
-User opens Settings -> Server fetches DeckStructure records (4 max)
-  -> Tabs per touch type -> Edit sections inline (drag to reorder)
-  -> Save: PUT /settings/deck-structures/:touchType
-  -> AI Refine: POST /settings/deck-structures/:touchType/refine
-     -> Agent calls GPT-OSS 120b with current structure + user message
-     -> Returns modified structure + explanation
-  -> User reviews diff, accepts or rejects
+app/(authenticated)/settings/deck-structures/
+  page.tsx                          (redirect to touch-1)
+  [touchType]/
+    page.tsx                        (touch_1-3 render, touch-4 redirects to proposal)
+    [artifactType]/
+      page.tsx                      (touch_4 artifact type pages only)
 ```
 
----
+The `[touchType]/page.tsx` already validates slugs. For `touch-4`, add a redirect to `touch-4/proposal`. The `[artifactType]/page.tsx` validates `proposal`, `talk-track`, `faq` slugs and renders `TouchTypeDetailView` with both params.
+
+## Component Responsibilities
+
+| Component | Responsibility | Change Required |
+|-----------|----------------|-----------------|
+| `Template` (Prisma) | Stores presentation metadata + classification | **ADD** `artifactType` column |
+| `DeckStructure` (Prisma) | Stores AI-inferred deck structures | **MODIFY** unique constraint to composite, **ADD** `artifactType` column |
+| `TemplateCard` classify Dialog | User classification UI | **ADD** artifact type selector for T4 |
+| `template-utils.ts` | Classification labels and status | **MODIFY** label generation for artifact types |
+| `api-client.ts` | Typed fetch wrapper + interfaces | **ADD** artifactType to types and function signatures |
+| `infer-deck-structure.ts` | AI inference engine | **ADD** artifactType filtering and composite key upsert |
+| `computeDataHash()` | Change detection hash | **ADD** artifactType to hash input |
+| `auto-infer-cron.ts` | Background re-inference | **EXPAND** loop to include artifact types for touch_4 |
+| `chat-refinement.ts` | Streaming chat for deck refinement | **ADD** artifactType parameter passthrough |
+| `auto-classify-templates.ts` | Auto-classification of new templates | **ADD** artifactType to LLM schema |
+| `POST /templates/:id/classify` | Classification API | **ADD** artifactType field + validation |
+| `GET /deck-structures` | List all structures | **EXPAND** to 6 entries |
+| `GET /deck-structures/:touchType` | Single structure detail | **ADD** artifactType query param |
+| `POST /deck-structures/:touchType/infer` | Manual inference trigger | **ADD** artifactType query param |
+| `POST /deck-structures/:touchType/chat` | Chat refinement | **ADD** artifactType query param |
+| Settings layout | Left nav with touch type items | **ADD** Touch 4 sub-items |
+| `TouchTypeDetailView` | Deck structure display + chat | **ADD** artifactType prop |
+| `deck-structure-actions.ts` | Server actions for deck structures | **ADD** artifactType params |
+| `packages/schemas/constants.ts` | Shared constants | **ADD** `ARTIFACT_TYPES` |
+
+## Data Flow
+
+### Classification Flow (Modified)
+
+```
+User clicks "Classify" on TemplateCard
+    |
+    v
+Dialog opens: select Template/Example
+    |
+    v  (if Example)
+Select touch types (checkboxes)
+    |
+    v  (if touch_4 selected)
+Select artifact type (radio: Proposal / Talk Track / FAQ)
+    |
+    v
+POST /templates/:id/classify
+  body: { classification: "example", touchTypes: ["touch_4"], artifactType: "proposal" }
+    |
+    v
+Agent handler:
+  - Validates: artifactType required when touch_4 example, rejected otherwise
+  - Updates Template record: contentClassification, touchTypes, artifactType
+    |
+    v
+Cron detects data hash change --> re-infers touch_4 + proposal structure
+```
+
+### Inference Flow (Modified)
+
+```
+inferDeckStructure("touch_4", "proposal", chatConstraints?)
+    |
+    v
+Query Template WHERE contentClassification="example"
+  AND touchTypes contains "touch_4"
+  AND artifactType="proposal"                           <-- NEW filter
+    |
+    v
+Load SlideEmbeddings for matched templates
+    |
+    v
+Build prompt (mentions this is specifically for Proposal decks)  <-- NEW context
+    |
+    v
+Gemini structured output --> DeckStructureOutput
+    |
+    v
+Upsert DeckStructure WHERE touchType="touch_4" AND artifactType="proposal"
+```
+
+### Settings View Flow (Modified)
+
+```
+User navigates to /settings/deck-structures/touch-4/proposal
+    |
+    v
+[artifactType]/page.tsx resolves params: touchType="touch_4", artifactType="proposal"
+    |
+    v
+TouchTypeDetailView(touchType="touch_4", artifactType="proposal", label="Touch 4 - Proposal")
+    |
+    v
+getDeckStructureAction("touch_4", "proposal")
+    |
+    v
+GET /deck-structures/touch_4?artifactType=proposal
+    |
+    v
+Agent queries DeckStructure WHERE touchType="touch_4" AND artifactType="proposal"
+    |
+    v
+Returns DeckStructureDetail with artifact-specific structure
+```
+
+## Architectural Patterns
+
+### Pattern 1: Composite Key Extension
+
+**What:** Extending a single-column unique key to a composite key to support sub-classification without breaking existing records.
+**When to use:** When a previously flat dimension needs sub-categorization for a subset of records.
+**Trade-offs:** Existing code that queries by touchType alone must be audited. Null artifactType for touch_1-3 works naturally with the composite unique constraint (PostgreSQL treats NULL as distinct in unique constraints, so `(touch_1, NULL)` and `(touch_2, NULL)` are both allowed).
+
+### Pattern 2: Conditional UI Sections
+
+**What:** Showing additional form fields only when specific conditions are met (artifact type selector appears only when Touch 4 is selected as an example).
+**When to use:** When classification dimensions are hierarchical or context-dependent.
+**Trade-offs:** More conditional rendering logic, but avoids confusing users with irrelevant options. Already used in the existing classify Dialog (touch types only show for examples).
+
+### Pattern 3: Nested Dynamic Routes for Sub-Types
+
+**What:** Using nested dynamic route segments (`/deck-structures/[touchType]/[artifactType]`) for Touch 4 artifact type pages.
+**When to use:** When sub-items are first-class navigation targets with their own pages.
+**Trade-offs:** More route files, but cleaner URLs and better navigation state. Consistent with the existing pattern of `/deck-structures/[touchType]`. The `[touchType]/page.tsx` for touch-4 redirects to the first artifact type.
+
+### Pattern 4: Query Params for API Sub-Filtering
+
+**What:** Using `?artifactType=proposal` query parameters on existing API routes rather than new path segments.
+**When to use:** When adding a sub-filter to an existing API route that already uses path params.
+**Trade-offs:** Avoids route collision (e.g., `/touch_4/proposal` vs `/touch_4/infer`). Slightly less RESTful but more practical with Hono's routing.
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: SSE for Ingestion Status
-**What:** Server-Sent Events for real-time ingestion updates.
-**Why bad:** Railway needs sticky sessions for SSE. Connection management and reconnection logic adds complexity. For ~20 users with 2s polling, overhead is unjustified.
-**Instead:** Keep polling. Template model is the source of truth.
+### Anti-Pattern 1: Separate Models for Artifact Type Structures
 
-### Anti-Pattern 2: Shared React Context for Cross-Page State
-**What:** IngestionContext at layout level to sync status between pages.
-**Why bad:** Couples unrelated pages, lost on refresh anyway, adds layout complexity.
-**Instead:** Server-side source of truth queried on mount.
+**What people do:** Create a `Touch4DeckStructure` model separate from `DeckStructure`.
+**Why it's wrong:** Duplicates all the same fields, chat messages, cron logic, and API routes. The only difference is the additional dimension.
+**Do this instead:** Add `artifactType` to the existing `DeckStructure` model with a composite unique constraint.
 
-### Anti-Pattern 3: Separate Element Map Table
-**What:** `SlideElement` model with FK to SlideEmbedding.
-**Why bad:** Element maps are always read as a unit. Separate table adds JOINs for zero queryability benefit.
-**Instead:** `elementMap Json?` column. JSONB in PostgreSQL is efficient.
+### Anti-Pattern 2: JSON Blob for Artifact Type in Template
 
-### Anti-Pattern 4: Two LLM Calls Per Slide
-**What:** Separate Gemini call for classification and description.
-**Why bad:** Doubles API cost and ingestion time (~300ms rate limit per call).
-**Instead:** Add description to existing classification prompt. One call, both outputs.
+**What people do:** Store artifact type inside the existing `touchTypes` JSON array (e.g., `["touch_4:proposal"]`).
+**Why it's wrong:** Breaks existing JSON parsing logic everywhere, makes queries impossible (cannot filter by artifact type with Prisma `where` on JSON contents), and conflates two separate concepts.
+**Do this instead:** Add a separate `artifactType` column on Template. Clean separation of concerns.
 
-### Anti-Pattern 5: Mastra Workflow for AI Chat
-**What:** Suspend/resume workflow for settings page chat.
-**Why bad:** Overkill. Workflows are for multi-step, stateful, durable HITL operations.
-**Instead:** Simple POST endpoint with `generate()`.
+### Anti-Pattern 3: Overloading Touch Type Values
 
-### Anti-Pattern 6: Multiple presentations.get Calls
-**What:** Calling Slides API separately for text extraction and element map extraction.
-**Why bad:** Google Slides API has strict quotas (60 reads/min). Doubles consumption.
-**Instead:** Extract all data from the single existing `presentations.get` response.
+**What people do:** Create new touch types like `"touch_4_proposal"`, `"touch_4_talk_track"`, `"touch_4_faq"`.
+**Why it's wrong:** Breaks the `TOUCH_TYPES` constant, confuses the classification UI, and does not model the real domain (these are sub-types of Touch 4, not separate touch types). Every piece of code that iterates TOUCH_TYPES would need to handle these fake touch types.
+**Do this instead:** Artifact type is a separate dimension that only applies to Touch 4.
 
----
+### Anti-Pattern 4: Modifying Settings Routes Without Redirect Guards
 
-## Patterns to Follow
+**What people do:** Add new nested routes but forget that `/settings/deck-structures/touch-4` must now redirect to `/settings/deck-structures/touch-4/proposal` instead of rendering a combined view.
+**Why it's wrong:** Users get a broken page or a mixed-artifact view that the new feature is specifically designed to eliminate.
+**Do this instead:** The `[touchType]/page.tsx` detects `touch-4` and redirects to `touch-4/proposal`. Touch 1-3 pages remain as they are.
 
-### Pattern 1: Extend Existing Extractors
-Existing `presentations.get` call already returns all element data. Parse more of it, do not add new API calls.
+### Anti-Pattern 5: Path-Based Artifact Type in API Routes
 
-### Pattern 2: GCS Cache for External Thumbnails
-Never serve Google-hosted thumbnail URLs directly to browser. Always fetch server-side and cache to GCS. Existing pattern in `gcs-thumbnails.ts`.
+**What people do:** Add `/deck-structures/:touchType/:artifactType` as API paths.
+**Why it's wrong:** Collides with existing sub-routes like `/deck-structures/:touchType/infer` and `/deck-structures/:touchType/chat`. Hono would need to disambiguate "proposal" from "infer" in the same path segment.
+**Do this instead:** Use query parameters: `/deck-structures/touch_4?artifactType=proposal`.
 
-### Pattern 3: Column-per-display-field
-Add `description` as a dedicated column, not inside JSON. Consistent with `contentText`, `speakerNotes`.
+## Suggested Build Order
 
-### Pattern 4: Fire-and-forget with polling
-Return immediately, poll for progress. Established in TemplateCard and DiscoveryClient.
+The build order is driven by data model dependencies:
 
-### Pattern 5: Additive migrations only
-Per CLAUDE.md: no resets, forward-only. All changes as nullable columns or new tables.
+### Phase 1: Schema + Constants + Migration
 
-### Pattern 6: Server-side enrichment
-Enrich API responses on the server (thumbnailUrl, isGoogleSlides). Client stays thin.
+1. Add `ARTIFACT_TYPES` to `packages/schemas/constants.ts`
+2. Add `artifactType String?` to `Template` model in schema.prisma
+3. Add `artifactType String?` to `DeckStructure` model
+4. Modify `DeckStructure` unique constraint from `@unique` on `touchType` to `@@unique([touchType, artifactType])`
+5. Create forward-only Prisma migration (use `--create-only` to inspect SQL)
+6. In migration SQL: DELETE existing `touch_4` DeckStructure record and its DeckChatMessages (stale mixed data)
 
----
+**Why first:** Everything depends on the data model. Migration must land before any code changes.
 
-## Build Order (Dependency-Aware)
+### Phase 2: Agent Backend (Classify + Infer)
 
-```
-Phase 1: Schema + Infrastructure (no UI changes, no functional changes)
-  1.1 Migration: SlideEmbedding.description
-  1.2 Migration: SlideEmbedding.elementMap
-  1.3 Migration: Template.contentRole
-  1.4 Migration: DiscoveryDocCache.thumbnailUrl
-  1.5 Migration: CREATE TABLE DeckStructure
+1. Modify `POST /templates/:id/classify` to accept and validate `artifactType`
+2. Modify `auto-classify-templates.ts` to include artifactType in LLM schema
+3. Modify `inferDeckStructure()` to accept and filter by artifactType, use composite key for upsert
+4. Modify `computeDataHash()` to accept and include artifactType
+5. Modify `auto-infer-cron.ts` to iterate over artifact types for touch_4
+6. Modify `streamChatRefinement()` to accept and pass through artifactType
 
-Phase 2: Agent-side extraction enhancements (backend only)
-  2.1 Element map extraction in slide-extractor.ts (depends on 1.2)
-  2.2 Description generation in classify-metadata.ts (depends on 1.1)
-  2.3 Store description + elementMap in ingest-template.ts (depends on 2.1, 2.2)
+**Why second:** Backend must be ready before frontend can call the new APIs.
 
-Phase 3: Agent-side API routes (backend only)
-  3.1 Discovery thumbnail caching + enrichment (depends on 1.4)
-  3.2 Template contentRole in CRUD routes (depends on 1.3)
-  3.3 Slides endpoint with description + elementMap (depends on 2.3)
-  3.4 Ingesting templates filter on GET /templates (no schema dependency)
-  3.5 Deck structure CRUD routes (depends on 1.5)
-  3.6 AI refinement endpoint (depends on 3.5)
+### Phase 3: Agent API Routes
 
-Phase 4: Web-side UX improvements (can start in parallel with Phase 2)
-  4.1 Optimistic UI for ingest click (no backend dependency)
-  4.2 Cross-page ingestion status consistency (depends on 3.4)
-  4.3 Discovery thumbnails in card grid (depends on 3.1)
+1. Modify `GET /deck-structures` to return 6 entries (include artifactType in response)
+2. Modify `GET /deck-structures/:touchType` to read `artifactType` query param
+3. Modify `POST /deck-structures/:touchType/infer` to read `artifactType` query param
+4. Modify `POST /deck-structures/:touchType/chat` to read `artifactType` query param
 
-Phase 5: Web-side new features
-  5.1 Rich descriptions in slide viewer (depends on 3.3)
-  5.2 Element map display in slide viewer (depends on 3.3)
-  5.3 Template vs Example filter + classification UI (depends on 3.2)
-  5.4 Settings page with deck structures + AI chat (depends on 3.5, 3.6)
-```
+**Why third:** Routes wire up the backend changes to HTTP endpoints the frontend needs.
 
-**Critical path:** Phase 1 (migrations) -> Phase 2 (extraction) -> Phase 3 (routes) -> Phase 5 (features).
+### Phase 4: Web Frontend
 
-**Parallelism opportunities:**
-- Phase 4.1 (optimistic UI) can start immediately -- no backend dependency.
-- Phase 5.4 (Settings) is fully independent of Phases 2-3 extraction work.
-- All 5 migrations in Phase 1 are independent and can be created in any order.
-- Phase 3.4 and 3.5 have no dependency on Phase 2.
+1. Modify `packages/schemas/constants.ts` to export `ARTIFACT_TYPES` (if not done in Phase 1)
+2. Modify `api-client.ts` types and functions to include artifactType
+3. Modify `template-utils.ts` for artifact type labels
+4. Modify `TemplateCard` classify Dialog to add artifact type selector (radio buttons when touch_4 + example)
+5. Modify Settings layout left nav: expand Touch 4 into Proposal / Talk Track / FAQ sub-items
+6. Modify `[touchType]/page.tsx` to redirect `touch-4` to `touch-4/proposal`
+7. Add `[touchType]/[artifactType]/page.tsx` for Touch 4 artifact pages
+8. Modify `deck-structure-actions.ts` to pass artifactType
+9. Pass artifactType through `TouchTypeDetailView` and `ChatBar`
 
----
-
-## Scalability Considerations
-
-| Concern | Current (~38 slides, 5 templates) | At 500 slides, 50 templates | At 5000 slides |
-|---------|----------------------------------|----------------------------|----------------|
-| Element map storage | Negligible (<5KB per slide JSONB) | ~2.5MB total | ~25MB. Still fine. |
-| Description generation | +0s per slide (same LLM call) | Same | Same |
-| Ingestion time | ~2min per template | Same per-template | Queue serializes. OK. |
-| Thumbnail caching | Existing GCS infra | ~500 GCS objects | ~5000. GCS scales infinitely. |
-| Polling load | 1 user * 2s = negligible | 5 concurrent = 2.5 req/s | Consider SSE at this point. |
-
----
+**Why last:** Frontend depends on all backend changes being in place.
 
 ## Sources
 
-- Codebase: `apps/agent/prisma/schema.prisma` (341 lines, 14 models)
-- Codebase: `apps/agent/src/ingestion/ingest-template.ts` (375 lines, full pipeline)
-- Codebase: `apps/agent/src/ingestion/classify-metadata.ts` (321 lines, Gemini schema)
-- Codebase: `apps/agent/src/lib/slide-extractor.ts` (184 lines, presentations.get parsing)
-- Codebase: `apps/agent/src/lib/gcs-thumbnails.ts` (198 lines, GCS cache pattern)
-- Codebase: `apps/agent/src/mastra/index.ts` (~1900 lines, all API routes)
-- Codebase: `apps/web/src/lib/api-client.ts` (863 lines, typed fetch wrappers)
-- Codebase: `apps/web/src/components/sidebar.tsx` (190 lines, nav items)
-- Codebase: `apps/web/src/components/template-card.tsx` (358 lines, polling pattern)
-- Codebase: `apps/web/src/app/(authenticated)/discovery/discovery-client.tsx` (1049 lines, ingestion state)
-- Debug: `.planning/debug/ingestion-state-reverts.md` (Drive metadata enrichment fix)
-- Debug: `.planning/debug/slow-navigation-no-feedback.md` (loading.tsx + NavProgress fix)
-- Google Slides API: `presentations.get` returns full pageElements (HIGH confidence -- verified in slide-extractor.ts)
+- Prisma schema: `apps/agent/prisma/schema.prisma` (read directly, 406 lines)
+- Deck structure inference: `apps/agent/src/deck-intelligence/infer-deck-structure.ts` (read directly, 408 lines)
+- Deck structure schema: `apps/agent/src/deck-intelligence/deck-structure-schema.ts` (read directly, 138 lines)
+- Chat refinement: `apps/agent/src/deck-intelligence/chat-refinement.ts` (read directly, 338 lines)
+- Auto-infer cron: `apps/agent/src/deck-intelligence/auto-infer-cron.ts` (read directly, 97 lines)
+- Auto-classify templates: `apps/agent/src/ingestion/auto-classify-templates.ts` (read directly via grep, classification schema + handler)
+- Classification API route: `apps/agent/src/mastra/index.ts` line 1378-1416 (read directly)
+- Deck structure API routes: `apps/agent/src/mastra/index.ts` lines 2496-2670 (read directly)
+- Settings layout: `apps/web/src/app/(authenticated)/settings/layout.tsx` (read directly, 92 lines)
+- Touch type detail view: `apps/web/src/components/settings/touch-type-detail-view.tsx` (read directly, 193 lines)
+- Touch type page: `apps/web/src/app/(authenticated)/settings/deck-structures/[touchType]/page.tsx` (read directly, 45 lines)
+- Deck structure view: `apps/web/src/components/settings/deck-structure-view.tsx` (read directly, 131 lines)
+- Template card: `apps/web/src/components/template-card.tsx` (read directly, 517 lines)
+- API client types: `apps/web/src/lib/api-client.ts` (read directly, DeckStructure interfaces at lines 905-950)
+- Template utils: `apps/web/src/lib/template-utils.ts` (read directly, 128 lines)
+- Deck structure actions: `apps/web/src/lib/actions/deck-structure-actions.ts` (read directly, 30 lines)
+- Shared constants: `packages/schemas/constants.ts` (read directly, 203 lines)
+- Project context: `.planning/PROJECT.md` (read directly, 251 lines)
 
 ---
-*Architecture research for: Lumenalta v1.5 Review Polish & Deck Intelligence*
+*Architecture research for: Touch 4 Artifact Type Sub-Classification and Per-Artifact Deck Structures*
 *Researched: 2026-03-07*

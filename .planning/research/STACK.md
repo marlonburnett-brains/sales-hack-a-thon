@@ -1,4 +1,4 @@
-# Technology Stack — v1.5 Review Polish & Deck Intelligence
+# Stack Research — v1.6 Touch 4 Artifact Intelligence
 
 **Project:** AtlusAI Agentic Sales Orchestration
 **Researched:** 2026-03-07
@@ -6,211 +6,221 @@
 
 ## Scope
 
-This research covers ONLY stack additions/changes for v1.5 (Review Polish & Deck Intelligence). The existing validated stack (Next.js 15, Mastra AI 1.8, Prisma 6.19 + Supabase PostgreSQL + pgvector, Google Workspace APIs via `googleapis` v144, shadcn/ui, React 19, Supabase Auth + Google OAuth, Sonner, GCS thumbnail caching) is NOT re-researched.
+This research covers ONLY stack additions/changes for v1.6 (Touch 4 Artifact Type Sub-Classification & Per-Artifact Deck Structures). The existing validated stack is NOT re-researched.
 
 **Focus areas:**
-1. Google Slides API element map extraction from `presentations.get`
-2. Google Drive API file metadata/thumbnails for Discovery cards
-3. Optimistic UI patterns for ingest click feedback
-4. AI chat interface for deck structure refinement
-5. Rich AI-generated slide descriptions during ingestion
-6. Template vs Example classification with touch binding
+1. Artifact type sub-classification for Touch 4 Examples (Proposal / Talk Track / FAQ)
+2. Per-artifact-type deck structures in Settings
+3. Schema evolution strategy for existing models
+4. UI changes to classify popover and Settings deck structure view
 
 ---
 
 ## Executive Summary
 
-v1.5 requires **zero new package dependencies**. Every feature builds on existing installed libraries:
+v1.6 requires **zero new package dependencies**. Every capability needed is already present in the codebase. The work is:
 
-- **Element maps:** The `presentations.get` response already contains full `pageElements[]` structure -- `slide-extractor.ts` just discards it today
-- **Discovery thumbnails:** `drive.files.get` with `fields=thumbnailLink,hasThumbnail,iconLink,mimeType` plus existing GCS caching pattern
-- **Optimistic UI:** React 19 `useOptimistic` hook (already used in `actions-client.tsx`)
-- **AI chat:** shadcn/ui primitives + existing `fetchJSON` API client + new Mastra Hono route
-- **Rich descriptions:** Additional LLM prompt step in existing ingestion pipeline
-- **Classification:** Prisma schema addition + shadcn/ui Select component
+- **2 Prisma schema migrations** (add `artifactType` column to `Template` and `DeckStructure`, change unique constraint on `DeckStructure`)
+- **1 shared constant addition** (`ARTIFACT_TYPES` in `@lumenalta/schemas`)
+- **Logic changes** to deck inference engine, chat refinement, cron, and API routes
+- **UI changes** to classify popover (add artifact type selector) and Settings page (add sub-tabs for Touch 4)
+
+No new packages. No new infrastructure. No new API providers.
 
 ---
 
-## Recommended Stack (v1.5) -- No New Packages
+## Recommended Stack (v1.6) -- No New Packages
 
-### 1. Google Slides API — Structured Element Map Extraction
+### Core Technologies (unchanged)
 
-| Aspect | Detail |
-|--------|--------|
-| **Library** | `googleapis` v144.0.0 (already in `apps/agent/package.json`) |
-| **API Method** | `slides.presentations.get({ presentationId })` -- already called at `slide-extractor.ts` line 151 |
-| **Current gap** | `extractSlidesFromPresentation()` extracts text only, discards structural element data |
-| **v1.5 approach** | Extend the same function to also return a structured element map per slide -- no additional API calls |
-| **Confidence** | HIGH -- verified against current codebase and [Google Slides API page elements docs](https://developers.google.com/workspace/slides/api/concepts/page-elements) |
+| Technology | Version | Purpose | Status |
+|------------|---------|---------|--------|
+| Next.js | 15.5.x | Web app (Server Actions, App Router) | Keep as-is |
+| Mastra AI | 1.8.x | Agent orchestration, Hono server | Keep as-is |
+| Prisma | 6.19.x | ORM, migrations | Keep as-is (DO NOT upgrade to 7.x per constraint) |
+| @google/genai | 1.43.x | Gemini structured output for deck inference | Keep as-is |
+| Zod | 4.3.x | Schema validation, shared types | Keep as-is |
+| shadcn/ui + Radix | Various | UI components (Dialog, Checkbox, Tabs, Accordion) | Keep as-is |
 
-**What `presentations.get` already returns per slide (currently discarded):**
+### Supporting Libraries (unchanged)
 
-Eight `pageElement` types, each with:
-- `objectId` -- stable ID for `batchUpdate` operations (critical for downstream deck generation)
-- `size` / `transform` -- position, dimensions, rotation
-- Type-specific properties:
+| Library | Version | Purpose | Status |
+|---------|---------|---------|--------|
+| @lumenalta/schemas | workspace | Shared constants (TOUCH_TYPES, etc.) | Extend with ARTIFACT_TYPES |
+| sonner | 2.0.x | Toast notifications | Keep as-is |
+| lucide-react | 0.576.x | Icons | Keep as-is |
+| date-fns | 4.1.x | Date formatting | Keep as-is |
+| @radix-ui/react-tabs | 1.1.x | Tabs component (already installed) | Reuse for Touch 4 artifact sub-tabs |
 
-| Element Type | Key Properties | Why It Matters for Deck Intelligence |
-|-------------|----------------|--------------------------------------|
-| **Shape** | `shapeProperties`, `text.textElements[]`, `placeholder.type` (TITLE, SUBTITLE, BODY, etc.) | Identifies slide layout structure, text content, and placeholder positions for template replacement |
-| **Image** | `imageProperties.contentUrl`, `sourceUrl`, `cropProperties` | Tracks image positions for swap operations during deck generation |
-| **Table** | `tableRows[].tableCells[].text`, `rows`, `columns` | Identifies data tables for content injection |
-| **Line** | `lineProperties`, `lineType` (STRAIGHT, BENT, CURVED) | Tracks decorative/connector elements |
-| **Video** | `videoProperties.videoUri` | Identifies embedded media |
-| **WordArt** | `renderedText` | Visual text elements |
-| **SheetsChart** | `chartId`, `spreadsheetId` | Embedded chart tracking |
-| **Group** | `children[]` (recursive `PageElement[]`) | Nested element containers |
+---
 
-**Implementation: extend `ExtractedSlide` interface:**
+## What Changes (Schema & Logic Only)
 
-```typescript
-interface SlideElement {
-  objectId: string;
-  type: 'shape' | 'image' | 'table' | 'line' | 'video' | 'wordArt' | 'sheetsChart' | 'group';
-  position: { x: number; y: number }; // from transform
-  size: { width: number; height: number };
-  placeholderType?: string; // TITLE, SUBTITLE, BODY, etc.
-  textContent?: string; // for shapes/tables
-  imageUrl?: string; // for images
-  childCount?: number; // for groups/tables
-}
+### 1. Shared Constants: @lumenalta/schemas
 
-interface ExtractedSlide {
-  // ... existing fields ...
-  elementMap: SlideElement[]; // NEW
-}
-```
-
-**Storage:** `SlideEmbedding.elementMapJson` (new `String?` column) -- JSON serialized. Read as a whole per slide, not queried individually, so JSON column is appropriate over a normalized table.
-
-### 2. Google Drive API — Discovery Document Thumbnails
-
-| Aspect | Detail |
-|--------|--------|
-| **Library** | `googleapis` v144.0.0 (already installed) |
-| **API Method** | `drive.files.get({ fileId, fields: 'thumbnailLink,hasThumbnail,iconLink,mimeType,name' })` |
-| **Current usage** | `drive.files.get` already called in 6+ places in `mastra/index.ts` |
-| **Confidence** | HIGH -- verified against [Google Drive API file metadata docs](https://developers.google.com/workspace/drive/api/guides/file-metadata) |
-
-**Key fields to request:**
-
-| Field | Type | Notes |
-|-------|------|-------|
-| `thumbnailLink` | string | Short-lived URL (hours), **blocked by CORS** -- must proxy server-side |
-| `hasThumbnail` | boolean | Check before attempting fetch |
-| `iconLink` | string | Always available, small icon, no CORS issues |
-| `mimeType` | string | For file-type icon fallback |
-
-**CORS constraint and solution:**
-
-`thumbnailLink` URLs cannot be used directly in `<img>` tags due to CORS policy. Two approaches:
-
-1. **Reuse existing GCS caching pattern** (RECOMMENDED): Fetch `thumbnailLink` server-side, upload to GCS via existing `uploadThumbnailToGCS()` from `gcs-thumbnails.ts`, store the GCS URL in `DiscoveryDocCache.cachedThumbnailUrl`. This is the same pattern already proven for slide thumbnails.
-
-2. **Fallback for non-Slides documents**: For Docs/Sheets/PDFs where Slides API thumbnails aren't available, fetch `thumbnailLink` server-side and cache to GCS using the same pattern.
-
-3. **Icon fallback**: When `hasThumbnail` is false, use `iconLink` or hardcoded lucide-react icons (`FileText`, `Sheet`, `Presentation`, `FileImage`).
-
-**No new packages needed.** `gcs-thumbnails.ts` already handles GCS uploads via `googleapis` storage client (not `@google-cloud/storage`).
-
-### 3. React 19 — Optimistic UI for Ingest Click
-
-| Aspect | Detail |
-|--------|--------|
-| **Library** | `react` v19.0.0 (already installed) |
-| **Hook** | `useOptimistic(state, updateFn)` -- built into React 19 |
-| **Existing usage** | Already used in `apps/web/src/app/(authenticated)/actions/actions-client.tsx` |
-| **Confidence** | HIGH -- verified via [React 19 useOptimistic docs](https://react.dev/reference/react/useOptimistic) and existing codebase |
-
-**Pattern for Templates page ingest button:**
+**Add to `packages/schemas/constants.ts`:**
 
 ```typescript
-const [optimisticStatus, setOptimisticStatus] = useOptimistic(
-  template.ingestionStatus,
-  (_current: string, newStatus: string) => newStatus
-);
+export const ARTIFACT_TYPES = [
+  "proposal",
+  "talk_track",
+  "faq",
+] as const;
 
-async function handleIngest() {
-  setOptimisticStatus("queued"); // Instant UI update
-  startTransition(async () => {
-    await triggerIngestionAction(templateId);
-    // On success: server revalidation updates real status
-    // On error: optimistic state automatically rolls back
-  });
-}
+export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
 ```
 
-**Also needed:** `useTransition` (already used throughout codebase) to wrap the server action call, providing `isPending` state for loading indicators.
+**Why here:** Same pattern as `TOUCH_TYPES`, `CONTENT_TYPES`, `SOLUTION_PILLARS` -- single source of truth consumed by both web (`template-card.tsx`, `deck-structure-view.tsx`) and agent (`infer-deck-structure.ts`, `auto-infer-cron.ts`).
 
-**Discovery page pattern:** Same approach for the batch ingest flow in `discovery-client.tsx`. Currently uses manual `itemStatuses` Map state -- replace with `useOptimistic` over the statuses.
+**Why these three values:**
+- **proposal** -- The slide deck itself (the "deck structure" in the traditional sense)
+- **talk_track** -- A Google Doc with speaker guidance per slide/section
+- **faq** -- A Google Doc with buyer objections and responses
 
-### 4. AI Chat Interface — Deck Structure Refinement (Settings Page)
+These map directly to Touch 4's three output artifacts defined in PROJECT.md: "Google Slides deck", "talk track (Google Doc)", and "buyer FAQ with objection handling (Google Doc)".
 
-| Aspect | Detail |
-|--------|--------|
-| **Library** | shadcn/ui primitives (all already installed) -- NO new packages |
-| **Why NOT Vercel AI SDK** | Agent uses Mastra AI with custom Hono routes. Adding `@ai-sdk/react` introduces a parallel streaming layer that conflicts with the established `fetchJSON` -> Mastra route architecture. |
-| **Why NOT streaming** | Deck structure refinement produces short structured responses (JSON deck outlines), not long-form text. Standard request/response via POST is sufficient and simpler. |
-| **Confidence** | HIGH -- architectural decision based on existing patterns |
+### 2. Prisma Schema: Template Model
 
-**Build from existing shadcn/ui components:**
+**Current:** `contentClassification` is `"template" | "example" | null`. No artifact type.
 
-| Component | Source | Purpose |
-|-----------|--------|---------|
-| `ScrollArea` | `@radix-ui/react-scroll-area` (add via `npx shadcn@latest add scroll-area`) | Message list container |
-| `Card` | Already installed | Message bubbles |
-| `Input` + `Button` | Already installed | Message input |
-| `Loader2` | `lucide-react` (already installed) | Typing indicator |
-| `Avatar` | `@radix-ui/react-avatar` (already installed) | User/AI message differentiation |
-
-**Note:** `ScrollArea` is the only shadcn/ui component that may need to be added via the CLI. It's a thin wrapper around `@radix-ui/react-scroll-area` and does not add a new package dependency since Radix is already in the project.
-
-**Chat architecture:**
-
-```
-User types message
-  -> POST /api/chat/deck-structure (new Mastra route)
-  -> Mastra agent processes with LLM (GPT-OSS 120b)
-  -> Returns structured JSON response
-  -> Client appends to messages array
-  -> Rendered in ScrollArea with Card components
-```
-
-**State management:** Simple `useState<Message[]>` + `useTransition` for pending state. No external state library needed.
-
-### 5. Rich AI-Generated Slide Descriptions
-
-| Aspect | Detail |
-|--------|--------|
-| **Library** | Existing Gemini/GPT-OSS via Mastra AI |
-| **Current pattern** | 8-axis classification runs during ingestion, stored in `classificationJson` |
-| **v1.5 approach** | Add description generation step alongside classification in the ingestion pipeline |
-| **Confidence** | HIGH -- follows existing ingestion pipeline pattern in `ingest-template.ts` |
-
-**No new packages.** The LLM call uses the same Mastra AI / Vertex AI integration already in place. The prompt includes:
-- Slide text content (already extracted)
-- Speaker notes (already extracted)
-- Element map structure (new from feature #1)
-- Thumbnail URL (already cached in GCS)
-
-**Storage:** New `description` `String?` column on `SlideEmbedding` model.
-
-### 6. Template vs Example Classification + Touch Binding
-
-| Aspect | Detail |
-|--------|--------|
-| **Library** | Prisma (existing), shadcn/ui Select (existing) |
-| **Confidence** | HIGH -- standard schema addition + UI component |
-
-**Schema additions:**
+**Add:** Nullable `artifactType` column.
 
 ```prisma
-// Template model additions
-contentRole    String    @default("template") // "template" | "example"
-boundTouchType String?   // Only for examples: "touch_1" | "touch_2" | etc.
+model Template {
+  // ... existing fields ...
+  contentClassification   String?   // null | "template" | "example"
+  artifactType            String?   // null | "proposal" | "talk_track" | "faq"
+  // ...
+}
 ```
 
-**UI:** Existing `@radix-ui/react-select` for the dropdown. Existing `touchTypes` field on `Template` model shows this pattern is already established.
+**Why a separate column (not JSON):** The field is a single enum-like value used in WHERE clauses for deck inference grouping. A column is indexable, queryable via Prisma `findMany({ where: { artifactType: "proposal" } })`, and consistent with existing `contentClassification` pattern.
+
+**Constraint:** `artifactType` is only meaningful when `contentClassification === "example"` AND `touch_4` is in the `touchTypes` JSON array. Application-level validation enforces this -- no DB-level constraint needed (consistent with how `touchTypes` is validated today).
+
+**Migration:**
+
+```sql
+ALTER TABLE "Template" ADD COLUMN "artifactType" TEXT;
+CREATE INDEX "Template_artifactType_idx" ON "Template"("artifactType");
+```
+
+### 3. Prisma Schema: DeckStructure Model
+
+**Current:** `touchType` has `@unique` -- one structure per touch type. Five possible rows: `touch_1`, `touch_2`, `touch_3`, `touch_4`, `pre_call`.
+
+**Needed:** Allow multiple structures for `touch_4` (one per artifact type) while keeping one structure for all other touch types.
+
+```prisma
+model DeckStructure {
+  // ... existing fields ...
+  touchType       String    // "touch_1" | ... | "touch_4" | "pre_call"
+  artifactType    String?   // null for touch_1/2/3/pre_call; "proposal"|"talk_track"|"faq" for touch_4
+  // ...
+
+  @@unique([touchType, artifactType])  // replaces @unique on touchType
+}
+```
+
+**Why compound unique:** Touch 1-3 and pre_call have `artifactType = null` (one structure each, same as today). Touch 4 gets up to 3 structures: `(touch_4, proposal)`, `(touch_4, talk_track)`, `(touch_4, faq)`. Backward-compatible -- existing rows have `artifactType = null`.
+
+**PostgreSQL NULL uniqueness:** PostgreSQL treats NULLs as distinct in unique indexes by default. So `(touch_1, NULL)` and `(touch_2, NULL)` are both allowed. This is the desired behavior. However, Prisma 6.19.x may generate `NULLS NOT DISTINCT` in certain cases -- use `--create-only` to inspect the generated SQL before applying.
+
+**Migration (use `--create-only` first):**
+
+```sql
+ALTER TABLE "DeckStructure" ADD COLUMN "artifactType" TEXT;
+ALTER TABLE "DeckStructure" DROP CONSTRAINT "DeckStructure_touchType_key";
+CREATE UNIQUE INDEX "DeckStructure_touchType_artifactType_key" ON "DeckStructure"("touchType", "artifactType");
+```
+
+**Existing data handling:** The existing `touch_4` row (if any) has `artifactType = NULL`. After migration, when the first Touch 4 example gets classified with an artifact type, new inference will create `(touch_4, proposal)` etc. The old `(touch_4, NULL)` row becomes orphaned -- clean it up in the migration or let the cron handle it.
+
+### 4. DeckChatMessage Model
+
+**No changes needed.** `DeckChatMessage` references `deckStructureId` (FK to `DeckStructure.id`). Since each artifact-specific structure gets its own `DeckStructure` row with its own ID, chat messages are naturally scoped to the correct artifact type.
+
+### 5. Deck Inference Engine
+
+**File:** `apps/agent/src/deck-intelligence/infer-deck-structure.ts`
+
+**Current:** `inferDeckStructure(touchType, chatConstraints?)` queries templates by `contentClassification: "example"` filtered by touch type, then upserts by `touchType`.
+
+**Changes needed:**
+- Add optional `artifactType` parameter: `inferDeckStructure(touchType, chatConstraints?, artifactType?)`
+- When `touchType === "touch_4"` AND `artifactType` is provided:
+  - Filter examples by BOTH touch type AND `artifactType`
+  - Upsert DeckStructure by compound key `{ touchType, artifactType }`
+  - Include artifact type context in the LLM prompt (e.g., "You are analyzing talk track documents..." vs "You are analyzing proposal slide decks...")
+- When `touchType !== "touch_4"`: no change (artifactType stays null)
+
+**`computeDataHash` change:** Include `artifactType` in the hash input for touch_4 examples.
+
+### 6. Chat Refinement
+
+**File:** `apps/agent/src/deck-intelligence/chat-refinement.ts`
+
+**Current:** `streamChatRefinement(touchType, userMessage, onChunk)`
+
+**Change:** Add optional `artifactType` parameter. When present, find/create DeckStructure by compound key `{ touchType, artifactType }`. Pass through to `inferDeckStructure`.
+
+### 7. Auto-Infer Cron
+
+**File:** `apps/agent/src/deck-intelligence/auto-infer-cron.ts`
+
+**Current:** Iterates over touch types, one inference per type.
+
+**Change:** For `touch_4`, iterate over `ARTIFACT_TYPES` and run one inference per artifact type. For other touch types, keep existing behavior (one inference, artifactType = null).
+
+### 8. API Routes
+
+**Current routes:** `GET /deck-structures`, `GET /deck-structures/:touchType`, `POST /deck-structures/:touchType/infer`, `POST /deck-structures/:touchType/chat`.
+
+**Change:** Add optional `artifactType` query parameter:
+- `GET /deck-structures/touch_4?artifactType=proposal`
+- `POST /deck-structures/touch_4/infer?artifactType=proposal`
+- `POST /deck-structures/touch_4/chat?artifactType=proposal`
+
+**Why query param (not path segment):** Backward-compatible. Existing callers for `touch_1`/`touch_2`/`touch_3` don't send `artifactType` and continue to work unchanged. No route pattern changes needed.
+
+For the list endpoint, `GET /deck-structures` returns all structures. Touch 4 now returns up to 3 rows instead of 1. The response already includes `touchType` -- add `artifactType` to the response shape.
+
+### 9. Classify Popover UI
+
+**File:** `apps/web/src/components/template-card.tsx`
+
+**Current:** Classify popover has Template/Example button toggle + touch type checkboxes (when Example selected).
+
+**Change:** When `classifyType === "example"` AND `selectedTouches` includes only `touch_4`, show artifact type selector. Use the **same button-toggle pattern** already established for Template/Example:
+
+```
+[Proposal] [Talk Track] [FAQ]
+```
+
+Three styled buttons with conditional highlighting, exactly like the existing Template/Example toggle at lines 277-299 of `template-card.tsx`. No new UI library needed.
+
+**UX consideration:** Artifact type selector should ONLY appear when:
+1. Classification is "Example" (not "Template")
+2. Touch 4 is the ONLY selected touch type
+
+If multiple touch types are selected (e.g., Touch 3 + Touch 4), artifact type doesn't apply because the presentation spans multiple contexts.
+
+### 10. Settings Deck Structure View
+
+**File:** `apps/web/src/components/settings/deck-structure-view.tsx`
+
+**Current:** Renders one `TouchTypeAccordion` per deck touch type. Touch 4 gets a single accordion.
+
+**Change:** For Touch 4, render 3 sub-tabs within the accordion using existing `@radix-ui/react-tabs` (already installed, already used for Settings sub-navigation):
+
+```
+Touch 4+  [Proposal] [Talk Track] [FAQ]
+  |-- (tab content: deck structure for selected artifact type)
+```
+
+Each tab loads its own `DeckStructureDetail` from the API with `?artifactType=proposal|talk_track|faq`.
+
+The `TouchTypeAccordion` component needs a prop to indicate whether it should render sub-tabs. For `touch_4`, pass the artifact types; for others, render directly as today.
 
 ---
 
@@ -218,50 +228,46 @@ boundTouchType String?   // Only for examples: "touch_1" | "touch_2" | etc.
 
 All via `prisma migrate dev --name <name>` (never `db push` per CLAUDE.md rules):
 
-```prisma
-// Migration 1: Slide intelligence additions
-// Add to SlideEmbedding model:
-description    String?   // Rich AI-generated description
-elementMapJson String?   // JSON: structured element map from Slides API
-
-// Migration 2: Template classification
-// Add to Template model:
-contentRole    String    @default("template") // "template" | "example"
-boundTouchType String?   // null for templates, required for examples
-
-// Migration 3: Discovery thumbnail cache
-// Add to DiscoveryDocCache model:
-cachedThumbnailUrl String?  // GCS URL for cached document thumbnail
+**Migration 1: Add artifactType to Template**
+```sql
+ALTER TABLE "Template" ADD COLUMN "artifactType" TEXT;
+CREATE INDEX "Template_artifactType_idx" ON "Template"("artifactType");
 ```
+
+**Migration 2: Add artifactType to DeckStructure + compound unique**
+```sql
+ALTER TABLE "DeckStructure" ADD COLUMN "artifactType" TEXT;
+ALTER TABLE "DeckStructure" DROP CONSTRAINT "DeckStructure_touchType_key";
+CREATE UNIQUE INDEX "DeckStructure_touchType_artifactType_key" ON "DeckStructure"("touchType", "artifactType");
+```
+
+**Use `--create-only` for Migration 2** to verify Prisma doesn't generate `NULLS NOT DISTINCT`.
 
 ---
 
 ## Alternatives Considered
 
-| Feature | Recommended | Alternative | Why Not Alternative |
-|---------|-------------|-------------|-------------------|
-| Chat UI | Custom shadcn/ui primitives | Vercel AI SDK `@ai-sdk/react` + `useChat` | Conflicts with Mastra route architecture; adds unnecessary streaming for short structured responses; would require new API route pattern incompatible with existing `fetchJSON` |
-| Chat UI | Custom shadcn/ui primitives | `shadcn-chatbot-kit` (Blazity) | External dependency for 3-4 components; copy-paste approach means no version management; existing primitives sufficient |
-| Discovery thumbnails | GCS cache (reuse existing pattern) | Direct `thumbnailLink` in `<img>` tags | CORS-blocked; thumbnailLink URLs expire in hours |
-| Discovery thumbnails | GCS cache | `iconLink` only (no thumbnails) | Loses visual distinction -- thumbnails are the primary UX improvement requested in REVIEW-ISSUES.md #1 |
-| Element map storage | JSON column (`elementMapJson`) | Separate `SlideElement` model with relations | Over-normalized; element maps read as a whole per slide, never queried individually; JSON simpler and faster |
-| Optimistic UI | React 19 `useOptimistic` | Manual `useState` with rollback logic | `useOptimistic` is purpose-built, handles pending state automatically, already used in codebase |
-| Ingestion status sync | Polling (existing pattern) | WebSocket / SSE real-time push | Over-engineering for ~20 users; polling at 2-3s intervals already works on Templates page |
-| Slide descriptions | LLM during ingestion | Pre-computed static templates | Descriptions must reflect actual slide content; static templates can't capture this |
+| Recommended | Alternative | Why Not Alternative |
+|-------------|-------------|---------------------|
+| Nullable `artifactType` column on Template | JSON field with nested `{ classification, artifactType }` | Harder to query and index; Prisma `findMany` WHERE on JSON fields requires raw SQL |
+| Compound unique `(touchType, artifactType)` on DeckStructure | Separate `ArtifactDeckStructure` model | Over-engineered; compound key is the standard pattern; avoids duplicating chat, cron, inference logic |
+| Query param `?artifactType=X` for API | Path segment `/touch_4/proposal` | Query param is backward-compatible; existing clients don't break; cleaner for optional parameter |
+| Button group for artifact type selection | `@radix-ui/react-radio-group` (new shadcn component) | Adds unnecessary component when button toggle pattern is already proven at lines 277-299 |
+| Tabs for Touch 4 sub-structures in Settings | Nested accordions | Tabs are visually cleaner for exactly 3 items; nested accordions create excessive depth |
+| Single `touch_4` row with JSON containing all 3 structures | Separate rows per artifact type | Single row forces parsing/merging logic; separate rows allow independent inference, confidence scoring, and chat history per artifact type |
 
 ---
 
 ## What NOT to Add
 
-| Package | Why NOT |
-|---------|---------|
-| `@ai-sdk/react` / `ai` (Vercel AI SDK) | Mastra handles LLM orchestration; adding a second AI framework creates architectural confusion and dual streaming patterns |
-| `@google-cloud/storage` | Already using `googleapis` storage v1 client for GCS (see `gcs-thumbnails.ts` line 36); two GCS clients is redundant |
-| `socket.io` / `ws` | Real-time push is over-engineering for ~20 users with existing polling |
-| `react-markdown` / `remark` | Chat responses are structured JSON deck outlines, not markdown prose |
-| `@tanstack/react-query` | Server Actions + `useOptimistic` + `useTransition` cover all data fetching; client-side cache layer conflicts with Next.js server-first architecture |
-| `swr` | Same rationale as react-query above |
-| `prompt-kit` / `ai-elements` | Designed for Vercel AI SDK `useChat` pattern, not Mastra route pattern |
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| New UI component library | shadcn/ui + Radix already has Tabs, Dialog, Checkbox, Button | Existing components |
+| New LLM model or provider | Gemini 2.0 Flash handles deck inference identically | Same @google/genai + structured output |
+| New database table for artifact types | One nullable column on Template + compound key on DeckStructure is sufficient | Schema evolution |
+| `@radix-ui/react-radio-group` | Three buttons with conditional styling (existing pattern) achieves the same result | Button group toggle |
+| Enum type in PostgreSQL | Prisma doesn't support native PG enums well; String column + application validation is the established pattern | String column |
+| Form library for classify popover | Classify popover uses `useState` (not react-hook-form); keep consistent | useState pattern |
 
 ---
 
@@ -269,50 +275,49 @@ cachedThumbnailUrl String?  // GCS URL for cached document thumbnail
 
 ```bash
 # No new packages to install. Zero changes to package.json.
-# All features use existing dependencies.
 
-# Only action: run migrations for new schema columns
+# Only actions: run migrations for new schema columns
 cd apps/agent
-pnpm exec prisma migrate dev --name add-slide-description-element-map
-pnpm exec prisma migrate dev --name add-template-classification
-pnpm exec prisma migrate dev --name add-discovery-thumbnail-cache
+pnpm exec prisma migrate dev --create-only --name add-artifact-type-to-template
+# Inspect migration SQL, then:
+pnpm exec prisma migrate dev --name add-artifact-type-to-template
 
-# Optional: add ScrollArea shadcn component if not already generated
-cd apps/web
-npx shadcn@latest add scroll-area
+pnpm exec prisma migrate dev --create-only --name add-artifact-type-to-deck-structure
+# Inspect migration SQL (verify NULLS DISTINCT behavior), then:
+pnpm exec prisma migrate dev --name add-artifact-type-to-deck-structure
 ```
 
 ---
 
 ## Integration Points with Existing Code
 
-### Element Map Extraction
-- **Modify:** `apps/agent/src/lib/slide-extractor.ts` -- extend `ExtractedSlide` interface and `extractSlidesFromPresentation()` to parse `pageElements` fully
-- **Modify:** `apps/agent/src/ingestion/ingest-template.ts` -- pass element map to DB storage
-- **Data source:** Same `presentations.get` response already fetched (line 151) -- zero additional API calls
+### Files to Modify
 
-### Discovery Document Thumbnails
-- **Modify:** `apps/agent/src/mastra/index.ts` -- discovery enrichment routes to include `thumbnailLink` in Drive API field selectors
-- **Reuse:** `apps/agent/src/lib/gcs-thumbnails.ts` -- `uploadThumbnailToGCS()` for caching
-- **Modify:** `apps/web/src/app/(authenticated)/discovery/discovery-client.tsx` -- render thumbnails in document cards
+| File | Change |
+|------|--------|
+| `packages/schemas/constants.ts` | Add `ARTIFACT_TYPES` constant |
+| `packages/schemas/index.ts` | Export `ARTIFACT_TYPES` |
+| `apps/agent/prisma/schema.prisma` | Add `artifactType` to Template and DeckStructure |
+| `apps/agent/src/deck-intelligence/infer-deck-structure.ts` | Add `artifactType` param, filter/upsert by compound key |
+| `apps/agent/src/deck-intelligence/chat-refinement.ts` | Add `artifactType` param, pass through |
+| `apps/agent/src/deck-intelligence/auto-infer-cron.ts` | Iterate artifact types for touch_4 |
+| `apps/agent/src/mastra/index.ts` | Add `artifactType` query param to deck structure routes |
+| `apps/web/src/components/template-card.tsx` | Add artifact type selector to classify popover |
+| `apps/web/src/lib/template-utils.ts` | Update `getClassificationLabel` to include artifact type |
+| `apps/web/src/lib/actions/template-actions.ts` | Pass `artifactType` to classify action |
+| `apps/web/src/lib/api-client.ts` | Add `artifactType` to deck structure API calls |
+| `apps/web/src/lib/actions/deck-structure-actions.ts` | Pass `artifactType` param |
+| `apps/web/src/components/settings/deck-structure-view.tsx` | Render sub-tabs for touch_4 |
+| `apps/web/src/components/settings/touch-type-accordion.tsx` | Accept artifact type prop, conditional sub-tab rendering |
 
-### Optimistic Ingest UI
-- **Modify:** `apps/web/src/components/template-card.tsx` -- wrap ingest action with `useOptimistic`
-- **Modify:** `apps/web/src/app/(authenticated)/discovery/discovery-client.tsx` -- replace manual `itemStatuses` Map with `useOptimistic`
+### Files NOT Modified
 
-### Ingestion Status Consistency
-- **Modify:** Discovery client to poll same agent endpoint as Templates page
-- **Key insight:** Agent already exposes ingestion progress per template. Discovery page currently tracks its own state via `itemStatuses` Map -- must switch to polling the canonical source
-
-### AI Chat for Deck Structures
-- **New:** `apps/agent/src/mastra/routes/` -- new Hono route for deck structure chat
-- **New:** `apps/web/src/components/deck-structure-chat.tsx` -- chat UI component
-- **New:** `apps/web/src/app/(authenticated)/settings/` -- Settings page with deck structures
-
-### Rich Slide Descriptions
-- **Modify:** `apps/agent/src/ingestion/ingest-template.ts` -- add LLM description generation step
-- **Input:** Slide text + speaker notes + element map + classification context
-- **Output:** 2-3 sentence description stored in `SlideEmbedding.description`
+| File | Why |
+|------|-----|
+| `deck-structure-schema.ts` | The GenAI schema for inference output stays the same -- sections, rationale, confidence |
+| `slide-extractor.ts` | No changes to slide extraction |
+| `ingest-template.ts` | No changes to ingestion pipeline |
+| `classify-metadata.ts` | Artifact type is a human classification, not AI-inferred during ingestion |
 
 ---
 
@@ -320,28 +325,37 @@ npx shadcn@latest add scroll-area
 
 | Package | Version | Compatible | Notes |
 |---------|---------|------------|-------|
-| `googleapis` | 144.0.0 | YES | Slides API v1 and Drive API v3 both stable; element map fields have been available since API launch |
-| `react` | 19.0.0 | YES | `useOptimistic` is stable in React 19 (not experimental) |
-| `prisma` | 6.3.1+ | YES | New `String?` columns are trivial migrations. Stay on 6.19.x (Prisma 7.x has vector regression #28867) |
-| `@radix-ui/react-scroll-area` | latest | YES | Compatible with React 19, already in Radix ecosystem used by project |
-| shadcn/ui | latest | YES | All needed components either installed or available via CLI |
+| Prisma | 6.19.x | YES | `@@unique([touchType, artifactType])` with nullable column works in PG. Verify `NULLS DISTINCT` with `--create-only` |
+| @google/genai | 1.43.x | YES | DECK_STRUCTURE_SCHEMA unchanged; only prompts change |
+| @radix-ui/react-tabs | 1.1.x | YES | Already installed; reuse for Touch 4 artifact sub-tabs |
+| PostgreSQL (Supabase) | 15.x | YES | `NULLS DISTINCT` is default behavior in PG 15 unique indexes |
+
+---
+
+## PostgreSQL NULL Uniqueness (Critical Detail)
+
+PostgreSQL 15 introduced `NULLS NOT DISTINCT` as an option for unique constraints. **The default remains `NULLS DISTINCT`**, meaning two rows with `(touch_1, NULL)` and `(touch_2, NULL)` are considered distinct and both allowed.
+
+**What we need:** `NULLS DISTINCT` (the default). This allows:
+- `(touch_1, NULL)` -- one structure for Touch 1
+- `(touch_2, NULL)` -- one structure for Touch 2
+- `(touch_3, NULL)` -- one structure for Touch 3
+- `(touch_4, "proposal")` -- proposal structure for Touch 4
+- `(touch_4, "talk_track")` -- talk track structure for Touch 4
+- `(touch_4, "faq")` -- FAQ structure for Touch 4
+- `(pre_call, NULL)` -- one structure for Pre-Call
+
+**Verification:** Use `--create-only` on the migration and inspect the generated SQL. If Prisma generates `NULLS NOT DISTINCT`, manually edit the migration SQL to remove it.
 
 ---
 
 ## Sources
 
 ### HIGH Confidence
-- [Google Slides API -- Page Elements](https://developers.google.com/workspace/slides/api/concepts/page-elements) -- 8 element types, properties per type
-- [Google Slides API -- Pages Resource REST Reference](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations.pages) -- full response schema
-- [Google Drive API -- File Metadata](https://developers.google.com/workspace/drive/api/guides/file-metadata) -- thumbnailLink, hasThumbnail, iconLink fields
-- [React 19 useOptimistic](https://react.dev/reference/react/useOptimistic) -- official hook documentation
-- Existing codebase: `slide-extractor.ts` (lines 58-183), `gcs-thumbnails.ts`, `api-client.ts`, `discovery-client.tsx`, `actions-client.tsx`
-
-### MEDIUM Confidence
-- [Google Drive thumbnailLink 404 issues](https://issuetracker.google.com/issues/229184403) -- known instability with short-lived thumbnail URLs; reinforces GCS caching approach
-- [shadcn/ui AI Components](https://www.shadcn.io/ai) -- evaluated and rejected for this project's architecture
-- [Vercel AI Elements](https://github.com/vercel/ai-elements) -- evaluated and rejected due to Mastra architecture incompatibility
+- Existing codebase analysis -- `schema.prisma`, `infer-deck-structure.ts`, `chat-refinement.ts`, `auto-infer-cron.ts`, `template-card.tsx`, `deck-structure-view.tsx`, `constants.ts`, `template-utils.ts`
+- PostgreSQL 15 documentation on [NULLS DISTINCT in unique indexes](https://www.postgresql.org/docs/15/sql-createindex.html)
+- Prisma 6.x documentation on [compound unique constraints](https://www.prisma.io/docs/orm/prisma-schema/data-model/models#defining-a-unique-field)
 
 ---
-*Stack research for: Lumenalta v1.5 Review Polish & Deck Intelligence*
+*Stack research for: v1.6 Touch 4 Artifact Intelligence*
 *Researched: 2026-03-07*

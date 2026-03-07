@@ -1,329 +1,285 @@
-# Feature Landscape -- v1.5 Review Polish & Deck Intelligence
+# Feature Research -- v1.6 Touch 4 Artifact Intelligence
 
-**Domain:** UX polish, slide intelligence deepening, content classification, and AI-assisted deck structure management for agentic sales platform
+**Domain:** Artifact type sub-classification and per-artifact deck structures for agentic sales platform
 **Researched:** 2026-03-07
-**Confidence:** HIGH (all features mapped from milestone spec with clear implementation paths; competitor patterns verified; existing codebase reviewed)
+**Confidence:** HIGH (all features build directly on existing v1.5 infrastructure; codebase reviewed; clear implementation paths)
 
 ## Scope
 
-Features for v1.5 milestone ONLY. Seven features targeting three tiers: UX gap fixes, slide intelligence deepening, and deck structure management.
+Features for v1.6 milestone ONLY. Two core capabilities:
+1. Touch 4 artifact type sub-classification (Proposal / Talk Track / FAQ)
+2. Per-artifact-type deck structures displayed in Settings
+
+Existing v1.5 features leveraged: Template/Example classification with touch type binding, AI-inferred deck structures per touch type, streaming chat refinement, cron auto-inference, Popover classify UI, Settings page with per-touch-type pages.
 
 ---
 
 ## Table Stakes
 
-Features that fix identified UX gaps. Missing = product feels broken or incomplete.
+Features users expect once artifact type sub-classification exists. Missing these = feature feels half-built.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **F1: Discovery document card thumbnails** | Grid view shows only title + text snippet -- indistinguishable cards. Users expect visual previews for presentation content. | LOW | Drive API `thumbnailLink` returns short-lived URLs (hours). Existing GCS caching pattern from v1.4 slide thumbnails applies. Add `thumbnailUrl` to `DiscoveryDocCache`. File-type icon fallback via `mimeType` already in `DiscoveryDocCache`. |
-| **F2: Consistent ingestion status across pages** | Discovery tracks status in-memory `Map<string, ItemStatus>` (lost on navigation). Templates tracks via DB `ingestionStatus` column. Users see contradictory states. | MEDIUM | Promote Discovery batch status to DB. Extend `DiscoveryDocCache` with `ingestionStatus` + `batchId` columns. Agent mirrors in-memory batch state to DB on transitions. Both pages poll same DB source. |
-| **F3: Immediate feedback on ingest click** | Gap between click and visual response feels broken. Users click multiple times, causing errors. | LOW | React 19 `useOptimistic` for instant status flip. Current `handleBatchIngest` sets pending before await but React batching may delay paint. Wrap server action in `startTransition` so pending UI paints first. |
+| **F1: Artifact type selector in classify UI** | When classifying as Example with Touch 4 selected, users expect to specify what KIND of Touch 4 artifact this is (Proposal deck, Talk Track doc, Buyer FAQ doc). Without this, Touch 4 examples are an undifferentiated bucket. | LOW | Extend existing Popover classify UI (`classification-panel.tsx` TemplateClassificationSection). Show artifact type radio group conditionally when `touch_4` is checked. Three values: `proposal`, `talk_track`, `faq`. |
+| **F2: Artifact type persisted on Template model** | The artifact type must survive page reloads and be queryable for deck structure inference. | LOW | Add `artifactType` column to `Template` model (String, nullable). Only populated when `contentClassification = "example"` AND `touchTypes` includes `touch_4`. Extend `/templates/:id/classify` endpoint to accept `artifactType` param. Forward-only migration per CLAUDE.md rules. |
+| **F3: Artifact type visible on template cards** | Users need to see at a glance whether a Touch 4 example is a Proposal, Talk Track, or FAQ. Classification label currently shows "Example (Touch 4+)" which is insufficient. | LOW | Extend `getClassificationLabel()` in `template-utils.ts` to append artifact type when present: "Example (Touch 4+ -- Proposal)". Display as chip/badge on template cards. |
+| **F4: Three separate deck structures for Touch 4 in Settings** | Touch 4 currently has one deck structure page. With artifact types, users expect to see the inferred structure for each artifact type independently. A Proposal deck structure is fundamentally different from a Talk Track structure. | MEDIUM | Replace single `/settings/deck-structures/touch-4` page with three sub-pages or tabbed view: Proposal, Talk Track, FAQ. Each runs independent deck structure inference against its own subset of examples. |
+| **F5: Independent deck structure inference per artifact type** | The inference engine must filter examples by artifact type, not just touch type. A Talk Track has a completely different section flow than a Proposal deck. Mixing them produces nonsensical structures. | MEDIUM | Modify `inferDeckStructure()` to accept optional `artifactType` filter. For `touch_4`, run inference 3x (once per artifact type). `DeckStructure` model needs a new unique key: `touchType + artifactType` instead of just `touchType`. |
+| **F6: Confidence scoring per artifact type** | Each artifact type may have different example counts. Proposal might have 3 examples (medium confidence) while FAQ has 0 (no examples). Users need per-artifact confidence. | LOW | Already handled by `calculateConfidence(exampleCount)`. Just pass filtered count per artifact type. No new logic needed -- just correct data partitioning. |
 
 ## Differentiators
 
-Features that add intelligence value beyond UX fixes.
+Features that add intelligence beyond basic sub-classification.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **F4: Rich AI-generated slide descriptions** | Current metadata is taxonomy-only (8-axis classification). No human-readable description. Rich descriptions ("Financial services case study with before/after metrics and client testimonial") make slide library browsable without opening each slide. | MEDIUM | Add `description: z.string()` to Gemini classification prompt. Already sees full text + speaker notes. Marginal cost near zero. Store in new `aiDescription` column on `SlideEmbedding`. Consider appending to embedding input for richer vector representations. |
-| **F5: Structured element map extraction** | Knowing a slide has "2 text boxes, 1 table with 4 rows, 1 image placeholder" enables intelligent assembly. System can match content to layout slots. No competitor analyzes existing Google Slides for structure -- all predefine or generate from scratch. | HIGH | Google Slides API returns 8 element types: Shape, Image, Table, SheetsChart, Line, Video, WordArt, Group. Extract per slide: shapes (with placeholder type: TITLE, SUBTITLE, BODY), tables (rows x cols), images (bounds, placeholder flag), charts. Store as `elementMapJson` on `SlideEmbedding`. Placeholder types from `shape.placeholder.type` are critical for slot filling. |
-| **F6: Template vs Example classification with touch binding** | All presentations treated identically. No distinction between skeleton templates (reusable structures) and real client deliverables (examples for a touch). Classification changes retrieval behavior. | LOW-MEDIUM | Add `contentClassification` column to Template model ("template" / "example" / "case_study", default: "template"). Add `boundTouchType` for examples. Propagate to `SlideEmbedding` for vector search filtering. UI: radio group on template detail page. |
-| **F7: Settings page with Deck Structures and AI chat** | Define expected deck structure per touch type. Foundation for intelligent assembly. AI analyzes ingested examples and proposes structures; chat refines conversationally. | HIGH | New `DeckStructure` model: `{ touchType, name, sections: JSON, isDefault }`. Sections: `[{ name, required, minSlides, maxSlides, slideCategories }]`. Settings page at `/settings`. AI chat uses Mastra agent + tool to read slide library stats. Structured JSON responses, not streaming. |
+| **F7: Per-artifact chat refinement** | Each artifact type gets its own chat history and refinement context. A user refining the Proposal structure should not see Talk Track chat messages. | LOW | `DeckStructure` already has `chatMessages` relation and `chatContextJson`. Since each artifact type gets its own `DeckStructure` row, chat is automatically scoped. Just ensure the chat endpoint passes `artifactType` alongside `touchType`. |
+| **F8: Cron auto-inference respects artifact types** | Background cron should detect changes per artifact type and re-infer independently. A new FAQ example should not trigger Proposal re-inference. | LOW | Extend `computeDataHash()` to include artifact type in the hash input. Cron iterates touch types; for `touch_4`, iterate 3 artifact types. Active session protection already works per `DeckStructure` row via `lastChatAt`. |
+| **F9: Artifact type filter in template list** | Users filtering templates by Touch 4 want to further filter by Proposal vs Talk Track vs FAQ. | LOW | Add artifact type to template filter UI. Already has touch type filter; add cascading dropdown. |
 
 ## Anti-Features
 
-Features to explicitly NOT build in v1.5.
+Features to explicitly NOT build in v1.6.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| **Drag-and-drop slide reordering** | Out of scope per PROJECT.md. Sellers reorder in Google Slides directly. | Link to Google Slides for editing |
-| **In-browser slide content editing** | Out of scope per PROJECT.md. Massive scope, fragile API. | Link to Google Slides |
-| **Real-time WebSocket status updates** | Over-engineering for ~20 users. Polling at 2s is smooth. Adds WS infra to Hono + Railway. | 2s polling (already implemented) |
-| **Streaming AI chat responses** | Deck structure responses are short structured JSON. Streaming adds complexity without UX benefit. | Standard request/response |
-| **Auto-classify template vs example** | Classification requires understanding organizational intent (skeleton vs deliverable). AI cannot reliably distinguish structurally identical slides by intent. | Default to "template", user overrides to "example". Batch classify from Discovery page. |
-| **Auto deck structure generation without examples** | Without real examples, AI-generated structures are hallucinated. Need ground truth from touch-bound examples. | Only enable structure inference when 2+ examples exist for a touch |
-| **Element map visual editor** | Canvas rendering of element positions is complex and unnecessary for v1.5 data model. | Show element inventory as metadata list in slide detail view |
-| **Thumbnail generation for non-Slides files** | Requires server-side rendering (puppeteer). Most Discovery items are Google Slides. | File-type icon + title for non-Slides docs. Drive API `thumbnailLink` covers Google Workspace files. |
+| **AI-suggested artifact type** | Distinguishing Proposal from Talk Track requires understanding document intent, not just content. A slide deck with bullet points could be either. User classification is more reliable. | Manual classification via UI. User selects artifact type explicitly. |
+| **Artifact types for Touch 1-3** | Touch 1-3 produce single artifact types (pager, intro deck, capability deck). Sub-classification adds no value and confuses the model. | Artifact type UI only appears when Touch 4 is selected. |
+| **Cross-artifact structure comparison** | Comparing Proposal vs Talk Track structures adds UI complexity without clear user value. They serve different purposes. | Show each artifact type on its own page/tab. |
+| **Artifact type on slide-level classification** | Slides don't have artifact types -- presentations do. Adding artifact type to SlideEmbedding classificationJson pollutes the per-slide taxonomy. | Artifact type lives on Template model only. Inference queries join Template -> SlideEmbedding. |
+| **Custom artifact types** | Three artifact types (Proposal, Talk Track, FAQ) are the exact outputs of Touch 4 workflow. Custom types add UI complexity for no use case. | Fixed enum: `proposal`, `talk_track`, `faq`. |
+| **Artifact type migration for existing data** | Existing Touch 4 examples (if any) should not be auto-assigned artifact types. User must review and classify. | Show "Action Required" for Touch 4 examples missing artifact type. |
 
 ## Feature-by-Feature Deep Analysis
 
-### F1: Discovery Document Card Thumbnails
+### F1: Artifact Type Selector in Classify UI
 
-**What users expect:** Visual preview on each Discovery card. File-type icon when thumbnail unavailable.
+**Current state:** `classification-panel.tsx` TemplateClassificationSection shows Template/Example radio, then touch type checkboxes when Example selected. No artifact type field.
 
-**Table stakes:**
-- Thumbnail image on card (not just title + text)
-- File-type icon fallback (Slides, Docs, Sheets icons via lucide)
-- Graceful degradation: broken thumbnails show icon, not broken image
-- Progressive loading (skeleton while fetching)
-
-**Differentiator:** Thumbnail in preview side panel. Hover-to-enlarge.
+**Change:** Add a third conditional section: when `classifyType === "example"` AND `selectedTouches.includes("touch_4")`, show artifact type radio group (Proposal / Talk Track / FAQ).
 
 **Implementation:**
-- Drive API `thumbnailLink` is short-lived (hours), requires auth. Known stability issues (404s reported in Google Issue Tracker).
-- Reuse `gcs-thumbnails.ts` pattern: fetch Drive thumbnail, upload to GCS, store permanent URL.
-- `DiscoveryDocCache` already has `driveFileId` -- add `thumbnailUrl` + `thumbnailFetchedAt` columns (same pattern as `SlideEmbedding`).
-- Populate during Drive metadata resolution phase of Discovery browse/search.
-- File-type detection: `DiscoveryDocCache.mimeType` already populated. Map: `application/vnd.google-apps.presentation` -> Slides icon, `application/vnd.google-apps.document` -> Doc icon, etc.
+- New state: `const [artifactType, setArtifactType] = useState<string | null>(null)`
+- Reset artifact type when touch_4 is unchecked
+- Pass artifact type to `classifyTemplateAction()` as optional param
+- Validation: if touch_4 selected, artifact type required
 
-**Depends on:** GCS thumbnail caching (v1.4), DiscoveryDocCache (v1.4).
+**Complexity:** LOW. Pure frontend extension of existing Popover classify form.
 
 ---
 
-### F2: Consistent Ingestion Status Across Pages
+### F2: Artifact Type on Template Model
 
-**What users expect:** Start ingestion on Discovery, navigate to Templates, see same in-progress status. Return to Discovery, see completion.
+**Current state:** `Template` model has `contentClassification` (String, nullable) and `touchTypes` (String, JSON array). No artifact type column.
 
-**Table stakes:**
-- Status survives page navigation
-- Same status on Discovery cards and Template cards for same presentation
-- Completion toast fires regardless of active page
+**Change:** Add `artifactType` column.
 
-**Differentiator:** Global ingestion indicator in nav bar ("3 items ingesting...").
+**Schema migration:**
+```sql
+ALTER TABLE "Template" ADD COLUMN "artifactType" TEXT;
+```
 
-**Implementation:**
-- Current Discovery: in-memory `Map<string, ItemStatus>` in `discovery-client.tsx` state -- lost on unmount (line 68-73).
-- Current Templates: DB-backed `Template.ingestionStatus` -- persists.
-- Fix: Extend `DiscoveryDocCache` with `ingestionStatus` ("idle" | "pending" | "ingesting" | "done" | "error") + `batchId` columns.
-- Agent's in-memory batch state (`Module-level Map`) mirrors to DB on each status transition.
-- Both pages poll same DB state via server actions. Discovery page hydrates `itemStatuses` from DB on mount.
-- Alternative: New `IngestionBatch` + `IngestionItem` tables. More normalized but more complex. Recommend extending DiscoveryDocCache for simplicity.
+**Agent endpoint change:** Extend `/templates/:id/classify` Zod schema:
+```typescript
+z.object({
+  classification: z.enum(["template", "example"]),
+  touchTypes: z.array(z.string()).optional(),
+  artifactType: z.enum(["proposal", "talk_track", "faq"]).optional(),
+})
+```
 
-**Depends on:** Agent batch system (v1.4), DiscoveryDocCache (v1.4).
+**Validation:** `artifactType` is only valid when `classification === "example"` AND `touchTypes` includes `touch_4`. Clear `artifactType` to null when reclassifying as template or removing touch_4.
 
----
-
-### F3: Immediate Feedback on Ingest Click
-
-**What users expect:** Click "Ingest" and button/card state changes in same frame. No perceptible delay.
-
-**Table stakes:**
-- Visual state change within 16ms of click
-- Revert on server error with toast
-- Button disabled to prevent double-click
-
-**Implementation:**
-- Current `handleBatchIngest` (line 301-352): sets statuses to "pending" synchronously before `await`, which looks correct. However, React concurrent rendering may batch the state update with the async call.
-- Fix: Use `React.useOptimistic` or `React.startTransition` to ensure pending state paints before server action executes.
-- Also clear selection set and disable Ingest button immediately (already partially implemented at line 335).
-- Bonus: add subtle pulse animation on status badge transition.
-
-**Depends on:** Nothing. Pure frontend change.
+**Complexity:** LOW. One migration, one endpoint update.
 
 ---
 
-### F4: Rich AI-Generated Slide Descriptions
+### F3: Artifact Type Visible on Template Cards
 
-**What users expect:** Each slide has a 1-2 sentence human-readable description beyond raw extracted text and taxonomy tags.
+**Current state:** `getClassificationLabel()` returns "Example (Touch 4+)" for Touch 4 examples.
 
-**Table stakes:**
-- Description generated during ingestion (not separate step)
-- Visible in slide viewer alongside classification
-- Coherent English, not tag concatenation
-
-**Differentiator:**
-- References specific elements ("Features 3-column comparison table with deployment options")
-- Useful for search (append to embedding input)
-- Editable by humans (like existing tag correction)
+**Change:** When artifact type is set, return "Example (Touch 4+ -- Proposal)" format.
 
 **Implementation:**
-- Current `SlideMetadataSchema` has 8 fields (industries, subsectors, solutionPillars, funnelStages, contentType, slideCategory, buyerPersonas, touchType). No description.
-- Add `description: z.string()` to classification prompt. Gemini already sees full text + speaker notes. Near-zero marginal cost per slide.
-- If element map (F5) is extracted first, include element summary in description prompt for richer output.
-- Store in `SlideEmbedding.aiDescription` column (new migration).
+- `getClassificationLabel(classification, touchTypes, artifactType?)` -- add optional third param
+- Artifact type label map: `{ proposal: "Proposal", talk_track: "Talk Track", faq: "FAQ" }`
+- Template list API must include `artifactType` in response
+- Template card component passes artifact type through
 
-**Depends on:** Gemini classification pipeline (v1.2). Enhanced by F5 (element maps).
+**Complexity:** LOW. String formatting + data passthrough.
 
 ---
 
-### F5: Structured Element Map Extraction
+### F4: Three Deck Structure Views for Touch 4
 
-**What users expect:** System understands slide layout structure for smarter assembly.
+**Current state:** Settings sidebar has Touch 1, Touch 2, Touch 3, Touch 4 links. Touch 4 renders one `TouchTypeDetailView`.
 
-**Table stakes:**
-- Element inventory per slide: count of shapes, tables, images, charts
-- Table dimensions (rows x cols)
-- Stored and viewable in slide detail
+**Routing options:**
+1. **Sub-routes:** `/settings/deck-structures/touch-4/proposal`, `/touch-4/talk-track`, `/touch-4/faq`
+2. **Tabs within Touch 4 page:** Single route with horizontal tabs for Proposal / Talk Track / FAQ
 
-**Differentiator:**
-- Placeholder type detection (TITLE, SUBTITLE, BODY, SLIDE_NUMBER) -- enables slot filling
-- Layout type inference via heuristics ("comparison", "data table", "hero image")
-- Element map used for matching slides to deck structure slots
-
-**How competitors handle deck structure:**
-
-| Tool | Approach | Key Insight |
-|------|----------|-------------|
-| **Beautiful.ai** | ~60+ predefined Smart Slide types (comparison, timeline, Venn, org chart). Content auto-adapts. | Structure is opinionated and predefined, not inferred. |
-| **Pitch** | Team-defined slide masters. Slides inherit structure. No dynamic inference. | Structure from organizational design systems. |
-| **Tome** | Generates structure from scratch per prompt. No templates. | Structure is generative, not analytical. |
-| **Gamma** | Card-based (not slide-based). Flexible layout blocks. | Avoids the structure problem with a different paradigm. |
-| **Prezent.ai** | Storytelling frameworks (pyramid principle, problem-solution). Maps to narrative, not visual layout. | Structure = narrative pattern, not element arrangement. |
-
-**None analyze existing Google Slides to infer structure.** AtlusAI's approach (infer from corporate slides) is genuinely novel.
+**Recommendation:** Tabs within Touch 4 page. Reason: sub-routes require sidebar nav changes and add 3 more sidebar items, making the nav cluttered. Tabs keep the information architecture clean -- Touch 4 is one section with 3 artifact views inside.
 
 **Implementation:**
-- Google Slides API `presentations.get` already called during ingestion. Currently only text is extracted; `pageElements[]` array is discarded.
-- Parse each page's elements: `{ shapes: [{id, placeholderType, hasText, bounds}], tables: [{id, rows, cols}], images: [{id, bounds, isPlaceholder}], charts: [{id, type}], lines: count, groups: [{id, childCount}] }`
-- Store as `elementMapJson` column on `SlideEmbedding` (TEXT, not JSON type -- Prisma PostgreSQL compatibility).
-- Layout type inference via rule-based heuristics:
-  - 2 side-by-side text shapes = "comparison"
-  - 1 large image + 1 text shape = "hero"
-  - Table with 4+ rows = "data table"
-  - Only TITLE + SUBTITLE placeholders = "title/divider"
-- Heuristic classification stored alongside element map. LLM refinement deferred unless heuristics prove insufficient.
+- Modify `/settings/deck-structures/touch-4` page to render a tab bar: Proposal | Talk Track | FAQ
+- Each tab renders a `TouchTypeDetailView` with `touchType="touch_4"` and `artifactType="proposal"|"talk_track"|"faq"`
+- `TouchTypeDetailView` passes `artifactType` to `getDeckStructureAction()`
+- Each tab has independent loading state, confidence badge, section flow, and chat bar
 
-**Depends on:** Google Slides API (v1.3 credentials), ingestion pipeline (v1.2).
+**Complexity:** MEDIUM. UI restructuring + data flow changes, but all components exist.
 
 ---
 
-### F6: Template vs Example Classification with Touch Binding
+### F5: Independent Deck Structure Inference Per Artifact Type
 
-**What users expect:** Tag content as "template" (reusable skeleton), "example" (past deliverable), or "case_study". Each with touch binding.
+**Current state:** `DeckStructure` model has `touchType` as `@unique`. `inferDeckStructure(touchType)` queries all examples for that touch type.
 
-**Table stakes:**
-- Classification dropdown on template detail page
-- Touch type multi-select (exists, make more prominent)
-- Visible on template cards and discovery cards
-- Filterable in template list and slide library
+**Change:** Add `artifactType` to `DeckStructure` model and change unique constraint.
 
-**Differentiator:**
-- Different icons per classification (blueprint, lightbulb, trophy)
-- Classification influences RAG: templates for assembly, examples for reference, case studies for proof
-- Batch classify from Discovery: "Ingest these 5 as examples for Touch 3"
+**Schema migration:**
+```sql
+ALTER TABLE "DeckStructure" ADD COLUMN "artifactType" TEXT;
+-- Drop the old unique index on touchType alone
+ALTER TABLE "DeckStructure" DROP CONSTRAINT "DeckStructure_touchType_key";
+-- Create new composite unique
+CREATE UNIQUE INDEX "DeckStructure_touchType_artifactType_key" ON "DeckStructure"("touchType", "artifactType");
+```
 
-**Implementation:**
-- `Template` model: add `contentClassification` column (String, default "template"). Add `boundTouchType` (String, nullable -- set when classification is "example").
-- Propagate to `SlideEmbedding` via `contentClassification` column for vector search filtering.
-- `ContentSource` already has `contentType` and `touchTypes` for Discovery-side. Bridge on ingestion.
-- UI: Radio group + touch type multi-select on template creation form and detail page.
+**Note:** For Touch 1-3 and Pre-Call, `artifactType` remains NULL. The unique constraint must handle NULL correctly. PostgreSQL treats NULLs as distinct in unique indexes, so `(touch_1, NULL)` and `(touch_2, NULL)` are both allowed. However, two rows with `(touch_4, NULL)` would also be allowed, which is undesirable. Use a partial unique index or always set artifact type for touch_4.
 
-**Depends on:** Template CRUD (v1.2), SlideEmbedding (v1.2).
+**Recommended approach:** Use `@@unique([touchType, artifactType])` in Prisma, which creates a standard unique index. For touch_4, always require artifact type. For touch 1-3, artifact type is always null. This naturally prevents duplicates.
+
+**Inference changes:**
+- `inferDeckStructure(touchType, chatConstraints?, artifactType?)` -- add optional param
+- When `artifactType` is provided, filter examples to those with matching `artifactType` on their Template record
+- Query pattern: `prisma.template.findMany({ where: { contentClassification: "example", artifactType: artifactType } })` then filter by touch type in JSON
+- `computeDataHash()` includes artifact type in hash input
+
+**Complexity:** MEDIUM. Schema change + query filter + unique constraint migration.
 
 ---
 
-### F7: Settings Page with Deck Structures and AI Chat
+### F6-F9: Supporting Features
 
-**What users expect:** Define "Touch 2 decks have: title, team intro, 3-5 capability slides, case study, next steps."
+These features are low complexity and naturally fall out of F1-F5 implementation:
 
-**Table stakes:**
-- Settings page at `/settings` with sidebar nav entry
-- Per-touch-type deck structure CRUD
-- Ordered section list with name, required flag, slide count range
-
-**Differentiator:**
-- AI-suggested structures from ingested examples ("Based on 5 Touch 2 examples, typical structure is...")
-- Chat interface for refinement ("Add competitive analysis after problem statement")
-- Structure validation on assembly (warn on deviation)
-- Multiple variants per touch ("short pitch" vs "deep dive")
-
-**Implementation:**
-- New `DeckStructure` model: `{ id, touchType, name, sections: String (JSON), isDefault: Boolean, createdAt, updatedAt }`
-- Sections JSON schema: `[{ name: string, required: boolean, minSlides: number, maxSlides: number, slideCategories: string[], description?: string }]`
-- AI inference: Mastra agent with tool that reads SlideEmbedding stats grouped by touch-bound examples. Requires F6 (classification) and F5 (element maps) to be meaningful.
-- Chat: Non-streaming request/response. POST to Mastra route. LLM takes current structure JSON + user message, returns updated structure JSON.
-- Settings page: Next.js at `/settings` with tabs per touch type. AI suggestions shown as proposed structures user can accept/modify.
-- Only enable AI inference when 2+ examples exist for a touch (prevents hallucinated structures).
-
-**Depends on:** F5 (element maps for structural analysis), F6 (classification for touch-bound examples), Mastra agent (v1.0).
+- **F6 (Confidence per artifact type):** No new logic. `calculateConfidence()` receives filtered example count per artifact type.
+- **F7 (Per-artifact chat):** Each `DeckStructure` row has its own `chatMessages`. Chat endpoint passes `artifactType` to find the right row.
+- **F8 (Cron per artifact type):** Extend cron loop: for touch_4, iterate `["proposal", "talk_track", "faq"]`. `computeDataHash()` includes artifact type.
+- **F9 (Template list filter):** Add `artifactType` to filter controls. Cascading: only show when Touch 4 filter active.
 
 ## Feature Dependencies
 
 ```
-F1: Discovery Thumbnails (standalone)
-    depends on: GCS caching (v1.4), DiscoveryDocCache (v1.4)
+F1: Artifact Type Selector (UI)
+    depends on: Existing classify UI (v1.5)
+    enables: F2 (needs UI to set values)
 
-F2: Consistent Ingestion Status (standalone)
-    depends on: Agent batch system (v1.4), DiscoveryDocCache (v1.4)
+F2: Artifact Type on Template Model (schema)
+    depends on: Template model (v1.2)
+    enables: F3, F5 (queryable data)
 
-F3: Immediate Feedback (standalone)
-    depends on: nothing new
+F3: Artifact Type Labels (display)
+    depends on: F2 (needs artifactType data)
 
-F4: Rich AI Descriptions
-    depends on: Gemini classification pipeline (v1.2)
-    enhanced by: F5 (element maps enrich description prompts)
+F4: Three Deck Structure Views (UI)
+    depends on: Settings page (v1.5), F5 (needs per-artifact structures)
 
-F5: Structured Element Map
-    depends on: Google Slides API (v1.3), ingestion pipeline (v1.2)
-    enables: F7 (structural analysis for deck structure suggestions)
+F5: Independent Inference Per Artifact Type (engine)
+    depends on: F2 (needs artifactType on Template)
+    depends on: DeckStructure model (v1.5)
+    enables: F4, F6, F7, F8
 
-F6: Template vs Example Classification
-    depends on: Template CRUD (v1.2), SlideEmbedding (v1.2)
-    enables: F7 (touch-bound examples as input for structure inference)
+F6: Per-Artifact Confidence (display)
+    depends on: F5 (filtered example counts)
 
-F7: Settings + Deck Structures + AI Chat
-    depends on: F5 (element maps), F6 (classification)
-    enhances: all touch generation workflows (v1.0)
+F7: Per-Artifact Chat (interaction)
+    depends on: F5 (per-artifact DeckStructure rows)
+    depends on: Chat refinement (v1.5)
+
+F8: Cron Per Artifact Type (background)
+    depends on: F5 (per-artifact inference)
+    depends on: Auto-infer cron (v1.5)
+
+F9: Template List Filter (UI)
+    depends on: F2 (artifactType on Template)
 ```
 
 ### Dependency Notes
 
-- **F1, F2, F3 are fully independent** of each other and of F4-F7. Ship first.
-- **F4 and F5 both modify the ingestion pipeline** -- implement together to avoid double-migration and double-deployment of ingestion flow.
-- **F5 extracts data during the same API call** as existing text extraction (same `presentations.get` response, just parse more fields).
-- **F6 is a prerequisite for F7** -- deck structures reference content classification to know which slides to pull per section.
-- **F7 depends on F5 and F6** -- AI structure suggestions need element maps (from F5) and touch-bound examples (from F6) to be meaningful.
+- **F1 and F2 are the foundation** -- everything else depends on artifact type being selectable (F1) and persisted (F2). Ship these first.
+- **F3 is independent of F4-F8** -- just needs F2. Can ship alongside F1+F2 as a single phase.
+- **F5 is the engine change** that unlocks F4, F6, F7, F8. Ship as its own phase.
+- **F4 is the capstone UI** -- renders the results of F5. Ship last.
+- **F7 and F8 are near-zero marginal cost** once F5 exists. Include in F5's phase.
 
 ## MVP Recommendation
 
-**Phase 1 -- UX Polish (no new models, minimal risk):**
-1. F3: Immediate feedback on ingest (LOW, pure frontend, 30min fix)
-2. F1: Discovery thumbnails (LOW, extends existing GCS pattern)
-3. F2: Consistent ingestion status (MEDIUM, requires DB migration for DiscoveryDocCache extension)
+### Phase 1 -- Schema + Classification UI (foundation)
 
-**Phase 2 -- Slide Intelligence Foundation (pipeline changes):**
-4. F5: Element map extraction (HIGH, parse and store page elements during ingestion)
-5. F4: Rich AI descriptions (MEDIUM, extend Gemini prompt + new column)
-6. F6: Template vs Example classification (LOW-MEDIUM, model + UI changes)
+1. F2: Add `artifactType` column to Template + extend classify endpoint
+2. F1: Add artifact type selector to classify UI (conditional on touch_4)
+3. F3: Update classification labels to show artifact type
 
-**Phase 3 -- Deck Intelligence Capstone (depends on Phase 2):**
-7. F7: Settings page + deck structures + AI chat (HIGH, new model + page + agent integration)
+**Rationale:** Enables users to classify existing Touch 4 examples with artifact types. No inference changes yet.
 
-**Defer to v1.6:** Element map-powered slide matching (query engine for structural matching during assembly).
+### Phase 2 -- Deck Structure Engine + Settings UI (intelligence)
+
+4. F5: Modify `DeckStructure` unique constraint, extend inference engine with artifact type filter
+5. F8: Extend cron to iterate artifact types for touch_4
+6. F7: Extend chat endpoint to pass artifact type
+7. F4: Add tabbed view to Touch 4 Settings page
+8. F6: Confidence displays per artifact type (falls out naturally)
+
+**Rationale:** Once examples are classified with artifact types, the inference engine can produce meaningful per-artifact structures.
+
+### Defer to v1.7+
+
+- F9: Template list artifact type filter (nice to have, not essential)
+- Cross-artifact structural comparison
+- AI-suggested artifact type inference
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority | Rationale |
 |---------|------------|---------------------|----------|-----------|
-| F3: Immediate feedback | HIGH | LOW | P1 | Eliminates perceived latency. Quick win. |
-| F1: Discovery thumbnails | HIGH | LOW | P1 | Visual browsing is table stakes. Pattern exists. |
-| F2: Consistent status | HIGH | MEDIUM | P1 | Fixes contradictory cross-page states. |
-| F4: Rich AI descriptions | MEDIUM | MEDIUM | P1 | Marginal cost on existing pipeline. Browsability. |
-| F5: Element map | HIGH | HIGH | P2 | Foundation for deck intelligence. Enables F7. |
-| F6: Classification | MEDIUM | LOW-MEDIUM | P2 | Enables filtered retrieval. Prerequisite for F7. |
-| F7: Deck structures + AI | HIGH | HIGH | P3 | Capstone. Depends on P2 completion. |
+| F2: Schema + endpoint | HIGH | LOW | P1 | Foundation. Everything depends on this. |
+| F1: Classify UI | HIGH | LOW | P1 | Users need UI to set artifact types. |
+| F3: Label display | MEDIUM | LOW | P1 | Visibility. Low cost to include with F1+F2. |
+| F5: Inference engine | HIGH | MEDIUM | P1 | Core intelligence. Unlocks deck structures. |
+| F4: Settings tabbed view | HIGH | MEDIUM | P1 | Primary user-facing value of the milestone. |
+| F7: Per-artifact chat | MEDIUM | LOW | P1 | Near-zero cost once F5 ships. |
+| F8: Cron per artifact | MEDIUM | LOW | P1 | Near-zero cost once F5 ships. |
+| F6: Per-artifact confidence | LOW | LOW | P1 | Falls out naturally from F5. |
+| F9: Template list filter | LOW | LOW | P2 | Nice to have. Can ship later. |
 
 **Priority key:**
-- P1: Must have -- ship first, closes UX gaps
-- P2: Should have -- builds intelligence layer
-- P3: Valuable but depends on P2 completion
+- P1: Must have for v1.6 -- core milestone features
+- P2: Should have, defer if time-constrained
 
-## Competitor Feature Analysis
+## Existing Infrastructure Leveraged
 
-| Feature Area | Beautiful.ai | Pitch | Tome | Gamma | AtlusAI (v1.5) |
-|-------------|-------------|-------|------|-------|-----------------|
-| **Template structure** | ~60 predefined Smart Slide types | Team-defined slide masters | No templates -- pure generation | Card-based blocks | Inferred from existing Google Slides via element map (novel) |
-| **Content categorization** | By slide type (data, comparison, quote) | By team/brand library | By AI topic | By card content | 8-axis classification + template/example/case_study + touch |
-| **Deck structure** | Implicit in template selection | Team design systems | AI generates per prompt | Flexible cards | Explicit per-touch structures with AI inference from examples (novel for sales) |
-| **Thumbnails** | Native rendering engine | Native | Native | Native | GCS-cached from Google Drive API |
-| **AI descriptions** | Auto-generated alt text | None | AI content descriptions | AI summaries | Per-slide AI descriptions during ingestion |
-| **Status feedback** | Instant (local-first) | Instant | Instant | Instant | Optimistic UI + persistent DB status sync |
-
-**Key positioning:** AtlusAI does not compete as a presentation creator. It competes as a sales content intelligence platform that works WITH Google Slides. The differentiator is understanding existing corporate content (element maps, classification, structure inference) for intelligent assembly -- something competitors do not do because they own their rendering engines.
+| v1.5 Component | How v1.6 Uses It | Changes Needed |
+|----------------|------------------|----------------|
+| `Template.contentClassification` | Continues to distinguish template/example | No change |
+| `Template.touchTypes` (JSON) | Continues to bind examples to touch types | No change |
+| Popover classify UI | Extended with artifact type selector | Conditional third section |
+| `DeckStructure` model | Extended with `artifactType` column | New column + new unique constraint |
+| `inferDeckStructure()` | Extended with `artifactType` filter param | Query filter + data hash change |
+| `calculateConfidence()` | Called with per-artifact example counts | No change to function |
+| Streaming chat refinement | Scoped per `DeckStructure` row (already works) | Endpoint passes artifact type |
+| Auto-infer cron | Extended to iterate artifact types for touch_4 | Loop change + hash change |
+| Settings sidebar nav | No change needed (tabs inside Touch 4 page) | Touch 4 page restructured internally |
+| `classifyTemplate` API client | Extended with `artifactType` param | One param addition |
+| `getClassificationLabel()` | Extended with optional `artifactType` param | String formatting |
 
 ## Sources
 
-- [Google Slides API: Page Elements](https://developers.google.com/workspace/slides/api/concepts/page-elements) -- 8 element types, placeholder types, structured properties (HIGH confidence)
-- [Google Slides API: Element Operations](https://developers.google.com/workspace/slides/api/samples/elements) -- extraction and manipulation capabilities (HIGH confidence)
-- [Google Drive API: File Metadata](https://developers.google.com/workspace/drive/api/guides/file-metadata) -- `thumbnailLink` behavior, short-lived URLs, auth requirements (HIGH confidence)
-- [Drive API thumbnailLink stability issues](https://issuetracker.google.com/issues/229184403) -- known 404 issues with thumbnail URLs (MEDIUM confidence)
-- [React 19 useOptimistic](https://react.dev/reference/react/useOptimistic) -- canonical optimistic UI pattern for instant feedback (HIGH confidence)
-- [Beautiful.ai Smart Slides](https://www.beautiful.ai/smart-slides) -- predefined layout type approach (MEDIUM confidence)
-- [Beautiful.ai vs Pitch](https://www.beautiful.ai/comparison/beautiful-ai-vs-pitch) -- competitor structure approaches (MEDIUM confidence)
-- [Optimistic UI Architecture Patterns](https://javascript.plainenglish.io/optimistic-ui-in-frontend-architecture-do-it-right-avoid-pitfalls-7507d713c19c) -- rollback, idempotency, error handling (MEDIUM confidence)
-- Existing codebase: `discovery-client.tsx`, `template-card.tsx`, `schema.prisma`, `slide-metadata.ts`, `constants.ts` (HIGH confidence, read directly)
+- Existing codebase: `schema.prisma`, `classification-panel.tsx`, `template-utils.ts`, `infer-deck-structure.ts`, `deck-structure-schema.ts`, `auto-infer-cron.ts`, `touch-type-detail-view.tsx`, `[touchType]/page.tsx`, `api-client.ts`, `template-actions.ts`, `mastra/index.ts` (HIGH confidence, read directly)
+- PROJECT.md milestone definition: Touch 4 artifact types and per-artifact deck structures (HIGH confidence, read directly)
+- v1.5 REQUIREMENTS.md: all deck intelligence features shipped (HIGH confidence, read directly)
+- PostgreSQL unique index NULL handling: NULLs are treated as distinct values in unique indexes (HIGH confidence, well-documented PostgreSQL behavior)
 
 ---
-*Feature research for: Lumenalta v1.5 Review Polish & Deck Intelligence*
+*Feature research for: Lumenalta v1.6 Touch 4 Artifact Intelligence*
 *Researched: 2026-03-07*
