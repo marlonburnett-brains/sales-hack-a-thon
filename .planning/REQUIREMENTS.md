@@ -9,11 +9,11 @@ Requirements for milestone v1.5 Review Polish & Deck Intelligence. Each maps to 
 
 ### UX Polish
 
-- [ ] **UXP-01**: User sees document thumbnail previews on Discovery page cards (cached via GCS)
-- [ ] **UXP-02**: User sees file-type-specific icons when no thumbnail is available (Slides, Docs, Sheets, PDF)
-- [ ] **UXP-03**: User sees consistent ingestion status on Discovery and Templates pages (progress bar + slide count)
+- [x] **UXP-01**: User sees document thumbnail previews on Discovery page cards (cached via GCS)
+- [x] **UXP-02**: User sees file-type-specific icons when no thumbnail is available (Slides, Docs, Sheets, PDF)
+- [x] **UXP-03**: User sees consistent ingestion status on Discovery and Templates pages (progress bar + slide count)
 - [ ] **UXP-04**: User receives immediate visual feedback when clicking Ingest (optimistic state, menu closes, button disabled)
-- [ ] **UXP-05**: User cannot trigger duplicate ingestion by clicking Ingest multiple times
+- [x] **UXP-05**: User cannot trigger duplicate ingestion by clicking Ingest multiple times
 
 ### Slide Intelligence
 
@@ -69,11 +69,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UXP-01 | Phase 32 | Pending |
-| UXP-02 | Phase 32 | Pending |
-| UXP-03 | Phase 32 | Pending |
+| UXP-01 | Phase 32 | Complete |
+| UXP-02 | Phase 32 | Complete |
+| UXP-03 | Phase 32 | Complete |
 | UXP-04 | Phase 32 | Pending |
-| UXP-05 | Phase 32 | Pending |
+| UXP-05 | Phase 32 | Complete |
 | SLI-01 | Phase 33 | Pending |
 | SLI-02 | Phase 33 | Pending |
 | SLI-03 | Phase 33 | Pending |
