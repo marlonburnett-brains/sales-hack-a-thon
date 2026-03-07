@@ -18,12 +18,14 @@ export async function getDeckStructuresAction(): Promise<DeckStructureSummary[]>
 
 export async function getDeckStructureAction(
   touchType: string,
+  artifactType?: string,
 ): Promise<DeckStructureDetail> {
-  return getDeckStructure(touchType);
+  return getDeckStructure(touchType, artifactType);
 }
 
 export async function triggerInferenceAction(
   touchType: string,
+  artifactType?: string,
 ): Promise<{ touchType: string; structure: unknown; confidence: number }> {
-  return triggerDeckInference(touchType);
+  return triggerDeckInference(touchType, artifactType);
 }
