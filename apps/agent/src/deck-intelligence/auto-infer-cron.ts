@@ -8,6 +8,9 @@
  */
 
 import { TOUCH_TYPES } from "@lumenalta/schemas";
+
+/** Touch types that produce slide decks (pre_call is a text/research artifact) */
+const DECK_TOUCH_TYPES = TOUCH_TYPES.filter((tt) => tt !== "pre_call");
 import { prisma } from "../lib/db";
 import { inferDeckStructure, computeDataHash } from "./infer-deck-structure";
 
@@ -40,7 +43,7 @@ export function startDeckInferenceCron(): void {
 async function runInferenceCycle(): Promise<void> {
   console.log("[deck-infer-cron] Starting inference cycle...");
 
-  for (const touchType of TOUCH_TYPES) {
+  for (const touchType of DECK_TOUCH_TYPES) {
     try {
       // 1. Compute current data hash
       const currentHash = await computeDataHash(touchType);

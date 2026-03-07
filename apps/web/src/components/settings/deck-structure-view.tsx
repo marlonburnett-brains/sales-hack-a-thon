@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { TOUCH_TYPES } from "@lumenalta/schemas";
+
+/** Touch types that produce slide decks (excludes pre_call which is a text/research artifact) */
+const DECK_TOUCH_TYPES = TOUCH_TYPES.filter((tt) => tt !== "pre_call");
 import { Accordion } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -73,7 +76,7 @@ export function DeckStructureView() {
   if (loading) {
     return (
       <div className="space-y-4">
-        {TOUCH_TYPES.map((tt) => (
+        {DECK_TOUCH_TYPES.map((tt) => (
           <div key={tt} className="space-y-3 rounded-lg border border-slate-200 p-4">
             <div className="flex items-center justify-between">
               <Skeleton className="h-5 w-24" />
@@ -111,10 +114,10 @@ export function DeckStructureView() {
   return (
     <Accordion
       type="multiple"
-      defaultValue={[...TOUCH_TYPES]}
+      defaultValue={[...DECK_TOUCH_TYPES]}
       className="space-y-2"
     >
-      {TOUCH_TYPES.map((tt) => (
+      {DECK_TOUCH_TYPES.map((tt) => (
         <TouchTypeAccordion
           key={tt}
           touchType={tt}

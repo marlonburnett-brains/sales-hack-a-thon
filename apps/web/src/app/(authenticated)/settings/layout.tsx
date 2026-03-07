@@ -10,7 +10,6 @@ const TOUCH_TYPE_ITEMS = [
   { slug: "touch-2", label: "Touch 2" },
   { slug: "touch-3", label: "Touch 3" },
   { slug: "touch-4", label: "Touch 4" },
-  { slug: "pre-call", label: "Pre-Call" },
 ];
 
 export default function SettingsLayout({

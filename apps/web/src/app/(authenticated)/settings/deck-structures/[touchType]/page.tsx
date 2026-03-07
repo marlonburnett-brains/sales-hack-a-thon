@@ -6,7 +6,6 @@ const VALID_SLUGS: Record<string, string> = {
   "touch-2": "touch_2",
   "touch-3": "touch_3",
   "touch-4": "touch_4",
-  "pre-call": "pre_call",
 };
 
 const SLUG_LABELS: Record<string, string> = {
@@ -14,7 +13,6 @@ const SLUG_LABELS: Record<string, string> = {
   "touch-2": "Touch 2",
   "touch-3": "Touch 3",
   "touch-4": "Touch 4",
-  "pre-call": "Pre-Call",
 };
 
 interface Props {
