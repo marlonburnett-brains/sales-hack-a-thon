@@ -10,8 +10,10 @@
 
 ## Template Under Test
 
-- Template identifier to record before starting: `[fill in exact template name + template id/URL slug from production]`
-- Slide viewer URL for the same template: `https://lumenalta-hackathon.vercel.app/templates/[template-id]/slides`
+- Template name: `All Slide Layouts`
+- Template ID: `cmmfb0cyn0001rt01xszt3lkf`
+- Slide viewer URL: `https://lumenalta-hackathon.vercel.app/templates/cmmfb0cyn0001rt01xszt3lkf/slides`
+- Artifact tested for persistence: `proposal`
 - Rule: use the same production template from both classify surfaces.
 
 ## Expected Saved Badge Copy
@@ -42,13 +44,13 @@
 - Exactly one artifact can be chosen before save.
 - After refresh, both surfaces keep the same saved badge text: `Proposal`, `Talk Track`, or `FAQ`.
 
-### Result Template
+### Recorded Result
 
-- Status: `[pass | fail]`
-- Artifact used: `[proposal | talk_track | faq]`
-- Templates surface evidence: `[badge text after refresh, timestamp, optional screenshot note]`
-- Slide Viewer evidence: `[badge text after refresh, timestamp, optional screenshot note]`
-- Failure notes: `[exact failing step + observed behavior, if any]`
+- Status: `pass`
+- Artifact used: `proposal`
+- Templates surface evidence: Production classify flow saved `Example (Touch 4+ - Proposal)` and after refresh the template card text still showed `T4+ Example (Touch 4+ - Proposal)`.
+- Slide Viewer evidence: After refresh, the page body still showed `Example (Touch 4+ - Proposal)` under `CONTENT CLASSIFICATION`.
+- Failure notes: `None`
 
 ## Scenario 2 - Touch 4 settings tab behavior
 
@@ -70,19 +72,23 @@
 - The visible detail and chat experience stay scoped to the active artifact tab.
 - A zero-example tab, if present, still allows artifact-scoped chat refinement.
 
-### Result Template
+### Recorded Result
 
-- Status: `[pass | fail]`
-- Default tab evidence: `[what loaded first]`
-- Proposal trigger evidence: `[confidence/example context shown before open]`
-- Talk Track trigger evidence: `[confidence/example context shown before open]`
-- FAQ trigger evidence: `[confidence/example context shown before open]`
-- Chat tab used: `[proposal | talk_track | faq]`
-- Chat scope evidence: `[message behavior stayed on active tab, timestamp, optional network/log note]`
-- Failure notes: `[exact failing step + observed behavior, if any]`
+- Status: `fail`
+- Default tab evidence: `Proposal` loaded as the default selected tab.
+- Proposal trigger evidence: `Low confidence - needs more examples / 1 example`
+- Talk Track trigger evidence: `No examples - needs more examples / 0 examples`
+- FAQ trigger evidence: `No examples - needs more examples / 0 examples`
+- Chat tab used: `faq`, then `proposal`
+- Chat scope evidence: Switching tabs updated the active artifact tab correctly before chat was attempted.
+- Failure notes:
+  - FAQ tab request at `2026-03-08T01:10:57.279965Z` hit `/api/deck-structures/chat` with body `{"touchType":"touch_4","artifactType":"faq","message":"Please draft a concise FAQ deck structure with 5 sections for a prospective client meeting."}` and the UI rendered `Sorry, I encountered an error: Chat failed: 404`.
+  - Proposal tab request at `2026-03-08T01:11:46.712650Z` hit `/api/deck-structures/chat` with body `{"touchType":"touch_4","artifactType":"proposal","message":"Refine the proposal structure into 5 concise sales-oriented sections with a stronger narrative arc."}` and the UI rendered `Sorry, I encountered an error: Chat failed: 404`.
 
 ## Final Outcome
 
-- Overall result: `[approved | diagnosed]`
-- Approval note or diagnosis summary: `[fill after browser run]`
-- Follow-up issues to carry forward: `[none or explicit issue list]`
+- Overall result: `diagnosed`
+- Approval note or diagnosis summary: Scenario 1 passed with saved artifact-qualified classification persisting after refresh from both Templates and Slide Viewer, but Scenario 2 is diagnosed as a production failure because artifact-scoped Touch 4 chat requests from the active tab return `404`.
+- Follow-up issues to carry forward:
+  - Production `/api/deck-structures/chat` fails for Touch 4 artifact requests on at least `faq` and `proposal`.
+  - Phase 38 cannot claim full browser approval until artifact-scoped chat succeeds on the active Touch 4 settings tab.
