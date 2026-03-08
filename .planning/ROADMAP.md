@@ -89,7 +89,7 @@
 - [x] **Phase 35: Schema & Constants Foundation** (2/2 plans) - Prisma migrations for artifactType columns and shared constants (completed 2026-03-07)
 - [x] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation (completed 2026-03-07)
 - [x] **Phase 37: Frontend UI** - Classify UI artifact selector, Settings tabbed deck structure views, and slide-viewer badge hydration (completed 2026-03-07)
-- [x] **Phase 38: Live Verification Sweep** - Re-confirm backend live behavior and frontend browser flows for Touch 4 artifact handling (completed 2026-03-08)
+- [ ] **Phase 38: Live Verification Sweep** - Gap closure planned for the remaining production Touch 4 settings-chat verification blocker (3/5 plans complete)
 - [ ] **Phase 39: Artifact Contract Hardening** - Eliminate artifact-aware UI reuse risks and tighten shared `ArtifactType` typing across web and chat paths
 - [ ] **Phase 40: Agent Typecheck Cleanup** - Resolve pre-existing `agent` TypeScript failures left outside the original milestone scope
 
@@ -154,12 +154,14 @@ Plans:
   2. Background cron behavior is re-confirmed in a live-like environment with artifact-qualified Touch 4 processing evidence
   3. Human browser validation confirms cross-surface Touch 4 classification reload behavior end-to-end
   4. Human browser validation confirms Touch 4 settings tab and chat behavior stay artifact-scoped end-to-end
-**Plans**: 3 plans
+**Plans**: 5 plans
 
 Plans:
 - [x] 38-01-PLAN.md — Lock one reachable verification target and write the Phase 38 live runbook
 - [x] 38-02-PLAN.md — Capture live streaming and cron evidence for artifact-qualified Touch 4 backend paths
 - [x] 38-03-PLAN.md — Run reachable-environment browser UAT for Touch 4 reload and settings/chat behavior
+- [ ] 38-04-PLAN.md — Eliminate the production artifact-scoped chat 404 and lock the route contract into regression coverage
+- [ ] 38-05-PLAN.md — Re-run production chat evidence and close the failing settings-tab UAT/verification trail
 
 ### Phase 39: Artifact Contract Hardening
 **Goal**: Remove artifact-type maintenance risks and align web/chat code with the shared artifact contract
@@ -233,6 +235,6 @@ Plans:
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
-| 38. Live Verification Sweep | 3/3 | Complete   | 2026-03-08 | |
+| 38. Live Verification Sweep | v1.6 | 3/5 | In Progress | |
 | 39. Artifact Contract Hardening | v1.6 | 0/0 | Planned | |
 | 40. Agent Typecheck Cleanup | v1.6 | 0/0 | Planned | |
