@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AgentPromptEditor } from "@/components/settings/agent-prompt-editor";
 import { AgentChatPanel } from "@/components/settings/agent-chat-panel";
+import { AgentVersionTimeline } from "@/components/settings/agent-version-timeline";
 import { PublishDialog } from "@/components/settings/publish-dialog";
 import {
   discardDraftAction,
@@ -153,9 +154,12 @@ export function AgentDetail({ config, versions }: AgentDetailProps) {
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
-            Version history coming soon
-          </div>
+          <AgentVersionTimeline
+            versions={versions}
+            currentPublishedVersion={config.publishedVersion?.version ?? 0}
+            currentPublishedRolePrompt={config.publishedVersion?.rolePrompt ?? ""}
+            agentId={config.agentId}
+          />
         </TabsContent>
       </Tabs>
 
