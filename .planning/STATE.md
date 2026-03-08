@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
-status: executing
-stopped_at: Completed 45-05-PLAN.md
-last_updated: "2026-03-08T23:33:30.766Z"
-last_activity: "2026-03-08 - Completed 45-05 (typed web deal-chat proxy, api-client helpers, and server actions)"
+status: completed
+stopped_at: Completed 45-03-PLAN.md
+last_updated: "2026-03-08T23:46:59.402Z"
+last_activity: 2026-03-08 - Completed 45-03 (persistent deal chat dock, side-panel UI, and shared layout wiring)
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 41
-  completed_plans: 40
-  percent: 98
+  completed_plans: 41
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.7 Deals & HITL Pipeline -- Phase 45 plan 05 complete, Phase 45 plan 03 remains on the chat track
+**Current focus:** v1.7 Deals & HITL Pipeline shipped -- all planned phases complete
 
 ## Current Position
 
-Phase: 45 of 47 (Persistent AI Chat Bar)
-Plan: 5 of 5 in phase (45-03 remaining)
-Status: Executing
-Last activity: 2026-03-08 - Completed 45-05 (typed web deal-chat proxy, api-client helpers, and server actions)
+Phase: 47 of 47 (Drive Artifact Integration)
+Plan: Complete
+Status: Completed
+Last activity: 2026-03-08 - Completed 45-03 (persistent deal chat dock, side-panel UI, and shared layout wiring)
 
-Progress: [██████████] 98%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -87,6 +87,9 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 45]: Returned structured answer metadata and prompt-version data with each streamed turn so the web proxy can mirror one verified contract.
 - [Phase 45]: Kept the web route family under /api/deals/[dealId]/chat and mirrored the verified agent contract instead of inventing a separate chat namespace.
 - [Phase 45]: Added a response-capable Google-auth fetch helper so server-only deal chat helpers can load bootstrap JSON and stream turn responses through one typed client seam.
+- [Phase 45]: Mounted the persistent deal assistant once in the shared deal layout and derived live route context client-side with Next navigation hooks.
+- [Phase 45]: Kept the deal assistant dock-first with an optional side-panel mode so route-aware suggestions stay visible without taking over the page.
+- [Phase 45]: Rendered DEAL_CHAT_META inline and kept confirmed binding turns visible so sellers can save, correct, or refine within one thread.
 
 ### Pending Todos
 
@@ -115,6 +118,7 @@ None.
 | Phase 45 P04 | 8 min | 2 tasks | 6 files |
 | Phase 45 P02 | 10 min | 2 tasks | 8 files |
 | Phase 45 P05 | 7 min | 2 tasks | 7 files |
+| Phase 45 P03 | 9m 50s | 2 tasks | 7 files |
 
 ### Blockers/Concerns
 
@@ -125,6 +129,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T23:33:30.763Z
-Stopped at: Completed 45-05-PLAN.md
-Next action: Execute 45-03-PLAN.md for the persistent dock and side-panel UI.
+Last session: 2026-03-08T23:46:59.399Z
+Stopped at: Completed 45-03-PLAN.md
+Next action: No remaining roadmap plans -- v1.7 is complete.

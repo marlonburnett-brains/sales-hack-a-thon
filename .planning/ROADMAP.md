@@ -117,7 +117,7 @@ Tier 4 (after 46):                           47 ──┘
 - [x] **Phase 42: Deal Detail Layout** - Sub-page routing with breadcrumbs, sidebar, overview dashboard, and briefing page (completed 2026-03-08)
 - [x] **Phase 43: Named Agent Architecture** - Formalized agents with DB-backed versioned system prompts (completed 2026-03-08)
 - [x] **Phase 44: Agent Management UI** - Settings page for viewing, editing, versioning, and publishing agent prompts (completed 2026-03-08)
-- [ ] **Phase 45: Persistent AI Chat Bar** - Deal-scoped chat with context, transcripts, and knowledge base queries
+- [x] **Phase 45: Persistent AI Chat Bar** - Deal-scoped chat with context, transcripts, and knowledge base queries (completed 2026-03-08)
 - [x] **Phase 46: Touch Pages & HITL Workflow** - Per-touch artifact generation with 3-stage HITL and chat refinement (completed 2026-03-08)
 - [x] **Phase 47: Drive Artifact Integration** - Folder selection, sharing controls, and org-default permissions for generated artifacts (completed 2026-03-08)
 
@@ -292,6 +292,6 @@ Plans:
 | 42. Deal Detail Layout | 3/3 | Complete    | 2026-03-08 | - |
 | 43. Named Agent Architecture | 5/5 | Complete    | 2026-03-08 | - |
 | 44. Agent Management UI | 3/3 | Complete    | 2026-03-08 | - |
-| 45. Persistent AI Chat Bar | 4/5 | In Progress|  | - |
+| 45. Persistent AI Chat Bar | 5/5 | Complete   | 2026-03-08 | - |
 | 46. Touch Pages & HITL Workflow | 3/3 | Complete    | 2026-03-08 | - |
 | 47. Drive Artifact Integration | 3/3 | Complete    | 2026-03-08 | - |
