@@ -119,7 +119,6 @@ jobs:
     executor: node
     steps:
       - checkout
-      - check-agent-changes
       - run:
           name: Install Railway CLI
           command: sudo npm install -g @railway/cli
@@ -131,7 +130,6 @@ jobs:
     executor: node
     steps:
       - setup
-      - check-web-changes
       - restore_cache:
           keys:
             - turbo-cache-v1-{{ .Branch }}-{{ .Revision }}
