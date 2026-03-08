@@ -100,9 +100,20 @@ export interface Deal {
   salespersonName: string | null;
   salespersonPhoto: string | null;
   driveFolderId: string | null;
+  status: string; // "open" | "won" | "lost" | "abandoned"
+  ownerId: string | null;
+  ownerEmail: string | null;
+  ownerName: string | null;
+  collaborators: string; // JSON string: [{id?, email, name?}]
   createdAt: string;
   updatedAt: string;
   interactions?: InteractionRecord[];
+}
+
+export interface KnownUser {
+  id: string;
+  email: string;
+  name: string;
 }
 
 export async function createDeal(data: {
@@ -123,6 +134,47 @@ export async function getDeal(dealId: string): Promise<Deal> {
 
 export async function listDeals(): Promise<Deal[]> {
   return fetchJSON<Deal[]>("/deals");
+}
+
+export async function listDealsFiltered(params: {
+  status?: string;
+  assignee?: string;
+  userId?: string;
+}): Promise<Deal[]> {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set("status", params.status);
+  if (params.assignee) qs.set("assignee", params.assignee);
+  if (params.userId) qs.set("userId", params.userId);
+  return fetchJSON<Deal[]>(`/deals?${qs}`);
+}
+
+export async function updateDealStatus(
+  dealId: string,
+  status: string,
+): Promise<Deal> {
+  return fetchJSON<Deal>(`/deals/${dealId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function updateDealAssignment(
+  dealId: string,
+  data: {
+    ownerId?: string;
+    ownerEmail?: string;
+    ownerName?: string;
+    collaborators?: Array<{ id?: string; email: string; name?: string }>;
+  },
+): Promise<Deal> {
+  return fetchJSON<Deal>(`/deals/${dealId}/assignment`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function listKnownUsers(): Promise<KnownUser[]> {
+  return fetchJSON<KnownUser[]>("/users/known");
 }
 
 // ────────────────────────────────────────────────────────────
