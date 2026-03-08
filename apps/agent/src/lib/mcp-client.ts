@@ -82,6 +82,40 @@ function isAuthError(err: unknown): boolean {
   return false;
 }
 
+type RawMcpToolResult = {
+  isError?: boolean;
+  content?: Array<{ type: string; text?: string }>;
+  structuredContent?: unknown;
+};
+
+type RawMcpSdkClient = {
+  callTool: (
+    params: Record<string, unknown>,
+    schema?: unknown,
+    options?: Record<string, unknown>,
+  ) => Promise<RawMcpToolResult>;
+};
+
+type ConnectedServerAccessor = {
+  getConnectedClientForServer?: (serverName: string) => Promise<unknown>;
+};
+
+async function getAtlusSdkClient(mcpClient: MCPClient): Promise<RawMcpSdkClient> {
+  const accessor = mcpClient as unknown as ConnectedServerAccessor;
+  if (typeof accessor.getConnectedClientForServer !== "function") {
+    throw new Error("MCP client does not expose a connected-server accessor");
+  }
+
+  const connectedClient = await accessor.getConnectedClientForServer("atlus");
+  const sdkClient = (connectedClient as { client?: RawMcpSdkClient } | null)?.client;
+
+  if (!sdkClient?.callTool) {
+    throw new Error("MCP internal client does not expose callTool method");
+  }
+
+  return sdkClient;
+}
+
 /**
  * Handle auth failure: try refresh first, then rotate to next pool token.
  * Uses refreshPromise mutex to serialize concurrent refresh attempts.
@@ -248,19 +282,14 @@ export async function initMcp(): Promise<void> {
     client = createClient();
     createdAt = Date.now();
 
-    // Health check: verify SSE connection works by getting the internal client.
-    // We skip listTools() because Mastra's Zod schema conversion crashes on
-    // AtlusAI's complex preFilters schema. Instead, we verify the transport
-    // connects successfully via getConnectedClientForServer.
+    // Health check: verify SSE transport connectivity without listTools(),
+    // which still trips Mastra's schema conversion on AtlusAI's tool schema.
     const healthTimeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Health check timeout")), 10_000),
     );
 
     try {
-      await Promise.race([
-        client.getConnectedClientForServer("atlus"),
-        healthTimeout,
-      ]);
+      await Promise.race([getAtlusSdkClient(client), healthTimeout]);
       fallbackMode = false;
       console.log("[mcp] Connected to AtlusAI");
     } catch (healthErr) {
@@ -340,21 +369,7 @@ export async function callMcpTool(
   }
 
   async function attemptCall(c: MCPClient): Promise<unknown> {
-    // Use raw MCP protocol callTool via getConnectedClientForServer
-    // to bypass Mastra's broken Zod schema conversion (stack overflow
-    // on AtlusAI's complex preFilters JSON schema).
-    const internalClient = await c.getConnectedClientForServer("atlus");
-    // InternalMastraMCPClient has a `.client` property (MCP SDK Client)
-    const sdkClient = (internalClient as unknown as Record<string, unknown>).client as {
-      callTool: (
-        params: Record<string, unknown>,
-        schema?: unknown,
-        options?: Record<string, unknown>,
-      ) => Promise<Record<string, unknown>>;
-    };
-    if (!sdkClient?.callTool) {
-      throw new Error("MCP internal client does not expose callTool method");
-    }
+    const sdkClient = await getAtlusSdkClient(c);
     const result = await sdkClient.callTool(
       { name: toolName, arguments: args },
       undefined,
