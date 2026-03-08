@@ -234,9 +234,9 @@ Plans:
   3. Default sharing is set to entire org plus the service account, applied automatically unless overridden
 **Plans**: 3 plans
 Plans:
-- [ ] 42-01-PLAN.md — Navigation infrastructure: breadcrumbs, deal sidebar, nested layout, route placeholders
-- [ ] 42-02-PLAN.md — Overview page: deal header, status actions, metrics cards, activity timeline
-- [ ] 42-03-PLAN.md — Briefing page: AI chat panel shell, prior briefings list
+- [ ] 47-01-PLAN.md — UserSetting schema, org-scoped sharing utilities, root folder resolver, and OAuth scope upgrade
+- [ ] 47-02-PLAN.md — Drive settings page with Google Picker folder selector and access token API
+- [ ] 47-03-PLAN.md — Workflow migration to user-rooted folders, shareWithOrg, archive-on-regen, and Drive status UI
 
 ## Progress
 
@@ -294,4 +294,4 @@ Plans:
 | 44. Agent Management UI | 3/3 | Complete    | 2026-03-08 | - |
 | 45. Persistent AI Chat Bar | 2/5 | In Progress|  | - |
 | 46. Touch Pages & HITL Workflow | 3/3 | Complete    | 2026-03-08 | - |
-| 47. Drive Artifact Integration | v1.7 | 0/TBD | Not started | - |
+| 47. Drive Artifact Integration | v1.7 | 0/3 | Not started | - |
