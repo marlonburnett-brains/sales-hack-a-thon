@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import type { ArtifactType } from "@lumenalta/schemas";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -103,5 +106,41 @@ describe("Phase 36 deck structure api client", () => {
 
     expect(summaries[0].artifactType).toBe("proposal");
     expect(detail.artifactType).toBe("proposal");
+  });
+
+  it("types deck structure payload artifactType as the shared contract", async () => {
+    const apiClient = await import("@/lib/api-client");
+    const actions = await import("@/lib/actions/deck-structure-actions");
+
+    expectTypeOf<apiClient.DeckStructureSummary["artifactType"]>().toEqualTypeOf<
+      ArtifactType | null | undefined
+    >();
+    expectTypeOf<apiClient.DeckStructureDetail["artifactType"]>().toEqualTypeOf<
+      ArtifactType | null | undefined
+    >();
+    expectTypeOf(actions.getDeckStructureAction).parameters.toEqualTypeOf<
+      [touchType: string, artifactType?: ArtifactType | null]
+    >();
+    expectTypeOf(actions.triggerInferenceAction).parameters.toEqualTypeOf<
+      [touchType: string, artifactType?: ArtifactType | null]
+    >();
+  });
+
+  it("defines deck structure artifact seams with ArtifactType instead of string", () => {
+    const apiClientSource = readFileSync(
+      resolve(process.cwd(), "src/lib/api-client.ts"),
+      "utf8",
+    );
+    const actionsSource = readFileSync(
+      resolve(process.cwd(), "src/lib/actions/deck-structure-actions.ts"),
+      "utf8",
+    );
+
+    expect(apiClientSource).toMatch(/artifactType\?: ArtifactType \| null;/);
+    expect(apiClientSource).not.toMatch(/artifactType\?: string \| null;/);
+    expect(apiClientSource).toMatch(/artifactType\?: ArtifactType \| null,/);
+    expect(apiClientSource).not.toMatch(/artifactType\?: string,/);
+    expect(actionsSource).toMatch(/artifactType\?: ArtifactType \| null,/);
+    expect(actionsSource).not.toMatch(/artifactType\?: string,/);
   });
 });
