@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TouchPageShell } from "@/components/touch/touch-page-shell";
 import { TouchGuidedStart } from "@/components/touch/touch-guided-start";
@@ -79,6 +79,99 @@ function parseStageContent(stageContentJson: string | null): unknown {
   } catch {
     return null;
   }
+}
+
+// ────────────────────────────────────────────────────────────
+// Drive Status Badge
+// ────────────────────────────────────────────────────────────
+
+function DriveStatusBadge({
+  driveFileId,
+  outputRefs,
+  touchType,
+}: {
+  driveFileId: string | null;
+  outputRefs: string | null;
+  touchType: string;
+}) {
+  // Parse outputRefs for Touch 4 multi-artifact display
+  const parsedRefs = (() => {
+    if (!outputRefs) return null;
+    try {
+      return JSON.parse(outputRefs);
+    } catch {
+      return null;
+    }
+  })();
+
+  if (driveFileId) {
+    const driveUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+          <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-600" />
+          <span>Saved to Drive</span>
+          <a
+            href={driveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto flex items-center gap-1 text-green-700 underline-offset-2 hover:underline cursor-pointer"
+          >
+            Open
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+
+        {/* Touch 4: show all 3 artifact links */}
+        {touchType === "touch_4" && parsedRefs && typeof parsedRefs === "object" && !Array.isArray(parsedRefs) && (
+          <div className="flex flex-wrap gap-2 pl-6">
+            {parsedRefs.deckUrl && (
+              <a
+                href={parsedRefs.deckUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:border-slate-300 hover:text-slate-800 cursor-pointer"
+              >
+                Proposal Deck
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {parsedRefs.talkTrackUrl && (
+              <a
+                href={parsedRefs.talkTrackUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:border-slate-300 hover:text-slate-800 cursor-pointer"
+              >
+                Talk Track
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {parsedRefs.faqUrl && (
+              <a
+                href={parsedRefs.faqUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:border-slate-300 hover:text-slate-800 cursor-pointer"
+              >
+                Buyer FAQ
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // No driveFileId yet -- show pending state
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+      <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-blue-500" />
+      <span>Saving to Drive...</span>
+    </div>
+  );
 }
 
 // ────────────────────────────────────────────────────────────
@@ -367,6 +460,13 @@ export function TouchPageClient({
           historySection={historySection}
         >
           <div className="space-y-4">
+            {/* Drive save status */}
+            <DriveStatusBadge
+              driveFileId={activeInteraction.driveFileId}
+              outputRefs={activeInteraction.outputRefs}
+              touchType={touchType}
+            />
+
             {/* Show final content */}
             <TouchStageContent
               touchType={touchType}
