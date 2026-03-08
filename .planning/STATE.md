@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Phase 42 context gathered
-last_updated: "2026-03-08T19:58:54.585Z"
-last_activity: 2026-03-08 - Completed 43-01 (Named agent catalog, prompt models, and seed defaults)
+stopped_at: Completed 43-02-PLAN.md
+last_updated: "2026-03-08T19:59:39.184Z"
+last_activity: 2026-03-08 - Completed 43-02 (Prisma-backed prompt resolver, version-safe cache, and Mastra registry)
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 5
   percent: 83
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 43 of 47 (Named Agent Architecture)
-Plan: 1 of 5 in current phase (completed)
+Plan: 2 of 5 in current phase (completed)
 Status: Executing
-Last activity: 2026-03-08 - Completed 43-01 (Named agent catalog, prompt models, and seed defaults)
+Last activity: 2026-03-08 - Completed 43-02 (Prisma-backed prompt resolver, version-safe cache, and Mastra registry)
 
 Progress: [████████░░] 83%
 
@@ -53,6 +53,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 43]: Named-agent roster now covers all prompt-bearing workflow, ingestion, deck-intelligence, extraction, and validation responsibilities as first-class agents.
 - [Phase 43]: AgentConfig is the stable identity row and AgentConfigVersion stores immutable baselinePrompt, rolePrompt, compiledPrompt, and the publishedVersion pointer.
 - [Phase 43]: Used a focused forward-only SQL migration for AgentConfig models because prisma migrate dev was blocked by existing shared-db drift and reset flows are forbidden.
+- [Phase 43]: Runtime prompt resolution now composes baseline and role layers from Prisma-published versions and caches by immutable version id rather than by agent id.
+- [Phase 43]: The shared Mastra named-agent registry and helper execution seam both return prompt version metadata so long-running workflows can pin exact published prompts.
 
 ### Pending Todos
 
@@ -64,6 +66,7 @@ None.
 |---|-------------|------|--------|-----------|
 | 13 | Implement UI for visualizing and deleting deck structure memories | 2026-03-08 | c35085a | [13-implement-ui-for-visualizing-and-deletin](./quick/13-implement-ui-for-visualizing-and-deletin/) |
 | Phase 43 P01 | 6 min | 2 tasks | 8 files |
+| Phase 43 P02 | 4 min | 2 tasks | 8 files |
 
 ### Blockers/Concerns
 
@@ -74,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T19:58:54.582Z
-Stopped at: Phase 42 context gathered
-Next action: Execute 43-02-PLAN.md (Prisma-backed prompt resolver and cache) or continue parallel Phase 41 work.
+Last session: 2026-03-08T19:59:39.181Z
+Stopped at: Completed 43-02-PLAN.md
+Next action: Execute 43-03-PLAN.md (seller-facing workflow and helper migration with version pinning) or continue parallel Phase 41 work.
