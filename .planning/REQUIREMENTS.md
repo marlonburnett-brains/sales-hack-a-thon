@@ -19,9 +19,9 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 
 ### Deal Navigation
 
-- [ ] **NAV-01**: User sees breadcrumbs for navigating back to deals list from any deal sub-page
-- [ ] **NAV-02**: Deal detail has a left sidebar with links to Overview, Briefing, Touch 1-4
-- [ ] **NAV-03**: Each sidebar link navigates to its own sub-page within the deal detail
+- [x] **NAV-01**: User sees breadcrumbs for navigating back to deals list from any deal sub-page
+- [x] **NAV-02**: Deal detail has a left sidebar with links to Overview, Briefing, Touch 1-4
+- [x] **NAV-03**: Each sidebar link navigates to its own sub-page within the deal detail
 
 ### Deal Overview
 
@@ -117,9 +117,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEAL-05 | Phase 41 | Complete |
 | DEAL-06 | Phase 41 | Complete |
 | DEAL-07 | Phase 41 | Complete |
-| NAV-01 | Phase 42 | Pending |
-| NAV-02 | Phase 42 | Pending |
-| NAV-03 | Phase 42 | Pending |
+| NAV-01 | Phase 42 | Complete |
+| NAV-02 | Phase 42 | Complete |
+| NAV-03 | Phase 42 | Complete |
 | OVER-01 | Phase 42 | Pending |
 | OVER-02 | Phase 42 | Pending |
 | OVER-03 | Phase 42 | Pending |
