@@ -150,7 +150,11 @@ Plans:
   2. Deal detail has a left sidebar with links to Overview, Briefing, and Touch 1-4, each loading its own sub-page
   3. Overview page displays deal state, status, key metrics, activity timeline, and assignment info
   4. Briefing page shows consolidated pre-call briefing, research data, and meeting notes in one place
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 42-01-PLAN.md — Navigation infrastructure: breadcrumbs, deal sidebar, nested layout, route placeholders
+- [ ] 42-02-PLAN.md — Overview page: deal header, status actions, metrics cards, activity timeline
+- [ ] 42-03-PLAN.md — Briefing page: AI chat panel shell, prior briefings list
 
 ### Phase 43: Named Agent Architecture
 **Goal**: All LLM interactions use formalized named agents with dedicated, versioned system prompts
@@ -180,7 +184,11 @@ Plans:
   2. User can edit an agent's system prompt via direct text editing or conversational AI chat
   3. Saving a prompt edit creates a draft version; changes are not live until the user publishes
   4. Each published version is retained in full history, and the user can review or rollback to any prior version
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 42-01-PLAN.md — Navigation infrastructure: breadcrumbs, deal sidebar, nested layout, route placeholders
+- [ ] 42-02-PLAN.md — Overview page: deal header, status actions, metrics cards, activity timeline
+- [ ] 42-03-PLAN.md — Briefing page: AI chat panel shell, prior briefings list
 
 ### Phase 45: Persistent AI Chat Bar
 **Goal**: Users can interact with an AI assistant on any deal sub-page for context, transcripts, and knowledge queries
@@ -192,7 +200,11 @@ Plans:
   2. User can add context, notes, or paste call transcripts via chat and bind them to a specific touch step
   3. User can ask questions about the deal's data and history and receive relevant answers
   4. User can query similar cases and use cases from the knowledge base and get results via chat
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 42-01-PLAN.md — Navigation infrastructure: breadcrumbs, deal sidebar, nested layout, route placeholders
+- [ ] 42-02-PLAN.md — Overview page: deal header, status actions, metrics cards, activity timeline
+- [ ] 42-03-PLAN.md — Briefing page: AI chat panel shell, prior briefings list
 
 ### Phase 46: Touch Pages & HITL Workflow
 **Goal**: Users can generate artifacts for each touch through a 3-stage human-in-the-loop workflow with AI chat refinement
@@ -204,7 +216,11 @@ Plans:
   2. Touch 1 generates a first-contact pager, Touch 2 a Meet Lumenalta deck, Touch 3 a capability deck, Touch 4 a proposal + talk track + FAQ
   3. Each touch follows a visible 3-stage HITL workflow (Skeleton > Low-fi sketch > High-fi presentation) with stage indicators
   4. User can interact with AI chat at each HITL stage to refine the artifact before approving and advancing
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 42-01-PLAN.md — Navigation infrastructure: breadcrumbs, deal sidebar, nested layout, route placeholders
+- [ ] 42-02-PLAN.md — Overview page: deal header, status actions, metrics cards, activity timeline
+- [ ] 42-03-PLAN.md — Briefing page: AI chat panel shell, prior briefings list
 
 ### Phase 47: Drive Artifact Integration
 **Goal**: Users can save generated artifacts to Google Drive with folder and sharing controls
@@ -214,7 +230,11 @@ Plans:
   1. User can choose a destination folder in Google Drive when saving a generated artifact
   2. User can configure the sharing scope of newly generated documents before saving
   3. Default sharing is set to entire org plus the service account, applied automatically unless overridden
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 42-01-PLAN.md — Navigation infrastructure: breadcrumbs, deal sidebar, nested layout, route placeholders
+- [ ] 42-02-PLAN.md — Overview page: deal header, status actions, metrics cards, activity timeline
+- [ ] 42-03-PLAN.md — Briefing page: AI chat panel shell, prior briefings list
 
 ## Progress
 
