@@ -134,7 +134,11 @@ Tier 4 (after 46):                           47 ──┘
   3. User can switch between card grid view and list/table view on the deals page
   4. Deals page loads showing Open deals by default, with filters available for other statuses
   5. User can assign an owner and collaborators to a deal, and filter the list by assignee
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 41-01-PLAN.md — Schema migration, API endpoints, and web data layer
+- [ ] 41-02-PLAN.md — Filter bar, view toggle, table view, and card enhancements
+- [ ] 41-03-PLAN.md — Status actions, assignment picker, and assignee filtering
 
 ### Phase 42: Deal Detail Layout
 **Goal**: Users can navigate within a deal through organized sub-pages with overview and briefing content
