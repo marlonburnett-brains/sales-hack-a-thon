@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 44-03-PLAN.md
-last_updated: "2026-03-08T22:11:10.050Z"
+stopped_at: Completed 46-02-PLAN.md
+last_updated: "2026-03-08T22:11:52.408Z"
 last_activity: 2026-03-08 - Completed 44-03 (AI chat panel, version history, diff view, rollback)
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 20
-  completed_plans: 15
+  total_plans: 21
+  completed_plans: 16
   percent: 83
 ---
 
@@ -69,6 +69,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 44]: Publish dialog upgraded from simple set-based LineDiff to proper diffLines-based AgentDiffView
 - [Phase 44]: Agent chat uses Vertex AI GoogleGenAI client (not API key) to match existing agent executor pattern
 - [Phase 44]: Chat state is ephemeral (client-side only) -- no DB persistence for prompt editing conversations
+- [Phase 46]: InteractionRecord created at workflow start for hitlStage tracking from first suspend
+- [Phase 46]: Touch 4 recordInteraction changed from create to update since InteractionRecord exists from parseTranscript
 
 ### Pending Todos
 
@@ -91,6 +93,7 @@ None.
 | Phase 46 P01 | 6min | 2 tasks | 6 files |
 | Phase 44 P02 | 4min | 2 tasks | 6 files |
 | Phase 44 P03 | 12min | 2 tasks | 12 files |
+| Phase 46 P02 | 13min | 2 tasks | 6 files |
 
 ### Blockers/Concerns
 
@@ -101,6 +104,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T22:09:21Z
-Stopped at: Completed 44-03-PLAN.md
+Last session: 2026-03-08T22:11:52.405Z
+Stopped at: Completed 46-02-PLAN.md
 Next action: Phase 44 complete. Continue parallel milestone work for Phases 45-47.

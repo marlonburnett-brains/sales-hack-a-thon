@@ -46,10 +46,10 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 ### Touch Pages & HITL
 
 - [ ] **TOUCH-01**: User can access a dedicated page for each touch (1-4) within the deal detail
-- [ ] **TOUCH-02**: Touch 1 page generates a two-pager/first contact pager through HITL workflow
-- [ ] **TOUCH-03**: Touch 2 page generates a Meet Lumenalta deck through HITL workflow
-- [ ] **TOUCH-04**: Touch 3 page generates a use cases/capability alignment deck through HITL workflow
-- [ ] **TOUCH-05**: Touch 4 page generates a sales proposal, talk track, and FAQ through HITL workflow
+- [x] **TOUCH-02**: Touch 1 page generates a two-pager/first contact pager through HITL workflow
+- [x] **TOUCH-03**: Touch 2 page generates a Meet Lumenalta deck through HITL workflow
+- [x] **TOUCH-04**: Touch 3 page generates a use cases/capability alignment deck through HITL workflow
+- [x] **TOUCH-05**: Touch 4 page generates a sales proposal, talk track, and FAQ through HITL workflow
 - [x] **TOUCH-06**: Each touch follows a 3-stage HITL workflow: Skeleton > Low-fi sketch > High-fi presentation
 - [x] **TOUCH-07**: User can interact with each HITL stage via AI chat to refine before approving
 
@@ -132,10 +132,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHAT-04 | Phase 45 | Pending |
 | CHAT-05 | Phase 45 | Pending |
 | TOUCH-01 | Phase 46 | Pending |
-| TOUCH-02 | Phase 46 | Pending |
-| TOUCH-03 | Phase 46 | Pending |
-| TOUCH-04 | Phase 46 | Pending |
-| TOUCH-05 | Phase 46 | Pending |
+| TOUCH-02 | Phase 46 | Complete |
+| TOUCH-03 | Phase 46 | Complete |
+| TOUCH-04 | Phase 46 | Complete |
+| TOUCH-05 | Phase 46 | Complete |
 | TOUCH-06 | Phase 46 | Complete |
 | TOUCH-07 | Phase 46 | Complete |
 | DRIVE-01 | Phase 47 | Pending |
