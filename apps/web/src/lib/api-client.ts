@@ -1,6 +1,15 @@
 import "server-only";
 
-import type { ArtifactType } from "@lumenalta/schemas";
+import type {
+  ArtifactType,
+  DealChatConfirmationChip,
+  DealChatMeta,
+  DealChatRouteContext,
+  DealChatSendRequest,
+  DealChatSuggestion,
+  DealChatTouchType,
+  DealContextSource,
+} from "@lumenalta/schemas";
 
 /**
  * Typed Fetch Wrapper for Agent Service
@@ -14,10 +23,9 @@ import { getGoogleAccessToken } from "@/lib/supabase/google-token";
 
 const BASE_URL = env.AGENT_SERVICE_URL;
 
-async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
-  let response: Response;
+async function fetchAgent(path: string, init?: RequestInit): Promise<Response> {
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
+    return await fetch(`${BASE_URL}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
@@ -28,6 +36,10 @@ async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new Error("Agent service is unreachable. Please try again later.");
   }
+}
+
+async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetchAgent(path, init);
 
   if (!response.ok) {
     const text = await response.text();
@@ -61,6 +73,32 @@ export async function fetchWithGoogleAuth<T>(
       ...googleHeaders,
     },
   });
+}
+
+export async function fetchWithGoogleAuthResponse(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const { accessToken, userId } = await getGoogleAccessToken();
+
+  const googleHeaders: Record<string, string> = {};
+  if (accessToken) googleHeaders["X-Google-Access-Token"] = accessToken;
+  if (userId) googleHeaders["X-User-Id"] = userId;
+
+  const response = await fetchAgent(path, {
+    ...init,
+    headers: {
+      ...init?.headers,
+      ...googleHeaders,
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Agent API error (${response.status}): ${text}`);
+  }
+
+  return response;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -239,6 +277,99 @@ export async function getInteractions(
   dealId: string
 ): Promise<InteractionRecord[]> {
   return fetchJSON<InteractionRecord[]>(`/deals/${dealId}/interactions`);
+}
+
+// ────────────────────────────────────────────────────────────
+// Deal Chat
+// ────────────────────────────────────────────────────────────
+
+export interface DealChatMessageData {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  meta: DealChatMeta | null;
+  createdAt: string;
+}
+
+export interface DealChatBootstrapData {
+  messages: DealChatMessageData[];
+  greeting: string | null;
+  suggestions: DealChatSuggestion[];
+}
+
+export type DealChatSendInput = Omit<DealChatSendRequest, "dealId">;
+
+export type DealChatBindingAction = "confirm" | "correct" | "save_general_note";
+
+export interface DealChatBindingRequest {
+  sourceId?: string;
+  source: DealContextSource;
+  action: DealChatBindingAction;
+  touchType?: DealChatTouchType | null;
+  interactionId?: string | null;
+  refinedText?: string | null;
+}
+
+export interface DealChatSavedSource {
+  id: string;
+  dealId: string;
+  sourceType: "note" | "transcript";
+  touchType: DealChatTouchType | null;
+  interactionId: string | null;
+  originPage: string;
+  rawText: string;
+  refinedText: string | null;
+  status: string;
+  bindingMetaJson: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DealChatBindingResult {
+  source: DealChatSavedSource;
+  confirmationChip: DealChatConfirmationChip;
+}
+
+export async function getDealChatBootstrap(
+  dealId: string,
+  routeContext: DealChatRouteContext,
+): Promise<DealChatBootstrapData> {
+  const query = new URLSearchParams({
+    section: routeContext.section,
+    pathname: routeContext.pathname,
+    pageLabel: routeContext.pageLabel,
+  });
+
+  if (routeContext.touchType) {
+    query.set("touchType", routeContext.touchType);
+  }
+
+  return fetchWithGoogleAuth<DealChatBootstrapData>(
+    `/deals/${dealId}/chat?${query.toString()}`,
+  );
+}
+
+export async function sendDealChatMessage(
+  dealId: string,
+  input: DealChatSendInput,
+): Promise<Response> {
+  return fetchWithGoogleAuthResponse(`/deals/${dealId}/chat`, {
+    method: "POST",
+    body: JSON.stringify({
+      dealId,
+      ...input,
+    }),
+  });
+}
+
+export async function confirmDealChatBinding(
+  dealId: string,
+  input: DealChatBindingRequest,
+): Promise<DealChatBindingResult> {
+  return fetchWithGoogleAuth<DealChatBindingResult>(`/deals/${dealId}/chat/bindings`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 // ────────────────────────────────────────────────────────────

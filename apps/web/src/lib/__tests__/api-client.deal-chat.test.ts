@@ -98,20 +98,15 @@ describe("deal chat api client and actions", () => {
           suggestions: [],
         }),
       })
-      .mockResolvedValueOnce({
-        ok: true,
-        body: new ReadableStream({
-          start(controller) {
-            controller.enqueue(
-              new TextEncoder().encode(
-                `Direct answer: Grounded answer\n---DEAL_CHAT_META---\n${JSON.stringify(meta)}`,
-              ),
-            );
-            controller.close();
+      .mockResolvedValueOnce(
+        new Response(
+          `Direct answer: Grounded answer\n---DEAL_CHAT_META---\n${JSON.stringify(meta)}`,
+          {
+            status: 200,
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
           },
-        }),
-        text: async () => "",
-      })
+        ),
+      )
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -156,7 +151,13 @@ describe("deal chat api client and actions", () => {
     expect(mockFetch).toHaveBeenNthCalledWith(
       1,
       "http://test-agent:4111/deals/deal-1/chat?section=briefing&pathname=%2Fdeals%2Fdeal-1%2Fbriefing&pageLabel=Briefing",
-      expect.objectContaining({ method: "GET" }),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer test-key",
+          "X-Google-Access-Token": "google-token",
+          "X-User-Id": "user-1",
+        }),
+      }),
     );
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
