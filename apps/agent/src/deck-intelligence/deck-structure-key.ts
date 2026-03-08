@@ -4,17 +4,23 @@ import {
   TOUCH_TYPES,
 } from "@lumenalta/schemas";
 
+type TouchType = (typeof TOUCH_TYPES)[number];
+
 const LIST_TOUCH_TYPES = TOUCH_TYPES.filter((touchType) => touchType !== "touch_4");
 const CRON_TOUCH_TYPES = TOUCH_TYPES.filter(
   (touchType) => touchType !== "touch_4" && touchType !== "pre_call",
 );
 
 export type DeckStructureKey = {
-  touchType: (typeof TOUCH_TYPES)[number];
+  touchType: TouchType;
   artifactType: ArtifactType | null;
 };
 
-function isTouch4(touchType: string): touchType is "touch_4" {
+function isTouchType(value: string): value is TouchType {
+  return TOUCH_TYPES.includes(value as TouchType);
+}
+
+function isTouch4(touchType: TouchType): touchType is "touch_4" {
   return touchType === "touch_4";
 }
 
@@ -24,9 +30,9 @@ function isArtifactType(value: string): value is ArtifactType {
 
 export function resolveDeckStructureKey(
   touchType: string,
-  artifactType: string | null = null,
+  artifactType: ArtifactType | null = null,
 ): DeckStructureKey {
-  if (!TOUCH_TYPES.includes(touchType as (typeof TOUCH_TYPES)[number])) {
+  if (!isTouchType(touchType)) {
     throw new Error(`Unsupported touchType: ${touchType}`);
   }
 

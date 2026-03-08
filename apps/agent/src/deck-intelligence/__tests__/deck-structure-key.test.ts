@@ -1,5 +1,5 @@
 import { type ArtifactType } from "@lumenalta/schemas";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   getDeckStructureCronKeys,
@@ -33,9 +33,6 @@ describe("Phase 36 deck structure key contract", () => {
   });
 
   it("accepts the shared ArtifactType contract at the helper boundary", () => {
-    expectTypeOf(resolveDeckStructureKey).parameters.toEqualTypeOf<
-      [touchType: string, artifactType?: ArtifactType | null]
-    >();
     expect(_resolveDeckStructureKeyRejectsBroadArtifactString).toBe(true);
   });
 

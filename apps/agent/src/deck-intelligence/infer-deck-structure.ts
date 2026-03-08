@@ -8,6 +8,7 @@
  */
 
 import { GoogleGenAI } from "@google/genai";
+import { type ArtifactType } from "@lumenalta/schemas";
 import crypto from "node:crypto";
 import { env } from "../env";
 import { prisma } from "../lib/db";
@@ -26,13 +27,16 @@ export const GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE =
 
 type DeckStructureKeyInput = string | DeckStructureKey;
 
-export function isUnsupportedGenericTouch4(touchType: string, artifactType: string | null = null): boolean {
+export function isUnsupportedGenericTouch4(
+  touchType: string,
+  artifactType: ArtifactType | null = null,
+): boolean {
   return touchType === "touch_4" && artifactType === null;
 }
 
 function getDeckStructureKey(
   input: DeckStructureKeyInput,
-  artifactType: string | null = null,
+  artifactType: ArtifactType | null = null,
 ): DeckStructureKey {
   if (typeof input === "string") {
     return resolveDeckStructureKey(input, artifactType);
@@ -100,7 +104,7 @@ async function upsertDeckStructure(
  */
 export async function computeDataHash(
   input: DeckStructureKeyInput,
-  artifactType: string | null = null,
+  artifactType: ArtifactType | null = null,
 ): Promise<string> {
   const key = getDeckStructureKey(input, artifactType);
   const examples = await prisma.template.findMany({

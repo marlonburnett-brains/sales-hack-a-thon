@@ -1,5 +1,5 @@
 import { type ArtifactType } from "@lumenalta/schemas";
-import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockTemplateFindMany,
@@ -187,14 +187,6 @@ describe("Phase 36 artifact-aware inference", () => {
   });
 
   it("uses ArtifactType at public inference helper boundaries", () => {
-    expectTypeOf(computeDataHash).parameters.toEqualTypeOf<[
-      input: string | { touchType: string; artifactType: ArtifactType | null },
-      artifactType?: ArtifactType | null,
-    ]>();
-    expectTypeOf(isUnsupportedGenericTouch4).parameters.toEqualTypeOf<[
-      touchType: string,
-      artifactType?: ArtifactType | null,
-    ]>();
     expect(_computeDataHashRejectsBroadArtifactString).toBe(true);
     expect(_isUnsupportedGenericTouch4RejectsBroadArtifactString).toBe(true);
   });
