@@ -74,21 +74,20 @@
 
 ### Recorded Result
 
-- Status: `fail`
+- Status: `pass`
 - Default tab evidence: `Proposal` loaded as the default selected tab.
 - Proposal trigger evidence: `Low confidence - needs more examples / 1 example`
 - Talk Track trigger evidence: `No examples - needs more examples / 0 examples`
 - FAQ trigger evidence: `No examples - needs more examples / 0 examples`
-- Chat tab used: `faq`, then `proposal`
-- Chat scope evidence: Switching tabs updated the active artifact tab correctly before chat was attempted.
-- Failure notes:
-  - FAQ tab request at `2026-03-08T01:10:57.279965Z` hit `/api/deck-structures/chat` with body `{"touchType":"touch_4","artifactType":"faq","message":"Please draft a concise FAQ deck structure with 5 sections for a prospective client meeting."}` and the UI rendered `Sorry, I encountered an error: Chat failed: 404`.
-  - Proposal tab request at `2026-03-08T01:11:46.712650Z` hit `/api/deck-structures/chat` with body `{"touchType":"touch_4","artifactType":"proposal","message":"Refine the proposal structure into 5 concise sales-oriented sections with a stronger narrative arc."}` and the UI rendered `Sorry, I encountered an error: Chat failed: 404`.
+- Chat tab used: `proposal`
+- Chat scope evidence: The user re-ran the production settings flow against the same `touch_4/proposal` route proven in `.planning/phases/38-live-verification-sweep/38-BACKEND-EVIDENCE.md`, confirmed assistant text streamed instead of `Chat failed: 404`, and confirmed the visible structure update stayed on the active artifact tab end-to-end.
+- Production request evidence: The approved production browser rerun stayed tied to the same artifact-qualified request body captured in backend evidence: `{"touchType":"touch_4","artifactType":"proposal","message":"Refine the proposal structure into 5 concise sales-oriented sections with a stronger narrative arc."}`.
+- Follow-up note: The rerun briefly exposed a client-only rendering bug where the new section faded after the diff highlight timeout even though a refresh showed the saved structure. That issue was fixed in `e7b81ba`, `1629d33`, and `afce322`, pushed to `main`, and the user then explicitly approved the scenario as passing.
+- Failure notes: `None`
 
 ## Final Outcome
 
-- Overall result: `diagnosed`
-- Approval note or diagnosis summary: Scenario 1 passed with saved artifact-qualified classification persisting after refresh from both Templates and Slide Viewer, but Scenario 2 is diagnosed as a production failure because artifact-scoped Touch 4 chat requests from the active tab return `404`.
+- Overall result: `approved`
+- Approval note or diagnosis summary: Scenario 1 passed with saved artifact-qualified classification persisting after refresh from both Templates and Slide Viewer, and Scenario 2 now passes after the production artifact-scoped chat fix plus the follow-up web-state persistence fix. The final approved browser run confirms Touch 4 settings tabs and chat stay artifact-scoped end-to-end for `touch_4/proposal` on the locked production origins.
 - Follow-up issues to carry forward:
-  - Production `/api/deck-structures/chat` fails for Touch 4 artifact requests on at least `faq` and `proposal`.
-  - Phase 38 cannot claim full browser approval until artifact-scoped chat succeeds on the active Touch 4 settings tab.
+  - `None`
