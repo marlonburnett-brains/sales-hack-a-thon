@@ -8,7 +8,7 @@
 - v1.3 **Google API Auth: User-Delegated Credentials** -- Phases 22-26 (shipped 2026-03-06) -- [Archive](milestones/v1.3-ROADMAP.md)
 - v1.4 **AtlusAI Authentication & Discovery** -- Phases 27-31 (shipped 2026-03-07) -- [Archive](milestones/v1.4-ROADMAP.md)
 - v1.5 **Review Polish & Deck Intelligence** -- Phases 32-34 (shipped 2026-03-07) -- [Archive](milestones/v1.5-ROADMAP.md)
-- v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (in progress)
+- v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (shipped 2026-03-08)
 
 ## Phases
 
@@ -91,7 +91,7 @@
 - [x] **Phase 37: Frontend UI** - Classify UI artifact selector, Settings tabbed deck structure views, and slide-viewer badge hydration (completed 2026-03-07)
 - [x] **Phase 38: Live Verification Sweep** - Production artifact-scoped chat proof, final browser approval, and verification closure completed (6/6 plans complete) (completed 2026-03-08)
 - [x] **Phase 39: Artifact Contract Hardening** - Eliminate artifact-aware UI reuse risks and tighten shared `ArtifactType` typing across web and chat paths (3/3 plans complete) (completed 2026-03-08)
-- [ ] **Phase 40: Agent Typecheck Cleanup** - Resolve pre-existing `agent` TypeScript failures left outside the original milestone scope
+- [x] **Phase 40: Agent Typecheck Cleanup** - Resolve pre-existing `agent` TypeScript failures left outside the original milestone scope (completed 2026-03-08)
 
 ## Phase Details
 
@@ -198,7 +198,7 @@ Plans:
 Plans:
 - [x] 40-01-PLAN.md — Clear shared schema import drift and current Mastra/Zod API mismatches blocking agent compile
 - [x] 40-02-PLAN.md — Repair the MCP client seam and stale Vitest suites that still fail the agent baseline
-- [ ] 40-03-PLAN.md — Run the final agent no-emit gate and publish the Phase 40 verification trail
+- [x] 40-03-PLAN.md — Run the final agent no-emit gate and publish the Phase 40 verification trail
 
 ## Progress
 
@@ -245,4 +245,4 @@ Plans:
 | 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
 | 38. Live Verification Sweep | v1.6 | 6/6 | Complete | 2026-03-08 |
 | 39. Artifact Contract Hardening | 3/3 | Complete    | 2026-03-08 | |
-| 40. Agent Typecheck Cleanup | 2/3 | In Progress|  | |
+| 40. Agent Typecheck Cleanup | 3/3 | Complete   | 2026-03-08 | |
