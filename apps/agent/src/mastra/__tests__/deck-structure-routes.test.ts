@@ -54,6 +54,13 @@ vi.mock("../../deck-intelligence/infer-deck-structure", () => ({
 }));
 
 vi.mock("@google/genai", () => ({
+  Type: {
+    OBJECT: "OBJECT",
+    ARRAY: "ARRAY",
+    STRING: "STRING",
+    NUMBER: "NUMBER",
+    BOOLEAN: "BOOLEAN",
+  },
   GoogleGenAI: class {
     models = {
       generateContentStream: mockGenerateContentStream,
@@ -69,7 +76,21 @@ describe("Phase 36 route and chat artifact contract", () => {
     mockGenerateContentStream.mockResolvedValue([
       { text: "Proposal response chunk" },
     ]);
-    mockGenerateContent.mockResolvedValue({ text: "Proposal response chunk" });
+    mockGenerateContent.mockResolvedValue({
+      text: JSON.stringify({
+        sections: [
+          {
+            order: 1,
+            name: "Title Slide",
+            purpose: "Open the deck.",
+            isOptional: false,
+            variationCount: 1,
+            slideIds: ["slide-1"],
+          },
+        ],
+        sequenceRationale: "Lead with the title slide.",
+      }),
+    });
     mockInferDeckStructure.mockResolvedValue({
       sections: [],
       sequenceRationale: "Updated proposal sequence",
@@ -95,7 +116,7 @@ describe("Phase 36 route and chat artifact contract", () => {
     mockDeckStructureUpdate.mockResolvedValue(undefined);
   });
 
-  it("threads artifactType through chat refinement row lookup and re-inference", async () => {
+  it("threads artifactType through chat refinement row lookup and structured update", async () => {
     const { streamChatRefinement } = await import("../../deck-intelligence/chat-refinement");
 
     await streamChatRefinement(
@@ -114,12 +135,14 @@ describe("Phase 36 route and chat artifact contract", () => {
         },
       }),
     );
-    expect(mockInferDeckStructure).toHaveBeenCalledWith(
-      {
-        touchType: "touch_4",
-        artifactType: "proposal",
-      },
-      expect.stringContaining("Emphasize ROI before implementation details"),
+    expect(mockDeckStructureUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "proposal-row" },
+        data: expect.objectContaining({
+          structureJson: expect.any(String),
+          chatContextJson: expect.stringContaining("Emphasize ROI before implementation details"),
+        }),
+      }),
     );
   });
 

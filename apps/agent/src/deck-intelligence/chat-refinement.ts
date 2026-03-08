@@ -10,6 +10,7 @@ import { GoogleGenAI } from "@google/genai";
 import { env } from "../env";
 import { prisma } from "../lib/db";
 import { resolveDeckStructureKey } from "./deck-structure-key";
+import { DECK_STRUCTURE_SCHEMA } from "./deck-structure-schema";
 import {
   buildEmptyDeckStructureOutput,
   GENERIC_TOUCH_4_UNAVAILABLE_MESSAGE,
@@ -230,13 +231,40 @@ export async function streamChatRefinement(
     onChunk(fullResponse);
   }
 
-  // 4. Re-run inference with updated constraints
+  // 4. Update structure from the chat feedback, with re-inference fallback
   const constraintSummary = extractConstraints(fullResponse, userMessage);
   const updatedConstraints = existingContext
     ? `${existingContext}\n\n--- Latest refinement ---\n${constraintSummary}`
     : constraintSummary;
 
-  const updatedStructure = await inferDeckStructure(key, updatedConstraints);
+  const currentStructure: DeckStructureOutput = {
+    sections: oldSections,
+    sequenceRationale: (() => {
+      try {
+        const parsed = JSON.parse(currentStructureJson) as DeckStructureOutput;
+        return parsed.sequenceRationale ?? "";
+      } catch {
+        return "";
+      }
+    })(),
+  };
+
+  const refinedStructure = await refineStructureFromChat(
+    ai,
+    key.touchType,
+    currentStructureJson,
+    currentStructure,
+    existingContext,
+    recentMessages.map((m: { role: string; content: string }) => ({
+      role: m.role,
+      content: m.content,
+    })),
+    fullResponse,
+    userMessage,
+  );
+
+  const updatedStructure =
+    refinedStructure ?? (await inferDeckStructure(key, updatedConstraints));
 
   // 5. Compute diff
   const diff = computeStructureDiff(oldSections, updatedStructure.sections);
@@ -274,6 +302,7 @@ export async function streamChatRefinement(
       where: { id: deckStructure.id },
       data: {
         lastChatAt: new Date(),
+        structureJson: JSON.stringify(updatedStructure),
         chatContextJson: updatedConstraints,
       },
     });
@@ -364,4 +393,152 @@ ${structureJson}
 function extractConstraints(aiResponse: string, userMessage: string): string {
   // Extract key actionable items from the AI response and user message
   return `User requested: "${userMessage}"\nAI recommended changes: ${aiResponse.substring(0, 500)}`;
+}
+
+function normalizeDeckStructure(
+  value: unknown,
+  fallback: DeckStructureOutput,
+): DeckStructureOutput {
+  if (!value || typeof value !== "object") {
+    return fallback;
+  }
+
+  const candidate = value as Partial<DeckStructureOutput>;
+  const fallbackByName = new Map(
+    fallback.sections.map((section) => [section.name, section]),
+  );
+
+  const sections = Array.isArray(candidate.sections)
+    ? candidate.sections
+        .filter((section): section is Partial<DeckSection> =>
+          Boolean(section && typeof section === "object"),
+        )
+        .map((section, index) => {
+          const fallbackSection =
+            typeof section.name === "string"
+              ? fallbackByName.get(section.name)
+              : undefined;
+
+          const slideIds = Array.isArray(section.slideIds)
+            ? section.slideIds.filter((slideId): slideId is string => typeof slideId === "string")
+            : (fallbackSection?.slideIds ?? []);
+
+          return {
+            order:
+              typeof section.order === "number" && Number.isFinite(section.order)
+                ? section.order
+                : index + 1,
+            name:
+              typeof section.name === "string" && section.name.trim().length > 0
+                ? section.name.trim()
+                : fallbackSection?.name ?? `Section ${index + 1}`,
+            purpose:
+              typeof section.purpose === "string" && section.purpose.trim().length > 0
+                ? section.purpose.trim()
+                : fallbackSection?.purpose ?? "Explain this part of the deck flow.",
+            isOptional:
+              typeof section.isOptional === "boolean"
+                ? section.isOptional
+                : (fallbackSection?.isOptional ?? false),
+            variationCount:
+              typeof section.variationCount === "number" && Number.isFinite(section.variationCount)
+                ? section.variationCount
+                : (fallbackSection?.variationCount ?? 0),
+            slideIds,
+          };
+        })
+    : [];
+
+  return {
+    sections: sections.length > 0 ? sections : fallback.sections,
+    sequenceRationale:
+      typeof candidate.sequenceRationale === "string" &&
+      candidate.sequenceRationale.trim().length > 0
+        ? candidate.sequenceRationale.trim()
+        : fallback.sequenceRationale,
+  };
+}
+
+function buildStructureRefinementPrompt(
+  touchType: string,
+  structureJson: string,
+  chatContext: string,
+  recentMessages: Array<{ role: string; content: string }>,
+  assistantResponse: string,
+  userMessage: string,
+): string {
+  let prompt = `You are updating the current deck structure for "${touchType}" presentations based on explicit user refinement feedback.
+
+## Current Deck Structure
+\`\`\`json
+${structureJson}
+\`\`\`
+
+## Latest User Request
+${userMessage}
+
+## Assistant Explanation
+${assistantResponse}
+
+Your job is to UPDATE the current structure so it follows the user's request as directly as possible.
+
+Rules:
+1. Treat the latest user request as a hard requirement unless it conflicts with itself.
+2. Modify the existing structure directly instead of re-inferring the whole deck from examples.
+3. Preserve existing slideIds and variationCount for unchanged sections whenever possible.
+4. For newly added sections, use an empty slideIds array and variationCount 0 unless the current structure already contains a clear match.
+5. Reorder sections when the user asked for a positional change.
+6. Return only valid JSON matching the required schema.`;
+
+  if (chatContext) {
+    prompt += `\n\n## Existing Constraint Memory\n${chatContext}`;
+  }
+
+  if (recentMessages.length > 0) {
+    prompt += "\n\n## Recent Conversation\n";
+    for (const msg of recentMessages) {
+      prompt += `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}\n`;
+    }
+  }
+
+  return prompt;
+}
+
+async function refineStructureFromChat(
+  ai: GoogleGenAI,
+  touchType: string,
+  currentStructureJson: string,
+  fallbackStructure: DeckStructureOutput,
+  chatContext: string,
+  recentMessages: Array<{ role: string; content: string }>,
+  assistantResponse: string,
+  userMessage: string,
+): Promise<DeckStructureOutput | null> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: buildStructureRefinementPrompt(
+        touchType,
+        currentStructureJson,
+        chatContext,
+        recentMessages,
+        assistantResponse,
+        userMessage,
+      ),
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: DECK_STRUCTURE_SCHEMA,
+      },
+    });
+
+    const text = response.text ?? "{}";
+    const parsed = JSON.parse(text) as DeckStructureOutput;
+    return normalizeDeckStructure(parsed, fallbackStructure);
+  } catch (error) {
+    console.warn(
+      "[chat-refinement] Structured refinement failed, falling back to re-inference:",
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
 }
