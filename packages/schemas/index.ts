@@ -22,6 +22,14 @@ export {
   type ActionType,
 } from "./constants";
 
+export {
+  AGENT_CATALOG,
+  AGENT_IDS,
+  type AgentCatalogEntry,
+  type AgentFamily,
+  type AgentId,
+} from "./agent-catalog";
+
 // Helper
 export { zodToLlmJsonSchema } from "./llm-json-schema";
 
