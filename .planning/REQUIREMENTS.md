@@ -50,8 +50,8 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 - [ ] **TOUCH-03**: Touch 2 page generates a Meet Lumenalta deck through HITL workflow
 - [ ] **TOUCH-04**: Touch 3 page generates a use cases/capability alignment deck through HITL workflow
 - [ ] **TOUCH-05**: Touch 4 page generates a sales proposal, talk track, and FAQ through HITL workflow
-- [ ] **TOUCH-06**: Each touch follows a 3-stage HITL workflow: Skeleton > Low-fi sketch > High-fi presentation
-- [ ] **TOUCH-07**: User can interact with each HITL stage via AI chat to refine before approving
+- [x] **TOUCH-06**: Each touch follows a 3-stage HITL workflow: Skeleton > Low-fi sketch > High-fi presentation
+- [x] **TOUCH-07**: User can interact with each HITL stage via AI chat to refine before approving
 
 ### Drive Integration
 
@@ -136,8 +136,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOUCH-03 | Phase 46 | Pending |
 | TOUCH-04 | Phase 46 | Pending |
 | TOUCH-05 | Phase 46 | Pending |
-| TOUCH-06 | Phase 46 | Pending |
-| TOUCH-07 | Phase 46 | Pending |
+| TOUCH-06 | Phase 46 | Complete |
+| TOUCH-07 | Phase 46 | Complete |
 | DRIVE-01 | Phase 47 | Pending |
 | DRIVE-02 | Phase 47 | Pending |
 | DRIVE-03 | Phase 47 | Pending |

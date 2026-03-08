@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 44-01-PLAN.md
-last_updated: "2026-03-08T21:48:12.678Z"
+stopped_at: Completed 46-01-PLAN.md
+last_updated: "2026-03-08T21:54:51.264Z"
 last_activity: 2026-03-08 - Completed 44-01 (agent config CRUD API with family-grouped list page)
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 17
-  completed_plans: 12
+  total_plans: 20
+  completed_plans: 13
   percent: 83
 ---
 
@@ -65,6 +65,7 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 42]: DealAssignmentPicker requires parallel knownUsers fetch; touch completion counts unique touch types with completed-status interactions
 - [Phase 42]: BriefingChatPanel reuses generatePreCallBriefingAction with default inputs for one-click briefing generation
 - [Phase 44]: Used 'any' type for Prisma agentConfig queries due to pre-existing type drift from forward-only SQL migrations
+- [Phase 46]: Used manual migration + resolve --applied for HITL fields due to existing DB drift
 
 ### Pending Todos
 
@@ -84,6 +85,7 @@ None.
 | Phase 42 P03 | 3min | 2 tasks | 4 files |
 | Phase 43 P05 | 22 min | 2 tasks | 7 files |
 | Phase 44 P01 | 5min | 2 tasks | 6 files |
+| Phase 46 P01 | 6min | 2 tasks | 6 files |
 
 ### Blockers/Concerns
 
@@ -94,6 +96,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T21:48:12.675Z
-Stopped at: Completed 44-01-PLAN.md
+Last session: 2026-03-08T21:54:51.260Z
+Stopped at: Completed 46-01-PLAN.md
 Next action: Begin Phase 44 planning/execution or continue parallel milestone work for Phases 45-47.
