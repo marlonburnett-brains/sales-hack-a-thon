@@ -218,9 +218,9 @@ Plans:
   4. User can interact with AI chat at each HITL stage to refine the artifact before approving and advancing
 **Plans**: 3 plans
 Plans:
-- [ ] 42-01-PLAN.md — Navigation infrastructure: breadcrumbs, deal sidebar, nested layout, route placeholders
-- [ ] 42-02-PLAN.md — Overview page: deal header, status actions, metrics cards, activity timeline
-- [ ] 42-03-PLAN.md — Briefing page: AI chat panel shell, prior briefings list
+- [ ] 46-01-PLAN.md — Schema migration, shared HITL types, stepper, context provider, and preferences hook
+- [ ] 46-02-PLAN.md — Multi-stage suspend points for all touch workflows and stage transition server actions
+- [ ] 46-03-PLAN.md — Touch page shell UI, guided start, stage content display, history, and full page wiring
 
 ### Phase 47: Drive Artifact Integration
 **Goal**: Users can save generated artifacts to Google Drive with folder and sharing controls
@@ -291,5 +291,5 @@ Plans:
 | 43. Named Agent Architecture | 5/5 | Complete    | 2026-03-08 | - |
 | 44. Agent Management UI | v1.7 | 0/3 | Planned | - |
 | 45. Persistent AI Chat Bar | v1.7 | 0/TBD | Not started | - |
-| 46. Touch Pages & HITL Workflow | v1.7 | 0/TBD | Not started | - |
+| 46. Touch Pages & HITL Workflow | v1.7 | 0/3 | Planned | - |
 | 47. Drive Artifact Integration | v1.7 | 0/TBD | Not started | - |
