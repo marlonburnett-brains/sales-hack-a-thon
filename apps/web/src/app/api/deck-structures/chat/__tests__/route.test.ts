@@ -68,6 +68,26 @@ describe("Phase 38 deck chat proxy route", () => {
     expect(text).toContain("---STRUCTURE_UPDATE---");
   });
 
+  it("allows non-touch-4 requests to omit artifactType", async () => {
+    const { POST } = await import("@/app/api/deck-structures/chat/route");
+    const request = new NextRequest("http://localhost/api/deck-structures/chat", {
+      method: "POST",
+      body: JSON.stringify({ touchType: "touch_2", message: "Refine this" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://test-agent:4111/deck-structures/touch_2/chat",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ message: "Refine this" }),
+      }),
+    );
+  });
+
   it("keeps the proxy source aligned with the deployed agent route family", () => {
     const source = readFileSync(
       resolve(process.cwd(), "src/app/api/deck-structures/chat/route.ts"),
@@ -76,6 +96,8 @@ describe("Phase 38 deck chat proxy route", () => {
 
     expect(source).toMatch(/URLSearchParams/);
     expect(source).toMatch(/artifactType/);
+    expect(source).toMatch(/type ArtifactType/);
+    expect(source).toMatch(/z\.ZodType<.*ArtifactType.*>/s);
     expect(source).toMatch(/\$\{env\.AGENT_SERVICE_URL\}\/deck-structures\//);
     expect(source).not.toMatch(/\$\{env\.AGENT_SERVICE_URL\}\/api\/deck-structures\//);
   });

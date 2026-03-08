@@ -1,5 +1,8 @@
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import type { ArtifactType } from "@lumenalta/schemas";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { DeckStructureDetail } from "@/lib/api-client";
@@ -144,6 +147,21 @@ describe("ChatBar", () => {
         }),
       );
     });
+  });
+
+  it("types artifactType as the shared ArtifactType contract", () => {
+    expectTypeOf<React.ComponentProps<typeof ChatBar>["artifactType"]>().toEqualTypeOf<
+      ArtifactType | undefined
+    >();
+
+    const source = readFileSync(
+      resolve(process.cwd(), "src/components/settings/chat-bar.tsx"),
+      "utf8",
+    );
+
+    expect(source).toMatch(/import type \{ ArtifactType \} from "@lumenalta\/schemas";/);
+    expect(source).toMatch(/artifactType\?: ArtifactType;/);
+    expect(source).not.toMatch(/artifactType\?: string;/);
   });
 
   it("applies streamed structure updates from the chat response", async () => {
