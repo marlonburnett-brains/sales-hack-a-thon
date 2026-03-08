@@ -45,6 +45,10 @@ import {
 import { calculateConfidence } from "../deck-intelligence/deck-structure-schema";
 import { streamChatRefinement } from "../deck-intelligence/chat-refinement";
 import { namedMastraAgents } from "./agents";
+import {
+  compileAgentInstructions,
+  invalidateAgentPromptCache,
+} from "../lib/agent-config";
 
 const deckStructureArtifactQuerySchema = z.object({
   artifactType: z.enum(ARTIFACT_TYPES).nullable().optional(),
@@ -3044,6 +3048,500 @@ export const mastra = new Mastra({
           }
 
           return c.json({ success: true });
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Agent Config CRUD (Phase 44)
+      // ────────────────────────────────────────────────────────────
+
+      // GET /agent-configs -- List all agent configs with published version info and draft status
+      registerApiRoute("/agent-configs", {
+        method: "GET",
+        handler: async (c) => {
+          const configs = await prisma.agentConfig.findMany({
+            include: {
+              publishedVersion: true,
+              versions: { orderBy: { version: "desc" }, take: 1 },
+            },
+            orderBy: { name: "asc" },
+          });
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const result = (configs as any[]).map((cfg: any) => {
+            const latestVersion = cfg.versions[0] ?? null;
+            const hasDraft = latestVersion ? !latestVersion.isPublished : false;
+            return {
+              agentId: cfg.agentId,
+              name: cfg.name,
+              responsibility: cfg.responsibility,
+              family: cfg.family,
+              isShared: cfg.isShared,
+              publishedVersion: cfg.publishedVersion?.version ?? null,
+              hasDraft,
+              draftVersion: hasDraft ? latestVersion!.version : null,
+            };
+          });
+
+          return c.json(result);
+        },
+      }),
+
+      // GET /agent-configs/:agentId -- Get single agent config with published version and latest draft
+      registerApiRoute("/agent-configs/:agentId", {
+        method: "GET",
+        handler: async (c) => {
+          const agentId = c.req.param("agentId");
+          const config = await prisma.agentConfig.findUnique({
+            where: { agentId },
+            include: {
+              publishedVersion: true,
+              versions: { orderBy: { version: "desc" }, take: 1 },
+            },
+          });
+
+          if (!config) {
+            return c.json({ error: "Agent config not found" }, 404);
+          }
+
+          const latestVersion = config.versions[0] ?? null;
+          const hasDraft = latestVersion ? !latestVersion.isPublished : false;
+
+          return c.json({
+            agentId: config.agentId,
+            name: config.name,
+            responsibility: config.responsibility,
+            family: config.family,
+            isShared: config.isShared,
+            publishedVersion: config.publishedVersion
+              ? {
+                  id: config.publishedVersion.id,
+                  version: config.publishedVersion.version,
+                  baselinePrompt: config.publishedVersion.baselinePrompt,
+                  rolePrompt: config.publishedVersion.rolePrompt,
+                  compiledPrompt: config.publishedVersion.compiledPrompt,
+                  changeSummary: config.publishedVersion.changeSummary,
+                  publishedAt: config.publishedVersion.publishedAt,
+                  publishedBy: config.publishedVersion.publishedBy,
+                }
+              : null,
+            draft: hasDraft
+              ? {
+                  id: latestVersion!.id,
+                  version: latestVersion!.version,
+                  rolePrompt: latestVersion!.rolePrompt,
+                  createdAt: latestVersion!.createdAt,
+                }
+              : null,
+          });
+        },
+      }),
+
+      // GET /agent-configs/:agentId/versions -- List all versions for an agent
+      registerApiRoute("/agent-configs/:agentId/versions", {
+        method: "GET",
+        handler: async (c) => {
+          const agentId = c.req.param("agentId");
+          const config = await prisma.agentConfig.findUnique({
+            where: { agentId },
+          });
+          if (!config) {
+            return c.json({ error: "Agent config not found" }, 404);
+          }
+
+          const versions = await prisma.agentConfigVersion.findMany({
+            where: { agentConfigId: config.id },
+            orderBy: { version: "desc" },
+            select: {
+              id: true,
+              version: true,
+              rolePrompt: true,
+              changeSummary: true,
+              isPublished: true,
+              publishedAt: true,
+              publishedBy: true,
+              createdAt: true,
+            },
+          });
+
+          return c.json(versions);
+        },
+      }),
+
+      // POST /agent-configs/:agentId/draft -- Create a draft version
+      registerApiRoute("/agent-configs/:agentId/draft", {
+        method: "POST",
+        handler: async (c) => {
+          const agentId = c.req.param("agentId");
+          const body = await c.req.json();
+          const data = z
+            .object({
+              rolePrompt: z.string().min(1),
+              userId: z.string().optional(),
+              expectedVersion: z.number().optional(),
+            })
+            .parse(body);
+
+          const config = await prisma.agentConfig.findUnique({
+            where: { agentId },
+            include: { publishedVersion: true },
+          });
+          if (!config) {
+            return c.json({ error: "Agent config not found" }, 404);
+          }
+
+          // Optimistic locking check
+          const lastVersion = await prisma.agentConfigVersion.findFirst({
+            where: { agentConfigId: config.id },
+            orderBy: { version: "desc" },
+          });
+          const currentVersion = lastVersion?.version ?? 0;
+
+          if (
+            data.expectedVersion !== undefined &&
+            data.expectedVersion !== currentVersion
+          ) {
+            return c.json(
+              {
+                error: "Version conflict",
+                currentVersion,
+                expectedVersion: data.expectedVersion,
+              },
+              409,
+            );
+          }
+
+          const nextVersion = currentVersion + 1;
+          const baseline =
+            config.publishedVersion?.baselinePrompt ?? "";
+          const compiled = compileAgentInstructions(
+            baseline,
+            data.rolePrompt,
+          );
+
+          const draft = await prisma.agentConfigVersion.create({
+            data: {
+              agentConfigId: config.id,
+              version: nextVersion,
+              baselinePrompt: baseline,
+              rolePrompt: data.rolePrompt,
+              compiledPrompt: compiled.compiledPrompt,
+              isPublished: false,
+            },
+          });
+
+          return c.json(draft);
+        },
+      }),
+
+      // POST /agent-configs/:agentId/publish -- Publish the latest draft
+      registerApiRoute("/agent-configs/:agentId/publish", {
+        method: "POST",
+        handler: async (c) => {
+          const agentId = c.req.param("agentId");
+          const body = await c.req.json();
+          const data = z
+            .object({
+              changeSummary: z.string().optional(),
+              userId: z.string().optional(),
+            })
+            .parse(body);
+
+          const config = await prisma.agentConfig.findUnique({
+            where: { agentId },
+          });
+          if (!config) {
+            return c.json({ error: "Agent config not found" }, 404);
+          }
+
+          const latestDraft = await prisma.agentConfigVersion.findFirst({
+            where: { agentConfigId: config.id, isPublished: false },
+            orderBy: { version: "desc" },
+          });
+          if (!latestDraft) {
+            return c.json({ error: "No unpublished draft found" }, 404);
+          }
+
+          await prisma.agentConfigVersion.update({
+            where: { id: latestDraft.id },
+            data: {
+              isPublished: true,
+              publishedAt: new Date(),
+              publishedBy: data.userId ?? null,
+              changeSummary: data.changeSummary ?? null,
+            },
+          });
+
+          await prisma.agentConfig.update({
+            where: { id: config.id },
+            data: { publishedVersionId: latestDraft.id },
+          });
+
+          invalidateAgentPromptCache({ agentId });
+
+          const updated = await prisma.agentConfig.findUnique({
+            where: { agentId },
+            include: { publishedVersion: true },
+          });
+
+          return c.json(updated);
+        },
+      }),
+
+      // POST /agent-configs/:agentId/discard -- Discard the latest draft
+      registerApiRoute("/agent-configs/:agentId/discard", {
+        method: "POST",
+        handler: async (c) => {
+          const agentId = c.req.param("agentId");
+          const config = await prisma.agentConfig.findUnique({
+            where: { agentId },
+          });
+          if (!config) {
+            return c.json({ error: "Agent config not found" }, 404);
+          }
+
+          const latestDraft = await prisma.agentConfigVersion.findFirst({
+            where: { agentConfigId: config.id, isPublished: false },
+            orderBy: { version: "desc" },
+          });
+          if (!latestDraft) {
+            return c.json({ error: "No unpublished draft found" }, 404);
+          }
+
+          await prisma.agentConfigVersion.delete({
+            where: { id: latestDraft.id },
+          });
+
+          return c.json({ success: true });
+        },
+      }),
+
+      // POST /agent-configs/:agentId/rollback -- Rollback to a specific version
+      registerApiRoute("/agent-configs/:agentId/rollback", {
+        method: "POST",
+        handler: async (c) => {
+          const agentId = c.req.param("agentId");
+          const body = await c.req.json();
+          const data = z
+            .object({
+              targetVersion: z.number().int().min(1),
+              userId: z.string().optional(),
+            })
+            .parse(body);
+
+          const config = await prisma.agentConfig.findUnique({
+            where: { agentId },
+            include: { publishedVersion: true },
+          });
+          if (!config) {
+            return c.json({ error: "Agent config not found" }, 404);
+          }
+
+          const targetVersionRecord =
+            await prisma.agentConfigVersion.findFirst({
+              where: {
+                agentConfigId: config.id,
+                version: data.targetVersion,
+              },
+            });
+          if (!targetVersionRecord) {
+            return c.json({ error: "Target version not found" }, 404);
+          }
+
+          // Use current published baseline, not the old one
+          const currentBaseline =
+            config.publishedVersion?.baselinePrompt ?? "";
+          const compiled = compileAgentInstructions(
+            currentBaseline,
+            targetVersionRecord.rolePrompt,
+          );
+
+          const lastVersion = await prisma.agentConfigVersion.findFirst({
+            where: { agentConfigId: config.id },
+            orderBy: { version: "desc" },
+          });
+          const nextVersion = (lastVersion?.version ?? 0) + 1;
+
+          const newVersion = await prisma.agentConfigVersion.create({
+            data: {
+              agentConfigId: config.id,
+              version: nextVersion,
+              baselinePrompt: currentBaseline,
+              rolePrompt: targetVersionRecord.rolePrompt,
+              compiledPrompt: compiled.compiledPrompt,
+              changeSummary: `Rollback to v${data.targetVersion}`,
+              isPublished: true,
+              publishedAt: new Date(),
+              publishedBy: data.userId ?? null,
+            },
+          });
+
+          await prisma.agentConfig.update({
+            where: { id: config.id },
+            data: { publishedVersionId: newVersion.id },
+          });
+
+          invalidateAgentPromptCache({ agentId });
+
+          return c.json(newVersion);
+        },
+      }),
+
+      // POST /agent-configs/baseline/draft -- Save a baseline draft
+      registerApiRoute("/agent-configs/baseline/draft", {
+        method: "POST",
+        handler: async (c) => {
+          const body = await c.req.json();
+          const data = z
+            .object({
+              baselinePrompt: z.string().min(1),
+              userId: z.string().optional(),
+            })
+            .parse(body);
+
+          // Ensure shared-baseline config exists
+          let config = await prisma.agentConfig.findUnique({
+            where: { agentId: "shared-baseline" },
+          });
+          if (!config) {
+            config = await prisma.agentConfig.create({
+              data: {
+                agentId: "shared-baseline",
+                name: "Shared Baseline",
+                responsibility: "Global baseline prompt prepended to all agents",
+                family: "validation",
+                isShared: true,
+                touchTypes: "[]",
+                status: "active",
+              },
+            });
+          }
+
+          const lastVersion = await prisma.agentConfigVersion.findFirst({
+            where: { agentConfigId: config.id },
+            orderBy: { version: "desc" },
+          });
+          const nextVersion = (lastVersion?.version ?? 0) + 1;
+
+          const draft = await prisma.agentConfigVersion.create({
+            data: {
+              agentConfigId: config.id,
+              version: nextVersion,
+              baselinePrompt: data.baselinePrompt,
+              rolePrompt: data.baselinePrompt,
+              compiledPrompt: data.baselinePrompt,
+              isPublished: false,
+            },
+          });
+
+          return c.json(draft);
+        },
+      }),
+
+      // POST /agent-configs/baseline/publish -- Publish baseline and recompile all agents
+      registerApiRoute("/agent-configs/baseline/publish", {
+        method: "POST",
+        handler: async (c) => {
+          const body = await c.req.json();
+          const data = z
+            .object({
+              changeSummary: z.string().optional(),
+              userId: z.string().optional(),
+            })
+            .parse(body);
+
+          const baselineConfig = await prisma.agentConfig.findUnique({
+            where: { agentId: "shared-baseline" },
+          });
+          if (!baselineConfig) {
+            return c.json(
+              { error: "No shared-baseline config found. Save a baseline draft first." },
+              404,
+            );
+          }
+
+          const latestBaselineDraft =
+            await prisma.agentConfigVersion.findFirst({
+              where: {
+                agentConfigId: baselineConfig.id,
+                isPublished: false,
+              },
+              orderBy: { version: "desc" },
+            });
+          if (!latestBaselineDraft) {
+            return c.json(
+              { error: "No unpublished baseline draft found" },
+              404,
+            );
+          }
+
+          const newBaseline = latestBaselineDraft.baselinePrompt;
+
+          // Publish the baseline draft itself
+          await prisma.agentConfigVersion.update({
+            where: { id: latestBaselineDraft.id },
+            data: {
+              isPublished: true,
+              publishedAt: new Date(),
+              publishedBy: data.userId ?? null,
+              changeSummary: data.changeSummary ?? "Baseline updated",
+            },
+          });
+          await prisma.agentConfig.update({
+            where: { id: baselineConfig.id },
+            data: { publishedVersionId: latestBaselineDraft.id },
+          });
+
+          // Recompile all agent configs that have a published version
+          const allConfigs = await prisma.agentConfig.findMany({
+            where: {
+              agentId: { not: "shared-baseline" },
+              publishedVersionId: { not: null },
+            },
+            include: { publishedVersion: true },
+          });
+
+          let agentsUpdated = 0;
+          for (const cfg of allConfigs) {
+            if (!cfg.publishedVersion) continue;
+
+            const lastVer = await prisma.agentConfigVersion.findFirst({
+              where: { agentConfigId: cfg.id },
+              orderBy: { version: "desc" },
+            });
+            const nextVer = (lastVer?.version ?? 0) + 1;
+
+            const compiled = compileAgentInstructions(
+              newBaseline,
+              cfg.publishedVersion.rolePrompt,
+            );
+
+            const newVer = await prisma.agentConfigVersion.create({
+              data: {
+                agentConfigId: cfg.id,
+                version: nextVer,
+                baselinePrompt: newBaseline,
+                rolePrompt: cfg.publishedVersion.rolePrompt,
+                compiledPrompt: compiled.compiledPrompt,
+                changeSummary: `Baseline updated: ${data.changeSummary ?? ""}`.trim(),
+                isPublished: true,
+                publishedAt: new Date(),
+                publishedBy: data.userId ?? null,
+              },
+            });
+
+            await prisma.agentConfig.update({
+              where: { id: cfg.id },
+              data: { publishedVersionId: newVer.id },
+            });
+
+            agentsUpdated++;
+          }
+
+          // Clear entire prompt cache
+          invalidateAgentPromptCache();
+
+          return c.json({ agentsUpdated });
         },
       }),
     ],
