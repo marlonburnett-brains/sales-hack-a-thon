@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 43-02-PLAN.md
-last_updated: "2026-03-08T19:59:39.184Z"
-last_activity: 2026-03-08 - Completed 43-02 (Prisma-backed prompt resolver, version-safe cache, and Mastra registry)
+stopped_at: Completed 43-03-PLAN.md
+last_updated: "2026-03-08T20:18:06.195Z"
+last_activity: 2026-03-08 - Completed 43-03 (seller workflows and shared helpers now run through named agents with pinned prompt versions)
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 8
-  completed_plans: 5
+  total_plans: 11
+  completed_plans: 6
   percent: 83
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 43 of 47 (Named Agent Architecture)
-Plan: 2 of 5 in current phase (completed)
+Plan: 3 of 5 in current phase (completed)
 Status: Executing
-Last activity: 2026-03-08 - Completed 43-02 (Prisma-backed prompt resolver, version-safe cache, and Mastra registry)
+Last activity: 2026-03-08 - Completed 43-03 (seller workflows and shared helpers now run through named agents with pinned prompt versions)
 
 Progress: [████████░░] 83%
 
@@ -55,6 +55,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 43]: Used a focused forward-only SQL migration for AgentConfig models because prisma migrate dev was blocked by existing shared-db drift and reset flows are forbidden.
 - [Phase 43]: Runtime prompt resolution now composes baseline and role layers from Prisma-published versions and caches by immutable version id rather than by agent id.
 - [Phase 43]: The shared Mastra named-agent registry and helper execution seam both return prompt version metadata so long-running workflows can pin exact published prompts.
+- [Phase 43]: Named agent execution now injects the resolved compiled prompt at call time so workflows can pin immutable version ids without changing caller schemas.
+- [Phase 43]: Touch 2/3 slide selection stays under one shared deck-slide-selector family, while Touch 4 copy generation stays on the dedicated proposal-copywriter role.
 
 ### Pending Todos
 
@@ -67,6 +69,7 @@ None.
 | 13 | Implement UI for visualizing and deleting deck structure memories | 2026-03-08 | c35085a | [13-implement-ui-for-visualizing-and-deletin](./quick/13-implement-ui-for-visualizing-and-deletin/) |
 | Phase 43 P01 | 6 min | 2 tasks | 8 files |
 | Phase 43 P02 | 4 min | 2 tasks | 8 files |
+| Phase 43 P03 | 10 min | 2 tasks | 8 files |
 
 ### Blockers/Concerns
 
@@ -77,6 +80,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T19:59:39.181Z
-Stopped at: Completed 43-02-PLAN.md
-Next action: Execute 43-03-PLAN.md (seller-facing workflow and helper migration with version pinning) or continue parallel Phase 41 work.
+Last session: 2026-03-08T20:18:05.440Z
+Stopped at: Completed 43-03-PLAN.md
+Next action: Execute 43-04-PLAN.md (internal/background named-agent migration) or continue parallel milestone work.
