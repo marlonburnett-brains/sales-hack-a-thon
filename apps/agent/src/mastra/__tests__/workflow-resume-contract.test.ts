@@ -23,7 +23,7 @@ describe("touch 4 workflow source contract", () => {
     expect(routeSource).toMatch(/editedBrief: z\.record\(z\.string\(\), z\.unknown\(\)\)/);
     expect(routeSource).toMatch(/details: err\.issues/);
     expect(workflowSource).toMatch(
-      /const fieldSeveritySchema = z\.record\(z\.string\(\), z\.enum\(\["error", "warning", "ok"\]\)\)/,
+      /const fieldSeveritySchema = z\.record\(\s*z\.string\(\),\s*z\.enum\(\["error", "warning", "ok"\]\),\s*\)/s,
     );
   });
 });

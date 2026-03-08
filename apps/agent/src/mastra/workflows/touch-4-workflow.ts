@@ -58,7 +58,10 @@ import { env } from "../../env";
 // Shared schemas
 // ────────────────────────────────────────────────────────────
 
-const fieldSeveritySchema = z.record(z.enum(["error", "warning", "ok"]));
+const fieldSeveritySchema = z.record(
+  z.string(),
+  z.enum(["error", "warning", "ok"]),
+);
 
 // ────────────────────────────────────────────────────────────
 // Step 1: Parse Transcript via LLM

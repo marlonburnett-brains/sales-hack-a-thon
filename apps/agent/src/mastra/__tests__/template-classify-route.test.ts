@@ -21,8 +21,8 @@ describe("template classify contract", () => {
     const source = readWorkspaceFile("src/mastra/index.ts");
 
     expect(source).toMatch(/classification === "example"/);
-    expect(source).toMatch(/touchTypes\.length !== 1/);
-    expect(source).toMatch(/touchTypes\[0\] === "touch_4"/);
+    expect(source).toMatch(/exampleTouchTypes\.length !== 1/);
+    expect(source).toMatch(/exampleTouchTypes\[0\] === "touch_4"/);
     expect(source).toMatch(/artifactType is required for touch_4 examples/i);
   });
 

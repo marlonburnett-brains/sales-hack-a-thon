@@ -889,7 +889,7 @@ export const mastra = new Mastra({
             const data = z
               .object({
                 reviewerName: z.string().min(1),
-                editedBrief: z.record(z.unknown()).optional(),
+                editedBrief: z.record(z.string(), z.unknown()).optional(),
                 runId: z.string().min(1),
               })
               .parse(body);
@@ -902,9 +902,9 @@ export const mastra = new Mastra({
 
             // Resume the workflow at the await-brief-approval step
             const wf = mastra.getWorkflow("touch-4-workflow");
-            const run = wf.createRun({ runId: data.runId });
+            const run = await wf.createRun({ runId: data.runId });
             await run.resume({
-              stepId: "await-brief-approval",
+              step: "await-brief-approval",
               resumeData: {
                 decision: "approved",
                 reviewerName: data.reviewerName,
@@ -987,7 +987,7 @@ export const mastra = new Mastra({
             const body = await c.req.json();
             const data = z
               .object({
-                editedBrief: z.record(z.unknown()),
+                editedBrief: z.record(z.string(), z.unknown()),
                 reviewerName: z.string().min(1),
               })
               .parse(body);
@@ -1170,9 +1170,9 @@ export const mastra = new Mastra({
 
             // Resume the workflow at the await-asset-review step
             const wf = mastra.getWorkflow("touch-4-workflow");
-            const run = wf.createRun({ runId: data.runId });
+            const run = await wf.createRun({ runId: data.runId });
             await run.resume({
-              stepId: "await-asset-review",
+              step: "await-asset-review",
               resumeData: {
                 decision: "approved" as const,
                 reviewerName: data.reviewerName,
@@ -1406,14 +1406,17 @@ export const mastra = new Mastra({
               })
               .parse(body);
 
-            if (data.classification === "example" && !data.touchTypes) {
+            const exampleTouchTypes =
+              data.classification === "example" ? data.touchTypes ?? [] : [];
+
+            if (data.classification === "example" && exampleTouchTypes.length === 0) {
               return c.json(
                 { error: "touchTypes must be a non-empty array when classification is 'example'" },
                 400
               );
             }
 
-            if (data.classification === "example" && data.touchTypes.length !== 1) {
+            if (data.classification === "example" && exampleTouchTypes.length !== 1) {
               return c.json(
                 { error: "examples must include exactly one touch type" },
                 400,
@@ -1422,7 +1425,7 @@ export const mastra = new Mastra({
 
             if (
               data.classification === "example" &&
-              data.touchTypes[0] === "touch_4" &&
+              exampleTouchTypes[0] === "touch_4" &&
               !data.artifactType
             ) {
               return c.json(
@@ -1435,10 +1438,6 @@ export const mastra = new Mastra({
             if (!template) {
               return c.json({ error: "Template not found" }, 404);
             }
-
-            const exampleTouchTypes =
-              data.classification === "example" ? data.touchTypes ?? [] : [];
-
             const updateData: Record<string, unknown> = {
               contentClassification: data.classification,
               artifactType: null,
@@ -1461,7 +1460,7 @@ export const mastra = new Mastra({
             return c.json(updated);
           } catch (err) {
             if (err instanceof z.ZodError) {
-              return c.json({ error: "Invalid request body", details: err.errors }, 400);
+              return c.json({ error: "Invalid request body", details: err.issues }, 400);
             }
             console.error("[templates/classify] Error:", err);
             return c.json(
@@ -1833,7 +1832,7 @@ export const mastra = new Mastra({
             return c.json({ success: true, tokenId: token.id });
           } catch (err) {
             if (err instanceof z.ZodError) {
-              return c.json({ error: "Invalid request body", details: err.errors }, 400);
+              return c.json({ error: "Invalid request body", details: err.issues }, 400);
             }
             console.error("[tokens] Failed to store token:", err);
             return c.json(
