@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { NextRequest } from "next/server";
 
 vi.mock("@/env", () => ({
@@ -11,7 +13,7 @@ vi.mock("@/env", () => ({
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-describe("Phase 36 deck chat proxy route", () => {
+describe("Phase 38 deck chat proxy route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockResolvedValue({
@@ -41,7 +43,7 @@ describe("Phase 36 deck chat proxy route", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it("forwards artifactType to the agent chat route and preserves the stream", async () => {
+  it("forwards artifactType to the deployed agent chat route and preserves the stream", async () => {
     const { POST } = await import("@/app/api/deck-structures/chat/route");
     const request = new NextRequest("http://localhost/api/deck-structures/chat", {
       method: "POST",
@@ -57,12 +59,24 @@ describe("Phase 36 deck chat proxy route", () => {
     const text = await response.text();
 
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://test-agent:4111/api/deck-structures/touch_4/chat?artifactType=proposal",
+      "http://test-agent:4111/deck-structures/touch_4/chat?artifactType=proposal",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ message: "Refine this" }),
       }),
     );
     expect(text).toContain("---STRUCTURE_UPDATE---");
+  });
+
+  it("keeps the proxy source aligned with the deployed agent route family", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/app/api/deck-structures/chat/route.ts"),
+      "utf8",
+    );
+
+    expect(source).toMatch(/URLSearchParams/);
+    expect(source).toMatch(/artifactType/);
+    expect(source).toMatch(/\$\{env\.AGENT_SERVICE_URL\}\/deck-structures\//);
+    expect(source).not.toMatch(/\$\{env\.AGENT_SERVICE_URL\}\/api\/deck-structures\//);
   });
 });
