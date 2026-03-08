@@ -24,7 +24,7 @@ Requirements for Touch 4 Artifact Intelligence. Each maps to roadmap phases.
 - [x] **DECK-02**: Cron auto-inference iterates over 6 keys (Touch 1-3 + Touch 4 x3 artifact types) with per-key change detection
 - [x] **DECK-03**: Settings Touch 4 page shows tabbed view (Proposal / Talk Track / FAQ) with separate structure per tab
 - [x] **DECK-04**: Each Touch 4 artifact tab shows independent confidence scoring based on classified example count for that artifact type
-- [x] **DECK-05**: Chat refinement threads artifact type, allowing per-artifact-type conversation scoped to the correct structure
+- [ ] **DECK-05**: Chat refinement threads artifact type, allowing per-artifact-type conversation scoped to the correct structure
 
 ## Future Requirements
 
@@ -62,7 +62,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DECK-02 | Phase 36 | Complete |
 | DECK-03 | Phase 37 | Complete |
 | DECK-04 | Phase 37 | Complete |
-| DECK-05 | Phase 36 | Complete |
+| DECK-05 | Phase 38 | Pending |
 
 **Coverage:**
 - v1.6 requirements: 10 total
@@ -71,4 +71,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-07*
-*Last updated: 2026-03-07 after roadmap creation*
+*Last updated: 2026-03-08 after milestone audit gap planning*

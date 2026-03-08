@@ -145,9 +145,10 @@ Plans:
 - [x] 37-04-PLAN.md — Hydrate persisted slide-viewer artifact badges after reload
 
 ### Phase 38: Live Verification Sweep
-**Goal**: Clear remaining live-environment verification debt for Touch 4 artifact workflows
+**Goal**: Close the remaining milestone blocker by capturing post-fix production evidence for Touch 4 artifact-qualified settings chat and completing live verification closure
 **Depends on**: Phase 37
-**Requirements**: None (verification closure for v1.6)
+**Requirements**: DECK-05
+**Gap Closure**: Closes the v1.6 audit requirement, integration, and flow gaps tied to Touch 4 settings-tab chat refinement
 **Tech Debt Closure**: Backend live streaming and cron confirmation; frontend human browser confirmation for reload, settings tabs, and chat behavior
 **Success Criteria** (what must be TRUE):
   1. Live external-service streaming behavior is exercised and documented against a reachable environment
@@ -167,6 +168,7 @@ Plans:
 **Goal**: Remove artifact-type maintenance risks and align web/chat code with the shared artifact contract
 **Depends on**: Phase 38
 **Requirements**: None (maintains DECK-03, DECK-04, DECK-05, CLSF-01, CLSF-02)
+**Gap Closure**: Closes the v1.6 audit tech-debt gaps around shared `ArtifactType` typing and Touch 4 artifact-view reuse safety
 **Tech Debt Closure**: `deck-structure-view.tsx` artifact-awareness gap and broad `string` typing for `artifactType`
 **Success Criteria** (what must be TRUE):
   1. `apps/web/src/components/settings/deck-structure-view.tsx` correctly loads and preserves artifact-qualified Touch 4 details if reused
@@ -182,6 +184,7 @@ Plans:
 **Goal**: Restore a clean `agent` TypeScript baseline so v1.6 artifact work sits on a passing compile target
 **Depends on**: Phase 39
 **Requirements**: None (repo health cleanup for v1.6 closeout)
+**Gap Closure**: Closes the v1.6 audit gap for the missing agent typecheck cleanup and verification trail
 **Tech Debt Closure**: Pre-existing `pnpm --filter agent exec tsc --noEmit` failures left outside prior plan scope
 **Success Criteria** (what must be TRUE):
   1. Current `agent` TypeScript failures are inventoried and reduced to in-scope actionable fixes
