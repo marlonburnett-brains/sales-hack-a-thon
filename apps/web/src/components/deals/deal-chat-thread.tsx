@@ -93,10 +93,12 @@ export function DealChatThread({ dealId, routeContext, initialMessages, greeting
             ...message,
             meta: {
               ...meta,
-              binding: {
-                ...meta.binding,
-                status: "confirmed",
-              },
+              binding: meta.binding
+                ? {
+                    ...meta.binding,
+                    status: "confirmed",
+                  }
+                : null,
               confirmationChips: [...meta.confirmationChips, confirmationChip],
             },
           };

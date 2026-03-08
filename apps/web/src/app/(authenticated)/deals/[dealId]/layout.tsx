@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { PersistentDealChat } from "@/components/deals/persistent-deal-chat";
 import { getDealAction } from "@/lib/actions/deal-actions";
 import { DealSidebar } from "@/components/deals/deal-sidebar";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -31,10 +32,11 @@ export default async function DealLayout({
             ]}
           />
         </div>
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 pb-32">
           {children}
         </div>
       </div>
+      <PersistentDealChat dealId={dealId} />
     </div>
   );
 }
