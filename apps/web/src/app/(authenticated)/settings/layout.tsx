@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, ChevronRight, Layers, Plug } from "lucide-react";
+import { Bot, ChevronRight, HardDrive, Layers, Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TOUCH_TYPE_ITEMS = [
@@ -80,6 +80,20 @@ export default function SettingsLayout({
             >
               <Plug className="h-4 w-4 shrink-0" />
               <span>Integrations</span>
+            </Link>
+
+            {/* Drive */}
+            <Link
+              href="/settings/drive"
+              className={cn(
+                "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                pathname.startsWith("/settings/drive")
+                  ? "bg-slate-100 font-medium text-slate-900"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+              )}
+            >
+              <HardDrive className="h-4 w-4 shrink-0" />
+              <span>Drive</span>
             </Link>
 
             {/* Agents */}

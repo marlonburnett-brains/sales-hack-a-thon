@@ -80,6 +80,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@googleworkspace/drive-picker-react':
+        specifier: ^0.2.0
+        version: 0.2.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.71.2(react@19.2.4))
@@ -898,6 +901,15 @@ packages:
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
         optional: true
+
+  '@googleworkspace/drive-picker-element@0.7.3':
+    resolution: {integrity: sha512-z1hZh1HsPAQ19lencw2x3FcUVoymWYexcWgq66iXum4mUfWWaQ37oGtQ6hGvM8dyrC81G79P26gq7HhRtbGb2Q==}
+
+  '@googleworkspace/drive-picker-react@0.2.0':
+    resolution: {integrity: sha512-3CIEZ7U+HDKd8UoXG3l/fPSZFhxajC3MYNIqAZQSba2totuYKVTQMOJsgonO7OnnJq88YD35n7whCF4i5QUyvA==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
 
   '@hono/node-server@1.19.10':
     resolution: {integrity: sha512-hZ7nOssGqRgyV3FVVQdfi+U4q02uB23bpnYpdvNXkYTRRyWx84b7yf1ans+dnJ/7h41sGL3CeQTfO+ZGxuO+Iw==}
@@ -5445,6 +5457,14 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  '@googleworkspace/drive-picker-element@0.7.3': {}
+
+  '@googleworkspace/drive-picker-react@0.2.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@googleworkspace/drive-picker-element': 0.7.3
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
 
   '@hono/node-server@1.19.10(hono@4.12.4)':
     dependencies:

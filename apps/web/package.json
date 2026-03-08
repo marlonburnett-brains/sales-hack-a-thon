@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@googleworkspace/drive-picker-react": "^0.2.0",
     "@hookform/resolvers": "^5.2.2",
     "@lumenalta/schemas": "workspace:*",
     "@radix-ui/react-accordion": "^1.2.12",
