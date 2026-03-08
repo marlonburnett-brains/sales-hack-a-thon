@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Phase 47 context gathered
-last_updated: "2026-03-08T22:56:40.998Z"
-last_activity: 2026-03-08 - Completed 45-01 (deal chat contracts and governed named-agent identity)
+stopped_at: Completed 45-04-PLAN.md
+last_updated: "2026-03-08T23:05:03.341Z"
+last_activity: 2026-03-08 - Completed 45-04 (persistent deal chat storage and binding heuristics)
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 22
-  completed_plans: 18
-  percent: 82
+  total_plans: 39
+  completed_plans: 35
+  percent: 90
 ---
 
 # Project State
@@ -26,16 +26,16 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 45 of 47 (Persistent AI Chat Bar)
-Plan: 2 of 5 in current phase (next)
+Plan: 3 of 5 in current phase (next)
 Status: Executing
-Last activity: 2026-03-08 - Completed 45-01 (deal chat contracts and governed named-agent identity)
+Last activity: 2026-03-08 - Completed 45-04 (persistent deal chat storage and binding heuristics)
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 93 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 20)
+- Total plans completed: 94 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 20)
 - Total project time: ~6 days (2026-03-03 -> 2026-03-08)
 - Total LOC: ~50,876 TypeScript/TSX/Prisma
 
@@ -74,6 +74,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 46]: Touch page split into server+client components for data fetching and interactive HITL state management
 - [Phase 45]: Phase 45 starts from one shared deal-chat schema surface so downstream storage, route, and UI plans import canonical request and metadata contracts.
 - [Phase 45]: Deal chat uses one governed deal-chat-assistant orchestrator identity instead of per-page or transcript-cleanup prompt agents.
+- [Phase 45]: Used a forward-only manual SQL migration for deal chat because prisma migrate dev --create-only was blocked by shared-db drift and reset flows are forbidden.
+- [Phase 45]: Deal chat keeps full persisted message history while prompt compaction lives separately on DealChatThread.promptSummary.
 
 ### Pending Todos
 
@@ -99,6 +101,7 @@ None.
 | Phase 46 P02 | 13min | 2 tasks | 6 files |
 | Phase 46 P03 | 5min | 2 tasks | 8 files |
 | Phase 45 P01 | 1 min | 1 tasks | 6 files |
+| Phase 45 P04 | 8 min | 2 tasks | 6 files |
 
 ### Blockers/Concerns
 
@@ -109,6 +112,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T22:56:40.994Z
-Stopped at: Phase 47 context gathered
+Last session: 2026-03-08T23:05:03.338Z
+Stopped at: Completed 45-04-PLAN.md
 Next action: Execute 45-02-PLAN.md for the deal-chat orchestrator and route wiring.
