@@ -61,8 +61,8 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 
 ### Agent Architecture
 
-- [ ] **AGENT-01**: All LLM interactions are formalized as named agents with dedicated system prompts
-- [ ] **AGENT-02**: Each agent has a clear responsibility boundary and cached system prompt support
+- [x] **AGENT-01**: All LLM interactions are formalized as named agents with dedicated system prompts
+- [x] **AGENT-02**: Each agent has a clear responsibility boundary and cached system prompt support
 
 ### Agent Management
 
@@ -141,8 +141,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DRIVE-01 | Phase 47 | Pending |
 | DRIVE-02 | Phase 47 | Pending |
 | DRIVE-03 | Phase 47 | Pending |
-| AGENT-01 | Phase 43 | Pending |
-| AGENT-02 | Phase 43 | Pending |
+| AGENT-01 | Phase 43 | Complete |
+| AGENT-02 | Phase 43 | Complete |
 | MGMT-01 | Phase 44 | Pending |
 | MGMT-02 | Phase 44 | Pending |
 | MGMT-03 | Phase 44 | Pending |

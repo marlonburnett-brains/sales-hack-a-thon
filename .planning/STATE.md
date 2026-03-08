@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 41-03-PLAN.md
-last_updated: "2026-03-08T19:46:31.761Z"
-last_activity: 2026-03-08 - Completed 41-03 (Deal interaction controls - status, assignment, filtering)
+stopped_at: Completed 43-01-PLAN.md
+last_updated: "2026-03-08T19:46:51.737Z"
+last_activity: 2026-03-08 - Completed 43-01 (Named agent catalog, prompt models, and seed defaults)
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 8
-  completed_plans: 4
-  percent: 75
+  total_plans: 24
+  completed_plans: 20
+  percent: 83
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.7 Deals & HITL Pipeline -- Phase 41 (Deal Pipeline Page) executing
+**Current focus:** v1.7 Deals & HITL Pipeline -- Phases 41 and 43 executing in parallel
 
 ## Current Position
 
-Phase: 41 of 47 (Deal Pipeline Page)
-Plan: 3 of 4 in current phase (completed)
+Phase: 43 of 47 (Named Agent Architecture)
+Plan: 1 of 5 in current phase (completed)
 Status: Executing
-Last activity: 2026-03-08 - Completed 41-03 (Deal interaction controls - status, assignment, filtering)
+Last activity: 2026-03-08 - Completed 43-01 (Named agent catalog, prompt models, and seed defaults)
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
@@ -50,6 +50,9 @@ All decisions logged in PROJECT.md Key Decisions table.
 - 41-01: Collaborators stored as JSON string field, parsed client-side
 - 41-01: Known users derived from UserGoogleToken with email-to-name heuristic
 - [Phase 41]: Filter state stored in URL params (status, assignee, view) for shareability and refresh persistence
+- [Phase 43]: Named-agent roster now covers all prompt-bearing workflow, ingestion, deck-intelligence, extraction, and validation responsibilities as first-class agents.
+- [Phase 43]: AgentConfig is the stable identity row and AgentConfigVersion stores immutable baselinePrompt, rolePrompt, compiledPrompt, and the publishedVersion pointer.
+- [Phase 43]: Used a focused forward-only SQL migration for AgentConfig models because prisma migrate dev was blocked by existing shared-db drift and reset flows are forbidden.
 
 ### Pending Todos
 
@@ -60,6 +63,7 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 13 | Implement UI for visualizing and deleting deck structure memories | 2026-03-08 | c35085a | [13-implement-ui-for-visualizing-and-deletin](./quick/13-implement-ui-for-visualizing-and-deletin/) |
+| Phase 43 P01 | 6 min | 2 tasks | 8 files |
 
 ### Blockers/Concerns
 
@@ -70,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T19:43:27.000Z
-Stopped at: Completed 41-03-PLAN.md
-Next action: Execute 41-04-PLAN.md (Kanban board view) or continue Phase 43.
+Last session: 2026-03-08T19:46:51.734Z
+Stopped at: Completed 43-01-PLAN.md
+Next action: Execute 43-02-PLAN.md (Prisma-backed prompt resolver and cache) or continue parallel Phase 41 work.
