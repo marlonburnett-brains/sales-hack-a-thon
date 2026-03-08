@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 47 of 47 (Drive Artifact Integration)
-Plan: 3 of 5 in current phase (next)
+Plan: 4 of 5 in current phase (next)
 Status: Executing
-Last activity: 2026-03-08 - Completed 47-02 (Drive settings UI with Google Picker folder selector)
+Last activity: 2026-03-08 - Completed 47-03 (Workflow migration: user-rooted Drive folders, org sharing, archive-on-regen, Drive status badge)
 
 Progress: [██████████] 95%
 
@@ -79,6 +79,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 47]: Used manual migration + resolve --applied for UserSetting due to existing DB drift
 - [Phase 47]: OAuth scope upgraded to full drive (not drive.readonly) for folder creation and permission management
 - [Phase 47]: makePubliclyViewable kept as deprecated export until Plan 03 migrates all call sites
+- [Phase 47]: Ingestion calls keep env.GOOGLE_DRIVE_FOLDER_ID for content library access; only workflow parent folder resolution uses resolveRootFolderId
+- [Phase 47]: Archive-on-regeneration is non-blocking (try/catch) to avoid failing workflows on archive errors
 - [Phase 47]: Access token fetched via agent proxy route instead of stale Supabase provider_token (research pitfall #6)
 - [Phase 47]: UserSetting CRUD uses dedicated agent API routes rather than direct Prisma from web app
 - [Phase 45]: Kept one governed deal-chat-assistant orchestration entrypoint that loads explicit deal grounding while route handlers stay thin and persist only messages plus confirmed bindings.
@@ -120,6 +122,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T23:24:25Z
-Stopped at: Completed 47-02-PLAN.md
+Last session: 2026-03-08T23:28:00Z
+Stopped at: Completed 47-03-PLAN.md
+Next action: Execute 47-04-PLAN.md for Drive picker integration.
 Next action: Execute 47-03-PLAN.md for workflow migration.
