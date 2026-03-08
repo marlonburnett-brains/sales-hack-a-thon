@@ -144,4 +144,73 @@ describe("ChatBar", () => {
       );
     });
   });
+
+  it("applies streamed structure updates from the chat response", async () => {
+    const user = userEvent.setup();
+    const onStructureUpdate = vi.fn();
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              "I'll add that section.\n---STRUCTURE_UPDATE---\n" +
+                JSON.stringify({
+                  updatedStructure: {
+                    sections: [
+                      {
+                        order: 1,
+                        name: "Title Slide",
+                        purpose: "Open the presentation.",
+                        isOptional: false,
+                        variationCount: 2,
+                        slideIds: ["title-1"],
+                      },
+                      {
+                        order: 2,
+                        name: "Introduction",
+                        purpose: "Orient the audience before the divider slides.",
+                        isOptional: false,
+                        variationCount: 0,
+                        slideIds: [],
+                      },
+                    ],
+                    sequenceRationale:
+                      "Lead with the title, then add a short introduction before the main body.",
+                  },
+                  diff: {
+                    added: ["Introduction"],
+                    modified: [],
+                  },
+                }),
+            ),
+          );
+          controller.close();
+        },
+      }),
+    });
+
+    render(
+      <ChatBar
+        touchType="touch_4"
+        artifactType="proposal"
+        onStructureUpdate={onStructureUpdate}
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/chat message input/i), "Add an intro section");
+    await user.click(screen.getByRole("button", { name: /send message/i }));
+
+    await waitFor(() => {
+      expect(onStructureUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sections: expect.arrayContaining([
+            expect.objectContaining({ name: "Introduction", order: 2 }),
+          ]),
+        }),
+        expect.objectContaining({ added: ["Introduction"], modified: [] }),
+      );
+    });
+  });
 });
