@@ -32,8 +32,8 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 
 ### Deal Briefing
 
-- [ ] **BRIEF-01**: User can view consolidated pre-call briefing, research data, and meeting notes on a single briefing page
-- [ ] **BRIEF-02**: All prep/context material for the deal is accessible from the briefing page
+- [x] **BRIEF-01**: User can view consolidated pre-call briefing, research data, and meeting notes on a single briefing page
+- [x] **BRIEF-02**: All prep/context material for the deal is accessible from the briefing page
 
 ### AI Chat
 
@@ -124,8 +124,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OVER-02 | Phase 42 | Complete |
 | OVER-03 | Phase 42 | Complete |
 | OVER-04 | Phase 42 | Complete |
-| BRIEF-01 | Phase 42 | Pending |
-| BRIEF-02 | Phase 42 | Pending |
+| BRIEF-01 | Phase 42 | Complete |
+| BRIEF-02 | Phase 42 | Complete |
 | CHAT-01 | Phase 45 | Pending |
 | CHAT-02 | Phase 45 | Pending |
 | CHAT-03 | Phase 45 | Pending |
