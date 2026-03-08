@@ -511,3 +511,20 @@ model ActionRequired {
   @@index([userId])
   @@index([actionType])
 }
+
+// ────────────────────────────────────────────────────────────
+// Phase 47: User-level settings (key-value store)
+// Stores per-user preferences like Drive root folder overrides
+// ────────────────────────────────────────────────────────────
+
+model UserSetting {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String   // "drive_root_folder_id", "drive_root_folder_name"
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, key])
+  @@index([userId])
+}
