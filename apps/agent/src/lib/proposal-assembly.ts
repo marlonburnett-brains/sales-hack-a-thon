@@ -10,7 +10,6 @@
  * Called from workflow steps in the Touch 4 proposal workflow.
  */
 
-import { GoogleGenAI } from "@google/genai";
 import {
   SlideMetadataSchema,
   zodToLlmJsonSchema,
@@ -22,8 +21,8 @@ import type {
   SlideAssembly,
   ProposalCopy,
 } from "@lumenalta/schemas";
+import { executeNamedAgent } from "./agent-executor";
 import type { SlideSearchResult } from "./atlusai-search";
-import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
 // filterByMetadata
@@ -289,8 +288,6 @@ export async function generateSlideCopy(params: {
     };
   }
 
-  const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
-
   const brandVoice =
     brandGuidelines ||
     "Lumenalta brand voice: Professional, outcome-focused, concise. Avoid jargon. Lead with business outcomes. Use active voice. Be specific with metrics and results.";
@@ -321,15 +318,15 @@ export async function generateSlideCopy(params: {
 
   const responseSchema = zodToLlmJsonSchema(ProposalCopyLlmSchema);
 
-  const response = await ai.models.generateContent({
-    model: "openai/gpt-oss-120b-maas",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: responseSchema,
+  const response = await executeNamedAgent<ProposalCopy>({
+    agentId: "proposal-copywriter",
+    messages: [{ role: "user", content: prompt }],
+    options: {
+      structuredOutput: {
+        schema: responseSchema,
+      },
     },
   });
 
-  const text = response.text ?? "{}";
-  return ProposalCopyLlmSchema.parse(JSON.parse(text));
+  return ProposalCopyLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 }

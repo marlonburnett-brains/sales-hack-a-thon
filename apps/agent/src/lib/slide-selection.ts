@@ -15,7 +15,6 @@
  *   4. Return selected slide IDs, ordering, and personalization notes
  */
 
-import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import {
   zodToLlmJsonSchema,
@@ -26,9 +25,9 @@ import type {
   IntroDeckSelection,
   CapabilityDeckSelection,
 } from "@lumenalta/schemas";
+import { executeNamedAgent } from "./agent-executor";
 import { searchSlides, searchByCapability } from "./atlusai-search";
 import type { SlideSearchResult } from "./atlusai-search";
-import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -225,19 +224,10 @@ export async function selectSlidesForDeck(
     };
   }
 
-  // Step 2: Build prompt and call LLM via Vertex AI
-  if (!env.GOOGLE_CLOUD_PROJECT) {
-    throw new Error(
-      "GOOGLE_CLOUD_PROJECT is not set. Required for AI-driven slide selection."
-    );
-  }
-
-  const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
-
   if (params.touchType === "touch_2") {
-    return selectForTouch2(ai, params, candidates);
+    return selectForTouch2(params, candidates);
   } else {
-    return selectForTouch3(ai, params, candidates);
+    return selectForTouch3(params, candidates);
   }
 }
 
@@ -245,25 +235,24 @@ export async function selectSlidesForDeck(
  * Touch 2: Intro deck slide selection via LLM + IntroDeckSelectionLlmSchema
  */
 async function selectForTouch2(
-  ai: GoogleGenAI,
   params: SlideSelectionParams,
   candidates: SlideSearchResult[]
 ): Promise<SlideSelectionResult> {
   const prompt = buildTouch2Prompt(params, candidates);
   const responseSchema = zodToLlmJsonSchema(IntroDeckSelectionLlmSchema);
 
-  const response = await ai.models.generateContent({
-    model: "openai/gpt-oss-120b-maas",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: responseSchema,
+  const response = await executeNamedAgent<IntroDeckSelection>({
+    agentId: "deck-slide-selector",
+    messages: [{ role: "user", content: prompt }],
+    options: {
+      structuredOutput: {
+        schema: responseSchema,
+      },
     },
   });
 
-  const text = response.text ?? "{}";
   const parsed: IntroDeckSelection = IntroDeckSelectionLlmSchema.parse(
-    JSON.parse(text)
+    response.object ?? JSON.parse(response.text ?? "{}")
   );
 
   return {
@@ -278,25 +267,24 @@ async function selectForTouch2(
  * Touch 3: Capability deck slide selection via LLM + CapabilityDeckSelectionLlmSchema
  */
 async function selectForTouch3(
-  ai: GoogleGenAI,
   params: SlideSelectionParams,
   candidates: SlideSearchResult[]
 ): Promise<SlideSelectionResult> {
   const prompt = buildTouch3Prompt(params, candidates);
   const responseSchema = zodToLlmJsonSchema(CapabilityDeckSelectionLlmSchema);
 
-  const response = await ai.models.generateContent({
-    model: "openai/gpt-oss-120b-maas",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: responseSchema,
+  const response = await executeNamedAgent<CapabilityDeckSelection>({
+    agentId: "deck-slide-selector",
+    messages: [{ role: "user", content: prompt }],
+    options: {
+      structuredOutput: {
+        schema: responseSchema,
+      },
     },
   });
 
-  const text = response.text ?? "{}";
   const parsed: CapabilityDeckSelection =
-    CapabilityDeckSelectionLlmSchema.parse(JSON.parse(text));
+    CapabilityDeckSelectionLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 
   return {
     selectedSlideIds: parsed.selectedSlideIds,

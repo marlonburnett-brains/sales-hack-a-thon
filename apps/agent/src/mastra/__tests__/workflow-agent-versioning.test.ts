@@ -26,4 +26,19 @@ describe("workflow named-agent version pinning", () => {
     expect(source).toMatch(/agentId:\s*"buyer-faq-strategist"[\s\S]*pinnedVersionId:\s*inputData\.agentVersions\.buyerFaqStrategist/s);
   });
 
+  it("routes shared workflow helpers through named agent families without inline prompt ownership", () => {
+    const slideSelectionSource = readWorkspaceFile("src/lib/slide-selection.ts");
+    const proposalAssemblySource = readWorkspaceFile("src/lib/proposal-assembly.ts");
+
+    expect(slideSelectionSource).toMatch(/agentId:\s*"deck-slide-selector"/);
+    expect(slideSelectionSource).toMatch(/executeNamedAgent/);
+    expect(slideSelectionSource).not.toMatch(/new GoogleGenAI/);
+    expect(slideSelectionSource).not.toMatch(/ai\.models\.generateContent\(/);
+
+    expect(proposalAssemblySource).toMatch(/agentId:\s*"proposal-copywriter"/);
+    expect(proposalAssemblySource).toMatch(/executeNamedAgent/);
+    expect(proposalAssemblySource).not.toMatch(/new GoogleGenAI/);
+    expect(proposalAssemblySource).not.toMatch(/ai\.models\.generateContent\(/);
+  });
+
 });
