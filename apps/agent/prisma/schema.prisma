@@ -96,6 +96,8 @@ model Deal {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   interactions     InteractionRecord[]
+  chatThread       DealChatThread?
+  contextSources   DealContextSource[]
 
   @@index([companyId])
   @@index([status])
@@ -120,8 +122,58 @@ model InteractionRecord {
   feedbackSignals  FeedbackSignal[]
   transcript       Transcript?       // 1:1 optional (only for touch_4)
   brief            Brief?            // 1:1 optional (only for touch_4)
+  contextSources   DealContextSource[]
 
   @@index([dealId])
+  @@index([touchType])
+}
+
+model DealChatThread {
+  id            String            @id @default(cuid())
+  dealId        String            @unique
+  deal          Deal              @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  promptSummary String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  messages      DealChatMessage[]
+}
+
+model DealChatMessage {
+  id               String         @id @default(cuid())
+  threadId         String
+  thread           DealChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role             String
+  content          String
+  routeSection     String
+  routeTouchType   String?
+  routePathname    String
+  routePageLabel   String
+  metaJson         String?
+  createdAt        DateTime       @default(now())
+
+  @@index([threadId, createdAt])
+  @@index([routeSection])
+}
+
+model DealContextSource {
+  id              String             @id @default(cuid())
+  dealId          String
+  deal            Deal               @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  sourceType      String
+  touchType       String?
+  interactionId   String?
+  interaction     InteractionRecord? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+  originPage      String
+  rawText         String
+  refinedText     String?
+  status          String             @default("pending_confirmation")
+  bindingMetaJson String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([dealId, createdAt])
+  @@index([interactionId])
+  @@index([sourceType, status])
   @@index([touchType])
 }
 
