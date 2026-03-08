@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
-status: planning
-stopped_at: Phase 41 context gathered
-last_updated: "2026-03-08T19:08:53.550Z"
-last_activity: 2026-03-08 - Completed quick task 13: Implement UI for visualizing and deleting deck structure memories
+status: executing
+stopped_at: Completed 41-01-PLAN.md
+last_updated: "2026-03-08T19:29:22Z"
+last_activity: 2026-03-08 - Completed 41-01 (Deal pipeline schema, API endpoints, web client)
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 4
+  completed_plans: 1
+  percent: 14
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.7 Deals & HITL Pipeline -- Phase 41 (Deal Pipeline Page) ready to plan
+**Current focus:** v1.7 Deals & HITL Pipeline -- Phase 41 (Deal Pipeline Page) executing
 
 ## Current Position
 
 Phase: 41 of 47 (Deal Pipeline Page)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-08 -- Roadmap created with 7 phases, 4 parallelization tiers
+Plan: 1 of 4 in current phase (completed)
+Status: Executing
+Last activity: 2026-03-08 -- Completed 41-01 (Deal pipeline schema, API endpoints, web client)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [#░░░░░░░░░] 14%
 
 ## Performance Metrics
 
@@ -46,6 +46,9 @@ Progress: [░░░░░░░░░░] 0%
 All decisions logged in PROJECT.md Key Decisions table.
 - v1.7 roadmap: Maximum parallelization with 4 tiers -- Phases 41+43 concurrent, 42+44 concurrent, 45+46 concurrent, then 47.
 - v1.7 roadmap: Deal pipeline page (41) owns schema migrations for Deal.status/stage/assignment. Agent architecture (43) owns AgentConfig/AgentConfigVersion migrations. Independent migration streams avoid batching pitfall.
+- 41-01: Used manual migration + resolve --applied to bypass init migration drift (per CLAUDE.md: never reset)
+- 41-01: Collaborators stored as JSON string field, parsed client-side
+- 41-01: Known users derived from UserGoogleToken with email-to-name heuristic
 
 ### Pending Todos
 
@@ -66,6 +69,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T19:08:53.546Z
-Stopped at: Phase 41 context gathered
-Next action: Plan Phase 41 (Deal Pipeline Page) and/or Phase 43 (Named Agent Architecture) -- both are Tier 1 and can start immediately.
+Last session: 2026-03-08T19:29:22Z
+Stopped at: Completed 41-01-PLAN.md
+Next action: Execute 41-02-PLAN.md (Pipeline list view UI) or continue Phase 43 planning.

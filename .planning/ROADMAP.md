@@ -136,7 +136,7 @@ Tier 4 (after 46):                           47 ──┘
   5. User can assign an owner and collaborators to a deal, and filter the list by assignee
 **Plans**: 3 plans
 Plans:
-- [ ] 41-01-PLAN.md — Schema migration, API endpoints, and web data layer
+- [x] 41-01-PLAN.md — Schema migration, API endpoints, and web data layer
 - [ ] 41-02-PLAN.md — Filter bar, view toggle, table view, and card enhancements
 - [ ] 41-03-PLAN.md — Status actions, assignment picker, and assignee filtering
 
@@ -161,7 +161,14 @@ Plans:
   1. Every LLM call in the system routes through a named agent with a dedicated system prompt
   2. Each agent has a clear responsibility boundary documented in its configuration
   3. Agent system prompts are stored in the database with version history and can be loaded with caching
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] `43-01-PLAN.md` - Shared agent catalog, Prisma prompt models, and published seed defaults
+- [ ] `43-02-PLAN.md` - Prisma-backed prompt resolver, version-safe cache, and Mastra registry
+- [ ] `43-03-PLAN.md` - Seller-facing workflow and shared-helper migration with version pinning
+- [ ] `43-04-PLAN.md` - Extraction, ingestion, and validation migration for internal/background jobs
+- [ ] `43-05-PLAN.md` - Deck-intelligence migration and final repo-level coverage guardrails
 
 ### Phase 44: Agent Management UI
 **Goal**: Users can view, edit, version, and publish agent system prompts from the Settings page
@@ -259,7 +266,7 @@ Plans:
 | 38. Live Verification Sweep | v1.6 | 6/6 | Complete | 2026-03-08 |
 | 39. Artifact Contract Hardening | v1.6 | 3/3 | Complete | 2026-03-08 |
 | 40. Agent Typecheck Cleanup | v1.6 | 3/3 | Complete | 2026-03-08 |
-| 41. Deal Pipeline Page | v1.7 | 0/TBD | Not started | - |
+| 41. Deal Pipeline Page | v1.7 | 1/3 | In Progress | - |
 | 42. Deal Detail Layout | v1.7 | 0/TBD | Not started | - |
 | 43. Named Agent Architecture | v1.7 | 0/TBD | Not started | - |
 | 44. Agent Management UI | v1.7 | 0/TBD | Not started | - |
