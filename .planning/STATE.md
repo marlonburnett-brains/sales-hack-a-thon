@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 43-03-PLAN.md
-last_updated: "2026-03-08T20:18:06.195Z"
+stopped_at: Completed 43-04-PLAN.md
+last_updated: "2026-03-08T20:19:16.889Z"
 last_activity: 2026-03-08 - Completed 43-03 (seller workflows and shared helpers now run through named agents with pinned prompt versions)
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 11
-  completed_plans: 6
+  completed_plans: 8
   percent: 83
 ---
 
@@ -57,6 +57,9 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 43]: The shared Mastra named-agent registry and helper execution seam both return prompt version metadata so long-running workflows can pin exact published prompts.
 - [Phase 43]: Named agent execution now injects the resolved compiled prompt at call time so workflows can pin immutable version ids without changing caller schemas.
 - [Phase 43]: Touch 2/3 slide selection stays under one shared deck-slide-selector family, while Touch 4 copy generation stays on the dedicated proposal-copywriter role.
+- [Phase 42]: Deal layout uses negative margins to reclaim global sidebar padding for full-bleed deal sidebar
+- [Phase 43]: Internal/background jobs now use the same runtime named-agent executor as seller-facing flows rather than keeping a separate prompt path.
+- [Phase 43]: Background structured outputs now rely on shared schema package definitions so internal prompt contracts stay versioned and reusable.
 
 ### Pending Todos
 
@@ -70,6 +73,8 @@ None.
 | Phase 43 P01 | 6 min | 2 tasks | 8 files |
 | Phase 43 P02 | 4 min | 2 tasks | 8 files |
 | Phase 43 P03 | 10 min | 2 tasks | 8 files |
+| Phase 43 P04 | 12 min | 2 tasks | 14 files |
+| Phase 42 P01 | 4min | 2 tasks | 10 files |
 
 ### Blockers/Concerns
 
@@ -80,6 +85,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T20:18:05.440Z
-Stopped at: Completed 43-03-PLAN.md
+Last session: 2026-03-08T20:19:15.260Z
+Stopped at: Completed 43-04-PLAN.md
 Next action: Execute 43-04-PLAN.md (internal/background named-agent migration) or continue parallel milestone work.
