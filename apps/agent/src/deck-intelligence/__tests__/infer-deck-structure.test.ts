@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type ArtifactType } from "@lumenalta/schemas";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 const {
   mockTemplateFindMany,
@@ -50,7 +51,17 @@ vi.mock("@google/genai", () => ({
   },
 }));
 
-import { computeDataHash, inferDeckStructure } from "../infer-deck-structure";
+import {
+  computeDataHash,
+  inferDeckStructure,
+  isUnsupportedGenericTouch4,
+} from "../infer-deck-structure";
+
+const _computeDataHashRejectsBroadArtifactString:
+  string extends Parameters<typeof computeDataHash>[1] ? never : true = true;
+const _isUnsupportedGenericTouch4RejectsBroadArtifactString:
+  string extends Parameters<typeof isUnsupportedGenericTouch4>[1] ? never : true =
+  true;
 
 function makeTemplate(overrides: Record<string, unknown> = {}) {
   return {
@@ -173,5 +184,18 @@ describe("Phase 36 artifact-aware inference", () => {
     const faqHash = await computeDataHash({ touchType: "touch_4", artifactType: "faq" });
 
     expect(proposalHash).not.toBe(faqHash);
+  });
+
+  it("uses ArtifactType at public inference helper boundaries", () => {
+    expectTypeOf(computeDataHash).parameters.toEqualTypeOf<[
+      input: string | { touchType: string; artifactType: ArtifactType | null },
+      artifactType?: ArtifactType | null,
+    ]>();
+    expectTypeOf(isUnsupportedGenericTouch4).parameters.toEqualTypeOf<[
+      touchType: string,
+      artifactType?: ArtifactType | null,
+    ]>();
+    expect(_computeDataHashRejectsBroadArtifactString).toBe(true);
+    expect(_isUnsupportedGenericTouch4RejectsBroadArtifactString).toBe(true);
   });
 });

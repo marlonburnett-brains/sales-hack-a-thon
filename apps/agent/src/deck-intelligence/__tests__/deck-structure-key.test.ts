@@ -1,10 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { type ArtifactType } from "@lumenalta/schemas";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   getDeckStructureCronKeys,
   getDeckStructureListKeys,
   resolveDeckStructureKey,
 } from "../deck-structure-key";
+
+const _resolveDeckStructureKeyRejectsBroadArtifactString:
+  string extends Parameters<typeof resolveDeckStructureKey>[1] ? never : true =
+  true;
 
 describe("Phase 36 deck structure key contract", () => {
   it("resolves touch_4 artifact-qualified keys", () => {
@@ -18,6 +23,20 @@ describe("Phase 36 deck structure key contract", () => {
     expect(() => resolveDeckStructureKey("touch_4")).toThrow(
       /artifactType.*touch_4/i,
     );
+  });
+
+  it("forces non-touch_4 keys back to a null artifact", () => {
+    expect(resolveDeckStructureKey("touch_1", "proposal")).toEqual({
+      touchType: "touch_1",
+      artifactType: null,
+    });
+  });
+
+  it("accepts the shared ArtifactType contract at the helper boundary", () => {
+    expectTypeOf(resolveDeckStructureKey).parameters.toEqualTypeOf<
+      [touchType: string, artifactType?: ArtifactType | null]
+    >();
+    expect(_resolveDeckStructureKeyRejectsBroadArtifactString).toBe(true);
   });
 
   it("returns the full API/list key contract", () => {
