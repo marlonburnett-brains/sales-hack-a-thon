@@ -200,10 +200,12 @@ Plans:
   2. User can add context, notes, or paste call transcripts via chat and bind them to a specific touch step
   3. User can ask questions about the deal's data and history and receive relevant answers
   4. User can query similar cases and use cases from the knowledge base and get results via chat
-**Plans**: 3 plans
+**Plans**: 5 plans
 Plans:
-- [ ] 45-01-PLAN.md — Deal chat contracts, named-agent identity, persistence schema, and binding heuristics
-- [ ] 45-02-PLAN.md — Deal chat orchestrator, streaming agent routes, and typed web bridge
+- [ ] 45-01-PLAN.md — Deal chat contracts and governed named-agent identity
+- [ ] 45-04-PLAN.md — Prisma storage, thread persistence helpers, and confirmation-aware binding heuristics
+- [ ] 45-02-PLAN.md — Deal chat orchestrator, agent route registration, and direct route coverage
+- [ ] 45-05-PLAN.md — Typed web proxy, api-client helpers, and deal-chat server actions
 - [ ] 45-03-PLAN.md — Persistent dock/side-panel UI, route-aware suggestions, and layout wiring
 
 ### Phase 46: Touch Pages & HITL Workflow
@@ -289,7 +291,7 @@ Plans:
 | 41. Deal Pipeline Page | 3/3 | Complete    | 2026-03-08 | - |
 | 42. Deal Detail Layout | 3/3 | Complete    | 2026-03-08 | - |
 | 43. Named Agent Architecture | 5/5 | Complete    | 2026-03-08 | - |
-| 44. Agent Management UI | 3/3 | Complete   | 2026-03-08 | - |
-| 45. Persistent AI Chat Bar | v1.7 | 0/3 | Planned | - |
+| 44. Agent Management UI | 3/3 | Complete    | 2026-03-08 | - |
+| 45. Persistent AI Chat Bar | v1.7 | 0/5 | Planned | - |
 | 46. Touch Pages & HITL Workflow | 2/3 | In Progress|  | - |
 | 47. Drive Artifact Integration | v1.7 | 0/TBD | Not started | - |
