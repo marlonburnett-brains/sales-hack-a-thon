@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
-status: completed
-stopped_at: Completed 39-03-PLAN.md
-last_updated: "2026-03-08T17:33:25.797Z"
-last_activity: 2026-03-08 — Completed Phase 39 Plan 03 legacy artifact reuse hardening
+status: in_progress
+stopped_at: Completed 40-agent-typecheck-cleanup-01-PLAN.md
+last_updated: "2026-03-08T17:56:42.388Z"
+last_activity: 2026-03-08 — Completed Phase 40 Plan 01 shared schema and Mastra/Zod typecheck cleanup
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
-  percent: 100
+  total_plans: 16
+  completed_plans: 14
+  percent: 88
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 39 complete; Phase 40 typecheck cleanup planning next
+**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 40 execution in progress, with schema and Mastra/Zod cleanup complete
 
 ## Current Position
 
 Phase: 40 of 40 (Agent Typecheck Cleanup)
-Plan: Planning pending
-Status: Phase 39 is complete; Phase 40 remains the final v1.6 closeout phase
-Last activity: 2026-03-08 — Completed Phase 39 Plan 03 legacy artifact reuse hardening
+Plan: 2 of 3
+Status: Phase 40 is in progress; Plan 01 complete and the remaining MCP seam cleanup is next
+Last activity: 2026-03-08 — Completed Phase 40 Plan 01 shared schema and Mastra/Zod typecheck cleanup
 
-Progress: [██████████] 100%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -81,6 +81,8 @@ All decisions logged in PROJECT.md Key Decisions table (55 decisions total throu
 - [Phase 39]: Share one Mastra query schema for optional artifact parsing so detail, infer, and chat routes narrow to the same contract before calling deck-intelligence helpers.
 - [Phase 39]: Keep the legacy deck structure view reusable by keying Touch 4 state with touchType plus artifactType instead of de-scoping the component from future Touch 4 use. — This closes the audit's reuse-risk hotspot without changing the existing Touch 4 tab route.
 - [Phase 39]: Extend TouchTypeAccordion with optional label, value, and artifactType props so reused rows can preserve artifact-qualified labels and chat scope while non-Touch-4 callers stay unchanged. — This keeps legacy reuse safe without forcing artifact requirements onto Touch 1-3 settings flows.
+- [Phase 40-agent-typecheck-cleanup]: Keep the shared schema public surface unchanged and fix the local import specifiers instead of loosening compiler settings.
+- [Phase 40-agent-typecheck-cleanup]: Protect the Mastra resume API drift with source-contract tests that assert async createRun plus step-based resume calls.
 
 ### Pending Todos
 
@@ -118,15 +120,16 @@ None.
 | Phase 39 P01 | 4 min | 2 tasks | 7 files |
 | Phase 39 P02 | 8 min | 2 tasks | 8 files |
 | Phase 39 P03 | 4 min | 2 tasks | 3 files |
+| Phase 40-agent-typecheck-cleanup P01 | 5 min | 2 tasks | 6 files |
 
 ### Blockers/Concerns
 
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
-- Phase 40 remains unplanned execution work for v1.6 closeout.
+- Remaining Phase 40 baseline failures are isolated to the MCP seam and stale Atlus search test mocks for Plan 02.
 
 ## Session Continuity
 
-Last session: 2026-03-08T17:26:23.019Z
-Stopped at: Completed 39-03-PLAN.md
-Next action: /gsd-execute-phase 39
+Last session: 2026-03-08T17:56:42.385Z
+Stopped at: Completed 40-agent-typecheck-cleanup-01-PLAN.md
+Next action: Execute 40-02-PLAN.md

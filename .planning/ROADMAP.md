@@ -193,10 +193,12 @@ Plans:
   1. Current `agent` TypeScript failures are inventoried and reduced to in-scope actionable fixes
   2. Pre-existing `agent` type errors that block a clean no-emit compile are resolved without regressing Touch 4 behavior
   3. `pnpm --filter agent exec tsc --noEmit` passes or remaining failures are explicitly isolated outside the repository baseline
-**Plans**: 0 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] Planning pending
+- [x] 40-01-PLAN.md — Clear shared schema import drift and current Mastra/Zod API mismatches blocking agent compile
+- [ ] 40-02-PLAN.md — Repair the MCP client seam and stale Vitest suites that still fail the agent baseline
+- [ ] 40-03-PLAN.md — Run the final agent no-emit gate and publish the Phase 40 verification trail
 
 ## Progress
 
@@ -243,4 +245,4 @@ Plans:
 | 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
 | 38. Live Verification Sweep | v1.6 | 6/6 | Complete | 2026-03-08 |
 | 39. Artifact Contract Hardening | 3/3 | Complete    | 2026-03-08 | |
-| 40. Agent Typecheck Cleanup | v1.6 | 0/0 | Planned | |
+| 40. Agent Typecheck Cleanup | v1.6 | 1/3 | In Progress | |
