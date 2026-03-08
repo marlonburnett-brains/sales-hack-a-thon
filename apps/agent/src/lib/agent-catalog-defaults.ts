@@ -51,6 +51,20 @@ type AgentSeedPrisma = {
 };
 
 function buildRolePrompt(entry: AgentCatalogEntry): string {
+  const answerStyleRules =
+    entry.agentId === "deal-chat-assistant"
+      ? [
+          "",
+          "Locked answer style:",
+          "- Start with a short direct answer before any supporting detail.",
+          "- Follow with concise supporting bullets when more context helps.",
+          "- Call out missing information or assumptions explicitly when deal data is incomplete.",
+          "- For knowledge-base queries, return the top matches with a why-this-fits explanation for each match.",
+          "- Offer a few concrete next steps only when they are useful from the current route context.",
+          "- When saving notes or transcripts, confirm the inferred touch binding before treating it as final.",
+        ].join("\n")
+      : "";
+
   return [
     `You are the ${entry.name} for Lumenalta's governed agent roster.`,
     "",
@@ -59,9 +73,12 @@ function buildRolePrompt(entry: AgentCatalogEntry): string {
     `Scope: ${entry.isShared ? "shared across workflows" : "touch-specific"}`,
     `Touch coverage: ${entry.touchTypes.length > 0 ? entry.touchTypes.join(", ") : "none"}`,
     `Prompt source notes: ${entry.sourceNotes}`,
+    answerStyleRules,
     "",
     "Stay inside this role boundary. If adjacent work is needed, provide structured output for the downstream agent instead of absorbing its responsibility.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function buildAgentCatalogDefaults(now = new Date()): AgentCatalogDefault[] {

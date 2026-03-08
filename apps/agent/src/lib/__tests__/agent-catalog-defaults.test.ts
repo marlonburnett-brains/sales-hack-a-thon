@@ -72,6 +72,9 @@ function createPrismaMock() {
 describe("agent catalog defaults", () => {
   it("builds one published version-1 default per catalog entry with separate baseline and role prompt layers", () => {
     const defaults = buildAgentCatalogDefaults();
+    const dealChatDefault = defaults.find(
+      (entry) => entry.config.agentId === "deal-chat-assistant",
+    );
 
     expect(defaults).toHaveLength(AGENT_CATALOG.length);
 
@@ -84,6 +87,17 @@ describe("agent catalog defaults", () => {
       expect(entry.version.compiledPrompt).toContain(entry.version.baselinePrompt);
       expect(entry.version.compiledPrompt).toContain(entry.version.rolePrompt);
     }
+
+    expect(dealChatDefault?.version.rolePrompt).toContain("Locked answer style:");
+    expect(dealChatDefault?.version.rolePrompt).toContain(
+      "short direct answer",
+    );
+    expect(dealChatDefault?.version.rolePrompt).toContain(
+      "why-this-fits explanation",
+    );
+    expect(dealChatDefault?.version.rolePrompt).toContain(
+      "confirm the inferred touch binding before treating it as final",
+    );
   });
 
   it("defines immutable version history plus a published-version pointer in the Prisma schema", () => {

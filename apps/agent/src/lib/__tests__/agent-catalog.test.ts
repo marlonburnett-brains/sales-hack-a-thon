@@ -4,7 +4,7 @@ import { AGENT_CATALOG, AGENT_IDS } from "@lumenalta/schemas";
 
 describe("AGENT_CATALOG", () => {
   it("covers every current prompt-bearing responsibility with stable ids and plain-language names", () => {
-    expect(AGENT_CATALOG).toHaveLength(19);
+    expect(AGENT_CATALOG).toHaveLength(20);
 
     expect(AGENT_IDS).toEqual([
       "company-researcher",
@@ -18,6 +18,7 @@ describe("AGENT_CATALOG", () => {
       "proposal-slide-selector",
       "proposal-copywriter",
       "buyer-faq-strategist",
+      "deal-chat-assistant",
       "knowledge-result-extractor",
       "deck-structure-analyst",
       "deck-structure-refinement-assistant",
@@ -76,6 +77,31 @@ describe("AGENT_CATALOG", () => {
     expect(
       AGENT_CATALOG.some(
         (entry) => String(entry.agentId) === "touch-3-slide-selector",
+      ),
+    ).toBe(false);
+  });
+
+  it("adds a governed deal-chat assistant instead of separate per-page chat agents", () => {
+    const dealChatAssistant = AGENT_CATALOG.find(
+      (entry) => entry.agentId === "deal-chat-assistant",
+    );
+
+    expect(dealChatAssistant).toMatchObject({
+      name: "Deal Chat Assistant",
+      family: "deal-chat",
+      isShared: true,
+      touchTypes: ["pre_call", "touch_1", "touch_2", "touch_3", "touch_4"],
+    });
+    expect(dealChatAssistant?.responsibility).toContain("knowledge-base questions");
+
+    expect(
+      AGENT_CATALOG.some(
+        (entry) => String(entry.agentId) === "briefing-chat-assistant",
+      ),
+    ).toBe(false);
+    expect(
+      AGENT_CATALOG.some(
+        (entry) => String(entry.agentId) === "transcript-cleanup-assistant",
       ),
     ).toBe(false);
   });

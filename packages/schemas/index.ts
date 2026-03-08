@@ -30,6 +30,33 @@ export {
   type AgentId,
 } from "./agent-catalog";
 
+export {
+  dealChatAnswerSchema,
+  dealChatBindingSchema,
+  dealChatConfirmationChipSchema,
+  dealChatKnowledgeMatchCardSchema,
+  dealChatMetaSchema,
+  dealChatRefineBeforeSaveSchema,
+  dealChatRouteContextSchema,
+  dealChatSectionSchema,
+  dealChatSendRequestSchema,
+  dealChatSuggestionSchema,
+  dealChatTouchTypeSchema,
+  dealContextSourceSchema,
+  type DealChatAnswer,
+  type DealChatBinding,
+  type DealChatConfirmationChip,
+  type DealChatKnowledgeMatchCard,
+  type DealChatMeta,
+  type DealChatRefineBeforeSave,
+  type DealChatRouteContext,
+  type DealChatSection,
+  type DealChatSendRequest,
+  type DealChatSuggestion,
+  type DealChatTouchType,
+  type DealContextSource,
+} from "./deal-chat";
+
 // Helper
 export { zodToLlmJsonSchema } from "./llm-json-schema";
 

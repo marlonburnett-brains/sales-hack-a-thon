@@ -1,5 +1,6 @@
 export type AgentFamily =
   | "pre-call"
+  | "deal-chat"
   | "touch-1"
   | "deck-selection"
   | "touch-4"
@@ -20,6 +21,7 @@ export type AgentId =
   | "proposal-slide-selector"
   | "proposal-copywriter"
   | "buyer-faq-strategist"
+  | "deal-chat-assistant"
   | "knowledge-result-extractor"
   | "deck-structure-analyst"
   | "deck-structure-refinement-assistant"
@@ -172,6 +174,18 @@ export const AGENT_CATALOG: AgentCatalogEntry[] = [
     sourceSites: ["apps/agent/src/mastra/workflows/touch-4-workflow.ts"],
     sourceNotes:
       "Owns the buyer FAQ prompt used after deck and talk track generation.",
+  },
+  {
+    agentId: "deal-chat-assistant",
+    name: "Deal Chat Assistant",
+    responsibility:
+      "Answer deal-history and knowledge-base questions, guide note or transcript capture, and keep sellers grounded in the current deal page context.",
+    family: "deal-chat",
+    isShared: true,
+    touchTypes: ["pre_call", "touch_1", "touch_2", "touch_3", "touch_4"],
+    sourceSites: ["apps/agent/src/deal-chat/assistant.ts"],
+    sourceNotes:
+      "Owns the persistent deal-chat orchestrator prompt and its locked response format for direct answers, supporting bullets, knowledge fits, and missing-info callouts.",
   },
   {
     agentId: "knowledge-result-extractor",
