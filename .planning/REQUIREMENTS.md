@@ -10,12 +10,12 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 ### Deals Pipeline
 
 - [x] **DEAL-01**: User can see deal status (Open, Won, Lost, Abandoned) on the deals page
-- [ ] **DEAL-02**: User can change a deal's status through its lifecycle
+- [x] **DEAL-02**: User can change a deal's status through its lifecycle
 - [x] **DEAL-03**: User can toggle between card grid view and list/table view on the deals page
 - [x] **DEAL-04**: Deals page defaults to showing Open deals with ability to filter by other statuses
-- [ ] **DEAL-05**: User can assign a primary owner to a deal
-- [ ] **DEAL-06**: User can add collaborators/secondary assignees to a deal
-- [ ] **DEAL-07**: User can filter deals by "Assigned to me," a specific team member, or all
+- [x] **DEAL-05**: User can assign a primary owner to a deal
+- [x] **DEAL-06**: User can add collaborators/secondary assignees to a deal
+- [x] **DEAL-07**: User can filter deals by "Assigned to me," a specific team member, or all
 
 ### Deal Navigation
 
@@ -111,12 +111,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DEAL-01 | Phase 41 | Complete |
-| DEAL-02 | Phase 41 | Pending |
+| DEAL-02 | Phase 41 | Complete |
 | DEAL-03 | Phase 41 | Complete |
 | DEAL-04 | Phase 41 | Complete |
-| DEAL-05 | Phase 41 | Pending |
-| DEAL-06 | Phase 41 | Pending |
-| DEAL-07 | Phase 41 | Pending |
+| DEAL-05 | Phase 41 | Complete |
+| DEAL-06 | Phase 41 | Complete |
+| DEAL-07 | Phase 41 | Complete |
 | NAV-01 | Phase 42 | Pending |
 | NAV-02 | Phase 42 | Pending |
 | NAV-03 | Phase 42 | Pending |
