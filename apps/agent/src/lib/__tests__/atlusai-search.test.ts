@@ -1,16 +1,48 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+type DriveListResult = Promise<{
+  data: {
+    files?: Array<{
+      id?: string;
+      name?: string;
+      description?: string;
+    }>;
+  };
+}>;
+
+type DriveExportResult = Promise<{ data: string }>;
 
 // ────────────────────────────────────────────────────────────
 // Shared mock state
 // ────────────────────────────────────────────────────────────
 
-let mockCallMcpTool: ReturnType<typeof vi.fn>;
-let mockIsMcpAvailable: ReturnType<typeof vi.fn>;
-let mockGetCachedExtractionPrompt: ReturnType<typeof vi.fn>;
-let mockSetCachedExtractionPrompt: ReturnType<typeof vi.fn>;
-let mockDriveFilesList: ReturnType<typeof vi.fn>;
-let mockDriveFilesExport: ReturnType<typeof vi.fn>;
-let mockGenerateContent: ReturnType<typeof vi.fn>;
+let mockCallMcpTool: ReturnType<
+  typeof vi.fn<
+    (toolName: string, args: Record<string, unknown>) => Promise<unknown>
+  >
+>;
+let mockIsMcpAvailable: ReturnType<typeof vi.fn<() => boolean>>;
+let mockGetCachedExtractionPrompt: ReturnType<
+  typeof vi.fn<() => string | null>
+>;
+let mockSetCachedExtractionPrompt: ReturnType<
+  typeof vi.fn<(prompt: string) => void>
+>;
+let mockDriveFilesList: ReturnType<
+  typeof vi.fn<(args: Record<string, unknown>) => DriveListResult>
+>;
+let mockDriveFilesExport: ReturnType<
+  typeof vi.fn<(args: Record<string, unknown>) => DriveExportResult>
+>;
+let mockGenerateContent: ReturnType<
+  typeof vi.fn<
+    (args: {
+      model: string;
+      contents: string;
+      config: { responseMimeType: string };
+    }) => Promise<{ text?: string }>
+  >
+>;
 let envOverrides: Record<string, unknown>;
 
 async function freshModule() {
@@ -34,18 +66,19 @@ async function freshModule() {
   };
 
   vi.doMock("../mcp-client", () => ({
-    callMcpTool: (...args: unknown[]) => mockCallMcpTool(...args),
+    callMcpTool: (toolName: string, args: Record<string, unknown>) =>
+      mockCallMcpTool(toolName, args),
     isMcpAvailable: () => mockIsMcpAvailable(),
     getCachedExtractionPrompt: () => mockGetCachedExtractionPrompt(),
-    setCachedExtractionPrompt: (...args: unknown[]) =>
-      mockSetCachedExtractionPrompt(...args),
+    setCachedExtractionPrompt: (prompt: string) =>
+      mockSetCachedExtractionPrompt(prompt),
   }));
 
   vi.doMock("../google-auth", () => ({
     getDriveClient: () => ({
       files: {
-        list: (...args: unknown[]) => mockDriveFilesList(...args),
-        export: (...args: unknown[]) => mockDriveFilesExport(...args),
+        list: (args: Record<string, unknown>) => mockDriveFilesList(args),
+        export: (args: Record<string, unknown>) => mockDriveFilesExport(args),
       },
     }),
   }));
@@ -53,7 +86,11 @@ async function freshModule() {
   vi.doMock("@google/genai", () => ({
     GoogleGenAI: class {
       models = {
-        generateContent: (...args: unknown[]) => mockGenerateContent(...args),
+        generateContent: (args: {
+          model: string;
+          contents: string;
+          config: { responseMimeType: string };
+        }) => mockGenerateContent(args),
       };
     },
   }));
