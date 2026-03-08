@@ -2625,6 +2625,7 @@ export const mastra = new Mastra({
               confidenceColor: conf.color,
               confidenceLabel: conf.label,
               chatMessages: [],
+              chatContext: null,
               slideIdToThumbnail: {},
               inferredAt: null,
               lastChatAt: null,
@@ -2655,6 +2656,7 @@ export const mastra = new Mastra({
               confidenceColor: conf.color,
               confidenceLabel: conf.label,
               chatMessages: [],
+              chatContext: null,
               slideIdToThumbnail: {},
               inferredAt: null,
               lastChatAt: null,
@@ -2684,6 +2686,11 @@ export const mastra = new Mastra({
             }
           }
 
+          let chatContext: unknown = null;
+          if (record.chatContextJson) {
+            try { chatContext = JSON.parse(record.chatContextJson); } catch { chatContext = null; }
+          }
+
           return c.json({
             touchType: record.touchType,
             artifactType: record.artifactType,
@@ -2693,6 +2700,7 @@ export const mastra = new Mastra({
             confidenceColor: conf.color,
             confidenceLabel: conf.label,
             chatMessages: record.chatMessages.reverse(), // chronological order
+            chatContext,
             slideIdToThumbnail,
             inferredAt: record.inferredAt,
             lastChatAt: record.lastChatAt,
@@ -2839,6 +2847,106 @@ export const mastra = new Mastra({
               "Cache-Control": "no-cache",
             },
           });
+        },
+      }),
+
+      // DELETE /deck-structures/:touchType/memories -- Clear all chat context and messages
+      registerApiRoute("/deck-structures/:touchType/memories", {
+        method: "DELETE",
+        handler: async (c) => {
+          const touchType = c.req.param("touchType");
+          const query = deckStructureArtifactQuerySchema.parse(c.req.query());
+
+          let key;
+          try {
+            key = resolveDeckStructureKey(touchType, query.artifactType ?? null);
+          } catch (error) {
+            return c.json(
+              { error: error instanceof Error ? error.message : "Invalid deck structure key" },
+              400,
+            );
+          }
+
+          const record = await prisma.deckStructure.findFirst({
+            where: {
+              touchType: key.touchType,
+              artifactType: key.artifactType,
+            },
+          });
+
+          if (!record) {
+            return c.json({ error: "Deck structure not found" }, 404);
+          }
+
+          await prisma.$transaction([
+            prisma.deckChatMessage.deleteMany({
+              where: { deckStructureId: record.id },
+            }),
+            prisma.deckStructure.update({
+              where: { id: record.id },
+              data: { chatContextJson: null, lastChatAt: null },
+            }),
+          ]);
+
+          // Re-fetch updated record with empty messages
+          const updated = await prisma.deckStructure.findFirst({
+            where: { id: record.id },
+            include: {
+              chatMessages: {
+                orderBy: { createdAt: "desc" },
+                take: 20,
+              },
+            },
+          });
+
+          if (!updated) {
+            return c.json({ error: "Deck structure not found after update" }, 500);
+          }
+
+          const conf = calculateConfidence(updated.exampleCount);
+          let structure: { sections?: unknown[]; sequenceRationale?: string };
+          try {
+            structure = JSON.parse(updated.structureJson);
+          } catch {
+            structure = { sections: [], sequenceRationale: "" };
+          }
+
+          return c.json({
+            touchType: updated.touchType,
+            artifactType: updated.artifactType,
+            structure,
+            exampleCount: updated.exampleCount,
+            confidence: updated.confidence,
+            confidenceColor: conf.color,
+            confidenceLabel: conf.label,
+            chatMessages: updated.chatMessages.reverse(),
+            chatContext: null,
+            slideIdToThumbnail: {},
+            inferredAt: updated.inferredAt,
+            lastChatAt: updated.lastChatAt,
+          });
+        },
+      }),
+
+      // DELETE /deck-structures/:touchType/messages/:messageId -- Delete a single chat message
+      registerApiRoute("/deck-structures/:touchType/messages/:messageId", {
+        method: "DELETE",
+        handler: async (c) => {
+          const messageId = c.req.param("messageId");
+
+          try {
+            await prisma.deckChatMessage.delete({
+              where: { id: messageId },
+            });
+          } catch (err) {
+            const prismaError = err as { code?: string };
+            if (prismaError.code === "P2025") {
+              return c.json({ error: "Message not found" }, 404);
+            }
+            throw err;
+          }
+
+          return c.json({ success: true });
         },
       }),
     ],
