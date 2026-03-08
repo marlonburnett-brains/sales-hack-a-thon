@@ -88,11 +88,18 @@ model Deal {
   salespersonName  String?
   salespersonPhoto String?             // Drive file ID or URL
   driveFolderId    String?             // Per-deal folder in shared Drive
+  status           String              @default("open") // "open" | "won" | "lost" | "abandoned"
+  ownerId          String?             // Supabase user ID or null
+  ownerEmail       String?             // Display email
+  ownerName        String?             // Display name
+  collaborators    String              @default("[]") // JSON array of [{id?, email, name?}]
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   interactions     InteractionRecord[]
 
   @@index([companyId])
+  @@index([status])
+  @@index([ownerId])
 }
 
 model InteractionRecord {

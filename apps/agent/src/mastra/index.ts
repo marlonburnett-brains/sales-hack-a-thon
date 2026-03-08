@@ -596,7 +596,31 @@ export const mastra = new Mastra({
       registerApiRoute("/deals", {
         method: "GET",
         handler: async (c) => {
+          const statusParam = c.req.query("status");
+          const assigneeParam = c.req.query("assignee");
+          const userIdParam = c.req.query("userId");
+
+          // Build where clause
+          const where: Record<string, unknown> = {};
+
+          // Filter by status (if provided and not "all")
+          if (statusParam && statusParam !== "all") {
+            where.status = statusParam;
+          }
+
+          // Filter by assignee
+          if (assigneeParam) {
+            const targetUserId = assigneeParam === "me" ? userIdParam : assigneeParam;
+            if (targetUserId) {
+              where.OR = [
+                { ownerId: targetUserId },
+                { collaborators: { contains: targetUserId } },
+              ];
+            }
+          }
+
           const deals = await prisma.deal.findMany({
+            where,
             include: {
               company: true,
               interactions: {
@@ -659,6 +683,73 @@ export const mastra = new Mastra({
             orderBy: { createdAt: "desc" },
           });
           return c.json(interactions);
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Deal Pipeline — Status & Assignment
+      // ────────────────────────────────────────────────────────────
+      registerApiRoute("/deals/:id/status", {
+        method: "PATCH",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          const body = await c.req.json();
+          const validStatuses = ["open", "won", "lost", "abandoned"];
+          if (!body.status || !validStatuses.includes(body.status)) {
+            return c.json(
+              { error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` },
+              400,
+            );
+          }
+          const deal = await prisma.deal.update({
+            where: { id },
+            data: { status: body.status },
+            include: { company: true },
+          });
+          return c.json(deal);
+        },
+      }),
+      registerApiRoute("/deals/:id/assignment", {
+        method: "PATCH",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          const body = await c.req.json();
+          const data: Record<string, unknown> = {};
+          if (body.ownerId !== undefined) data.ownerId = body.ownerId;
+          if (body.ownerEmail !== undefined) data.ownerEmail = body.ownerEmail;
+          if (body.ownerName !== undefined) data.ownerName = body.ownerName;
+          if (body.collaborators !== undefined) {
+            data.collaborators = JSON.stringify(body.collaborators ?? []);
+          }
+          const deal = await prisma.deal.update({
+            where: { id },
+            data,
+            include: { company: true },
+          });
+          return c.json(deal);
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Known Users (from Google token store)
+      // ────────────────────────────────────────────────────────────
+      registerApiRoute("/users/known", {
+        method: "GET",
+        handler: async (c) => {
+          const tokens = await prisma.userGoogleToken.findMany({
+            where: { isValid: true },
+            select: { userId: true, email: true },
+            orderBy: { lastUsedAt: "desc" },
+          });
+          const users = tokens.map((t) => ({
+            id: t.userId,
+            email: t.email,
+            name: t.email
+              .split("@")[0]
+              .replace(/[.-]/g, " ")
+              .replace(/\b\w/g, (ch: string) => ch.toUpperCase()),
+          }));
+          return c.json(users);
         },
       }),
 
