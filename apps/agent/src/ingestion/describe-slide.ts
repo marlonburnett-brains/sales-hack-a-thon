@@ -9,40 +9,16 @@
  * Stored as JSON string in SlideEmbedding.description column.
  */
 
-import { GoogleGenAI, Type } from "@google/genai";
 import { env } from "../env";
 import type { ExtractedSlide } from "../lib/slide-extractor";
-
-// ────────────────────────────────────────────────────────────
-// LLM JSON Schema (Gemini — uses @google/genai Type.* format)
-// ────────────────────────────────────────────────────────────
-
-const DESCRIPTION_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    purpose: {
-      type: Type.STRING,
-      description:
-        "What this slide is designed to communicate and its role in the presentation.",
-    },
-    visualComposition: {
-      type: Type.STRING,
-      description:
-        "The layout, key visual elements, and how information is organized on the slide.",
-    },
-    keyContent: {
-      type: Type.STRING,
-      description:
-        "The main points, data, or messaging conveyed by this slide.",
-    },
-    useCases: {
-      type: Type.STRING,
-      description:
-        "When and how a sales team would use this slide -- which meetings, audiences, or scenarios it fits best.",
-    },
-  },
-  required: ["purpose", "visualComposition", "keyContent", "useCases"],
-};
+import {
+  SlideDescriptionLlmSchema,
+  zodToLlmJsonSchema,
+} from "@lumenalta/schemas";
+import {
+  createJsonResponseOptions,
+  executeRuntimeNamedAgent,
+} from "../lib/agent-executor";
 
 // ────────────────────────────────────────────────────────────
 // Prompt builder
@@ -92,21 +68,14 @@ export async function generateSlideDescription(
   slide: ExtractedSlide,
   titleSlideText: string
 ): Promise<string> {
-  const ai = new GoogleGenAI({
-    vertexai: true,
-    project: env.GOOGLE_CLOUD_PROJECT,
-    location: env.GOOGLE_CLOUD_LOCATION,
-  });
-
   const prompt = buildDescriptionPrompt(slide, titleSlideText);
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: DESCRIPTION_SCHEMA,
-    },
+  const response = await executeRuntimeNamedAgent({
+    agentId: "slide-description-writer",
+    messages: [{ role: "user", content: prompt }],
+    options: createJsonResponseOptions(
+      zodToLlmJsonSchema(SlideDescriptionLlmSchema) as Record<string, unknown>,
+    ),
   });
 
   return response.text ?? "{}";

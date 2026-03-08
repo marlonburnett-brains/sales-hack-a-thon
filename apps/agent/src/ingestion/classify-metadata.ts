@@ -15,17 +15,16 @@
  *   - touchType (multi-value enum)
  */
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { z } from "zod";
 import { env } from "../env";
 import type { ExtractedSlide } from "../lib/slide-extractor";
 import {
-  INDUSTRIES,
-  FUNNEL_STAGES,
-  CONTENT_TYPES,
-  SLIDE_CATEGORIES,
-  BUYER_PERSONAS,
-  TOUCH_TYPES,
+  createJsonResponseOptions,
+  executeRuntimeNamedAgent,
+} from "../lib/agent-executor";
+import {
   SlideMetadataSchema,
+  zodToLlmJsonSchema,
   type SlideMetadata,
 } from "@lumenalta/schemas";
 
@@ -34,88 +33,9 @@ export interface ClassifiedSlide extends ExtractedSlide {
   confidence: number;
 }
 
-// ────────────────────────────────────────────────────────────
-// LLM JSON Schema (Gemini — uses @google/genai Type.* format)
-// ────────────────────────────────────────────────────────────
-
-const LLM_RESPONSE_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    industries: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.STRING,
-        enum: [...INDUSTRIES],
-      },
-      description:
-        "Industries this slide content is relevant to. Select all that apply.",
-    },
-    subsectors: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description:
-        'Identify 1-3 specific subsectors within the classified industries. Use concise labels like "Digital Banking", "Telehealth", "EdTech". If the slide content is too generic to identify a subsector, return an empty array.',
-    },
-    solutionPillars: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description:
-        "Lumenalta solution pillars this slide addresses. Use exact names from the AVAILABLE SOLUTION PILLARS list in the prompt.",
-    },
-    funnelStages: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.STRING,
-        enum: [...FUNNEL_STAGES],
-      },
-      description:
-        "Which GTM touch point funnel stages this slide is designed for. Can be multi-value.",
-    },
-    contentType: {
-      type: Type.STRING,
-      enum: [...CONTENT_TYPES],
-      description: "The type of content this slide represents.",
-    },
-    slideCategory: {
-      type: Type.STRING,
-      enum: [...SLIDE_CATEGORIES],
-      description: "The functional category of this slide within a deck.",
-    },
-    buyerPersonas: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.STRING,
-        enum: [...BUYER_PERSONAS],
-      },
-      description: "Buyer personas this content is most relevant to.",
-    },
-    touchType: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.STRING,
-        enum: [...TOUCH_TYPES],
-      },
-      description:
-        "Which GTM touch type(s) this slide is associated with. touch_1 = First Contact, touch_2 = Intro Conversation, touch_3 = Capability Alignment, touch_4 = Solution Proposal.",
-    },
-    confidence: {
-      type: Type.NUMBER,
-      description:
-        "Overall confidence score (0-100) for this classification. 100 = highly confident all tags are correct, 50 = moderate confidence, below 30 = low confidence/ambiguous content.",
-    },
-  },
-  required: [
-    "industries",
-    "subsectors",
-    "solutionPillars",
-    "funnelStages",
-    "contentType",
-    "slideCategory",
-    "buyerPersonas",
-    "touchType",
-    "confidence",
-  ],
-};
+const SlideMetadataClassificationSchema = SlideMetadataSchema.extend({
+  confidence: z.number(),
+});
 
 // ────────────────────────────────────────────────────────────
 // Classification prompt
@@ -185,25 +105,21 @@ export async function classifySlide(
   solutionPillarList: string[],
   _legacyApiKey?: string
 ): Promise<ClassifiedSlide> {
-  const ai = new GoogleGenAI({
-    vertexai: true,
-    project: env.GOOGLE_CLOUD_PROJECT,
-    location: env.GOOGLE_CLOUD_LOCATION,
-  });
-
   const prompt = buildClassificationPrompt(
     slide,
     titleSlideText,
     solutionPillarList
   );
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: LLM_RESPONSE_SCHEMA,
-    },
+  const response = await executeRuntimeNamedAgent({
+    agentId: "slide-metadata-classifier",
+    messages: [{ role: "user", content: prompt }],
+    options: createJsonResponseOptions(
+      zodToLlmJsonSchema(SlideMetadataClassificationSchema) as Record<
+        string,
+        unknown
+      >,
+    ),
   });
 
   const text = response.text ?? "{}";

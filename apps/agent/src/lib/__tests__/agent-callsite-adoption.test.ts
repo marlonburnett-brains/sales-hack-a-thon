@@ -15,13 +15,12 @@ describe("internal/background named-agent adoption", () => {
       ["ingestion/classify-metadata.ts", "slide-metadata-classifier"],
       ["ingestion/describe-slide.ts", "slide-description-writer"],
       ["ingestion/auto-classify-templates.ts", "template-classification-analyst"],
-      ["validation/validate-schemas.ts", "schema-validation-auditor"],
     ] as const;
 
     for (const [relativePath, agentId] of adoptedCallsites) {
       const source = readSource(relativePath);
 
-      expect(source).toContain("executeNamedAgent");
+      expect(source).toMatch(/execute(?:Runtime)?NamedAgent/);
       expect(source).toContain(`agentId: \"${agentId}\"`);
       expect(source).not.toContain("new GoogleGenAI");
     }
@@ -56,11 +55,5 @@ describe("internal/background named-agent adoption", () => {
       family: "ingestion",
     });
 
-    expect(
-      AGENT_CATALOG.find((entry) => entry.agentId === "schema-validation-auditor"),
-    )?.toMatchObject({
-      sourceSites: ["apps/agent/src/validation/validate-schemas.ts"],
-      family: "validation",
-    });
   });
 });

@@ -67,9 +67,21 @@ export {
   type SlideMetadata,
 } from "./llm/slide-metadata";
 export {
+  SlideDescriptionLlmSchema,
+  type SlideDescription,
+} from "./llm/slide-description";
+export {
   ProposalCopyLlmSchema,
   type ProposalCopy,
 } from "./llm/proposal-copy";
+export {
+  TemplateAutoClassificationLlmSchema,
+  type TemplateAutoClassification,
+} from "./llm/template-auto-classification";
+export {
+  SolutionPillarTaxonomyLlmSchema,
+  type SolutionPillarTaxonomy,
+} from "./llm/solution-pillar-taxonomy";
 export {
   BuyerFaqLlmSchema,
   type BuyerFaq,

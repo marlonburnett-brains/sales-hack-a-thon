@@ -6,36 +6,17 @@
  * 2. Auto-enqueue ingestion for accessible templates that have never been ingested
  */
 
-import { GoogleGenAI, Type } from "@google/genai";
 import { env } from "../env";
 import { prisma } from "../lib/db";
 import { ingestionQueue } from "./ingestion-queue";
-
-// ────────────────────────────────────────────────────────────
-// LLM Classification Schema
-// ────────────────────────────────────────────────────────────
-
-const CLASSIFICATION_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    contentClassification: {
-      type: Type.STRING,
-      enum: ["template", "example"],
-      description:
-        'Classify as "template" if the content is generic/reusable with placeholder content meant to be customized, or "example" if it contains specific company names, real deals, or filled-out case study content.',
-    },
-    touchTypes: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.STRING,
-        enum: ["touch_1", "touch_2", "touch_3", "touch_4"],
-      },
-      description:
-        "Infer which GTM touch types this template is for based on its structure. touch_1 = two-pager/one-pager, touch_2 = intro deck (Meet Lumenalta), touch_3 = solutions/capability deck, touch_4 = full proposal.",
-    },
-  },
-  required: ["contentClassification", "touchTypes"],
-};
+import {
+  TemplateAutoClassificationLlmSchema,
+  zodToLlmJsonSchema,
+} from "@lumenalta/schemas";
+import {
+  createJsonResponseOptions,
+  executeRuntimeNamedAgent,
+} from "../lib/agent-executor";
 
 // ────────────────────────────────────────────────────────────
 // Helpers
@@ -70,12 +51,6 @@ export async function autoClassifyTemplates(): Promise<void> {
     console.log(
       `[auto-classify] Found ${templates.length} template(s) needing classification`
     );
-
-    const ai = new GoogleGenAI({
-      vertexai: true,
-      project: env.GOOGLE_CLOUD_PROJECT,
-      location: env.GOOGLE_CLOUD_LOCATION,
-    });
 
     for (const template of templates) {
       try {
@@ -119,13 +94,14 @@ CLASSIFICATION INSTRUCTIONS:
 
 Classify this template.`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-2.0-flash",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: CLASSIFICATION_SCHEMA,
-          },
+        const response = await executeRuntimeNamedAgent({
+          agentId: "template-classification-analyst",
+          messages: [{ role: "user", content: prompt }],
+          options: createJsonResponseOptions(
+            zodToLlmJsonSchema(
+              TemplateAutoClassificationLlmSchema,
+            ) as Record<string, unknown>,
+          ),
         });
 
         const text = response.text ?? "{}";

@@ -4,7 +4,7 @@ import { AGENT_CATALOG, AGENT_IDS } from "@lumenalta/schemas";
 
 describe("AGENT_CATALOG", () => {
   it("covers every current prompt-bearing responsibility with stable ids and plain-language names", () => {
-    expect(AGENT_CATALOG).toHaveLength(18);
+    expect(AGENT_CATALOG).toHaveLength(19);
 
     expect(AGENT_IDS).toEqual([
       "company-researcher",
@@ -24,6 +24,7 @@ describe("AGENT_CATALOG", () => {
       "slide-metadata-classifier",
       "slide-description-writer",
       "template-classification-analyst",
+      "solution-pillar-taxonomist",
       "schema-validation-auditor",
     ]);
 

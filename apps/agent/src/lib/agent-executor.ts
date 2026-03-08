@@ -29,6 +29,8 @@ export interface NamedAgentResolver {
   getMastraAgent(agentId: AgentId): Pick<Agent, "generate">;
 }
 
+let runtimeResolverPromise: Promise<NamedAgentResolver> | null = null;
+
 export async function executeNamedAgent(
   params: ExecuteNamedAgentParams,
   resolver?: NamedAgentResolver,
@@ -78,4 +80,26 @@ export async function createMastraAgentResolver(): Promise<NamedAgentResolver> {
       return mastra.getAgent(agentId);
     },
   };
+}
+
+export function createJsonResponseOptions(
+  schema?: Record<string, unknown>,
+): Parameters<Agent["generate"]>[1] {
+  return {
+    responseFormat: schema
+      ? {
+          type: "json",
+          schema,
+        }
+      : {
+          type: "json",
+        },
+  } as Parameters<Agent["generate"]>[1];
+}
+
+export async function executeRuntimeNamedAgent<TOutput = undefined>(
+  params: ExecuteNamedAgentParams<TOutput>,
+): Promise<NamedAgentExecutionResult<TOutput>> {
+  runtimeResolverPromise ??= createMastraAgentResolver();
+  return executeNamedAgent(params, await runtimeResolverPromise);
 }

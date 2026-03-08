@@ -19,13 +19,20 @@
 
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { GoogleGenAI, Type } from "@google/genai";
 import { env } from "../env";
 import { discoverPresentations, type DrivePresentation } from "./discover-content";
 import { extractAllSlides } from "./extract-slides";
 import { extractSlidesFromPresentation } from "../lib/slide-extractor";
 import { classifyAllSlides, type ClassifiedSlide } from "./classify-metadata";
 import { ingestDocument, type SlideDocument } from "../lib/atlusai-client";
+import {
+  SolutionPillarTaxonomyLlmSchema,
+  zodToLlmJsonSchema,
+} from "@lumenalta/schemas";
+import {
+  createJsonResponseOptions,
+  executeRuntimeNamedAgent,
+} from "../lib/agent-executor";
 
 // ────────────────────────────────────────────────────────────
 // Configuration
@@ -72,11 +79,9 @@ async function extractSolutionPillars(
     )
     .join("\n\n---\n\n");
 
-  const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
-
-  const response = await ai.models.generateContent({
-    model: "openai/gpt-oss-120b-maas",
-    contents: `You are analyzing Lumenalta's Master Solutions and GTM Solutions decks to extract the complete list of solution pillar names.
+  const response = await executeRuntimeNamedAgent({
+    agentId: "solution-pillar-taxonomist",
+    messages: [{ role: "user", content: `You are analyzing Lumenalta's Master Solutions and GTM Solutions decks to extract the complete list of solution pillar names.
 
 A "solution pillar" is a major capability area or service offering that Lumenalta provides to clients. Examples might include "Digital Transformation", "Data Engineering", "Cloud Migration", etc.
 
@@ -91,14 +96,13 @@ INSTRUCTIONS:
 4. Return ONLY the pillar names, no descriptions.
 5. Order alphabetically.
 
-Return a JSON array of pillar name strings.`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING },
-      },
-    },
+Return a JSON array of pillar name strings.` }],
+    options: createJsonResponseOptions(
+      zodToLlmJsonSchema(SolutionPillarTaxonomyLlmSchema) as Record<
+        string,
+        unknown
+      >,
+    ),
   });
 
   const text = response.text ?? "[]";

@@ -25,8 +25,8 @@ import {
   getCachedExtractionPrompt,
   setCachedExtractionPrompt,
 } from "./mcp-client";
-import { GoogleGenAI } from "@google/genai";
 import { env } from "../env";
+import { createJsonResponseOptions, executeRuntimeNamedAgent } from "./agent-executor";
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -171,16 +171,10 @@ async function extractSingleBatch(
     ].join("\n");
   }
 
-  const ai = new GoogleGenAI({
-    vertexai: true,
-    project: env.GOOGLE_CLOUD_PROJECT,
-    location: env.GOOGLE_CLOUD_LOCATION,
-  });
-
-  const response = await ai.models.generateContent({
-    model: "openai/gpt-oss-120b-maas",
-    contents: prompt,
-    config: { responseMimeType: "application/json" },
+  const response = await executeRuntimeNamedAgent({
+    agentId: "knowledge-result-extractor",
+    messages: [{ role: "user", content: prompt }],
+    options: createJsonResponseOptions(),
   });
 
   const text = response.text ?? "[]";

@@ -26,6 +26,7 @@ export type AgentId =
   | "slide-metadata-classifier"
   | "slide-description-writer"
   | "template-classification-analyst"
+  | "solution-pillar-taxonomist"
   | "schema-validation-auditor";
 
 export interface AgentCatalogEntry {
@@ -243,6 +244,18 @@ export const AGENT_CATALOG: AgentCatalogEntry[] = [
     sourceSites: ["apps/agent/src/ingestion/auto-classify-templates.ts"],
     sourceNotes:
       "Owns auto-classification for templates versus examples in the ingestion pipeline.",
+  },
+  {
+    agentId: "solution-pillar-taxonomist",
+    name: "Solution Pillar Taxonomist",
+    responsibility:
+      "Extract the canonical Lumenalta solution pillar list from taxonomy decks so downstream ingestion keeps shared classification language.",
+    family: "ingestion",
+    isShared: true,
+    touchTypes: ["touch_1", "touch_2", "touch_3", "touch_4"],
+    sourceSites: ["apps/agent/src/ingestion/pilot-ingestion.ts"],
+    sourceNotes:
+      "Owns the pilot-ingestion taxonomy extraction prompt that derives the shared solution pillar roster.",
   },
   {
     agentId: "schema-validation-auditor",
