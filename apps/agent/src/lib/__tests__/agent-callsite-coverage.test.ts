@@ -34,6 +34,10 @@ const PROMPT_BEARING_CALLSITES: PromptBearingCallsite[] = [
     ],
   },
   {
+    path: "src/deal-chat/assistant.ts",
+    agentIds: ["deal-chat-assistant"],
+  },
+  {
     path: "src/lib/slide-selection.ts",
     agentIds: ["deck-slide-selector"],
   },
@@ -78,6 +82,7 @@ const PROMPT_BEARING_CALLSITES: PromptBearingCallsite[] = [
 const BUSINESS_ROOTS = [
   "src/mastra/workflows",
   "src/lib",
+  "src/deal-chat",
   "src/deck-intelligence",
   "src/ingestion",
   "src/validation",
