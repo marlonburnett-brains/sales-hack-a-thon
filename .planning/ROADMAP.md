@@ -89,7 +89,7 @@
 - [x] **Phase 35: Schema & Constants Foundation** (2/2 plans) - Prisma migrations for artifactType columns and shared constants (completed 2026-03-07)
 - [x] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation (completed 2026-03-07)
 - [x] **Phase 37: Frontend UI** - Classify UI artifact selector, Settings tabbed deck structure views, and slide-viewer badge hydration (completed 2026-03-07)
-- [ ] **Phase 38: Live Verification Sweep** - Re-confirm backend live behavior and frontend browser flows for Touch 4 artifact handling
+- [x] **Phase 38: Live Verification Sweep** - Re-confirm backend live behavior and frontend browser flows for Touch 4 artifact handling (completed 2026-03-08)
 - [ ] **Phase 39: Artifact Contract Hardening** - Eliminate artifact-aware UI reuse risks and tighten shared `ArtifactType` typing across web and chat paths
 - [ ] **Phase 40: Agent Typecheck Cleanup** - Resolve pre-existing `agent` TypeScript failures left outside the original milestone scope
 
@@ -159,7 +159,7 @@ Plans:
 Plans:
 - [x] 38-01-PLAN.md — Lock one reachable verification target and write the Phase 38 live runbook
 - [x] 38-02-PLAN.md — Capture live streaming and cron evidence for artifact-qualified Touch 4 backend paths
-- [ ] 38-03-PLAN.md — Run reachable-environment browser UAT for Touch 4 reload and settings/chat behavior
+- [x] 38-03-PLAN.md — Run reachable-environment browser UAT for Touch 4 reload and settings/chat behavior
 
 ### Phase 39: Artifact Contract Hardening
 **Goal**: Remove artifact-type maintenance risks and align web/chat code with the shared artifact contract
@@ -233,6 +233,6 @@ Plans:
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
-| 38. Live Verification Sweep | 2/3 | In Progress |  | |
+| 38. Live Verification Sweep | 3/3 | Complete   | 2026-03-08 | |
 | 39. Artifact Contract Hardening | v1.6 | 0/0 | Planned | |
 | 40. Agent Typecheck Cleanup | v1.6 | 0/0 | Planned | |
