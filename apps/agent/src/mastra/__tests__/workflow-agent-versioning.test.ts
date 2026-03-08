@@ -10,7 +10,7 @@ describe("workflow named-agent version pinning", () => {
   it("pins touch 1 prompt versions across the seller approval suspend boundary", () => {
     const source = readWorkspaceFile("src/mastra/workflows/touch-1-workflow.ts");
 
-    expect(source).toMatch(/agentVersions:\s*z\.object\(\{\s*firstContactPagerWriter:\s*z\.string\(\)/s);
+    expect(source).toMatch(/const agentVersionsSchema = z\.object\([\s\S]*firstContactPagerWriter:\s*z\.string\(\)/s);
     expect(source).toMatch(/generatedContent: PagerContentLlmSchema,[\s\S]*agentVersions:/s);
     expect(source).toMatch(/agentVersions:\s*inputData\.agentVersions/s);
   });
@@ -20,9 +20,10 @@ describe("workflow named-agent version pinning", () => {
 
     expect(source).toMatch(/const agentVersionsSchema = z\.object\(/);
     expect(source).toMatch(/agentVersions:\s*agentVersionsSchema/);
-    expect(source).toMatch(/executeNamedAgent\(\{[\s\S]*agentId:\s*"sales-brief-strategist"[\s\S]*pinnedVersionId:\s*inputData\.agentVersions\.salesBriefStrategist/s);
-    expect(source).toMatch(/executeNamedAgent\(\{[\s\S]*agentId:\s*"roi-framing-analyst"[\s\S]*pinnedVersionId:\s*inputData\.agentVersions\.roiFramingAnalyst/s);
-    expect(source).toMatch(/executeNamedAgent\(\{[\s\S]*agentId:\s*"proposal-slide-selector"[\s\S]*pinnedVersionId:\s*inputData\.agentVersions\.proposalSlideSelector/s);
-    expect(source).toMatch(/executeNamedAgent\(\{[\s\S]*agentId:\s*"buyer-faq-strategist"[\s\S]*pinnedVersionId:\s*inputData\.agentVersions\.buyerFaqStrategist/s);
+    expect(source).toMatch(/agentId:\s*"sales-brief-strategist"[\s\S]*pinnedVersionId:\s*inputData\.agentVersions\.salesBriefStrategist/s);
+    expect(source).toMatch(/agentId:\s*"roi-framing-analyst"[\s\S]*pinnedVersionId:\s*inputData\.agentVersions\.roiFramingAnalyst/s);
+    expect(source).toMatch(/agentId:\s*"proposal-slide-selector"[\s\S]*pinnedVersionId:\s*inputData\.agentVersions\.proposalSlideSelector/s);
+    expect(source).toMatch(/agentId:\s*"buyer-faq-strategist"[\s\S]*pinnedVersionId:\s*inputData\.agentVersions\.buyerFaqStrategist/s);
   });
+
 });

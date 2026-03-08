@@ -16,7 +16,6 @@
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
-import { GoogleGenAI } from "@google/genai";
 import {
   CompanyResearchLlmSchema,
   HypothesesLlmSchema,
@@ -24,12 +23,12 @@ import {
   zodToLlmJsonSchema,
   SOLUTION_PILLARS,
 } from "@lumenalta/schemas";
+import { executeNamedAgent } from "../../lib/agent-executor";
 import { searchSlides } from "../../lib/atlusai-search";
 import { createGoogleDoc } from "../../lib/doc-builder";
 import type { DocSection } from "../../lib/doc-builder";
 import { getOrCreateDealFolder } from "../../lib/drive-folders";
 import { prisma } from "../../lib/db";
-import { env } from "../../env";
 
 // ────────────────────────────────────────────────────────────
 // Shared schemas
@@ -79,24 +78,19 @@ const researchCompany = createStep({
   inputSchema,
   outputSchema: researchOutputSchema,
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
-
     const prompt = `You are a senior business analyst preparing a pre-call briefing for a sales meeting. Research ${inputData.companyName} in the ${inputData.industry} industry. The meeting is with a ${inputData.buyerRole}. Meeting context: ${inputData.meetingContext}. Provide a confident, professional analysis with no hedging or freshness disclaimers. Focus on aspects most relevant to a ${inputData.buyerRole}'s priorities. Reference these Lumenalta solution areas where relevant: ${SOLUTION_PILLARS.join(", ")}.`;
 
-    const response = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: zodToLlmJsonSchema(
-          CompanyResearchLlmSchema
-        ) as Record<string, unknown>,
+    const response = await executeNamedAgent<z.infer<typeof CompanyResearchLlmSchema>>({
+      agentId: "company-researcher",
+      messages: [{ role: "user", content: prompt }],
+      options: {
+        structuredOutput: {
+          schema: zodToLlmJsonSchema(CompanyResearchLlmSchema) as Record<string, unknown>,
+        },
       },
     });
 
-    const parsed = CompanyResearchLlmSchema.parse(
-      JSON.parse(response.text ?? "")
-    );
+    const parsed = CompanyResearchLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 
     return {
       dealId: inputData.dealId,
@@ -162,7 +156,6 @@ const generateHypotheses = createStep({
   inputSchema: caseStudiesOutputSchema,
   outputSchema: hypothesesOutputSchema,
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
     const companyResearch = JSON.parse(inputData.companyResearch);
 
     const researchSummary = [
@@ -173,21 +166,17 @@ const generateHypotheses = createStep({
 
     const prompt = `Generate 3-5 value hypotheses for a sales call with a ${inputData.buyerRole} at ${inputData.companyName}. Each hypothesis should connect a specific business need to a Lumenalta solution. Company context: ${researchSummary}. Meeting context: ${inputData.meetingContext}. Lumenalta solutions: ${SOLUTION_PILLARS.join(", ")}.`;
 
-    const response = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: zodToLlmJsonSchema(HypothesesLlmSchema) as Record<
-          string,
-          unknown
-        >,
+    const response = await executeNamedAgent<z.infer<typeof HypothesesLlmSchema>>({
+      agentId: "value-hypothesis-strategist",
+      messages: [{ role: "user", content: prompt }],
+      options: {
+        structuredOutput: {
+          schema: zodToLlmJsonSchema(HypothesesLlmSchema) as Record<string, unknown>,
+        },
       },
     });
 
-    const parsed = HypothesesLlmSchema.parse(
-      JSON.parse(response.text ?? "")
-    );
+    const parsed = HypothesesLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 
     return {
       ...inputData,
@@ -205,7 +194,6 @@ const generateDiscoveryQuestions = createStep({
   inputSchema: hypothesesOutputSchema,
   outputSchema: questionsOutputSchema,
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
     const companyResearch = JSON.parse(inputData.companyResearch);
     const hypotheses = JSON.parse(inputData.hypotheses);
 
@@ -223,20 +211,17 @@ const generateDiscoveryQuestions = createStep({
 
     const prompt = `Generate 5-10 prioritized discovery questions for a sales call with a ${inputData.buyerRole} at ${inputData.companyName}. Map each question to a Lumenalta solution area. Prioritize questions that validate the hypotheses: ${hypothesesSummary}. Company context: ${researchSummary}. Meeting context: ${inputData.meetingContext}.`;
 
-    const response = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: zodToLlmJsonSchema(
-          DiscoveryQuestionsLlmSchema
-        ) as Record<string, unknown>,
+    const response = await executeNamedAgent<z.infer<typeof DiscoveryQuestionsLlmSchema>>({
+      agentId: "discovery-question-strategist",
+      messages: [{ role: "user", content: prompt }],
+      options: {
+        structuredOutput: {
+          schema: zodToLlmJsonSchema(DiscoveryQuestionsLlmSchema) as Record<string, unknown>,
+        },
       },
     });
 
-    const parsed = DiscoveryQuestionsLlmSchema.parse(
-      JSON.parse(response.text ?? "")
-    );
+    const parsed = DiscoveryQuestionsLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 
     return {
       ...inputData,

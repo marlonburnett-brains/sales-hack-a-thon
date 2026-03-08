@@ -1,16 +1,20 @@
 import type { AgentId } from "@lumenalta/schemas";
-import type { Agent } from "@mastra/core/agent";
+import type { Agent, StructuredOutputOptions } from "@mastra/core/agent";
 
-import { getPublishedAgentConfig } from "./agent-config";
+import { getAgentConfigByVersionId, getPublishedAgentConfig } from "./agent-config";
 
-export interface ExecuteNamedAgentParams {
+export interface ExecuteNamedAgentParams<TOutput = undefined> {
   agentId: AgentId;
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
-  options?: Parameters<Agent["generate"]>[1];
+  pinnedVersionId?: string;
+  options?: Omit<Parameters<Agent["generate"]>[1], "instructions"> & {
+    structuredOutput?: StructuredOutputOptions<TOutput>;
+  };
 }
 
-export interface NamedAgentExecutionResult {
+export interface NamedAgentExecutionResult<TOutput = undefined> {
   text: string;
+  object: TOutput;
   response: Awaited<ReturnType<Agent["generate"]>>;
   promptVersion: {
     agentId: AgentId;
@@ -29,17 +33,33 @@ export async function executeNamedAgent(
   params: ExecuteNamedAgentParams,
   resolver?: NamedAgentResolver,
 ): Promise<NamedAgentExecutionResult> {
-  const resolved = await getPublishedAgentConfig(params.agentId);
+  const resolved = params.pinnedVersionId
+    ? await getAgentConfigByVersionId(params.pinnedVersionId)
+    : await getPublishedAgentConfig(params.agentId);
+
+  if (resolved.agentId !== params.agentId) {
+    throw new Error(
+      `Pinned prompt version ${resolved.version.id} belongs to ${resolved.agentId}, not ${params.agentId}`,
+    );
+  }
+
   const runtimeResolver = resolver ?? {
     getMastraAgent: (agentId: AgentId) => {
       throw new Error(`Named agent resolver not initialized for ${agentId}`);
     },
   };
   const agent = runtimeResolver.getMastraAgent(params.agentId);
-  const response = await agent.generate(params.messages, params.options);
+  const response = await agent.generate(params.messages, {
+    ...params.options,
+    instructions: {
+      role: "system",
+      content: resolved.compiledPrompt,
+    },
+  });
 
   return {
     text: response.text,
+    object: response.object,
     response,
     promptVersion: {
       agentId: params.agentId,

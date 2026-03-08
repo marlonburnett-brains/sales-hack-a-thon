@@ -31,7 +31,6 @@
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
-import { GoogleGenAI } from "@google/genai";
 import {
   TranscriptFieldsLlmSchema,
   SalesBriefLlmSchema,
@@ -40,6 +39,7 @@ import {
   zodToLlmJsonSchema,
   SOLUTION_PILLARS,
 } from "@lumenalta/schemas";
+import { executeNamedAgent } from "../../lib/agent-executor";
 import { searchForProposal } from "../../lib/atlusai-search";
 import {
   filterByMetadata,
@@ -52,7 +52,6 @@ import type { DocSection } from "../../lib/doc-builder";
 import { runBrandComplianceChecks } from "../../lib/brand-compliance";
 import { getOrCreateDealFolder } from "../../lib/drive-folders";
 import { prisma } from "../../lib/db";
-import { env } from "../../env";
 
 // ────────────────────────────────────────────────────────────
 // Shared schemas
@@ -62,6 +61,14 @@ const fieldSeveritySchema = z.record(
   z.string(),
   z.enum(["error", "warning", "ok"]),
 );
+
+const agentVersionsSchema = z.object({
+  transcriptExtractor: z.string(),
+  salesBriefStrategist: z.string(),
+  roiFramingAnalyst: z.string(),
+  proposalSlideSelector: z.string(),
+  buyerFaqStrategist: z.string(),
+});
 
 // ────────────────────────────────────────────────────────────
 // Step 1: Parse Transcript via LLM
@@ -85,10 +92,9 @@ const parseTranscript = createStep({
     transcript: z.string(),
     additionalNotes: z.string().optional(),
     extractedFields: TranscriptFieldsLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
-
     const prompt = `You are an expert sales intelligence analyst at Lumenalta, a technology consulting company specializing in ${SOLUTION_PILLARS.join(", ")}.
 
 You are extracting structured fields from a sales discovery call transcript for the ${inputData.industry} industry, specifically the "${inputData.subsector}" subsector.
@@ -121,20 +127,17 @@ Extract the following 6 fields:
 - timeline: Timeline expectations, deadlines, or urgency indicators
 - budget: Budget information, investment range, or financial constraints`;
 
-    const response = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: zodToLlmJsonSchema(TranscriptFieldsLlmSchema) as Record<
-          string,
-          unknown
-        >,
+    const response = await executeNamedAgent<z.infer<typeof TranscriptFieldsLlmSchema>>({
+      agentId: "transcript-extractor",
+      messages: [{ role: "user", content: prompt }],
+      options: {
+        structuredOutput: {
+          schema: zodToLlmJsonSchema(TranscriptFieldsLlmSchema) as Record<string, unknown>,
+        },
       },
     });
 
-    const text = response.text ?? "";
-    const parsed = TranscriptFieldsLlmSchema.parse(JSON.parse(text));
+    const parsed = TranscriptFieldsLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 
     return {
       dealId: inputData.dealId,
@@ -144,6 +147,13 @@ Extract the following 6 fields:
       transcript: inputData.transcript,
       additionalNotes: inputData.additionalNotes,
       extractedFields: parsed,
+      agentVersions: {
+        transcriptExtractor: response.promptVersion.id,
+        salesBriefStrategist: "",
+        roiFramingAnalyst: "",
+        proposalSlideSelector: "",
+        buyerFaqStrategist: "",
+      },
     };
   },
 });
@@ -162,6 +172,7 @@ const validateFields = createStep({
     transcript: z.string(),
     additionalNotes: z.string().optional(),
     extractedFields: TranscriptFieldsLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     dealId: z.string(),
@@ -173,6 +184,7 @@ const validateFields = createStep({
     extractedFields: TranscriptFieldsLlmSchema,
     fieldSeverity: fieldSeveritySchema,
     hasErrors: z.boolean(),
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
     const fields = inputData.extractedFields;
@@ -209,6 +221,7 @@ const validateFields = createStep({
       extractedFields: inputData.extractedFields,
       fieldSeverity,
       hasErrors,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -229,6 +242,7 @@ const awaitFieldReview = createStep({
     extractedFields: TranscriptFieldsLlmSchema,
     fieldSeverity: fieldSeveritySchema,
     hasErrors: z.boolean(),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     dealId: z.string(),
@@ -242,6 +256,7 @@ const awaitFieldReview = createStep({
     hasErrors: z.boolean(),
     reviewedFields: TranscriptFieldsLlmSchema,
     decision: z.enum(["continued"]),
+    agentVersions: agentVersionsSchema,
   }),
   resumeSchema: z.object({
     reviewedFields: TranscriptFieldsLlmSchema,
@@ -278,6 +293,7 @@ const awaitFieldReview = createStep({
       hasErrors: inputData.hasErrors,
       reviewedFields: resumeData.reviewedFields,
       decision: "continued" as const,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -300,6 +316,7 @@ const mapPillarsAndGenerateBrief = createStep({
     hasErrors: z.boolean(),
     reviewedFields: TranscriptFieldsLlmSchema,
     decision: z.enum(["continued"]),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     dealId: z.string(),
@@ -310,9 +327,9 @@ const mapPillarsAndGenerateBrief = createStep({
     additionalNotes: z.string().optional(),
     reviewedFields: TranscriptFieldsLlmSchema,
     brief: SalesBriefLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
     const fields = inputData.reviewedFields;
 
     const prompt = `You are a senior sales strategist at Lumenalta, a technology consulting company. Your job is to create a comprehensive sales brief that maps customer needs to Lumenalta's solution pillars.
@@ -343,20 +360,18 @@ INSTRUCTIONS:
 
 OUTPUT: A complete sales brief with pillar mapping, evidence, and use cases.`;
 
-    const response = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: zodToLlmJsonSchema(SalesBriefLlmSchema) as Record<
-          string,
-          unknown
-        >,
+    const response = await executeNamedAgent<z.infer<typeof SalesBriefLlmSchema>>({
+      agentId: "sales-brief-strategist",
+      pinnedVersionId: inputData.agentVersions.salesBriefStrategist || undefined,
+      messages: [{ role: "user", content: prompt }],
+      options: {
+        structuredOutput: {
+          schema: zodToLlmJsonSchema(SalesBriefLlmSchema) as Record<string, unknown>,
+        },
       },
     });
 
-    const text = response.text ?? "";
-    const brief = SalesBriefLlmSchema.parse(JSON.parse(text));
+    const brief = SalesBriefLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 
     return {
       dealId: inputData.dealId,
@@ -367,6 +382,11 @@ OUTPUT: A complete sales brief with pillar mapping, evidence, and use cases.`;
       additionalNotes: inputData.additionalNotes,
       reviewedFields: inputData.reviewedFields,
       brief,
+      agentVersions: {
+        ...inputData.agentVersions,
+        salesBriefStrategist:
+          inputData.agentVersions.salesBriefStrategist || response.promptVersion.id,
+      },
     };
   },
 });
@@ -386,6 +406,7 @@ const generateROIFraming = createStep({
     additionalNotes: z.string().optional(),
     reviewedFields: TranscriptFieldsLlmSchema,
     brief: SalesBriefLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     dealId: z.string(),
@@ -397,9 +418,9 @@ const generateROIFraming = createStep({
     reviewedFields: TranscriptFieldsLlmSchema,
     brief: SalesBriefLlmSchema,
     roiFraming: ROIFramingLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
     const { brief } = inputData;
 
     const useCaseSummary = brief.useCases
@@ -438,20 +459,18 @@ INSTRUCTIONS:
 
 OUTPUT: ROI framing for each use case with useCaseName matching the brief's use case names exactly.`;
 
-    const response = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: zodToLlmJsonSchema(ROIFramingLlmSchema) as Record<
-          string,
-          unknown
-        >,
+    const response = await executeNamedAgent<z.infer<typeof ROIFramingLlmSchema>>({
+      agentId: "roi-framing-analyst",
+      pinnedVersionId: inputData.agentVersions.roiFramingAnalyst || undefined,
+      messages: [{ role: "user", content: prompt }],
+      options: {
+        structuredOutput: {
+          schema: zodToLlmJsonSchema(ROIFramingLlmSchema) as Record<string, unknown>,
+        },
       },
     });
 
-    const text = response.text ?? "";
-    const roiFraming = ROIFramingLlmSchema.parse(JSON.parse(text));
+    const roiFraming = ROIFramingLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 
     return {
       dealId: inputData.dealId,
@@ -463,6 +482,11 @@ OUTPUT: ROI framing for each use case with useCaseName matching the brief's use 
       reviewedFields: inputData.reviewedFields,
       brief: inputData.brief,
       roiFraming,
+      agentVersions: {
+        ...inputData.agentVersions,
+        roiFramingAnalyst:
+          inputData.agentVersions.roiFramingAnalyst || response.promptVersion.id,
+      },
     };
   },
 });
@@ -484,6 +508,7 @@ const recordInteraction = createStep({
     reviewedFields: TranscriptFieldsLlmSchema,
     brief: SalesBriefLlmSchema,
     roiFraming: ROIFramingLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
@@ -491,6 +516,7 @@ const recordInteraction = createStep({
     briefId: z.string(),
     briefData: SalesBriefLlmSchema,
     roiFramingData: ROIFramingLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
     const { brief, roiFraming, reviewedFields } = inputData;
@@ -560,6 +586,7 @@ const recordInteraction = createStep({
       briefId: briefRecord.id,
       briefData: brief,
       roiFramingData: roiFraming,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -578,6 +605,7 @@ const awaitBriefApproval = createStep({
     briefId: z.string(),
     briefData: SalesBriefLlmSchema,
     roiFramingData: ROIFramingLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
@@ -587,6 +615,7 @@ const awaitBriefApproval = createStep({
     roiFramingData: ROIFramingLlmSchema,
     decision: z.enum(["approved"]),
     reviewerName: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   resumeSchema: z.object({
     decision: z.enum(["approved"]),
@@ -617,6 +646,7 @@ const awaitBriefApproval = createStep({
       roiFramingData: inputData.roiFramingData,
       decision: resumeData.decision,
       reviewerName: resumeData.reviewerName,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -635,6 +665,7 @@ const finalizeApproval = createStep({
     roiFramingData: ROIFramingLlmSchema,
     decision: z.enum(["approved"]),
     reviewerName: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
@@ -644,6 +675,7 @@ const finalizeApproval = createStep({
     roiFramingData: ROIFramingLlmSchema,
     decision: z.enum(["approved"]),
     reviewerName: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
     // a. Update Brief status to "approved"
@@ -708,6 +740,7 @@ const finalizeApproval = createStep({
       roiFramingData: inputData.roiFramingData,
       decision: inputData.decision,
       reviewerName: inputData.reviewerName,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -726,6 +759,7 @@ const ragRetrieval = createStep({
     roiFramingData: ROIFramingLlmSchema,
     decision: z.enum(["approved"]),
     reviewerName: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
@@ -734,6 +768,7 @@ const ragRetrieval = createStep({
     roiFramingData: ROIFramingLlmSchema,
     candidateSlides: z.string(),
     retrievalSummary: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
     // a. Fetch Brief from DB for industry context
@@ -783,6 +818,7 @@ const ragRetrieval = createStep({
       roiFramingData: inputData.roiFramingData,
       candidateSlides: JSON.stringify(filtered),
       retrievalSummary,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -800,6 +836,7 @@ const assembleSlideJSON = createStep({
     roiFramingData: ROIFramingLlmSchema,
     candidateSlides: z.string(),
     retrievalSummary: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
@@ -809,10 +846,9 @@ const assembleSlideJSON = createStep({
     slideJSON: z.string(),
     slideCount: z.number(),
     retrievalSummary: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
-
     // a. Deserialize candidate slides from JSON string
     const candidates = JSON.parse(inputData.candidateSlides) as Array<{
       slideId: string;
@@ -866,20 +902,20 @@ Provide the selected slide IDs and brief reasoning for your selection.`;
       }),
     });
 
-    const selectionResponse = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: selectionPrompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: zodToLlmJsonSchema(selectionSchema) as Record<
-          string,
-          unknown
-        >,
+    const selectionResponse = await executeNamedAgent<z.infer<typeof selectionSchema>>({
+      agentId: "proposal-slide-selector",
+      pinnedVersionId: inputData.agentVersions.proposalSlideSelector || undefined,
+      messages: [{ role: "user", content: selectionPrompt }],
+      options: {
+        structuredOutput: {
+          schema: zodToLlmJsonSchema(selectionSchema) as Record<string, unknown>,
+        },
       },
     });
 
-    const selectionText = selectionResponse.text ?? "{}";
-    const selection = selectionSchema.parse(JSON.parse(selectionText));
+    const selection = selectionSchema.parse(
+      selectionResponse.object ?? JSON.parse(selectionResponse.text ?? "{}")
+    );
 
     console.log(
       `[assemble-slide-json] Selected ${selection.selectedSlideIds.length} slides: ${selection.reasoning}`
@@ -907,6 +943,11 @@ Provide the selected slide IDs and brief reasoning for your selection.`;
       slideJSON: JSON.stringify(slideAssembly),
       slideCount: slideAssembly.slides.length,
       retrievalSummary: inputData.retrievalSummary,
+      agentVersions: {
+        ...inputData.agentVersions,
+        proposalSlideSelector:
+          inputData.agentVersions.proposalSlideSelector || selectionResponse.promptVersion.id,
+      },
     };
   },
 });
@@ -928,6 +969,7 @@ const generateCustomCopy = createStep({
     slideJSON: z.string(),
     slideCount: z.number(),
     retrievalSummary: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
@@ -935,6 +977,7 @@ const generateCustomCopy = createStep({
     slideJSON: z.string(),
     slideCount: z.number(),
     retrievalSummary: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
     // a. Deserialize slideJSON from JSON string to SlideAssembly
@@ -995,6 +1038,7 @@ const generateCustomCopy = createStep({
       slideJSON: JSON.stringify(slideAssembly),
       slideCount: totalSlides,
       retrievalSummary: inputData.retrievalSummary,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -1011,6 +1055,7 @@ const createSlidesDeck = createStep({
     slideJSON: z.string(),
     slideCount: z.number(),
     retrievalSummary: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
@@ -1019,6 +1064,7 @@ const createSlidesDeck = createStep({
     slideCount: z.number(),
     deckUrl: z.string(),
     dealFolderId: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
     // a. Fetch brief + deal + company for naming and folder
@@ -1072,6 +1118,7 @@ const createSlidesDeck = createStep({
       slideCount: result.slideCount,
       deckUrl: result.deckUrl,
       dealFolderId,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -1090,6 +1137,7 @@ const createTalkTrack = createStep({
     slideCount: z.number(),
     deckUrl: z.string(),
     dealFolderId: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
@@ -1099,6 +1147,7 @@ const createTalkTrack = createStep({
     deckUrl: z.string(),
     talkTrackUrl: z.string(),
     dealFolderId: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
     // a. Fetch brief for naming
@@ -1162,6 +1211,7 @@ const createTalkTrack = createStep({
       deckUrl: inputData.deckUrl,
       talkTrackUrl: result.docUrl,
       dealFolderId: inputData.dealFolderId,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -1181,6 +1231,7 @@ const createBuyerFAQ = createStep({
     deckUrl: z.string(),
     talkTrackUrl: z.string(),
     dealFolderId: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
@@ -1191,6 +1242,7 @@ const createBuyerFAQ = createStep({
     slideJSON: z.string(),
     slideCount: z.number(),
     dealFolderId: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
     // a. Fetch brief for naming and FAQ context
@@ -1208,8 +1260,6 @@ const createBuyerFAQ = createStep({
     const dateStr = new Date().toISOString().split("T")[0];
 
     // b. Generate FAQ via LLM
-    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
-
     const useCaseSummary = JSON.parse(brief.useCases)
       .map((uc: { name: string; description: string }) => `- ${uc.name}: ${uc.description}`)
       .join("\n");
@@ -1241,16 +1291,18 @@ EXAMPLES of role-specific objections:
 - CFO: "What's the expected payback period?"
 - VP Engineering: "Do we have internal capacity to maintain this?"`;
 
-    const response = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: zodToLlmJsonSchema(BuyerFaqLlmSchema) as Record<string, unknown>,
+    const response = await executeNamedAgent<z.infer<typeof BuyerFaqLlmSchema>>({
+      agentId: "buyer-faq-strategist",
+      pinnedVersionId: inputData.agentVersions.buyerFaqStrategist || undefined,
+      messages: [{ role: "user", content: prompt }],
+      options: {
+        structuredOutput: {
+          schema: zodToLlmJsonSchema(BuyerFaqLlmSchema) as Record<string, unknown>,
+        },
       },
     });
 
-    const faq = BuyerFaqLlmSchema.parse(JSON.parse(response.text ?? "{}"));
+    const faq = BuyerFaqLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 
     console.log(
       `[create-buyer-faq] Generated FAQ with ${faq.stakeholders.length} stakeholder groups`
@@ -1312,6 +1364,11 @@ EXAMPLES of role-specific objections:
       slideJSON: inputData.slideJSON,
       slideCount: inputData.slideCount,
       dealFolderId: inputData.dealFolderId,
+      agentVersions: {
+        ...inputData.agentVersions,
+        buyerFaqStrategist:
+          inputData.agentVersions.buyerFaqStrategist || response.promptVersion.id,
+      },
     };
   },
 });

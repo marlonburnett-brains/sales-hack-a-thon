@@ -11,16 +11,20 @@
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
-import { GoogleGenAI } from "@google/genai";
 import {
   PagerContentLlmSchema,
   zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
+import { executeNamedAgent } from "../../lib/agent-executor";
 import { assembleFromTemplate } from "../../lib/slide-assembly";
 import { getOrCreateDealFolder } from "../../lib/drive-folders";
 import { ingestDocument } from "../../lib/atlusai-client";
 import { prisma } from "../../lib/db";
 import { env } from "../../env";
+
+const agentVersionsSchema = z.object({
+  firstContactPagerWriter: z.string(),
+});
 
 // ────────────────────────────────────────────────────────────
 // Step 1: Generate pager content via LLM
@@ -42,10 +46,9 @@ const generateContent = createStep({
     context: z.string(),
     salespersonName: z.string().optional(),
     generatedContent: PagerContentLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
-    const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
-
     const prompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Generate compelling, professional content for a pager targeting this company.
 
 Company: ${inputData.companyName}
@@ -61,17 +64,17 @@ Generate a personalized one-pager with:
 
 Keep the tone professional but engaging. Focus on the company's likely challenges based on their industry.`;
 
-    const response = await ai.models.generateContent({
-      model: "openai/gpt-oss-120b-maas",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: zodToLlmJsonSchema(PagerContentLlmSchema) as Record<string, unknown>,
+    const response = await executeNamedAgent<z.infer<typeof PagerContentLlmSchema>>({
+      agentId: "first-contact-pager-writer",
+      messages: [{ role: "user", content: prompt }],
+      options: {
+        structuredOutput: {
+          schema: zodToLlmJsonSchema(PagerContentLlmSchema) as Record<string, unknown>,
+        },
       },
     });
 
-    const text = response.text ?? "";
-    const parsed = PagerContentLlmSchema.parse(JSON.parse(text));
+    const parsed = PagerContentLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
 
     return {
       dealId: inputData.dealId,
@@ -80,6 +83,9 @@ Keep the tone professional but engaging. Focus on the company's likely challenge
       context: inputData.context,
       salespersonName: inputData.salespersonName,
       generatedContent: parsed,
+      agentVersions: {
+        firstContactPagerWriter: response.promptVersion.id,
+      },
     };
   },
 });
@@ -97,6 +103,7 @@ const awaitApproval = createStep({
     context: z.string(),
     salespersonName: z.string().optional(),
     generatedContent: PagerContentLlmSchema,
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     dealId: z.string(),
@@ -106,6 +113,7 @@ const awaitApproval = createStep({
     salespersonName: z.string().optional(),
     finalContent: PagerContentLlmSchema,
     decision: z.enum(["approved", "edited"]),
+    agentVersions: agentVersionsSchema,
   }),
   resumeSchema: z.object({
     decision: z.enum(["approved", "edited"]),
@@ -140,6 +148,7 @@ const awaitApproval = createStep({
       salespersonName: inputData.salespersonName,
       finalContent,
       decision: resumeData.decision,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -158,6 +167,7 @@ const assembleDeck = createStep({
     salespersonName: z.string().optional(),
     finalContent: PagerContentLlmSchema,
     decision: z.enum(["approved", "edited"]),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     dealId: z.string(),
@@ -169,6 +179,7 @@ const assembleDeck = createStep({
     decision: z.enum(["approved", "edited"]),
     presentationId: z.string(),
     driveUrl: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
     // Get or create per-deal folder
@@ -212,6 +223,7 @@ const assembleDeck = createStep({
       ...inputData,
       presentationId: result.presentationId,
       driveUrl: result.driveUrl,
+      agentVersions: inputData.agentVersions,
     };
   },
 });
@@ -232,6 +244,7 @@ const recordInteraction = createStep({
     decision: z.enum(["approved", "edited"]),
     presentationId: z.string(),
     driveUrl: z.string(),
+    agentVersions: agentVersionsSchema,
   }),
   outputSchema: z.object({
     interactionId: z.string(),
