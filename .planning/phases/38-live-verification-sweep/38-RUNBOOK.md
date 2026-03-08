@@ -152,4 +152,25 @@ If any targeted suite fails, stop the live sweep and document the regression ins
 
 ## Preflight Results
 
-Pending.
+- Run timestamp: `2026-03-08T00:28Z`
+- Backend command:
+
+```bash
+pnpm --filter agent exec vitest run src/deck-intelligence/__tests__/auto-infer-cron.test.ts src/mastra/__tests__/deck-structure-routes.test.ts
+```
+
+  - Result: passed
+  - Coverage for this preflight: 2 files, 7 tests passed
+  - Note: the artifact-qualified cron loop and deck-structure route chain are green immediately before live verification.
+
+- Frontend command:
+
+```bash
+pnpm --filter web exec vitest run src/components/settings/__tests__/touch-4-artifact-tabs.test.tsx src/components/slide-viewer/__tests__/classification-panel.test.tsx src/app/api/deck-structures/chat/__tests__/route.test.ts
+```
+
+  - Result: passed
+  - Coverage for this preflight: 3 files, 19 tests passed
+  - Note: the pending Phase 37 browser checks still require live human confirmation, but there is no fresh targeted regression failure to confuse with environment-only issues.
+
+- Gate decision: proceed to Phase 38 live verification using the locked production environment above.
