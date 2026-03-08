@@ -157,8 +157,8 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 38-01-PLAN.md — Lock one reachable verification target and write the Phase 38 live runbook
-- [ ] 38-02-PLAN.md — Capture live streaming and cron evidence for artifact-qualified Touch 4 backend paths
+- [x] 38-01-PLAN.md — Lock one reachable verification target and write the Phase 38 live runbook
+- [x] 38-02-PLAN.md — Capture live streaming and cron evidence for artifact-qualified Touch 4 backend paths
 - [ ] 38-03-PLAN.md — Run reachable-environment browser UAT for Touch 4 reload and settings/chat behavior
 
 ### Phase 39: Artifact Contract Hardening
@@ -233,6 +233,6 @@ Plans:
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
-| 38. Live Verification Sweep | v1.6 | 1/3 | In Progress | |
+| 38. Live Verification Sweep | 2/3 | In Progress |  | |
 | 39. Artifact Contract Hardening | v1.6 | 0/0 | Planned | |
 | 40. Agent Typecheck Cleanup | v1.6 | 0/0 | Planned | |

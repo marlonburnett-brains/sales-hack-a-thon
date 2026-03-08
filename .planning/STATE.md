@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
 status: in_progress
-stopped_at: Completed 38-01-PLAN.md
-last_updated: "2026-03-08T00:32:59.980Z"
-last_activity: 2026-03-08 — Completed Phase 38 Plan 01 live verification runbook
+stopped_at: Completed 38-02-PLAN.md
+last_updated: "2026-03-08T01:18:41.734Z"
+last_activity: 2026-03-08 — Completed Phase 38 Plan 02 backend evidence capture
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
-  percent: 71
+  completed_plans: 6
+  percent: 86
 ---
 
 # Project State
@@ -26,16 +26,16 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 38 of 40 (Live Verification Sweep)
-Plan: 1 of 3 complete
+Plan: 2 of 3 complete
 Status: Phase 38 in progress
-Last activity: 2026-03-08 — Completed Phase 38 Plan 01 live verification runbook
+Last activity: 2026-03-08 — Completed Phase 38 Plan 02 backend evidence capture
 
-Progress: [███████░░░] 71%
+Progress: [█████████░] 86%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 78 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 5)
+- Total plans completed: 79 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 6)
 - Total project time: ~5 days (2026-03-03 -> 2026-03-07)
 - Total LOC: ~40,833 TypeScript/TSX
 
@@ -65,6 +65,8 @@ All decisions logged in PROJECT.md Key Decisions table (55 decisions total throu
 - [Phase 37-frontend-ui]: Keep saved artifact badge text only while the persisted classification remains Example plus touch_4 so stale labels clear on reload.
 - [Phase 38]: Lock Phase 38 verification to the production Vercel and Railway origins instead of localhost or preview URLs. — This removes the known reachable-environment ambiguity so all live evidence is collected from one deploy pair.
 - [Phase 38]: Require paired artifact-qualified UI or transport proof plus Railway log or database proof for every live verification scenario. — This keeps streaming, cron, and browser checks tied to the same touch_4 artifact key and prevents generic evidence from closing the phase.
+- [Phase 38]: Document the production chat 404 as a real blocker instead of fabricating successful stream evidence for touch_4/proposal or touch_4/faq.
+- [Phase 38]: Accept Railway logs plus pre/post production settings state as the captured cron proof set, while explicitly calling out missing row-level DeckStructure fields.
 
 ### Pending Todos
 
@@ -94,14 +96,16 @@ None.
 | Phase 37 P03 | 7 min | 2 tasks | 4 files |
 | Phase 37 P04 | 2 min | 2 tasks | 6 files |
 | Phase 38 P01 | 5 min | 2 tasks | 1 files |
+| Phase 38 P02 | 2 min | 2 tasks | 1 files |
 
 ### Blockers/Concerns
 
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
+- Production deck-structure chat proxy returns upstream `404 Not Found` for `touch_4` artifact requests, so live streaming remains unverified for Phase 38.
 
 ## Session Continuity
 
-Last session: 2026-03-08T00:32:59.977Z
-Stopped at: Completed 38-01-PLAN.md
+Last session: 2026-03-08T01:18:41.731Z
+Stopped at: Completed 38-02-PLAN.md
 Next action: /gsd-execute-phase 38
