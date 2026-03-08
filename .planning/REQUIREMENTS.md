@@ -68,9 +68,9 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 
 - [x] **MGMT-01**: User can view all formal agents and their current system prompts in Settings
 - [x] **MGMT-02**: User can edit agent system prompts via direct text editing
-- [ ] **MGMT-03**: User can edit agent system prompts via conversational AI chat
+- [x] **MGMT-03**: User can edit agent system prompts via conversational AI chat
 - [x] **MGMT-04**: Any prompt modification creates a draft version; changes are not live until published
-- [ ] **MGMT-05**: Each save creates a new version with full version history retained for review or rollback
+- [x] **MGMT-05**: Each save creates a new version with full version history retained for review or rollback
 
 ## v2 Requirements
 
@@ -145,9 +145,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGENT-02 | Phase 43 | Complete |
 | MGMT-01 | Phase 44 | Complete |
 | MGMT-02 | Phase 44 | Complete |
-| MGMT-03 | Phase 44 | Pending |
+| MGMT-03 | Phase 44 | Complete |
 | MGMT-04 | Phase 44 | Complete |
-| MGMT-05 | Phase 44 | Pending |
+| MGMT-05 | Phase 44 | Complete |
 
 **Coverage:**
 - v1.7 requirements: 38 total

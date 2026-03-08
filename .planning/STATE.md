@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 44-02-PLAN.md
-last_updated: "2026-03-08T21:55:43.555Z"
-last_activity: 2026-03-08 - Completed 44-01 (agent config CRUD API with family-grouped list page)
+stopped_at: Completed 44-03-PLAN.md
+last_updated: "2026-03-08T22:11:10.050Z"
+last_activity: 2026-03-08 - Completed 44-03 (AI chat panel, version history, diff view, rollback)
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 20
-  completed_plans: 14
+  completed_plans: 15
   percent: 83
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 44 of 47 (Agent Management UI)
-Plan: 1 of 5 in current phase (completed)
+Plan: 3 of 3 in current phase (completed)
 Status: Executing
-Last activity: 2026-03-08 - Completed 44-01 (agent config CRUD API with family-grouped list page)
+Last activity: 2026-03-08 - Completed 44-03 (AI chat panel, version history, diff view, rollback)
 
 Progress: [████████░░] 83%
 
@@ -66,7 +66,9 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 42]: BriefingChatPanel reuses generatePreCallBriefingAction with default inputs for one-click briefing generation
 - [Phase 44]: Used 'any' type for Prisma agentConfig queries due to pre-existing type drift from forward-only SQL migrations
 - [Phase 46]: Used manual migration + resolve --applied for HITL fields due to existing DB drift
-- [Phase 44]: Publish dialog uses simple line-diff (set-based removed/added) rather than importing diff library
+- [Phase 44]: Publish dialog upgraded from simple set-based LineDiff to proper diffLines-based AgentDiffView
+- [Phase 44]: Agent chat uses Vertex AI GoogleGenAI client (not API key) to match existing agent executor pattern
+- [Phase 44]: Chat state is ephemeral (client-side only) -- no DB persistence for prompt editing conversations
 
 ### Pending Todos
 
@@ -88,6 +90,7 @@ None.
 | Phase 44 P01 | 5min | 2 tasks | 6 files |
 | Phase 46 P01 | 6min | 2 tasks | 6 files |
 | Phase 44 P02 | 4min | 2 tasks | 6 files |
+| Phase 44 P03 | 12min | 2 tasks | 12 files |
 
 ### Blockers/Concerns
 
@@ -98,6 +101,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T21:55:43.552Z
-Stopped at: Completed 44-02-PLAN.md
-Next action: Begin Phase 44 planning/execution or continue parallel milestone work for Phases 45-47.
+Last session: 2026-03-08T22:09:21Z
+Stopped at: Completed 44-03-PLAN.md
+Next action: Phase 44 complete. Continue parallel milestone work for Phases 45-47.
