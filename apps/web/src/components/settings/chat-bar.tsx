@@ -1,5 +1,6 @@
 "use client";
 
+import type { ArtifactType } from "@lumenalta/schemas";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import type { DeckSectionData, DeckChatMessageData } from "@/lib/api-client";
 
 interface ChatBarProps {
   touchType: string;
-  artifactType?: string;
+  artifactType?: ArtifactType;
   onStructureUpdate: (
     structure: { sections: DeckSectionData[]; sequenceRationale: string },
     diff: { added: string[]; modified: string[] },

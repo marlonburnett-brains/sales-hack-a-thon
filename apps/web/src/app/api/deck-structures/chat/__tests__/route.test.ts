@@ -97,7 +97,8 @@ describe("Phase 38 deck chat proxy route", () => {
     expect(source).toMatch(/URLSearchParams/);
     expect(source).toMatch(/artifactType/);
     expect(source).toMatch(/type ArtifactType/);
-    expect(source).toMatch(/z\.ZodType<.*ArtifactType.*>/s);
+    expect(source).toMatch(/type DeckStructureChatRequest/);
+    expect(source).toMatch(/z\.ZodType<DeckStructureChatRequest>/);
     expect(source).toMatch(/\$\{env\.AGENT_SERVICE_URL\}\/deck-structures\//);
     expect(source).not.toMatch(/\$\{env\.AGENT_SERVICE_URL\}\/api\/deck-structures\//);
   });

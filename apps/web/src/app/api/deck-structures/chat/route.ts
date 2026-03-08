@@ -1,7 +1,19 @@
-import { ARTIFACT_TYPES } from "@lumenalta/schemas";
+import { ARTIFACT_TYPES, type ArtifactType } from "@lumenalta/schemas";
 import { env } from "@/env";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+
+type DeckStructureChatRequest = {
+  touchType: string;
+  artifactType?: ArtifactType;
+  message: string;
+};
+
+const deckStructureChatRequestSchema: z.ZodType<DeckStructureChatRequest> = z.object({
+  touchType: z.string().min(1),
+  artifactType: z.enum(ARTIFACT_TYPES).optional(),
+  message: z.string().min(1),
+});
 
 /**
  * POST /api/deck-structures/chat
@@ -10,13 +22,7 @@ import { z } from "zod";
  * Pipes the agent's streaming response directly back to the client.
  */
 export async function POST(request: NextRequest) {
-  const body = z
-    .object({
-      touchType: z.string().min(1),
-      artifactType: z.enum(ARTIFACT_TYPES).optional(),
-      message: z.string().min(1),
-    })
-    .safeParse(await request.json());
+  const body = deckStructureChatRequestSchema.safeParse(await request.json());
 
   if (!body.success) {
     return NextResponse.json(
