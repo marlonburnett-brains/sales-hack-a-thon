@@ -90,7 +90,7 @@
 - [x] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation (completed 2026-03-07)
 - [x] **Phase 37: Frontend UI** - Classify UI artifact selector, Settings tabbed deck structure views, and slide-viewer badge hydration (completed 2026-03-07)
 - [x] **Phase 38: Live Verification Sweep** - Production artifact-scoped chat proof, final browser approval, and verification closure completed (6/6 plans complete) (completed 2026-03-08)
-- [ ] **Phase 39: Artifact Contract Hardening** - Eliminate artifact-aware UI reuse risks and tighten shared `ArtifactType` typing across web and chat paths (1/3 plans complete)
+- [ ] **Phase 39: Artifact Contract Hardening** - Eliminate artifact-aware UI reuse risks and tighten shared `ArtifactType` typing across web and chat paths (2/3 plans complete)
 - [ ] **Phase 40: Agent Typecheck Cleanup** - Resolve pre-existing `agent` TypeScript failures left outside the original milestone scope
 
 ## Phase Details
@@ -180,7 +180,7 @@ Plans:
 
 Plans:
 - [x] 39-01-PLAN.md — Tighten web deck-structure helpers, settings chat, and proxy boundaries to the shared `ArtifactType` contract
-- [ ] 39-02-PLAN.md — Tighten agent deck-intelligence and Mastra route seams to the shared `ArtifactType` contract
+- [x] 39-02-PLAN.md — Tighten agent deck-intelligence and Mastra route seams to the shared `ArtifactType` contract
 - [ ] 39-03-PLAN.md — Harden legacy `deck-structure-view.tsx` reuse with artifact-qualified state and chat scope
 
 ### Phase 40: Agent Typecheck Cleanup
@@ -242,5 +242,5 @@ Plans:
 | 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
 | 38. Live Verification Sweep | v1.6 | 6/6 | Complete | 2026-03-08 |
-| 39. Artifact Contract Hardening | v1.6 | 1/3 | In Progress | |
+| 39. Artifact Contract Hardening | 2/3 | In Progress|  | |
 | 40. Agent Typecheck Cleanup | v1.6 | 0/0 | Planned | |

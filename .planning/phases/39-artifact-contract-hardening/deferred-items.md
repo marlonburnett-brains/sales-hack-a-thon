@@ -1,0 +1,1 @@
+- Pre-existing `agent` TypeScript baseline failures remain outside this plan's scope, including Mastra workflow resume typings in `apps/agent/src/mastra/index.ts`, MCP-related test mocks, and `.ts` extension import issues in `packages/schemas`. These are deferred to Phase 40 `agent-typecheck-cleanup`.
