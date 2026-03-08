@@ -25,6 +25,10 @@ import {
   ACTION_TYPES,
   ARTIFACT_TYPES,
   type ArtifactType,
+  dealChatRouteContextSchema,
+  dealChatSendRequestSchema,
+  dealChatTouchTypeSchema,
+  dealContextSourceSchema,
 } from "@lumenalta/schemas";
 import { env } from "../env";
 import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
@@ -51,6 +55,16 @@ import {
   getPublishedAgentConfig,
 } from "../lib/agent-config";
 import { GoogleGenAI } from "@google/genai";
+import {
+  appendDealChatMessage,
+  confirmDealContextSource,
+  getDealChatMessages,
+  saveDealContextSource,
+} from "../deal-chat/persistence";
+import {
+  buildDealChatSuggestions,
+  runDealChatTurn,
+} from "../deal-chat/assistant";
 
 function createChatProviderClient() {
   return new GoogleGenAI({
@@ -59,6 +73,24 @@ function createChatProviderClient() {
     location: env.GOOGLE_CLOUD_LOCATION,
   });
 }
+
+function defaultDealChatRouteContext(dealId: string) {
+  return {
+    section: "overview" as const,
+    touchType: null,
+    pathname: `/deals/${dealId}`,
+    pageLabel: "Overview",
+  };
+}
+
+const dealChatBindingRequestSchema = z.object({
+  sourceId: z.string().optional(),
+  source: dealContextSourceSchema,
+  action: z.enum(["confirm", "correct", "save_general_note"]),
+  touchType: dealChatTouchTypeSchema.nullable().optional(),
+  interactionId: z.string().nullable().optional(),
+  refinedText: z.string().nullable().optional(),
+});
 
 const deckStructureArtifactQuerySchema = z.object({
   artifactType: z.enum(ARTIFACT_TYPES).nullable().optional(),
@@ -703,6 +735,138 @@ export const mastra = new Mastra({
             orderBy: { createdAt: "desc" },
           });
           return c.json(interactions);
+        },
+      }),
+      registerApiRoute("/deals/:dealId/chat", {
+        method: "GET",
+        handler: async (c) => {
+          const dealId = c.req.param("dealId");
+          const routeContext = dealChatRouteContextSchema.parse({
+            section: c.req.query("section") ?? "overview",
+            touchType: c.req.query("touchType") ?? null,
+            pathname: c.req.query("pathname") ?? `/deals/${dealId}`,
+            pageLabel: c.req.query("pageLabel") ?? "Overview",
+          });
+          const messages = await getDealChatMessages(dealId);
+
+          return c.json({
+            messages: messages.map((message) => ({
+              id: message.id,
+              role: message.role,
+              content: message.content,
+              meta: message.metaJson ? JSON.parse(message.metaJson) : null,
+              createdAt: message.createdAt,
+            })),
+            greeting:
+              messages.length === 0
+                ? `Hi - I can help with ${routeContext.pageLabel.toLowerCase()} context, similar cases, and note capture for this deal.`
+                : null,
+            suggestions: buildDealChatSuggestions(routeContext),
+          });
+        },
+      }),
+      registerApiRoute("/deals/:dealId/chat", {
+        method: "POST",
+        handler: async (c) => {
+          const dealId = c.req.param("dealId");
+          const body = await c.req.json();
+          const parsed = dealChatSendRequestSchema.parse({
+            ...body,
+            dealId,
+          });
+
+          await appendDealChatMessage({
+            dealId,
+            role: "user",
+            content: parsed.message.trim(),
+            routeContext: parsed.routeContext,
+          });
+
+          const result = await runDealChatTurn({
+            dealId,
+            message: parsed.message.trim(),
+            routeContext: parsed.routeContext,
+          });
+
+          await appendDealChatMessage({
+            dealId,
+            role: "assistant",
+            content: result.text,
+            routeContext: parsed.routeContext,
+            metaJson: JSON.stringify(result.meta),
+          });
+
+          const encoder = new TextEncoder();
+          const chunks = result.text
+            .split(/\n\n+/)
+            .map((chunk) => chunk.trim())
+            .filter(Boolean);
+
+          const stream = new ReadableStream({
+            start(controller) {
+              for (const chunk of chunks) {
+                controller.enqueue(encoder.encode(`${chunk}\n\n`));
+              }
+              controller.enqueue(encoder.encode("---DEAL_CHAT_META---\n"));
+              controller.enqueue(encoder.encode(JSON.stringify(result.meta)));
+              controller.close();
+            },
+          });
+
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+              "Cache-Control": "no-cache",
+            },
+          });
+        },
+      }),
+      registerApiRoute("/deals/:dealId/chat/bindings", {
+        method: "POST",
+        handler: async (c) => {
+          const dealId = c.req.param("dealId");
+          const body = await c.req.json();
+          const parsed = dealChatBindingRequestSchema.parse(body);
+          const touchType =
+            parsed.action === "save_general_note"
+              ? null
+              : parsed.touchType ?? parsed.source.touchType ?? null;
+
+          const pendingSource = parsed.sourceId
+            ? { id: parsed.sourceId }
+            : await saveDealContextSource({
+                dealId,
+                source: parsed.source,
+                status: "pending_confirmation",
+                interactionId: parsed.interactionId ?? null,
+                bindingMeta: {
+                  action: parsed.action,
+                  requestedTouchType: touchType,
+                },
+              });
+
+          const saved = await confirmDealContextSource(pendingSource.id, {
+            touchType,
+            interactionId: parsed.interactionId ?? null,
+            refinedText: parsed.refinedText ?? parsed.source.refinedText ?? null,
+            bindingMeta: {
+              action: parsed.action,
+              touchType,
+            },
+          });
+
+          return c.json({
+            source: saved,
+            confirmationChip: {
+              id: `source-${saved.id}`,
+              label: touchType
+                ? `Saved to ${touchType.replace("_", " ")}`
+                : "Saved as general deal notes",
+              tone: "success",
+              sourceType: saved.sourceType,
+              touchType: saved.touchType,
+            },
+          });
         },
       }),
 

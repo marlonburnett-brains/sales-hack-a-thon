@@ -62,6 +62,14 @@ export const dealChatKnowledgeMatchCardSchema = z.object({
   touchType: dealChatTouchTypeSchema.nullable(),
 });
 
+export const dealChatPromptVersionSchema = z.object({
+  agentId: z.string(),
+  id: z.string(),
+  version: z.number().int(),
+  publishedAt: z.string().datetime().nullable(),
+  publishedBy: z.string().nullable(),
+});
+
 export const dealChatAnswerSchema = z.object({
   directAnswer: z.string(),
   supportingBullets: z.array(z.string()),
@@ -76,6 +84,7 @@ export const dealChatMetaSchema = z.object({
   binding: dealChatBindingSchema.nullable(),
   refineBeforeSave: dealChatRefineBeforeSaveSchema.nullable(),
   confirmationChips: z.array(dealChatConfirmationChipSchema),
+  promptVersion: dealChatPromptVersionSchema,
 });
 
 export const dealChatSendRequestSchema = z.object({
@@ -97,6 +106,7 @@ export type DealChatConfirmationChip = z.infer<typeof dealChatConfirmationChipSc
 export type DealChatKnowledgeMatchCard = z.infer<
   typeof dealChatKnowledgeMatchCardSchema
 >;
+export type DealChatPromptVersion = z.infer<typeof dealChatPromptVersionSchema>;
 export type DealChatAnswer = z.infer<typeof dealChatAnswerSchema>;
 export type DealChatMeta = z.infer<typeof dealChatMetaSchema>;
 export type DealChatSendRequest = z.infer<typeof dealChatSendRequestSchema>;
