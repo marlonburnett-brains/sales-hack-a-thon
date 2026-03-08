@@ -1,5 +1,19 @@
 # Phase 40 Verification
 
+## Baseline Issue Summary
+
+Phase 40 closes the remaining v1.6 repo-health gap that was left outside the original feature work: the `agent` package no longer carried a clean `tsc --noEmit` baseline after the Touch 4 artifact rollout. The research inventory grouped the failures into four repaired buckets, and Plans 40-01 and 40-02 resolved them before this final verification run:
+
+1. Shared schema import-extension drift in `packages/schemas`
+2. Mastra `createRun()` and `resume()` API drift in Touch 4 workflow routes
+3. Zod 4 handler and helper typing drift
+4. MCP seam plus stale Vitest mock/test drift in the agent search stack
+
+Audit trail for the repaired buckets:
+
+- `40-01-SUMMARY.md` closed the shared schema, Mastra, and Zod drift.
+- `40-02-SUMMARY.md` closed the MCP seam and Vitest cleanup.
+
 ## Task 1 Run
 
 - Executed on: `2026-03-08T18:03:28Z`
@@ -28,3 +42,13 @@
 
 - The Vitest run emitted expected test-only stderr/stdout for mocked fallback and recovery paths, including MCP fallback logging and LLM graceful-degradation logging.
 - No new failures surfaced outside the targeted agent baseline scope.
+
+## Verdict
+
+Phase 40 restores the repository baseline for the `agent` package.
+
+- `pnpm --filter agent exec tsc --noEmit`: PASS
+- Locked Touch 4 route regressions: PASS
+- Repaired MCP/search suites: PASS
+
+Final closeout verdict: the agent no-emit baseline is green, the previously locked Touch 4 route guardrails still hold, and the verification trail now records the exact commands and passing evidence required for the v1.6 closeout.
