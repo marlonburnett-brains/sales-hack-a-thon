@@ -294,4 +294,4 @@ Plans:
 | 44. Agent Management UI | 3/3 | Complete    | 2026-03-08 | - |
 | 45. Persistent AI Chat Bar | 2/5 | In Progress|  | - |
 | 46. Touch Pages & HITL Workflow | 3/3 | Complete    | 2026-03-08 | - |
-| 47. Drive Artifact Integration | v1.7 | 0/3 | Not started | - |
+| 47. Drive Artifact Integration | 1/3 | In Progress|  | - |

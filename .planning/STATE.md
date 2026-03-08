@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 
 ## Current Position
 
-Phase: 45 of 47 (Persistent AI Chat Bar)
-Plan: 3 of 5 in current phase (next)
+Phase: 47 of 47 (Drive Artifact Integration)
+Plan: 2 of 5 in current phase (next)
 Status: Executing
-Last activity: 2026-03-08 - Completed 45-04 (persistent deal chat storage and binding heuristics)
+Last activity: 2026-03-08 - Completed 47-01 (Drive foundation: UserSetting, org-scoped sharing, root folder resolution, OAuth scope upgrade)
 
 Progress: [█████████░] 90%
 
@@ -76,6 +76,9 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 45]: Deal chat uses one governed deal-chat-assistant orchestrator identity instead of per-page or transcript-cleanup prompt agents.
 - [Phase 45]: Used a forward-only manual SQL migration for deal chat because prisma migrate dev --create-only was blocked by shared-db drift and reset flows are forbidden.
 - [Phase 45]: Deal chat keeps full persisted message history while prompt compaction lives separately on DealChatThread.promptSummary.
+- [Phase 47]: Used manual migration + resolve --applied for UserSetting due to existing DB drift
+- [Phase 47]: OAuth scope upgraded to full drive (not drive.readonly) for folder creation and permission management
+- [Phase 47]: makePubliclyViewable kept as deprecated export until Plan 03 migrates all call sites
 
 ### Pending Todos
 
@@ -112,6 +115,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T23:05:03.338Z
-Stopped at: Completed 45-04-PLAN.md
-Next action: Execute 45-02-PLAN.md for the deal-chat orchestrator and route wiring.
+Last session: 2026-03-08T23:16:40Z
+Stopped at: Completed 47-01-PLAN.md
+Next action: Execute 47-02-PLAN.md for Drive settings UI.

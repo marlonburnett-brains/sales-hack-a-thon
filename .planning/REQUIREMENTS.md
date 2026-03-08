@@ -56,8 +56,8 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 ### Drive Integration
 
 - [ ] **DRIVE-01**: User can choose a destination folder in Google Drive when saving generated artifacts
-- [ ] **DRIVE-02**: User can configure the sharing scope of newly generated documents
-- [ ] **DRIVE-03**: Default sharing is entire org + the service account
+- [x] **DRIVE-02**: User can configure the sharing scope of newly generated documents
+- [x] **DRIVE-03**: Default sharing is entire org + the service account
 
 ### Agent Architecture
 
@@ -139,8 +139,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOUCH-06 | Phase 46 | Complete |
 | TOUCH-07 | Phase 46 | Complete |
 | DRIVE-01 | Phase 47 | Pending |
-| DRIVE-02 | Phase 47 | Pending |
-| DRIVE-03 | Phase 47 | Pending |
+| DRIVE-02 | Phase 47 | Complete |
+| DRIVE-03 | Phase 47 | Complete |
 | AGENT-01 | Phase 43 | Complete |
 | AGENT-02 | Phase 43 | Complete |
 | MGMT-01 | Phase 44 | Complete |
