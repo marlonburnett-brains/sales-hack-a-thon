@@ -113,6 +113,8 @@ model InteractionRecord {
   generatedContent String?           // JSON: AI-generated content for review
   outputRefs       String?           // JSON array: Drive URLs of generated assets
   driveFileId      String?           // Primary generated presentation ID
+  hitlStage        String?           // "skeleton" | "lowfi" | "highfi" | "ready" | null
+  stageContent     String?           // JSON: content at current stage for display
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   feedbackSignals  FeedbackSignal[]
