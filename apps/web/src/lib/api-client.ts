@@ -1075,3 +1075,128 @@ export async function deleteDeckMessage(
     { method: "DELETE" },
   );
 }
+
+// ────────────────────────────────────────────────────────────
+// Agent Configs (Phase 44)
+// ────────────────────────────────────────────────────────────
+
+export interface AgentConfigListItem {
+  agentId: string;
+  name: string;
+  responsibility: string;
+  family: string;
+  isShared: boolean;
+  publishedVersion: number | null;
+  hasDraft: boolean;
+  draftVersion: number | null;
+}
+
+export interface AgentConfigDetail {
+  agentId: string;
+  name: string;
+  responsibility: string;
+  family: string;
+  isShared: boolean;
+  publishedVersion: {
+    id: string;
+    version: number;
+    baselinePrompt: string;
+    rolePrompt: string;
+    compiledPrompt: string | null;
+    changeSummary: string | null;
+    publishedAt: string | null;
+    publishedBy: string | null;
+  } | null;
+  draft: {
+    id: string;
+    version: number;
+    rolePrompt: string;
+    createdAt: string;
+  } | null;
+}
+
+export interface AgentConfigVersionItem {
+  id: string;
+  version: number;
+  rolePrompt: string;
+  changeSummary: string | null;
+  isPublished: boolean;
+  publishedAt: string | null;
+  publishedBy: string | null;
+  createdAt: string;
+}
+
+export async function listAgentConfigs(): Promise<AgentConfigListItem[]> {
+  return fetchJSON<AgentConfigListItem[]>("/agent-configs");
+}
+
+export async function getAgentConfig(
+  agentId: string,
+): Promise<AgentConfigDetail> {
+  return fetchJSON<AgentConfigDetail>(`/agent-configs/${encodeURIComponent(agentId)}`);
+}
+
+export async function getAgentConfigVersions(
+  agentId: string,
+): Promise<AgentConfigVersionItem[]> {
+  return fetchJSON<AgentConfigVersionItem[]>(
+    `/agent-configs/${encodeURIComponent(agentId)}/versions`,
+  );
+}
+
+export async function saveDraftPrompt(
+  agentId: string,
+  data: { rolePrompt: string; userId?: string; expectedVersion?: number },
+): Promise<unknown> {
+  return fetchJSON(`/agent-configs/${encodeURIComponent(agentId)}/draft`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function publishAgentConfig(
+  agentId: string,
+  data: { changeSummary?: string; userId?: string },
+): Promise<unknown> {
+  return fetchJSON(`/agent-configs/${encodeURIComponent(agentId)}/publish`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function discardDraft(agentId: string): Promise<{ success: boolean }> {
+  return fetchJSON<{ success: boolean }>(
+    `/agent-configs/${encodeURIComponent(agentId)}/discard`,
+    { method: "POST" },
+  );
+}
+
+export async function rollbackAgentConfig(
+  agentId: string,
+  data: { targetVersion: number; userId?: string },
+): Promise<unknown> {
+  return fetchJSON(`/agent-configs/${encodeURIComponent(agentId)}/rollback`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function saveBaselineDraft(data: {
+  baselinePrompt: string;
+  userId?: string;
+}): Promise<unknown> {
+  return fetchJSON("/agent-configs/baseline/draft", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function publishBaseline(data: {
+  changeSummary?: string;
+  userId?: string;
+}): Promise<{ agentsUpdated: number }> {
+  return fetchJSON<{ agentsUpdated: number }>("/agent-configs/baseline/publish", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}

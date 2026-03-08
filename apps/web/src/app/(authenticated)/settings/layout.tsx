@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Layers, Plug } from "lucide-react";
+import { Bot, ChevronRight, Layers, Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TOUCH_TYPE_ITEMS = [
@@ -19,6 +19,7 @@ export default function SettingsLayout({
 }) {
   const pathname = usePathname();
   const isDeckStructures = pathname.startsWith("/settings/deck-structures");
+  const isAgents = pathname.startsWith("/settings/agents");
 
   return (
     <div>
@@ -79,6 +80,20 @@ export default function SettingsLayout({
             >
               <Plug className="h-4 w-4 shrink-0" />
               <span>Integrations</span>
+            </Link>
+
+            {/* Agents */}
+            <Link
+              href="/settings/agents"
+              className={cn(
+                "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                isAgents
+                  ? "bg-slate-100 font-medium text-slate-900"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+              )}
+            >
+              <Bot className="h-4 w-4 shrink-0" />
+              <span>Agents</span>
             </Link>
           </div>
         </nav>
