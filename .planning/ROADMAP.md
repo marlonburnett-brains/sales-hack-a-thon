@@ -115,7 +115,7 @@ Tier 4 (after 46):                           47 ──┘
 
 - [x] **Phase 41: Deal Pipeline Page** - Deal list with status lifecycle, view toggle, filtering, and assignment (completed 2026-03-08)
 - [x] **Phase 42: Deal Detail Layout** - Sub-page routing with breadcrumbs, sidebar, overview dashboard, and briefing page (completed 2026-03-08)
-- [ ] **Phase 43: Named Agent Architecture** - Formalized agents with DB-backed versioned system prompts
+- [x] **Phase 43: Named Agent Architecture** - Formalized agents with DB-backed versioned system prompts (completed 2026-03-08)
 - [ ] **Phase 44: Agent Management UI** - Settings page for viewing, editing, versioning, and publishing agent prompts
 - [ ] **Phase 45: Persistent AI Chat Bar** - Deal-scoped chat with context, transcripts, and knowledge base queries
 - [ ] **Phase 46: Touch Pages & HITL Workflow** - Per-touch artifact generation with 3-stage HITL and chat refinement
@@ -288,7 +288,7 @@ Plans:
 | 40. Agent Typecheck Cleanup | v1.6 | 3/3 | Complete | 2026-03-08 |
 | 41. Deal Pipeline Page | 3/3 | Complete    | 2026-03-08 | - |
 | 42. Deal Detail Layout | 3/3 | Complete    | 2026-03-08 | - |
-| 43. Named Agent Architecture | 4/5 | In Progress|  | - |
+| 43. Named Agent Architecture | 5/5 | Complete   | 2026-03-08 | - |
 | 44. Agent Management UI | v1.7 | 0/TBD | Not started | - |
 | 45. Persistent AI Chat Bar | v1.7 | 0/TBD | Not started | - |
 | 46. Touch Pages & HITL Workflow | v1.7 | 0/TBD | Not started | - |
