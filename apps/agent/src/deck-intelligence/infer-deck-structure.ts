@@ -7,11 +7,13 @@
  * structure showing section flow, variations, and mapped reference slides.
  */
 
-import { GoogleGenAI } from "@google/genai";
 import { type ArtifactType } from "@lumenalta/schemas";
 import crypto from "node:crypto";
-import { env } from "../env";
 import { prisma } from "../lib/db";
+import {
+  createJsonResponseOptions,
+  executeRuntimeProviderNamedAgent,
+} from "../lib/agent-executor";
 import {
   resolveDeckStructureKey,
   type DeckStructureKey,
@@ -453,19 +455,12 @@ export async function inferDeckStructure(
     chatConstraints ?? undefined,
   );
 
-  const ai = new GoogleGenAI({
-    vertexai: true,
-    project: env.GOOGLE_CLOUD_PROJECT,
-    location: env.GOOGLE_CLOUD_LOCATION,
-  });
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: DECK_STRUCTURE_SCHEMA,
-    },
+  const response = await executeRuntimeProviderNamedAgent({
+    agentId: "deck-structure-analyst",
+    messages: [{ role: "user", content: prompt }],
+    options: createJsonResponseOptions(
+      DECK_STRUCTURE_SCHEMA as Record<string, unknown>,
+    ),
   });
 
   const text = response.text ?? "{}";

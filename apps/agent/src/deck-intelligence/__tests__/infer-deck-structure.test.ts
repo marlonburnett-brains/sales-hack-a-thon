@@ -7,14 +7,14 @@ const {
   mockFindFirst,
   mockUpdate,
   mockCreate,
-  mockGenerateContent,
+  mockExecuteRuntimeProviderNamedAgent,
 } = vi.hoisted(() => ({
   mockTemplateFindMany: vi.fn(),
   mockSlideEmbeddingFindMany: vi.fn(),
   mockFindFirst: vi.fn(),
   mockUpdate: vi.fn(),
   mockCreate: vi.fn(),
-  mockGenerateContent: vi.fn(),
+  mockExecuteRuntimeProviderNamedAgent: vi.fn(),
 }));
 
 vi.mock("../../lib/db", () => ({
@@ -29,26 +29,13 @@ vi.mock("../../lib/db", () => ({
   },
 }));
 
-vi.mock("../../env", () => ({
-  env: {
-    GOOGLE_CLOUD_PROJECT: "test-project",
-    GOOGLE_CLOUD_LOCATION: "us-central1",
-  },
-}));
-
-vi.mock("@google/genai", () => ({
-  Type: {
-    OBJECT: "OBJECT",
-    ARRAY: "ARRAY",
-    STRING: "STRING",
-    NUMBER: "NUMBER",
-    BOOLEAN: "BOOLEAN",
-  },
-  GoogleGenAI: class {
-    models = {
-      generateContent: mockGenerateContent,
-    };
-  },
+vi.mock("../../lib/agent-executor", () => ({
+  createJsonResponseOptions: vi.fn((schema?: Record<string, unknown>) => ({
+    responseFormat: schema
+      ? { type: "json", schema }
+      : { type: "json" },
+  })),
+  executeRuntimeProviderNamedAgent: mockExecuteRuntimeProviderNamedAgent,
 }));
 
 import {
@@ -93,7 +80,7 @@ describe("Phase 36 artifact-aware inference", () => {
     mockFindFirst.mockResolvedValue(null);
     mockUpdate.mockResolvedValue(undefined);
     mockCreate.mockResolvedValue(undefined);
-    mockGenerateContent.mockResolvedValue({
+    mockExecuteRuntimeProviderNamedAgent.mockResolvedValue({
       text: JSON.stringify({
         sections: [
           {
@@ -107,6 +94,15 @@ describe("Phase 36 artifact-aware inference", () => {
         ],
         sequenceRationale: "Lead with context.",
       }),
+      object: undefined,
+      response: undefined,
+      promptVersion: {
+        agentId: "deck-structure-analyst",
+        id: "version-1",
+        version: 1,
+        publishedAt: null,
+        publishedBy: null,
+      },
     });
   });
 
@@ -127,7 +123,11 @@ describe("Phase 36 artifact-aware inference", () => {
 
     await inferDeckStructure({ touchType: "touch_4", artifactType: "proposal" });
 
-    const prompt = mockGenerateContent.mock.calls[0][0].contents as string;
+    expect(mockExecuteRuntimeProviderNamedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: "deck-structure-analyst" }),
+    );
+    const prompt = mockExecuteRuntimeProviderNamedAgent.mock.calls[0][0]
+      .messages[0].content as string;
     expect(prompt).toContain("Proposal primary slide");
     expect(prompt).not.toContain("FAQ Example");
   });
@@ -151,7 +151,8 @@ describe("Phase 36 artifact-aware inference", () => {
 
     await inferDeckStructure({ touchType: "touch_4", artifactType: "proposal" });
 
-    const prompt = mockGenerateContent.mock.calls[0][0].contents as string;
+    const prompt = mockExecuteRuntimeProviderNamedAgent.mock.calls[0][0]
+      .messages[0].content as string;
     expect(prompt).toContain("Shared template slide");
     expect(prompt).toContain("FAQ template slide");
   });

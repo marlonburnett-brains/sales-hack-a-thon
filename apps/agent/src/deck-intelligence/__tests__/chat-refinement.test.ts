@@ -12,8 +12,8 @@ const {
   mockDeckChatMessageCount,
   mockDeckChatMessageFindMany,
   mockDeckChatMessageDeleteMany,
-  mockGenerateContentStream,
-  mockGenerateContent,
+  mockExecuteRuntimeProviderNamedAgent,
+  mockStreamRuntimeProviderNamedAgent,
   mockInferDeckStructure,
 } = vi.hoisted(() => ({
   mockDeckStructureFindFirst: vi.fn(),
@@ -22,8 +22,8 @@ const {
   mockDeckChatMessageCount: vi.fn(),
   mockDeckChatMessageFindMany: vi.fn(),
   mockDeckChatMessageDeleteMany: vi.fn(),
-  mockGenerateContentStream: vi.fn(),
-  mockGenerateContent: vi.fn(),
+  mockExecuteRuntimeProviderNamedAgent: vi.fn(),
+  mockStreamRuntimeProviderNamedAgent: vi.fn(),
   mockInferDeckStructure: vi.fn(),
 }));
 
@@ -56,28 +56,31 @@ vi.mock("../infer-deck-structure", () => ({
   isUnsupportedGenericTouch4: vi.fn(() => false),
 }));
 
-vi.mock("@google/genai", () => ({
-  Type: {
-    OBJECT: "OBJECT",
-    ARRAY: "ARRAY",
-    STRING: "STRING",
-    NUMBER: "NUMBER",
-    BOOLEAN: "BOOLEAN",
-  },
-  GoogleGenAI: class {
-    models = {
-      generateContentStream: mockGenerateContentStream,
-      generateContent: mockGenerateContent,
-    };
-  },
+vi.mock("../../lib/agent-executor", () => ({
+  createJsonResponseOptions: vi.fn((schema?: Record<string, unknown>) => ({
+    responseFormat: schema
+      ? { type: "json", schema }
+      : { type: "json" },
+  })),
+  executeRuntimeProviderNamedAgent: mockExecuteRuntimeProviderNamedAgent,
+  streamRuntimeProviderNamedAgent: mockStreamRuntimeProviderNamedAgent,
 }));
 
 describe("chat refinement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mockGenerateContentStream.mockResolvedValue([{ text: "I'll add an Introduction section after the title slide." }]);
-    mockGenerateContent.mockResolvedValue({
+    mockStreamRuntimeProviderNamedAgent.mockResolvedValue({
+      stream: [{ text: "I'll add an Introduction section after the title slide." }],
+      promptVersion: {
+        agentId: "deck-structure-refinement-assistant",
+        id: "version-1",
+        version: 1,
+        publishedAt: null,
+        publishedBy: null,
+      },
+    });
+    mockExecuteRuntimeProviderNamedAgent.mockResolvedValue({
       text: JSON.stringify({
         sections: [
           {
@@ -108,6 +111,15 @@ describe("chat refinement", () => {
         sequenceRationale:
           "Lead with the title, add an introduction to frame the story, then use divider slides sparingly.",
       }),
+      object: undefined,
+      response: undefined,
+      promptVersion: {
+        agentId: "deck-structure-refinement-assistant",
+        id: "version-1",
+        version: 1,
+        publishedAt: null,
+        publishedBy: null,
+      },
     });
     mockInferDeckStructure.mockResolvedValue({
       sections: [],
@@ -165,6 +177,11 @@ describe("chat refinement", () => {
     );
 
     expect(mockInferDeckStructure).not.toHaveBeenCalled();
+    expect(mockStreamRuntimeProviderNamedAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: "deck-structure-refinement-assistant",
+      }),
+    );
     expect(result.updatedStructure.sections.map((section) => section.name)).toEqual([
       "Title Slide",
       "Introduction",
@@ -184,7 +201,18 @@ describe("chat refinement", () => {
   });
 
   it("falls back to full re-inference if structured refinement output is invalid", async () => {
-    mockGenerateContent.mockResolvedValueOnce({ text: "not-json" });
+    mockExecuteRuntimeProviderNamedAgent.mockResolvedValueOnce({
+      text: "not-json",
+      object: undefined,
+      response: undefined,
+      promptVersion: {
+        agentId: "deck-structure-refinement-assistant",
+        id: "version-1",
+        version: 1,
+        publishedAt: null,
+        publishedBy: null,
+      },
+    });
     mockInferDeckStructure.mockResolvedValueOnce({
       sections: [
         {

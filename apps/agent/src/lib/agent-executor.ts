@@ -1,5 +1,8 @@
 import type { AgentId } from "@lumenalta/schemas";
 import type { Agent, StructuredOutputOptions } from "@mastra/core/agent";
+import { GoogleGenAI } from "@google/genai";
+
+import { env } from "../env";
 
 import { getAgentConfigByVersionId, getPublishedAgentConfig } from "./agent-config";
 
@@ -102,4 +105,109 @@ export async function executeRuntimeNamedAgent<TOutput = undefined>(
 ): Promise<NamedAgentExecutionResult<TOutput>> {
   runtimeResolverPromise ??= createMastraAgentResolver();
   return executeNamedAgent(params, await runtimeResolverPromise);
+}
+
+interface ProviderResponseOptions {
+  responseMimeType?: string;
+  responseSchema?: Record<string, unknown>;
+}
+
+function getNamedAgentPromptResolver(
+  params: ExecuteNamedAgentParams,
+): Promise<Awaited<ReturnType<typeof getPublishedAgentConfig>>> {
+  return params.pinnedVersionId
+    ? getAgentConfigByVersionId(params.pinnedVersionId)
+    : getPublishedAgentConfig(params.agentId);
+}
+
+function createProviderClient() {
+  return new GoogleGenAI({
+    vertexai: true,
+    project: env.GOOGLE_CLOUD_PROJECT,
+    location: env.GOOGLE_CLOUD_LOCATION,
+  });
+}
+
+function toProviderContents(
+  params: ExecuteNamedAgentParams,
+  compiledPrompt: string,
+): string {
+  return [
+    compiledPrompt,
+    ...params.messages.map(
+      (message) => `${message.role.toUpperCase()}: ${message.content}`,
+    ),
+  ].join("\n\n");
+}
+
+function toProviderResponseOptions(
+  params: ExecuteNamedAgentParams,
+): ProviderResponseOptions | undefined {
+  const responseFormat = params.options?.responseFormat as
+    | { type?: string; schema?: Record<string, unknown> }
+    | undefined;
+
+  if (!responseFormat || responseFormat.type !== "json") {
+    return undefined;
+  }
+
+  return {
+    responseMimeType: "application/json",
+    ...(responseFormat.schema ? { responseSchema: responseFormat.schema } : {}),
+  };
+}
+
+export async function executeRuntimeProviderNamedAgent<TOutput = undefined>(
+  params: ExecuteNamedAgentParams<TOutput>,
+): Promise<NamedAgentExecutionResult<TOutput>> {
+  const resolved = await getNamedAgentPromptResolver(params);
+  const ai = createProviderClient();
+  const config = toProviderResponseOptions(params);
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: toProviderContents(params, resolved.compiledPrompt),
+    ...(config ? { config } : {}),
+  });
+
+  return {
+    text: response.text ?? "",
+    object: undefined as TOutput,
+    response: response as NamedAgentExecutionResult<TOutput>["response"],
+    promptVersion: {
+      agentId: params.agentId,
+      id: resolved.version.id,
+      version: resolved.version.version,
+      publishedAt: resolved.version.publishedAt,
+      publishedBy: resolved.version.publishedBy,
+    },
+  };
+}
+
+export async function streamRuntimeProviderNamedAgent<TOutput = undefined>(
+  params: ExecuteNamedAgentParams<TOutput>,
+): Promise<{
+  stream: AsyncIterable<{ text?: string }>;
+  promptVersion: NamedAgentExecutionResult<TOutput>["promptVersion"];
+}> {
+  const resolved = await getNamedAgentPromptResolver(params);
+  const ai = createProviderClient();
+  const config = toProviderResponseOptions(params);
+
+  const stream = await ai.models.generateContentStream({
+    model: "gemini-2.0-flash",
+    contents: toProviderContents(params, resolved.compiledPrompt),
+    ...(config ? { config } : {}),
+  });
+
+  return {
+    stream,
+    promptVersion: {
+      agentId: params.agentId,
+      id: resolved.version.id,
+      version: resolved.version.version,
+      publishedAt: resolved.version.publishedAt,
+      publishedBy: resolved.version.publishedBy,
+    },
+  };
 }

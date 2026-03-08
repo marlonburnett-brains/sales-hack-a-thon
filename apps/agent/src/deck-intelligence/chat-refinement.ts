@@ -6,10 +6,13 @@
  * producing a diff of structural changes.
  */
 
-import { GoogleGenAI } from "@google/genai";
 import { type ArtifactType } from "@lumenalta/schemas";
-import { env } from "../env";
 import { prisma } from "../lib/db";
+import {
+  createJsonResponseOptions,
+  executeRuntimeProviderNamedAgent,
+  streamRuntimeProviderNamedAgent,
+} from "../lib/agent-executor";
 import { resolveDeckStructureKey } from "./deck-structure-key";
 import { DECK_STRUCTURE_SCHEMA } from "./deck-structure-schema";
 import {
@@ -97,24 +100,23 @@ function computeStructureDiff(
 async function summarizeOldMessages(
   messages: Array<{ role: string; content: string }>,
 ): Promise<string> {
-  const ai = new GoogleGenAI({
-    vertexai: true,
-    project: env.GOOGLE_CLOUD_PROJECT,
-    location: env.GOOGLE_CLOUD_LOCATION,
-  });
-
   const conversationText = messages
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n");
 
-  const result = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: `Summarize the following conversation about deck structure refinement into a concise list of constraints and requirements that should be maintained going forward. Only include actionable constraints, not pleasantries or questions.
+  const result = await executeRuntimeProviderNamedAgent({
+    agentId: "deck-structure-refinement-assistant",
+    messages: [
+      {
+        role: "user",
+        content: `Summarize the following conversation about deck structure refinement into a concise list of constraints and requirements that should be maintained going forward. Only include actionable constraints, not pleasantries or questions.
 
 Conversation:
 ${conversationText}
 
 Return a bullet-point list of constraints:`,
+      },
+    ],
   });
 
   return result.text ?? "";
@@ -194,22 +196,16 @@ export async function streamChatRefinement(
   );
 
   // 3. Stream AI response
-  const ai = new GoogleGenAI({
-    vertexai: true,
-    project: env.GOOGLE_CLOUD_PROJECT,
-    location: env.GOOGLE_CLOUD_LOCATION,
-  });
-
   let fullResponse = "";
 
   try {
     // Try streaming first
-    const streamResult = await ai.models.generateContentStream({
-      model: "gemini-2.0-flash",
-      contents: chatPrompt,
+    const streamResult = await streamRuntimeProviderNamedAgent({
+      agentId: "deck-structure-refinement-assistant",
+      messages: [{ role: "user", content: chatPrompt }],
     });
 
-    for await (const chunk of streamResult) {
+    for await (const chunk of streamResult.stream) {
       const text = chunk.text ?? "";
       if (text) {
         fullResponse += text;
@@ -223,9 +219,9 @@ export async function streamChatRefinement(
       streamError instanceof Error ? streamError.message : String(streamError),
     );
 
-    const result = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: chatPrompt,
+    const result = await executeRuntimeProviderNamedAgent({
+      agentId: "deck-structure-refinement-assistant",
+      messages: [{ role: "user", content: chatPrompt }],
     });
 
     fullResponse = result.text ?? "I encountered an issue processing your feedback. Please try again.";
@@ -251,7 +247,6 @@ export async function streamChatRefinement(
   };
 
   const refinedStructure = await refineStructureFromChat(
-    ai,
     key.touchType,
     currentStructureJson,
     currentStructure,
@@ -515,7 +510,6 @@ Rules:
 }
 
 async function refineStructureFromChat(
-  ai: GoogleGenAI,
   touchType: string,
   currentStructureJson: string,
   fallbackStructure: DeckStructureOutput,
@@ -525,20 +519,24 @@ async function refineStructureFromChat(
   userMessage: string,
 ): Promise<DeckStructureOutput | null> {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: buildStructureRefinementPrompt(
-        touchType,
-        currentStructureJson,
-        chatContext,
-        recentMessages,
-        assistantResponse,
-        userMessage,
+    const response = await executeRuntimeProviderNamedAgent({
+      agentId: "deck-structure-refinement-assistant",
+      messages: [
+        {
+          role: "user",
+          content: buildStructureRefinementPrompt(
+            touchType,
+            currentStructureJson,
+            chatContext,
+            recentMessages,
+            assistantResponse,
+            userMessage,
+          ),
+        },
+      ],
+      options: createJsonResponseOptions(
+        DECK_STRUCTURE_SCHEMA as Record<string, unknown>,
       ),
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: DECK_STRUCTURE_SCHEMA,
-      },
     });
 
     const text = response.text ?? "{}";
