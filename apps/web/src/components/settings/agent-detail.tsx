@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { AgentPromptEditor } from "@/components/settings/agent-prompt-editor";
+import { AgentChatPanel } from "@/components/settings/agent-chat-panel";
 import { PublishDialog } from "@/components/settings/publish-dialog";
 import {
   discardDraftAction,
@@ -45,6 +46,11 @@ export function AgentDetail({ config, versions }: AgentDetailProps) {
   const router = useRouter();
   const [isDiscarding, startDiscardTransition] = useTransition();
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+
+  // Lift role prompt state so editor and chat panel share it
+  const initialRolePrompt =
+    config.draft?.rolePrompt ?? config.publishedVersion?.rolePrompt ?? "";
+  const [currentRolePrompt, setCurrentRolePrompt] = useState(initialRolePrompt);
 
   const familyLabel = FAMILY_DISPLAY_NAMES[config.family] ?? config.family;
 
@@ -139,8 +145,9 @@ export function AgentDetail({ config, versions }: AgentDetailProps) {
           <AgentPromptEditor
             agentId={config.agentId}
             baselinePrompt={config.publishedVersion?.baselinePrompt ?? ""}
-            rolePrompt={config.publishedVersion?.rolePrompt ?? ""}
-            draftRolePrompt={config.draft?.rolePrompt}
+            rolePrompt={currentRolePrompt}
+            onRolePromptChange={setCurrentRolePrompt}
+            initialRolePrompt={initialRolePrompt}
             publishedVersion={config.publishedVersion?.version ?? 0}
           />
         </TabsContent>
@@ -151,6 +158,13 @@ export function AgentDetail({ config, versions }: AgentDetailProps) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* AI Chat Panel (persistent, below tabs) */}
+      <AgentChatPanel
+        agentId={config.agentId}
+        currentPrompt={currentRolePrompt}
+        onPromptUpdate={setCurrentRolePrompt}
+      />
 
       {/* Publish dialog */}
       {showPublishDialog && config.publishedVersion && config.draft && (

@@ -12,7 +12,8 @@ interface AgentPromptEditorProps {
   agentId: string;
   baselinePrompt: string;
   rolePrompt: string;
-  draftRolePrompt?: string;
+  onRolePromptChange: (value: string) => void;
+  initialRolePrompt: string;
   publishedVersion: number;
 }
 
@@ -20,7 +21,8 @@ export function AgentPromptEditor({
   agentId,
   baselinePrompt,
   rolePrompt,
-  draftRolePrompt,
+  onRolePromptChange,
+  initialRolePrompt,
   publishedVersion,
 }: AgentPromptEditorProps) {
   const router = useRouter();
@@ -28,9 +30,7 @@ export function AgentPromptEditor({
   const [isSaving, startSaveTransition] = useTransition();
   const [isBaselineExpanded, setIsBaselineExpanded] = useState(false);
 
-  const initialValue = draftRolePrompt ?? rolePrompt;
-  const [currentValue, setCurrentValue] = useState(initialValue);
-  const isDirty = currentValue !== initialValue;
+  const isDirty = rolePrompt !== initialRolePrompt;
 
   // Auto-resize textarea
   useEffect(() => {
@@ -38,13 +38,13 @@ export function AgentPromptEditor({
     if (!textarea) return;
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
-  }, [currentValue]);
+  }, [rolePrompt]);
 
   function handleSave() {
     startSaveTransition(async () => {
       try {
         await saveDraftAction(agentId, {
-          rolePrompt: currentValue,
+          rolePrompt,
           expectedVersion: publishedVersion,
         });
         toast.success("Draft saved");
@@ -107,8 +107,8 @@ export function AgentPromptEditor({
         <textarea
           ref={textareaRef}
           id="role-prompt"
-          value={currentValue}
-          onChange={(e) => setCurrentValue(e.target.value)}
+          value={rolePrompt}
+          onChange={(e) => onRolePromptChange(e.target.value)}
           className="w-full min-h-[200px] rounded-md border border-slate-200 bg-white px-4 py-3 font-mono text-sm text-slate-800 leading-relaxed focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent resize-none"
           spellCheck={false}
         />

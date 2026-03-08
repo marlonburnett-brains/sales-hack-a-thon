@@ -48,7 +48,17 @@ import { namedMastraAgents } from "./agents";
 import {
   compileAgentInstructions,
   invalidateAgentPromptCache,
+  getPublishedAgentConfig,
 } from "../lib/agent-config";
+import { GoogleGenAI } from "@google/genai";
+
+function createChatProviderClient() {
+  return new GoogleGenAI({
+    vertexai: true,
+    project: env.GOOGLE_CLOUD_PROJECT,
+    location: env.GOOGLE_CLOUD_LOCATION,
+  });
+}
 
 const deckStructureArtifactQuerySchema = z.object({
   artifactType: z.enum(ARTIFACT_TYPES).nullable().optional(),
@@ -3384,6 +3394,66 @@ export const mastra = new Mastra({
           invalidateAgentPromptCache({ agentId });
 
           return c.json(newVersion);
+        },
+      }),
+
+      // POST /agent-configs/:agentId/chat -- AI prompt editing assistant
+      registerApiRoute("/agent-configs/:agentId/chat", {
+        method: "POST",
+        handler: async (c) => {
+          const agentId = c.req.param("agentId");
+          const body = await c.req.json();
+          const data = z
+            .object({
+              message: z.string().min(1),
+              currentPrompt: z.string(),
+            })
+            .parse(body);
+
+          const systemPrompt = `You are a prompt engineering assistant. The user wants to improve an agent's system prompt.
+
+The agent's current role prompt is:
+---
+${data.currentPrompt}
+---
+
+When you suggest changes, output the COMPLETE updated prompt between delimiters \`---PROMPT_UPDATE---\` and \`---END_PROMPT_UPDATE---\`. Outside the delimiters, explain your reasoning. Always include the full prompt text between the delimiters, not just the changed parts.`;
+
+          const ai = createChatProviderClient();
+
+          const stream = await ai.models.generateContentStream({
+            model: "gemini-2.0-flash",
+            contents: [
+              { role: "user", parts: [{ text: data.message }] },
+            ],
+            config: {
+              systemInstruction: systemPrompt,
+            },
+          });
+
+          const readableStream = new ReadableStream({
+            async start(controller) {
+              const encoder = new TextEncoder();
+              try {
+                for await (const chunk of stream) {
+                  const text = chunk.text ?? "";
+                  if (text) {
+                    controller.enqueue(encoder.encode(text));
+                  }
+                }
+                controller.close();
+              } catch (err) {
+                controller.error(err);
+              }
+            },
+          });
+
+          return new Response(readableStream, {
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+              "Cache-Control": "no-cache",
+            },
+          });
         },
       }),
 
