@@ -1,5 +1,6 @@
 "use client";
 
+import type { ArtifactType } from "@lumenalta/schemas";
 import { useCallback, useState } from "react";
 import { Layers } from "lucide-react";
 import Link from "next/link";
@@ -17,7 +18,10 @@ import type {
 } from "@/lib/api-client";
 
 interface TouchTypeAccordionProps {
+  value?: string;
   touchType: string;
+  artifactType?: ArtifactType;
+  label?: string;
   structure: DeckStructureDetail | null;
   slideIdToThumbnail: Record<string, string>;
 }
@@ -31,11 +35,14 @@ const TOUCH_TYPE_LABELS: Record<string, string> = {
 };
 
 export function TouchTypeAccordion({
+  value,
   touchType,
+  artifactType,
+  label: customLabel,
   structure,
   slideIdToThumbnail,
 }: TouchTypeAccordionProps) {
-  const label = TOUCH_TYPE_LABELS[touchType] ?? touchType;
+  const label = customLabel ?? TOUCH_TYPE_LABELS[touchType] ?? touchType;
   const hasData = structure && structure.exampleCount > 0;
   const sections = structure?.structure.sections ?? [];
 
@@ -68,7 +75,7 @@ export function TouchTypeAccordion({
   );
 
   return (
-    <AccordionItem value={touchType}>
+    <AccordionItem value={value ?? touchType}>
       <AccordionTrigger className="hover:no-underline px-1">
         <div className="flex flex-1 items-center justify-between pr-2">
           <span className="text-base font-medium text-slate-900">
@@ -106,6 +113,7 @@ export function TouchTypeAccordion({
               <div className="mt-4">
                 <ChatBar
                   touchType={touchType}
+                  artifactType={artifactType}
                   onStructureUpdate={handleStructureUpdate}
                   initialMessages={structure?.chatMessages}
                 />
@@ -134,6 +142,7 @@ export function TouchTypeAccordion({
               {/* Disabled chat bar */}
               <ChatBar
                 touchType={touchType}
+                artifactType={artifactType}
                 onStructureUpdate={handleStructureUpdate}
                 disabled
               />
