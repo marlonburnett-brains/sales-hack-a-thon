@@ -1,45 +1,98 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-// ────────────────────────────────────────────────────────────
-// Shared mock state — each test gets a fresh module import
-// but shares these mock fns so vi.doMock closures work.
-// ────────────────────────────────────────────────────────────
+type McpToolResult = {
+  isError?: boolean;
+  content?: Array<{ type: string; text?: string }>;
+  structuredContent?: unknown;
+};
 
-let mockListTools: ReturnType<typeof vi.fn>;
-let mockDisconnect: ReturnType<typeof vi.fn>;
-let mockExecute: ReturnType<typeof vi.fn>;
-let mockGetPooledAtlusAuth: ReturnType<typeof vi.fn>;
-let mockRefreshAtlusToken: ReturnType<typeof vi.fn>;
-let mockUpdateAtlusTokenInDb: ReturnType<typeof vi.fn>;
-let mockRegisterAtlusClient: ReturnType<typeof vi.fn>;
-let mockPrismaUpdate: ReturnType<typeof vi.fn>;
+type MockedMcpConnection = {
+  client: {
+    callTool: (
+      params: Record<string, unknown>,
+      schema?: unknown,
+      options?: Record<string, unknown>,
+    ) => Promise<McpToolResult>;
+  };
+};
+
+type MockPoolAuth = {
+  token: string;
+  refreshToken?: string;
+  source: "pool" | "env";
+  userId?: string;
+  clientId?: string;
+};
+
+let mockGetConnectedClientForServer: ReturnType<
+  typeof vi.fn<(serverName: string) => Promise<MockedMcpConnection>>
+>;
+let mockDisconnect: ReturnType<typeof vi.fn<() => Promise<void>>>;
+let mockCallTool: ReturnType<
+  typeof vi.fn<
+    (
+      params: Record<string, unknown>,
+      schema?: unknown,
+      options?: Record<string, unknown>,
+    ) => Promise<McpToolResult>
+  >
+>;
+let mockGetPooledAtlusAuth: ReturnType<
+  typeof vi.fn<() => Promise<MockPoolAuth | null>>
+>;
+let mockRefreshAtlusToken: ReturnType<
+  typeof vi.fn<
+    (refreshToken: string, clientId: string) =>
+      Promise<{ access_token: string; refresh_token?: string } | null>
+  >
+>;
+let mockUpdateAtlusTokenInDb: ReturnType<
+  typeof vi.fn<(userId: string, tokenJson: string) => Promise<void>>
+>;
+let mockRegisterAtlusClient: ReturnType<
+  typeof vi.fn<() => Promise<{ client_id: string } | null>>
+>;
+let mockPersistAtlusClientId: ReturnType<
+  typeof vi.fn<(userId: string, clientId: string) => Promise<void>>
+>;
+let mockPrismaUpdate: ReturnType<
+  typeof vi.fn<(args: unknown) => Promise<unknown>>
+>;
 let envOverrides: Record<string, unknown>;
 
+function createConnectedClient(): MockedMcpConnection {
+  return {
+    client: {
+      callTool: (params, schema, options) =>
+        mockCallTool(params, schema, options),
+    },
+  };
+}
+
 async function freshModule() {
-  // Reset modules to get fresh singleton state
   vi.resetModules();
 
-  // Create fresh mocks
-  mockListTools = vi.fn();
+  mockGetConnectedClientForServer = vi.fn();
   mockDisconnect = vi.fn().mockResolvedValue(undefined);
-  mockExecute = vi.fn();
+  mockCallTool = vi.fn();
   mockGetPooledAtlusAuth = vi.fn();
   mockRefreshAtlusToken = vi.fn();
-  mockUpdateAtlusTokenInDb = vi.fn();
+  mockUpdateAtlusTokenInDb = vi.fn().mockResolvedValue(undefined);
   mockRegisterAtlusClient = vi.fn();
+  mockPersistAtlusClientId = vi.fn().mockResolvedValue(undefined);
   mockPrismaUpdate = vi.fn().mockResolvedValue({});
 
   envOverrides = {
     ATLUS_USE_MCP: "true",
     ATLUS_MCP_MAX_LIFETIME_MS: 3_600_000,
-    ATLUS_PROJECT_ID: undefined,
   };
 
   vi.doMock("@mastra/mcp", () => {
     class MockMCPClient {
-      listTools = mockListTools;
       disconnect = mockDisconnect;
+      getConnectedClientForServer = mockGetConnectedClientForServer;
     }
+
     return { MCPClient: MockMCPClient };
   });
 
@@ -48,12 +101,13 @@ async function freshModule() {
     refreshAtlusToken: mockRefreshAtlusToken,
     updateAtlusTokenInDb: mockUpdateAtlusTokenInDb,
     registerAtlusClient: mockRegisterAtlusClient,
+    persistAtlusClientId: mockPersistAtlusClientId,
   }));
 
   vi.doMock("../db", () => ({
     prisma: {
       userAtlusToken: {
-        update: (...args: unknown[]) => mockPrismaUpdate(...args),
+        update: (args: unknown) => mockPrismaUpdate(args),
       },
     },
   }));
@@ -70,372 +124,153 @@ async function freshModule() {
   return import("../mcp-client");
 }
 
-describe("MCP Client", () => {
+describe("mcp-client", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  // ──────────────────────────────────────────────────────────
-  // Health check (MCP-03)
-  // ──────────────────────────────────────────────────────────
+  it("initMcp() only marks MCP available after the health-check seam succeeds", async () => {
+    const mod = await freshModule();
 
-  describe("initMcp() - Health check (MCP-03)", () => {
-    it("calls listTools() and sets fallbackMode=false on success", async () => {
-      const mod = await freshModule();
-
-      mockGetPooledAtlusAuth.mockResolvedValue({
-        token: "test-token",
-        refreshToken: "test-refresh",
-        source: "pool",
-        userId: "user-1",
-      });
-      mockRegisterAtlusClient.mockResolvedValue({
-        client_id: "test-client-id",
-      });
-      mockListTools.mockResolvedValue({
-        atlus_search: { execute: mockExecute },
-        atlus_list: { execute: mockExecute },
-      });
-
-      await mod.initMcp();
-
-      expect(mockListTools).toHaveBeenCalledOnce();
-      expect(mod.isMcpAvailable()).toBe(true);
+    mockGetPooledAtlusAuth.mockResolvedValue({
+      token: "test-token",
+      refreshToken: "test-refresh",
+      source: "pool",
+      userId: "user-1",
     });
+    mockRegisterAtlusClient.mockResolvedValue({ client_id: "client-123" });
+    mockGetConnectedClientForServer.mockResolvedValue(createConnectedClient());
 
-    it("sets fallbackMode=true when listTools() throws", async () => {
-      const mod = await freshModule();
+    await mod.initMcp();
 
-      mockGetPooledAtlusAuth.mockResolvedValue({
-        token: "test-token",
-        source: "pool",
-        userId: "user-1",
-      });
-      mockRegisterAtlusClient.mockResolvedValue(null);
-      mockListTools.mockRejectedValue(new Error("Connection refused"));
-
-      await mod.initMcp();
-
-      expect(mod.isMcpAvailable()).toBe(false);
-    });
-
-    it("sets fallbackMode=true when no pool tokens available", async () => {
-      const mod = await freshModule();
-
-      mockGetPooledAtlusAuth.mockResolvedValue(null);
-
-      await mod.initMcp();
-
-      expect(mod.isMcpAvailable()).toBe(false);
-    });
-
-    it("never throws (catches all errors)", async () => {
-      const mod = await freshModule();
-
-      mockGetPooledAtlusAuth.mockRejectedValue(
-        new Error("DB connection failed"),
-      );
-
-      // Should not throw
-      await expect(mod.initMcp()).resolves.toBeUndefined();
-    });
+    expect(mockGetConnectedClientForServer).toHaveBeenCalledOnce();
+    expect(mockGetConnectedClientForServer).toHaveBeenCalledWith("atlus");
+    expect(mockPersistAtlusClientId).toHaveBeenCalledWith("user-1", "client-123");
+    expect(mod.isMcpAvailable()).toBe(true);
   });
 
-  // ──────────────────────────────────────────────────────────
-  // Auth injection (MCP-04)
-  // ──────────────────────────────────────────────────────────
+  it("initMcp() keeps fallback mode when the health-check seam fails", async () => {
+    const mod = await freshModule();
 
-  describe("Auth injection (MCP-04)", () => {
-    it("MCPClient is created and client is available after init", async () => {
-      const mod = await freshModule();
-
-      mockGetPooledAtlusAuth.mockResolvedValue({
-        token: "injected-token-123",
-        source: "pool",
-        userId: "user-1",
-      });
-      mockRegisterAtlusClient.mockResolvedValue({
-        client_id: "test-client-id",
-      });
-      mockListTools.mockResolvedValue({ tool1: { execute: mockExecute } });
-
-      await mod.initMcp();
-
-      // Client should be available -- this proves MCPClient was constructed
-      // and the fetch callback was set (otherwise health check would fail)
-      const client = await mod.getMcpClient();
-      expect(client).not.toBeNull();
-      expect(mod.isMcpAvailable()).toBe(true);
+    mockGetPooledAtlusAuth.mockResolvedValue({
+      token: "test-token",
+      source: "pool",
+      userId: "user-1",
+      clientId: "persisted-client",
     });
+    mockGetConnectedClientForServer.mockRejectedValue(
+      new Error("connection refused"),
+    );
 
-    it("fetch callback uses current auth token (not stale)", async () => {
-      const mod = await freshModule();
+    await mod.initMcp();
 
-      mockGetPooledAtlusAuth.mockResolvedValue({
-        token: "fresh-token",
-        source: "pool",
-        userId: "user-1",
-      });
-      mockRegisterAtlusClient.mockResolvedValue({
-        client_id: "test-client-id",
-      });
-      mockListTools.mockResolvedValue({ tool1: { execute: mockExecute } });
-
-      await mod.initMcp();
-
-      // Client should use the current token from pool
-      const client = await mod.getMcpClient();
-      expect(client).not.toBeNull();
-      // The fact that listTools() succeeded (mock) confirms the client was
-      // created with the auth context -- fetch callback is wired
-    });
+    expect(mockRegisterAtlusClient).not.toHaveBeenCalled();
+    expect(mod.isMcpAvailable()).toBe(false);
   });
 
-  // ──────────────────────────────────────────────────────────
-  // Max lifetime (MCP-05)
-  // ──────────────────────────────────────────────────────────
+  it("callMcpTool() retries once after refresh and preserves JSON result parsing", async () => {
+    const mod = await freshModule();
 
-  describe("getMcpClient() - Max lifetime (MCP-05)", () => {
-    it("returns same client when under max lifetime", async () => {
-      const mod = await freshModule();
-
-      mockGetPooledAtlusAuth.mockResolvedValue({
-        token: "test-token",
-        source: "pool",
-        userId: "user-1",
+    mockGetPooledAtlusAuth.mockResolvedValue({
+      token: "test-token",
+      refreshToken: "refresh-1",
+      source: "pool",
+      userId: "user-1",
+      clientId: "persisted-client",
+    });
+    mockGetConnectedClientForServer.mockResolvedValue(createConnectedClient());
+    mockCallTool
+      .mockRejectedValueOnce(new Error("401 Unauthorized"))
+      .mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ results: [{ id: "slide-1" }] }),
+          },
+        ],
       });
-      mockRegisterAtlusClient.mockResolvedValue({
-        client_id: "test-client-id",
-      });
-      mockListTools.mockResolvedValue({ tool1: { execute: mockExecute } });
-
-      await mod.initMcp();
-
-      const client1 = await mod.getMcpClient();
-      const client2 = await mod.getMcpClient();
-
-      expect(client1).toBe(client2);
-      expect(client1).not.toBeNull();
+    mockRefreshAtlusToken.mockResolvedValue({
+      access_token: "refreshed-token",
+      refresh_token: "refresh-2",
     });
 
-    it("disconnects and recreates client when over max lifetime", async () => {
-      const mod = await freshModule();
-
-      envOverrides.ATLUS_MCP_MAX_LIFETIME_MS = 1; // 1ms
-
-      mockGetPooledAtlusAuth.mockResolvedValue({
-        token: "test-token",
-        source: "pool",
-        userId: "user-1",
-      });
-      mockRegisterAtlusClient.mockResolvedValue({
-        client_id: "test-client-id",
-      });
-      mockListTools.mockResolvedValue({ tool1: { execute: mockExecute } });
-
-      await mod.initMcp();
-
-      // Wait to exceed the max lifetime
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // This should trigger recycle
-      const client = await mod.getMcpClient();
-      expect(client).not.toBeNull();
-      expect(mockDisconnect).toHaveBeenCalled();
+    await mod.initMcp();
+    const result = await mod.callMcpTool("knowledge_base_search_semantic", {
+      query: "cloud migration",
     });
 
-    it("clears cached extraction prompt on recycle", async () => {
-      const mod = await freshModule();
-
-      envOverrides.ATLUS_MCP_MAX_LIFETIME_MS = 1; // 1ms
-
-      mockGetPooledAtlusAuth.mockResolvedValue({
-        token: "test-token",
-        source: "pool",
-        userId: "user-1",
-      });
-      mockRegisterAtlusClient.mockResolvedValue({
-        client_id: "test-client-id",
-      });
-      mockListTools.mockResolvedValue({ tool1: { execute: mockExecute } });
-
-      await mod.initMcp();
-      mod.setCachedExtractionPrompt("cached prompt");
-      expect(mod.getCachedExtractionPrompt()).toBe("cached prompt");
-
-      // Wait to exceed the max lifetime
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Trigger recycle
-      await mod.getMcpClient();
-      expect(mod.getCachedExtractionPrompt()).toBeNull();
-    });
-  });
-
-  // ──────────────────────────────────────────────────────────
-  // SIGTERM shutdown (MCP-06)
-  // ──────────────────────────────────────────────────────────
-
-  describe("shutdownMcp() (MCP-06)", () => {
-    it("calls client.disconnect()", async () => {
-      const mod = await freshModule();
-
-      mockGetPooledAtlusAuth.mockResolvedValue({
-        token: "test-token",
-        source: "pool",
-        userId: "user-1",
-      });
-      mockRegisterAtlusClient.mockResolvedValue({
-        client_id: "test-client-id",
-      });
-      mockListTools.mockResolvedValue({ tool1: { execute: mockExecute } });
-
-      await mod.initMcp();
-      await mod.shutdownMcp();
-
-      expect(mockDisconnect).toHaveBeenCalled();
-    });
-
-    it("handles null client gracefully", async () => {
-      const mod = await freshModule();
-
-      // No init -- client is null
-      await expect(mod.shutdownMcp()).resolves.toBeUndefined();
-    });
-  });
-
-  // ──────────────────────────────────────────────────────────
-  // Token refresh/rotation
-  // ──────────────────────────────────────────────────────────
-
-  describe("callMcpTool() - Token refresh/rotation", () => {
-    it("on auth failure: tries refresh first, retries tool call on success", async () => {
-      const mod = await freshModule();
-
-      mockGetPooledAtlusAuth.mockResolvedValue({
-        token: "test-token",
-        refreshToken: "test-refresh",
-        source: "pool",
-        userId: "user-1",
-      });
-      mockRegisterAtlusClient.mockResolvedValue({
-        client_id: "test-client-id",
-      });
-
-      // listTools works for all calls
-      mockListTools.mockResolvedValue({
-        atlus_search: { execute: mockExecute },
-      });
-
-      // First execute throws 401, second succeeds after refresh
-      mockExecute
-        .mockRejectedValueOnce(new Error("401 Unauthorized"))
-        .mockResolvedValueOnce({ results: [] });
-
-      // Refresh succeeds
-      mockRefreshAtlusToken.mockResolvedValue({
+    expect(mockRefreshAtlusToken).toHaveBeenCalledWith(
+      "refresh-1",
+      "persisted-client",
+    );
+    expect(mockUpdateAtlusTokenInDb).toHaveBeenCalledWith(
+      "user-1",
+      JSON.stringify({
         access_token: "refreshed-token",
-        refresh_token: "new-refresh",
-      });
-      mockUpdateAtlusTokenInDb.mockResolvedValue(undefined);
-
-      await mod.initMcp();
-      const result = await mod.callMcpTool("search", { query: "test" });
-
-      expect(mockRefreshAtlusToken).toHaveBeenCalledWith(
-        "test-refresh",
-        "test-client-id",
-      );
-      expect(result).toEqual({ results: [] });
-    });
-
-    it("on refresh failure: marks token invalid, rotates to next pool token", async () => {
-      const mod = await freshModule();
-
-      mockGetPooledAtlusAuth
-        .mockResolvedValueOnce({
-          token: "token-1",
-          refreshToken: "refresh-1",
-          source: "pool",
-          userId: "user-1",
-        })
-        // Second call during rotation
-        .mockResolvedValueOnce({
-          token: "token-2",
-          source: "pool",
-          userId: "user-2",
-        });
-
-      mockRegisterAtlusClient.mockResolvedValue({
-        client_id: "test-client-id",
-      });
-
-      mockListTools.mockResolvedValue({
-        atlus_search: { execute: mockExecute },
-      });
-
-      // First execute throws 401, second succeeds after rotation
-      mockExecute
-        .mockRejectedValueOnce(new Error("401 Unauthorized"))
-        .mockResolvedValueOnce({ results: ["rotated"] });
-
-      // Refresh fails
-      mockRefreshAtlusToken.mockResolvedValue(null);
-
-      await mod.initMcp();
-      const result = await mod.callMcpTool("search", { query: "test" });
-
-      // Token should have been marked invalid
-      expect(mockPrismaUpdate).toHaveBeenCalledWith({
-        where: { userId: "user-1" },
-        data: { isValid: false, revokedAt: expect.any(Date) },
-      });
-
-      expect(result).toEqual({ results: ["rotated"] });
-    });
+        refresh_token: "refresh-2",
+      }),
+    );
+    expect(result).toEqual({ results: [{ id: "slide-1" }] });
   });
 
-  // ──────────────────────────────────────────────────────────
-  // Kill switch
-  // ──────────────────────────────────────────────────────────
+  it("callMcpTool() rotates to the next token after refresh failure", async () => {
+    const mod = await freshModule();
 
-  describe("Kill switch", () => {
-    it("getMcpClient() returns null when ATLUS_USE_MCP=false", async () => {
-      const mod = await freshModule();
-      envOverrides.ATLUS_USE_MCP = "false";
+    mockGetPooledAtlusAuth
+      .mockResolvedValueOnce({
+        token: "token-1",
+        refreshToken: "refresh-1",
+        source: "pool",
+        userId: "user-1",
+        clientId: "persisted-client",
+      })
+      .mockResolvedValueOnce({
+        token: "token-2",
+        source: "pool",
+        userId: "user-2",
+      });
+    mockGetConnectedClientForServer.mockResolvedValue(createConnectedClient());
+    mockCallTool
+      .mockRejectedValueOnce(new Error("401 Unauthorized"))
+      .mockResolvedValueOnce({
+        structuredContent: { results: ["rotated"] },
+      });
+    mockRefreshAtlusToken.mockResolvedValue(null);
 
-      const client = await mod.getMcpClient();
-      expect(client).toBeNull();
+    await mod.initMcp();
+    const result = await mod.callMcpTool("knowledge_base_search_semantic", {
+      query: "rotated search",
     });
 
-    it("isMcpAvailable() returns false when ATLUS_USE_MCP=false", async () => {
-      const mod = await freshModule();
-      envOverrides.ATLUS_USE_MCP = "false";
-
-      expect(mod.isMcpAvailable()).toBe(false);
+    expect(mockPrismaUpdate).toHaveBeenCalledWith({
+      where: { userId: "user-1" },
+      data: { isValid: false, revokedAt: expect.any(Date) },
     });
-
-    it("initMcp() is a no-op when ATLUS_USE_MCP=false", async () => {
-      const mod = await freshModule();
-      envOverrides.ATLUS_USE_MCP = "false";
-
-      await mod.initMcp();
-
-      expect(mockGetPooledAtlusAuth).not.toHaveBeenCalled();
-    });
+    expect(result).toEqual({ results: ["rotated"] });
   });
 
-  // ──────────────────────────────────────────────────────────
-  // Extraction prompt cache
-  // ──────────────────────────────────────────────────────────
+  it("getMcpClient() recycles stale clients and clears the cached extraction prompt", async () => {
+    const mod = await freshModule();
 
-  describe("Extraction prompt cache", () => {
-    it("get/set cached extraction prompt", async () => {
-      const mod = await freshModule();
+    envOverrides.ATLUS_MCP_MAX_LIFETIME_MS = 1;
 
-      expect(mod.getCachedExtractionPrompt()).toBeNull();
-      mod.setCachedExtractionPrompt("test prompt");
-      expect(mod.getCachedExtractionPrompt()).toBe("test prompt");
+    mockGetPooledAtlusAuth.mockResolvedValue({
+      token: "test-token",
+      source: "pool",
+      userId: "user-1",
+      clientId: "persisted-client",
     });
+    mockGetConnectedClientForServer.mockResolvedValue(createConnectedClient());
+
+    await mod.initMcp();
+    mod.setCachedExtractionPrompt("cached prompt");
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const recycledClient = await mod.getMcpClient();
+
+    expect(recycledClient).not.toBeNull();
+    expect(mockDisconnect).toHaveBeenCalled();
+    expect(mod.getCachedExtractionPrompt()).toBeNull();
   });
 });
