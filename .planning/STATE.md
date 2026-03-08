@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 45-02-PLAN.md
-last_updated: "2026-03-08T23:20:30.000Z"
-last_activity: "2026-03-08 - Completed 45-02 (deal chat orchestrator, routes, and regression coverage)"
+stopped_at: Completed 47-03-PLAN.md
+last_updated: "2026-03-08T23:33:22.593Z"
+last_activity: "2026-03-08 - Completed 47-03 (Workflow migration: user-rooted Drive folders, org sharing, archive-on-regen, Drive status badge)"
 progress:
   total_phases: 7
-  completed_phases: 5
-  total_plans: 39
-  completed_plans: 37
+  completed_phases: 6
+  total_plans: 25
+  completed_plans: 24
   percent: 95
 ---
 
