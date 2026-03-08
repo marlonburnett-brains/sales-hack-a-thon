@@ -912,7 +912,7 @@ export async function getDiscoveryIngestionProgress(batchId: string): Promise<In
 export interface DeckStructureSummary {
   id: string | null;
   touchType: string;
-  artifactType?: string | null;
+  artifactType?: ArtifactType | null;
   exampleCount: number;
   confidence: number;
   confidenceColor: "green" | "yellow" | "red";
@@ -934,7 +934,7 @@ export interface DeckSectionData {
 
 export interface DeckStructureDetail {
   touchType: string;
-  artifactType?: string | null;
+  artifactType?: ArtifactType | null;
   structure: {
     sections: DeckSectionData[];
     sequenceRationale: string;
@@ -964,7 +964,7 @@ export async function getDeckStructures(): Promise<DeckStructureSummary[]> {
 
 export async function getDeckStructure(
   touchType: string,
-  artifactType?: string,
+  artifactType?: ArtifactType | null,
 ): Promise<DeckStructureDetail> {
   const query = new URLSearchParams();
   if (artifactType) {
@@ -979,7 +979,7 @@ export async function getDeckStructure(
 
 export async function triggerDeckInference(
   touchType: string,
-  artifactType?: string,
+  artifactType?: ArtifactType | null,
 ): Promise<{ touchType: string; structure: unknown; confidence: number }> {
   const query = new URLSearchParams();
   if (artifactType) {

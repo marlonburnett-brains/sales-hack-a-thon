@@ -1,5 +1,7 @@
 "use server";
 
+import type { ArtifactType } from "@lumenalta/schemas";
+
 import {
   getDeckStructures,
   getDeckStructure,
@@ -18,14 +20,14 @@ export async function getDeckStructuresAction(): Promise<DeckStructureSummary[]>
 
 export async function getDeckStructureAction(
   touchType: string,
-  artifactType?: string,
+  artifactType?: ArtifactType | null,
 ): Promise<DeckStructureDetail> {
   return getDeckStructure(touchType, artifactType);
 }
 
 export async function triggerInferenceAction(
   touchType: string,
-  artifactType?: string,
+  artifactType?: ArtifactType | null,
 ): Promise<{ touchType: string; structure: unknown; confidence: number }> {
   return triggerDeckInference(touchType, artifactType);
 }
