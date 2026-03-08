@@ -18,6 +18,7 @@
  */
 
 import { getDriveClient, getSlidesClient } from "./google-auth";
+import { shareWithOrg } from "./drive-folders";
 import type { slides_v1 } from "googleapis";
 
 // ────────────────────────────────────────────────────────────
@@ -55,31 +56,6 @@ export interface AssembleDeckResult {
   presentationId: string;
   /** Direct Drive URL to the presentation */
   driveUrl: string;
-}
-
-// ────────────────────────────────────────────────────────────
-// Internal: Drive sharing for iframe preview
-// ────────────────────────────────────────────────────────────
-
-/**
- * Make a Drive file publicly viewable ("anyone with the link can view").
- * Required for Google Slides iframe preview to work without authentication.
- *
- * Note: This function is also defined in drive-folders.ts (Plan 04-01).
- * It is duplicated here to keep deck-customizer self-contained until
- * drive-folders.ts is created. When Plan 04-01 is executed, this can
- * be refactored to import from drive-folders.ts.
- */
-async function makePubliclyViewable(fileId: string): Promise<void> {
-  const drive = getDriveClient();
-  await drive.permissions.create({
-    fileId,
-    requestBody: {
-      role: "reader",
-      type: "anyone",
-    },
-    supportsAllDrives: true,
-  });
 }
 
 // ────────────────────────────────────────────────────────────
@@ -286,8 +262,8 @@ export async function assembleDeckFromSlides(
     });
   }
 
-  // Step 7: Make publicly viewable for iframe preview
-  await makePubliclyViewable(presentationId);
+  // Step 7: Share with org (domain-wide viewer access)
+  await shareWithOrg({ fileId: presentationId });
 
   const driveUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
 

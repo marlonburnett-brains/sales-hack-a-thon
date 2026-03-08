@@ -27,7 +27,7 @@ import { executeNamedAgent } from "../../lib/agent-executor";
 import { searchSlides } from "../../lib/atlusai-search";
 import { createGoogleDoc } from "../../lib/doc-builder";
 import type { DocSection } from "../../lib/doc-builder";
-import { getOrCreateDealFolder } from "../../lib/drive-folders";
+import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { prisma } from "../../lib/db";
 
 // ────────────────────────────────────────────────────────────
@@ -239,16 +239,17 @@ const buildBriefingDoc = createStep({
   inputSchema: questionsOutputSchema,
   outputSchema: docOutputSchema,
   execute: async ({ inputData }) => {
-    // Get or create deal folder (same pattern as touch-2-workflow)
+    // Get or create deal folder using user's root folder setting
     const deal = await prisma.deal.findUniqueOrThrow({
       where: { id: inputData.dealId },
       include: { company: true },
     });
 
+    const rootFolderId = await resolveRootFolderId(deal.ownerId ?? undefined);
     const folderId = await getOrCreateDealFolder({
       companyName: deal.company.name,
       dealName: deal.name,
-      parentFolderId: env.GOOGLE_DRIVE_FOLDER_ID,
+      parentFolderId: rootFolderId,
     });
 
     // Update deal with folder ID if not set
@@ -257,6 +258,20 @@ const buildBriefingDoc = createStep({
         where: { id: deal.id },
         data: { driveFolderId: folderId },
       });
+    }
+
+    // Archive previous briefing doc if re-generating
+    const existingInteraction = await prisma.interactionRecord.findFirst({
+      where: { dealId: inputData.dealId, touchType: "pre_call", driveFileId: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { driveFileId: true },
+    });
+    if (existingInteraction?.driveFileId) {
+      try {
+        await archiveExistingFile({ dealFolderId: folderId, fileId: existingInteraction.driveFileId });
+      } catch (err) {
+        console.warn("[pre-call-workflow] Archive failed, continuing:", err);
+      }
     }
 
     // Parse serialized data
@@ -371,6 +386,11 @@ const buildBriefingDoc = createStep({
       dealFolderId: folderId,
       sections,
     });
+
+    // Share with deal owner as editor (domain sharing handled by createGoogleDoc)
+    if (deal.ownerEmail) {
+      await shareWithOrg({ fileId: documentId, ownerEmail: deal.ownerEmail });
+    }
 
     return {
       ...inputData,

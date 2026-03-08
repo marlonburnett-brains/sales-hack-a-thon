@@ -188,20 +188,3 @@ export async function getOrCreateDealFolder(params: {
   return created.data.id!;
 }
 
-/**
- * Make a Drive file publicly viewable (anyone with the link can view).
- *
- * @deprecated Use shareWithOrg() instead for org-scoped access.
- * Kept for backward compatibility until Plan 03 migrates all call sites.
- */
-export async function makePubliclyViewable(fileId: string): Promise<void> {
-  const drive = getDriveClient();
-  await drive.permissions.create({
-    fileId,
-    requestBody: {
-      role: "reader",
-      type: "anyone",
-    },
-    supportsAllDrives: true,
-  });
-}

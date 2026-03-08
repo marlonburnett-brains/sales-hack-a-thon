@@ -15,7 +15,7 @@ import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { selectSlidesForDeck } from "../../lib/slide-selection";
 import { assembleDeckFromSlides } from "../../lib/deck-customizer";
-import { getOrCreateDealFolder } from "../../lib/drive-folders";
+import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { ingestGeneratedDeck } from "../../lib/ingestion-pipeline";
 import { prisma } from "../../lib/db";
 import { env } from "../../env";
@@ -326,16 +326,17 @@ const assembleDeck = createStep({
     driveUrl: z.string(),
   }),
   execute: async ({ inputData }) => {
-    // Get or create per-deal folder
+    // Get or create per-deal folder using user's root folder setting
     const deal = await prisma.deal.findUniqueOrThrow({
       where: { id: inputData.dealId },
       include: { company: true },
     });
 
+    const rootFolderId = await resolveRootFolderId(deal.ownerId ?? undefined);
     const folderId = await getOrCreateDealFolder({
       companyName: deal.company.name,
       dealName: deal.name,
-      parentFolderId: env.GOOGLE_DRIVE_FOLDER_ID,
+      parentFolderId: rootFolderId,
     });
 
     // Update deal with folder ID if not set
@@ -344,6 +345,20 @@ const assembleDeck = createStep({
         where: { id: deal.id },
         data: { driveFolderId: folderId },
       });
+    }
+
+    // Archive previous file if re-generating
+    const existingInteraction = await prisma.interactionRecord.findFirst({
+      where: { dealId: inputData.dealId, touchType: "touch_2", driveFileId: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { driveFileId: true },
+    });
+    if (existingInteraction?.driveFileId) {
+      try {
+        await archiveExistingFile({ dealFolderId: folderId, fileId: existingInteraction.driveFileId });
+      } catch (err) {
+        console.warn("[touch-2-workflow] Archive failed, continuing:", err);
+      }
     }
 
     const dateStr = new Date().toISOString().split("T")[0];
@@ -366,6 +381,11 @@ const assembleDeck = createStep({
         customerLogoUrl: inputData.customerLogoUrl,
       },
     });
+
+    // Share with deal owner as editor (domain sharing handled by assembleDeckFromSlides)
+    if (deal.ownerEmail) {
+      await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
+    }
 
     // Update hitlStage to highfi then ready (no separate high-fi suspend for Touch 2/3)
     await prisma.interactionRecord.update({

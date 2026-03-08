@@ -22,7 +22,7 @@ import {
 } from "@lumenalta/schemas";
 import { executeNamedAgent } from "../../lib/agent-executor";
 import { assembleFromTemplate } from "../../lib/slide-assembly";
-import { getOrCreateDealFolder } from "../../lib/drive-folders";
+import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { ingestDocument } from "../../lib/atlusai-client";
 import { prisma } from "../../lib/db";
 import { env } from "../../env";
@@ -344,16 +344,17 @@ const assembleDeck = createStep({
     agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
-    // Get or create per-deal folder
+    // Get or create per-deal folder using user's root folder setting
     const deal = await prisma.deal.findUniqueOrThrow({
       where: { id: inputData.dealId },
       include: { company: true },
     });
 
+    const rootFolderId = await resolveRootFolderId(deal.ownerId ?? undefined);
     const folderId = await getOrCreateDealFolder({
       companyName: deal.company.name,
       dealName: deal.name,
-      parentFolderId: env.GOOGLE_DRIVE_FOLDER_ID,
+      parentFolderId: rootFolderId,
     });
 
     // Update deal with folder ID if not set
@@ -362,6 +363,20 @@ const assembleDeck = createStep({
         where: { id: deal.id },
         data: { driveFolderId: folderId },
       });
+    }
+
+    // Archive previous file if re-generating
+    const existingInteraction = await prisma.interactionRecord.findFirst({
+      where: { dealId: inputData.dealId, touchType: "touch_1", driveFileId: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { driveFileId: true },
+    });
+    if (existingInteraction?.driveFileId) {
+      try {
+        await archiveExistingFile({ dealFolderId: folderId, fileId: existingInteraction.driveFileId });
+      } catch (err) {
+        console.warn("[touch-1-workflow] Archive failed, continuing:", err);
+      }
     }
 
     const content = inputData.finalContent;
@@ -380,6 +395,11 @@ const assembleDeck = createStep({
         "{{call-to-action}}": content.callToAction,
       },
     });
+
+    // Share with deal owner as editor (domain sharing handled by assembleFromTemplate)
+    if (deal.ownerEmail) {
+      await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
+    }
 
     // Update hitlStage to highfi
     await prisma.interactionRecord.update({

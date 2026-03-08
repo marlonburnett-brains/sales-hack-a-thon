@@ -12,7 +12,7 @@
 import type { docs_v1 } from "googleapis";
 import { getDocsClient } from "./google-auth";
 import { getDriveClient } from "./google-auth";
-import { makePubliclyViewable } from "./drive-folders";
+import { shareWithOrg } from "./drive-folders";
 
 export interface DocSection {
   heading: string;
@@ -152,8 +152,8 @@ export async function createGoogleDoc(params: {
     });
   }
 
-  // 4. Make publicly viewable
-  await makePubliclyViewable(documentId);
+  // 4. Share with org (domain-wide viewer access)
+  await shareWithOrg({ fileId: documentId });
 
   const docUrl = `https://docs.google.com/document/d/${documentId}/edit`;
   return { documentId, docUrl };

@@ -50,7 +50,7 @@ import { createSlidesDeckFromJSON } from "../../lib/deck-assembly";
 import { createGoogleDoc } from "../../lib/doc-builder";
 import type { DocSection } from "../../lib/doc-builder";
 import { runBrandComplianceChecks } from "../../lib/brand-compliance";
-import { getOrCreateDealFolder } from "../../lib/drive-folders";
+import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { prisma } from "../../lib/db";
 
 // ────────────────────────────────────────────────────────────
@@ -1130,11 +1130,12 @@ const createSlidesDeck = createStep({
     const company = deal.company;
     const primaryPillar = brief.primaryPillar;
 
-    // b. Get or create per-deal Drive folder
+    // b. Get or create per-deal Drive folder using user's root folder setting
+    const rootFolderId = await resolveRootFolderId(deal.ownerId ?? undefined);
     const dealFolderId = await getOrCreateDealFolder({
       companyName: company.name,
       dealName: deal.name,
-      parentFolderId: env.GOOGLE_DRIVE_FOLDER_ID,
+      parentFolderId: rootFolderId,
     });
 
     // Update deal's driveFolderId if not set
@@ -1143,6 +1144,20 @@ const createSlidesDeck = createStep({
         where: { id: deal.id },
         data: { driveFolderId: dealFolderId },
       });
+    }
+
+    // Archive previous deck if re-generating
+    const existingInteraction = await prisma.interactionRecord.findFirst({
+      where: { dealId: deal.id, touchType: "touch_4", driveFileId: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { driveFileId: true },
+    });
+    if (existingInteraction?.driveFileId) {
+      try {
+        await archiveExistingFile({ dealFolderId, fileId: existingInteraction.driveFileId });
+      } catch (err) {
+        console.warn("[touch-4-workflow] Archive failed, continuing:", err);
+      }
     }
 
     // c. Deserialize SlideJSON
@@ -1159,6 +1174,11 @@ const createSlidesDeck = createStep({
     console.log(
       `[create-slides-deck] Created deck: ${result.deckUrl} (${result.slideCount} slides)`
     );
+
+    // Share with deal owner as editor (domain sharing handled by createSlidesDeckFromJSON)
+    if (deal.ownerEmail) {
+      await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
+    }
 
     return {
       interactionId: inputData.interactionId,

@@ -105,7 +105,9 @@ vi.mock("../workflows/touch-4-workflow", () => ({ touch4Workflow: {} }));
 vi.mock("../workflows/pre-call-workflow", () => ({ preCallWorkflow: {} }));
 vi.mock("../../lib/drive-folders", () => ({
   getOrCreateDealFolder: vi.fn(),
-  makePubliclyViewable: vi.fn(),
+  shareWithOrg: vi.fn(),
+  resolveRootFolderId: vi.fn(),
+  archiveExistingFile: vi.fn(),
 }));
 vi.mock("../../lib/google-auth", () => ({
   getDriveClient: vi.fn(),

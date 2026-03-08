@@ -13,7 +13,7 @@
 
 import type { slides_v1 } from "googleapis";
 import { getDriveClient, getSlidesClient } from "./google-auth";
-import { makePubliclyViewable } from "./drive-folders";
+import { shareWithOrg } from "./drive-folders";
 
 export interface AssemblyParams {
   /** Source template presentation ID to copy from */
@@ -98,8 +98,8 @@ export async function assembleFromTemplate(
     });
   }
 
-  // Step 4: Make publicly viewable for iframe preview
-  await makePubliclyViewable(presentationId);
+  // Step 4: Share with org (domain-wide viewer access)
+  await shareWithOrg({ fileId: presentationId });
 
   return {
     presentationId,

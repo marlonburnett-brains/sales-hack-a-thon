@@ -20,7 +20,7 @@
 import type { slides_v1, drive_v3 } from "googleapis";
 import type { SlideAssembly } from "@lumenalta/schemas";
 import { getDriveClient, getSlidesClient } from "./google-auth";
-import { makePubliclyViewable } from "./drive-folders";
+import { shareWithOrg } from "./drive-folders";
 import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
@@ -299,8 +299,8 @@ export async function createSlidesDeckFromJSON(
     }
   }
 
-  // ── Step 6: Make publicly viewable ──
-  await makePubliclyViewable(presentationId);
+  // ── Step 6: Share with org (domain-wide viewer access) ──
+  await shareWithOrg({ fileId: presentationId });
 
   const deckUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
   const slideCount = createdSlideIds.length;
