@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
 status: in_progress
-stopped_at: Completed 38-03-PLAN.md
-last_updated: "2026-03-08T01:23:56.384Z"
-last_activity: 2026-03-08 — Completed Phase 38 Plan 03 browser UAT closure
+stopped_at: Completed 38-04-PLAN.md
+last_updated: "2026-03-08T01:53:07Z"
+last_activity: 2026-03-08 — Completed Phase 38 Plan 04 chat route parity fix
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  completed_phases: 3
+  total_plans: 9
+  completed_plans: 8
+  percent: 89
 ---
 
 # Project State
@@ -21,21 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 39 (Artifact Contract Hardening)
+**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 38 Plan 05 production re-verification
 
 ## Current Position
 
-Phase: 39 of 40 (Artifact Contract Hardening)
-Plan: Planning pending
-Status: Phase 38 complete; Phase 39 not started
-Last activity: 2026-03-08 — Completed Phase 38 Plan 03 browser UAT closure
+Phase: 38 of 40 (Live Verification Sweep)
+Plan: 05 of 05
+Status: Phase 38 in progress; production chat fix committed and awaiting re-verification
+Last activity: 2026-03-08 — Completed Phase 38 Plan 04 chat route parity fix
 
-Progress: [██████████] 100%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 80 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 7)
+- Total plans completed: 81 (v1.0: 27, v1.1: 6, v1.2: 10, v1.3: 10, v1.4: 12, v1.5: 8, v1.6: 8)
 - Total project time: ~6 days (2026-03-03 -> 2026-03-08)
 - Total LOC: ~40,833 TypeScript/TSX
 
@@ -69,6 +69,8 @@ All decisions logged in PROJECT.md Key Decisions table (55 decisions total throu
 - [Phase 38]: Accept Railway logs plus pre/post production settings state as the captured cron proof set, while explicitly calling out missing row-level DeckStructure fields.
 - [Phase 38]: Mark Phase 38 browser UAT as diagnosed rather than approved because only the classification reload scenario passed in production. — Scenario 1 preserved the saved artifact badge across both classify surfaces after refresh, but Scenario 2 still returned artifact-scoped 404 chat failures from the deployed settings flow.
 - [Phase 38]: Carry forward the exact 404 chat failures for faq and proposal as artifact-scoped production blockers instead of reducing them to a generic settings-page issue. — The supplied production browser evidence included request bodies, active tabs, timestamps, and rendered UI errors, which gives Phase 39 a precise deployed failure target.
+- [Phase 38]: Treat the production 404 as proxy-path drift and point settings chat at the root-mounted `/deck-structures/:touchType/chat` Mastra route already used by the rest of the web agent client.
+- [Phase 38]: Guard artifact chat parity with both proxy runtime assertions and agent source-contract checks so `/api` drift fails in CI before redeploy.
 
 ### Pending Todos
 
@@ -100,15 +102,16 @@ None.
 | Phase 38 P01 | 5 min | 2 tasks | 1 files |
 | Phase 38 P02 | 2 min | 2 tasks | 1 files |
 | Phase 38 P03 | 1 min | 3 tasks | 4 files |
+| Phase 38 P04 | 4 min | 2 tasks | 5 files |
 
 ### Blockers/Concerns
 
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
-- Production deck-structure chat proxy returns upstream `404 Not Found` for `touch_4` artifact requests, so live streaming remains unverified for Phase 38.
+- Production chat-path fix is committed in-repo, but Phase 38 still needs one live deploy/re-verification pass in `38-05` to prove the `touch_4` artifact stream works end to end.
 
 ## Session Continuity
 
-Last session: 2026-03-08T01:23:56.380Z
-Stopped at: Completed 38-03-PLAN.md
-Next action: /gsd-plan-phase 39
+Last session: 2026-03-08T01:53:07Z
+Stopped at: Completed 38-04-PLAN.md
+Next action: /gsd-execute-phase 38
