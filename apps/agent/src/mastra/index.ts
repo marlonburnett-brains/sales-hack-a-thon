@@ -44,6 +44,7 @@ import {
 } from "../deck-intelligence/infer-deck-structure";
 import { calculateConfidence } from "../deck-intelligence/deck-structure-schema";
 import { streamChatRefinement } from "../deck-intelligence/chat-refinement";
+import { namedMastraAgents } from "./agents";
 
 const deckStructureArtifactQuerySchema = z.object({
   artifactType: z.enum(ARTIFACT_TYPES).nullable().optional(),
@@ -527,6 +528,7 @@ export const mastra = new Mastra({
     connectionString: env.DATABASE_URL,
     schemaName: "mastra",
   }),
+  agents: namedMastraAgents,
   workflows: {
     "touch-1-workflow": touch1Workflow,
     "touch-2-workflow": touch2Workflow,
