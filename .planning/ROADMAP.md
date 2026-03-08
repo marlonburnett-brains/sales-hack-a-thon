@@ -197,7 +197,7 @@ Plans:
 
 Plans:
 - [x] 40-01-PLAN.md — Clear shared schema import drift and current Mastra/Zod API mismatches blocking agent compile
-- [ ] 40-02-PLAN.md — Repair the MCP client seam and stale Vitest suites that still fail the agent baseline
+- [x] 40-02-PLAN.md — Repair the MCP client seam and stale Vitest suites that still fail the agent baseline
 - [ ] 40-03-PLAN.md — Run the final agent no-emit gate and publish the Phase 40 verification trail
 
 ## Progress
@@ -245,4 +245,4 @@ Plans:
 | 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
 | 38. Live Verification Sweep | v1.6 | 6/6 | Complete | 2026-03-08 |
 | 39. Artifact Contract Hardening | 3/3 | Complete    | 2026-03-08 | |
-| 40. Agent Typecheck Cleanup | v1.6 | 1/3 | In Progress | |
+| 40. Agent Typecheck Cleanup | 2/3 | In Progress|  | |

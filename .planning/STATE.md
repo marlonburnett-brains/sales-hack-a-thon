@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Touch 4 Artifact Intelligence
-status: in_progress
-stopped_at: Completed 40-agent-typecheck-cleanup-01-PLAN.md
-last_updated: "2026-03-08T17:56:42.388Z"
-last_activity: 2026-03-08 — Completed Phase 40 Plan 01 shared schema and Mastra/Zod typecheck cleanup
+status: executing
+stopped_at: Completed 40-02-PLAN.md
+last_updated: "2026-03-08T18:00:19.013Z"
+last_activity: 2026-03-08 — Completed Phase 40 Plan 02 MCP seam and Vitest cleanup
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 16
-  completed_plans: 14
-  percent: 88
+  completed_plans: 15
+  percent: 94
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 40 execution in progress, with schema and Mastra/Zod cleanup complete
+**Current focus:** v1.6 Touch 4 Artifact Intelligence -- Phase 40 execution in progress, with final agent verification remaining
 
 ## Current Position
 
 Phase: 40 of 40 (Agent Typecheck Cleanup)
-Plan: 2 of 3
-Status: Phase 40 is in progress; Plan 01 complete and the remaining MCP seam cleanup is next
-Last activity: 2026-03-08 — Completed Phase 40 Plan 01 shared schema and Mastra/Zod typecheck cleanup
+Plan: 3 of 3
+Status: Phase 40 is in progress; Plans 01 and 02 are complete and final verification remains
+Last activity: 2026-03-08 — Completed Phase 40 Plan 02 MCP seam and Vitest cleanup
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -83,6 +83,8 @@ All decisions logged in PROJECT.md Key Decisions table (55 decisions total throu
 - [Phase 39]: Extend TouchTypeAccordion with optional label, value, and artifactType props so reused rows can preserve artifact-qualified labels and chat scope while non-Touch-4 callers stay unchanged. — This keeps legacy reuse safe without forcing artifact requirements onto Touch 1-3 settings flows.
 - [Phase 40-agent-typecheck-cleanup]: Keep the shared schema public surface unchanged and fix the local import specifiers instead of loosening compiler settings.
 - [Phase 40-agent-typecheck-cleanup]: Protect the Mastra resume API drift with source-contract tests that assert async createRun plus step-based resume calls.
+- [Phase 40]: Keep the unsupported MCP connected-client access behind one local helper so the rest of the wrapper stays typed against the public MCPClient surface.
+- [Phase 40]: Use explicit callable Vitest mock signatures for MCP, Drive, and GenAI wrappers so Vitest 4 preserves callability under TypeScript.
 
 ### Pending Todos
 
@@ -121,15 +123,16 @@ None.
 | Phase 39 P02 | 8 min | 2 tasks | 8 files |
 | Phase 39 P03 | 4 min | 2 tasks | 3 files |
 | Phase 40-agent-typecheck-cleanup P01 | 5 min | 2 tasks | 6 files |
+| Phase 40 P02 | 4 min | 2 tasks | 3 files |
 
 ### Blockers/Concerns
 
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
-- Remaining Phase 40 baseline failures are isolated to the MCP seam and stale Atlus search test mocks for Plan 02.
+- Phase 40 cleanup is down to final verification and documentation in Plan 03.
 
 ## Session Continuity
 
-Last session: 2026-03-08T17:56:42.385Z
-Stopped at: Completed 40-agent-typecheck-cleanup-01-PLAN.md
-Next action: Execute 40-02-PLAN.md
+Last session: 2026-03-08T18:00:19.011Z
+Stopped at: Completed 40-02-PLAN.md
+Next action: Execute 40-03-PLAN.md
