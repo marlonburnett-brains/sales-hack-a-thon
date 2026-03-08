@@ -1,9 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 
+import { seedPublishedAgentCatalog } from "../src/lib/agent-catalog-defaults";
+
 const prisma = new PrismaClient();
 
 async function main() {
   console.log("Seeding demo data...");
+
+  await seedPublishedAgentCatalog(prisma, new Date());
+  console.log("Named agent catalog: published version-1 defaults seeded.");
 
   // Financial Services demo company (upsert = idempotent)
   const company = await prisma.company.upsert({

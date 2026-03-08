@@ -68,10 +68,14 @@ describe("AGENT_CATALOG", () => {
     });
 
     expect(
-      AGENT_CATALOG.some((entry) => entry.agentId === "touch-2-slide-selector"),
+      AGENT_CATALOG.some(
+        (entry) => String(entry.agentId) === "touch-2-slide-selector",
+      ),
     ).toBe(false);
     expect(
-      AGENT_CATALOG.some((entry) => entry.agentId === "touch-3-slide-selector"),
+      AGENT_CATALOG.some(
+        (entry) => String(entry.agentId) === "touch-3-slide-selector",
+      ),
     ).toBe(false);
   });
 });

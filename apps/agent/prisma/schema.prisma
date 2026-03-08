@@ -331,6 +331,50 @@ model UserAtlusToken {
 }
 
 // ────────────────────────────────────────────────────────────
+// Phase 43: Named Agent Architecture — versioned prompt source of truth
+// Stores stable agent identities plus immutable prompt history.
+// ────────────────────────────────────────────────────────────
+
+model AgentConfig {
+  id                 String               @id @default(cuid())
+  agentId            String               @unique
+  name               String
+  responsibility     String
+  family             String
+  isShared           Boolean              @default(false)
+  touchTypes         String               @default("[]")
+  status             String               @default("draft")
+  publishedVersionId String?              @unique
+  publishedVersion   AgentConfigVersion?  @relation("PublishedAgentConfigVersion", fields: [publishedVersionId], references: [id])
+  versions           AgentConfigVersion[] @relation("AgentConfigVersions")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([family])
+  @@index([status])
+}
+
+model AgentConfigVersion {
+  id                 String        @id @default(cuid())
+  agentConfigId      String
+  agentConfig        AgentConfig   @relation("AgentConfigVersions", fields: [agentConfigId], references: [id], onDelete: Cascade)
+  version            Int
+  baselinePrompt     String
+  rolePrompt         String
+  compiledPrompt     String?
+  changeSummary      String?
+  isPublished        Boolean       @default(false)
+  publishedAt        DateTime?
+  publishedBy        String?
+  createdAt          DateTime      @default(now())
+  publishedForConfig AgentConfig[] @relation("PublishedAgentConfigVersion")
+
+  @@unique([agentConfigId, version])
+  @@index([agentConfigId])
+  @@index([isPublished])
+}
+
+// ────────────────────────────────────────────────────────────
 // Phase 34: Deck Intelligence — AI-inferred deck structures per touch type
 // Stores section flow, variations, mapped reference slides, and confidence scores
 // ────────────────────────────────────────────────────────────
