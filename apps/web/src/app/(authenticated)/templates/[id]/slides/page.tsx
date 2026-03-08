@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import type { ArtifactType } from "@lumenalta/schemas";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
   listSlidesAction,
   getSlideThumbnailsAction,
@@ -52,16 +51,11 @@ export default async function SlidesPage({
   if (slides.length === 0) {
     return (
       <div className="space-y-6">
-        <nav className="flex items-center gap-1 text-sm px-4 pt-3" aria-label="Breadcrumb">
-          <Link
-            href="/templates"
-            className="text-slate-500 hover:text-slate-900 transition-colors"
-          >
-            Templates
-          </Link>
-          <ChevronRight className="h-4 w-4 text-slate-400" />
-          <span className="font-semibold text-slate-900">{templateName}</span>
-        </nav>
+        <Breadcrumb
+          items={[{ label: "Templates", href: "/templates" }]}
+          current={templateName}
+          className="px-4 pt-3"
+        />
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
           <p className="text-sm text-slate-500">
             No ingested slides. Trigger ingestion from the Templates page.
