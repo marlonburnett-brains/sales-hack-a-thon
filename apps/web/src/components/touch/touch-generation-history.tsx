@@ -9,7 +9,7 @@ interface HistoryInteraction {
   hitlStage: string | null;
   status: string;
   createdAt: string;
-  generatedContent?: string;
+  generatedContent?: string | null;
 }
 
 interface TouchGenerationHistoryProps {
