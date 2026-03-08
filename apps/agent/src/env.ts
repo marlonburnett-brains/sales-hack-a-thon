@@ -25,7 +25,8 @@ export const env = createEnv({
     GOOGLE_SERVICE_ACCOUNT_KEY: z.string().min(1),
 
     // Google Drive folder ID where generated presentations are stored
-    GOOGLE_DRIVE_FOLDER_ID: z.string().min(1),
+    // Optional: users can override via UserSetting "drive_root_folder_id"
+    GOOGLE_DRIVE_FOLDER_ID: z.string().default(''),
 
     // Google Slides template presentation ID (Lumenalta branded template)
     GOOGLE_TEMPLATE_PRESENTATION_ID: z.string().min(1),

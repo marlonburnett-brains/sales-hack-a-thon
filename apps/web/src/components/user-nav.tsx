@@ -57,7 +57,7 @@ export function UserNav({ user }: UserNavProps) {
               provider: "google",
               options: {
                 scopes:
-                  "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/documents",
+                  "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/presentations https://www.googleapis.com/auth/documents",
                 queryParams: {
                   hd: "lumenalta.com",
                   access_type: "offline",
