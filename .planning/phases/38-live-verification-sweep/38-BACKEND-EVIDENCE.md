@@ -4,8 +4,8 @@
 
 - Web origin: `https://lumenalta-hackathon.vercel.app`
 - Agent origin: `https://lumenalta-agent-production.up.railway.app`
-- Verification target: `touch_4/proposal` primary, with unchanged observations for `touch_4/talk_track` and `touch_4/faq`
-- Evidence source: authenticated production browser session and Railway production logs provided by the Phase 38 orchestrator
+- Verification target: `touch_4/proposal` primary, with the earlier `touch_4/faq` and `touch_4/proposal` 404s retained below as historical context
+- Evidence sources used for the successful rerun: authenticated production web request, direct production agent detail read, and Railway-linked production metadata
 
 ## 38-04 Deployment Confirmation Gate
 
@@ -21,131 +21,121 @@
 
 ## Outcome Snapshot
 
-- `touch_4/proposal` cron re-inference was observed live and reflected in the production settings UI.
-- Live artifact-qualified chat streaming was exercised through the deployed web proxy, but it failed with `404 Not Found` before any progressive stream reached the browser.
-- Because chat failed at the proxy-to-agent hop, this plan does not provide a successful streaming proof set or a matching persisted `DeckChatMessage` confirmation.
+- `touch_4/proposal` production settings-chat now succeeds through the deployed `POST /api/deck-structures/chat` proxy.
+- The successful rerun produced progressive streaming text before the final `---STRUCTURE_UPDATE---` payload.
+- Matching persisted backend proof shows the same `touch_4/proposal` row advanced `lastChatAt` and appended the expected user and assistant `DeckChatMessage` entries.
+- The earlier production 404 remains documented below as pre-fix historical context, not the current state.
 
-## Live Streaming Verification
+## Successful Production Artifact-Qualified Chat Proof
 
 ### Scenario
 
 - Surface: `https://lumenalta-hackathon.vercel.app/settings/deck-structures/touch-4`
-- Active tab: Proposal, then FAQ for a second artifact-qualified check
+- Active artifact key: `touch_4/proposal`
 - Web proxy route: `POST /api/deck-structures/chat`
-
-### Request 1 - `touch_4/faq`
-
-- Timestamp: `2026-03-08T01:10:57.279965Z`
-- Request URL: `https://lumenalta-hackathon.vercel.app/api/deck-structures/chat`
 - Request body:
 
 ```json
-{"touchType":"touch_4","artifactType":"faq","message":"Please draft a concise FAQ deck structure with 5 sections for a prospective client meeting."}
+{
+  "touchType": "touch_4",
+  "artifactType": "proposal",
+  "message": "Refine the proposal structure into 5 concise sales-oriented sections with a stronger narrative arc."
+}
 ```
 
-- Browser-visible outcome: `Sorry, I encountered an error: Chat failed: 404`
-- Response status: `404`
-- Response content-type: `application/json`
+### Transport Proof - Progressive Streaming
 
-### Request 2 - `touch_4/proposal`
+- Request start: `2026-03-08T13:14:00Z`
+- Response status: `200`
+- Response content-type: `text/plain; charset=utf-8`
+- Vercel matched path: `/api/deck-structures/chat`
+- Vercel request id: `gru1::iad1::gczwb-1772975640950-488aa9650661`
+- First streamed chunk observed at `+2415ms`
+- Final `---STRUCTURE_UPDATE---` marker observed at `+13113ms`
+- Total streamed read events captured: `18`
 
-- Timestamp: `2026-03-08T01:11:46.712650Z`
-- Request URL: `https://lumenalta-hackathon.vercel.app/api/deck-structures/chat`
-- Request body:
-
-```json
-{"touchType":"touch_4","artifactType":"proposal","message":"Refine the proposal structure into 5 concise sales-oriented sections with a stronger narrative arc."}
-```
-
-- Browser-visible outcome: `Sorry, I encountered an error: Chat failed: 404`
-- Response status: `404`
-- Response content-type: `application/json`
-
-### Direct In-Page Proxy Check
-
-- Timestamp: `2026-03-08T01:13:09Z`
-- Response body:
-
-```json
-{"error":"Agent chat failed","details":"404 Not Found"}
-```
-
-- Relevant response header: `x-matched-path: /api/deck-structures/chat`
-
-### Transport Proof Result
-
-- Negative result: no progressive chunks were observed because the browser never received a streaming response body.
-- The authenticated production browser did reach the deployed Next.js proxy path, but the proxy returned a terminal `404` JSON error instead of a chunked text stream.
-- This fails the original plan requirement to prove progressive response behavior for one exact `(touch_4, artifactType)` pair.
-
-### Paired System Proof and Diagnosis
-
-- System proof available: the deployed web proxy accepted artifact-qualified requests at `/api/deck-structures/chat` and surfaced upstream failure details from the agent hop.
-- Source contract cross-check:
-  - `apps/web/src/app/api/deck-structures/chat/route.ts` builds `${env.AGENT_SERVICE_URL}/api/deck-structures/${touchType}/chat?artifactType=...`
-  - `apps/agent/src/mastra/index.ts` registers `registerApiRoute("/deck-structures/:touchType/chat", ...)`
-- Diagnosis: production chat traffic is reaching the web proxy with the correct `touchType` and `artifactType`, but the proxy's upstream request is receiving `404 Not Found` from the deployed agent service. The production route registration or deployed agent path is therefore not behaving like the checked-in contract.
-- Missing proof due to blocker:
-  - No successful streamed response for `touch_4/proposal` or `touch_4/faq`
-  - No paired Railway chat log excerpt was captured for the failed requests
-  - No persisted `DeckChatMessage` or `DeckStructure.lastChatAt` evidence was captured because the refinement never completed
-
-## Interim Assessment After Streaming Check
-
-- Live artifact-qualified chat reached the deployed proxy but failed upstream with `404 Not Found`, so successful streaming behavior remains unverified in production.
-- Cron evidence is documented separately in Task 2 to keep the proof trail atomic.
-
-## Cron Verification
-
-### Pre-Run UI State
-
-Authenticated production browser state on `https://lumenalta-hackathon.vercel.app/settings/deck-structures/touch-4` before the cron evidence window:
-
-- `touch_4/proposal`: `No examples - needs more examples / 0 examples`
-- `touch_4/talk_track`: `No examples - needs more examples / 0 examples`
-- `touch_4/faq`: `No examples - needs more examples / 0 examples`
-
-### Railway Production Logs
-
-Observed JSON log lines around the live run:
+First captured stream chunks showed progressive text before the structure payload:
 
 ```text
-2026-03-08T01:11:03.610710329Z [deck-infer-cron] Starting inference cycle...
-2026-03-08T01:11:03.610725014Z [deck-infer-cron] Re-inferring touch_4/proposal (hash changed: e3b0c442 -> 60e56b69)
-2026-03-08T01:11:08.468103580Z [deck-inference] Inferred structure for touch_4/proposal: 2 sections, 1 examples, confidence 30% (Low confidence)
-2026-03-08T01:11:08.468108062Z [deck-infer-cron] touch_4/proposal: 2 sections inferred
-2026-03-08T01:11:08.468112193Z [deck-infer-cron] Inference cycle complete
++2415ms: The user wants to transform the current deck, which is essentially a title slide and a large number of divider slides...
++2730ms: I recommend restructuring the deck into five core sections: 1) Problem/Opportunity ...
++3038ms: ... 4) Social Proof/Case Studies ... 5) Call to Action ...
++3352ms: ... remove the majority of the existing "Divider/Transition Slides" ...
++13113ms: ... persuasive sales presentation.
+
+---STRUCTURE_UPDATE---
 ```
 
-### Post-Run UI State
+The final streamed payload included a `STRUCTURE_UPDATE` object rather than terminating with an error JSON body.
 
-Authenticated production browser state after the cron run:
+### Successful Response Payload Highlights
 
-- `touch_4/proposal`: `Low confidence - needs more examples / 1 example`
-- `touch_4/talk_track`: `No examples - needs more examples / 0 examples`
-- `touch_4/faq`: `No examples - needs more examples / 0 examples`
-- Proposal panel body displayed `30%`, `1 example`, and inferred structure content.
+- Assistant response explained the requested transformation into a more sales-oriented proposal narrative.
+- The final streamed payload included `updatedStructure` plus `diff`, preserving the production stream contract from `apps/agent/src/mastra/index.ts`.
+- Returned section names in the final payload:
+  - `Title Slide`
+  - `Transition/Divider Slides`
+- Returned diff:
+  - `added`: `Transition/Divider Slides`
+  - `modified`: `Title Slide`
+  - `removed`: `Divider / Transition Slides`
 
-### Cron Result
+## Paired Backend Proof - Persisted Production State
 
-- Positive result for `touch_4/proposal`: the production cron loop evaluated the artifact-qualified key, detected a hash change, and re-inferred the proposal structure.
-- Evidence pairing for the same key is consistent:
-  - Transport or UI proof: Proposal tab changed from `0 examples` to `1 example` and showed the inferred structure.
-  - System proof: Railway logs explicitly named `touch_4/proposal`, the old and new hash prefixes, and the resulting `30%` low-confidence inference.
+System proof was captured by reading the production agent detail endpoint for the same artifact-qualified key before and after the successful web-proxy request.
 
-### Limits of Captured Proof
+### Before Request
 
-- No direct production row dump was captured for `DeckStructure.dataHash`, `DeckStructure.inferredAt`, or `DeckStructure.lastChatAt`.
-- No active-chat skip event was observed in the supplied cron window, so this run confirms re-inference behavior but not skip semantics.
-- `touch_4/talk_track` and `touch_4/faq` remained unchanged in the browser state during the captured window, and no matching cron log lines for those artifact keys were supplied.
+- Detail route key: `touch_4/proposal`
+- Read status: `200`
+- `lastChatAt`: `2026-03-08T13:10:03.063Z`
+- Persisted `chatMessages` count: `2`
+- Latest persisted roles: `user`, `assistant`
+
+### After Request
+
+- Detail route key: `touch_4/proposal`
+- Read status: `200`
+- `lastChatAt`: `2026-03-08T13:14:13.614Z`
+- Persisted `chatMessages` count: `4`
+- Latest persisted roles: `user`, `assistant`, `user`, `assistant`
+- Latest persisted user message exactly matched the streamed request:
+
+```text
+Refine the proposal structure into 5 concise sales-oriented sections with a stronger narrative arc.
+```
+
+- Latest persisted assistant message begins with the same response text captured in the successful stream:
+
+```text
+The user wants to transform the current deck, which is essentially a title slide and a large number of divider slides, into a concise, sales-oriented deck with a strong narrative arc.
+```
+
+### Pairing Assessment
+
+- The web proof and backend proof target the same artifact-qualified key: `touch_4/proposal`.
+- The web request started at `2026-03-08T13:14:00Z` and the persisted row advanced `lastChatAt` to `2026-03-08T13:14:13.614Z` in the same request window.
+- Persisted chat history increased from `2` to `4`, which is exactly consistent with one successful user message plus one successful assistant response being saved by `streamChatRefinement()`.
+- This satisfies the Phase 38 evidence-pairing rule without relying on inferred success or stale pre-fix logs.
+
+## Historical Context - Pre-Fix Failure Preserved
+
+The failed production state observed before the 38-04 route fix remains part of the record so the successful rerun is explicitly tied to the shipped deployment change.
+
+### Historical Failed Requests
+
+- `2026-03-08T01:10:57.279965Z` - `touch_4/faq` via `POST /api/deck-structures/chat` returned `404` with browser-visible `Chat failed: 404`
+- `2026-03-08T01:11:46.712650Z` - `touch_4/proposal` via `POST /api/deck-structures/chat` returned `404` with browser-visible `Chat failed: 404`
+- `2026-03-08T01:13:09Z` - direct in-page proxy check returned `{"error":"Agent chat failed","details":"404 Not Found"}`
+
+### Historical Root Cause and Fix Link
+
+- Root cause captured in `38-04`: the checked-in web proxy targeted `${AGENT_SERVICE_URL}/api/deck-structures/:touchType/chat`, while the deployed Mastra custom route is registered at the service root as `/deck-structures/:touchType/chat`.
+- Shipped fix in `38-04`: update `apps/web/src/app/api/deck-structures/chat/route.ts` to call `${AGENT_SERVICE_URL}/deck-structures/:touchType/chat`, preserve `artifactType` in `URLSearchParams`, and add regression coverage on both the web and agent sides.
+- The successful `2026-03-08T13:14:00Z` rerun above is the post-deploy proof that the locked production Vercel and Railway pair now honors that artifact-qualified chat contract.
 
 ## Final Assessment
 
-- `touch_4/proposal` cron behavior is re-confirmed live in production.
-- Live artifact-qualified chat reached the deployed proxy but failed upstream with `404 Not Found`, so successful streaming behavior remains unverified in production.
-- This evidence closes the checkpoint with truthful production observations, but it does not satisfy the original plan's successful streaming proof criteria. The remaining blocker is the production agent chat route failure behind `POST /api/deck-structures/chat`.
-
-## Root Cause and Shipped Resolution
-
-- Root cause: the checked-in web proxy targeted `${AGENT_SERVICE_URL}/api/deck-structures/:touchType/chat`, but the deployed Mastra custom route is registered at the service root as `/deck-structures/:touchType/chat`. Detail and infer requests already used the root-mounted family through `apps/web/src/lib/api-client.ts`, so chat was the only artifact-qualified deck-structure path drifting to a non-existent upstream URL.
-- Resolution shipped in `38-04`: update `apps/web/src/app/api/deck-structures/chat/route.ts` to call `${AGENT_SERVICE_URL}/deck-structures/:touchType/chat`, keep `artifactType` in `URLSearchParams`, and add regression coverage that fails if either the web proxy reintroduces `/api` or the agent route registration drifts away from `/deck-structures/:touchType/chat`.
+- `touch_4/proposal` production settings-chat now succeeds through the locked Vercel web origin and streams progressively before the final structure update payload.
+- Matching backend state for the same artifact-qualified key confirms persisted chat messages and a fresh `lastChatAt` in the same request window.
+- This plan now satisfies the backend proof goal that was previously blocked by the production 404.
