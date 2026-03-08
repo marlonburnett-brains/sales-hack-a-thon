@@ -42,6 +42,7 @@ function makeDetail(overrides: Partial<DeckStructureDetail> = {}): DeckStructure
     confidenceColor: "red",
     confidenceLabel: "Low confidence",
     chatMessages: [],
+    chatContext: null,
     slideIdToThumbnail: {},
     inferredAt: null,
     lastChatAt: null,

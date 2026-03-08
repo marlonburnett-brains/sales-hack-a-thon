@@ -6,6 +6,8 @@ import {
   getDeckStructures,
   getDeckStructure,
   triggerDeckInference,
+  deleteDeckMemories,
+  deleteDeckMessage,
 } from "@/lib/api-client";
 import type {
   DeckStructureSummary,
@@ -30,4 +32,19 @@ export async function triggerInferenceAction(
   artifactType?: ArtifactType | null,
 ): Promise<{ touchType: string; structure: unknown; confidence: number }> {
   return triggerDeckInference(touchType, artifactType);
+}
+
+export async function deleteDeckMemoriesAction(
+  touchType: string,
+  artifactType?: ArtifactType | null,
+): Promise<DeckStructureDetail> {
+  return deleteDeckMemories(touchType, artifactType);
+}
+
+export async function deleteDeckMessageAction(
+  touchType: string,
+  messageId: string,
+  artifactType?: ArtifactType | null,
+): Promise<{ success: boolean }> {
+  return deleteDeckMessage(touchType, messageId, artifactType);
 }

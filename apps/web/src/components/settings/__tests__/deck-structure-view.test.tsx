@@ -72,6 +72,7 @@ function makeDetail(
     confidenceColor: "green",
     confidenceLabel: "High confidence",
     chatMessages: [],
+    chatContext: null,
     slideIdToThumbnail: {},
     inferredAt: null,
     lastChatAt: null,

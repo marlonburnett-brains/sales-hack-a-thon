@@ -944,6 +944,7 @@ export interface DeckStructureDetail {
   confidenceColor: "green" | "yellow" | "red";
   confidenceLabel: string;
   chatMessages: DeckChatMessageData[];
+  chatContext: unknown;
   slideIdToThumbnail: Record<string, string>;
   inferredAt: string | null;
   lastChatAt: string | null;
@@ -990,4 +991,31 @@ export async function triggerDeckInference(
   return fetchJSON(`/deck-structures/${encodeURIComponent(touchType)}/infer${suffix}`, {
     method: "POST",
   });
+}
+
+export async function deleteDeckMemories(
+  touchType: string,
+  artifactType?: ArtifactType | null,
+): Promise<DeckStructureDetail> {
+  const query = new URLSearchParams();
+  if (artifactType) query.set("artifactType", artifactType);
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return fetchJSON<DeckStructureDetail>(
+    `/deck-structures/${encodeURIComponent(touchType)}/memories${suffix}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function deleteDeckMessage(
+  touchType: string,
+  messageId: string,
+  artifactType?: ArtifactType | null,
+): Promise<{ success: boolean }> {
+  const query = new URLSearchParams();
+  if (artifactType) query.set("artifactType", artifactType);
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
+  return fetchJSON<{ success: boolean }>(
+    `/deck-structures/${encodeURIComponent(touchType)}/messages/${encodeURIComponent(messageId)}${suffix}`,
+    { method: "DELETE" },
+  );
 }

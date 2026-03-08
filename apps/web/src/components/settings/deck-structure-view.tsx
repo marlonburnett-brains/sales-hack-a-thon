@@ -96,6 +96,7 @@ export function DeckStructureView() {
               confidenceColor: summary.confidenceColor,
               confidenceLabel: summary.confidenceLabel,
               chatMessages: [],
+              chatContext: null,
               slideIdToThumbnail: {},
               inferredAt: summary.inferredAt,
               lastChatAt: summary.lastChatAt,

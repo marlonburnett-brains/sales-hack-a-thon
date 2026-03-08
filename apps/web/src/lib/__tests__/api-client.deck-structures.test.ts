@@ -93,6 +93,7 @@ describe("Phase 36 deck structure api client", () => {
             confidenceColor: "green",
             confidenceLabel: "High",
             chatMessages: [],
+            chatContext: null,
             slideIdToThumbnail: {},
             inferredAt: null,
             lastChatAt: null,
