@@ -45,7 +45,7 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 
 ### Touch Pages & HITL
 
-- [ ] **TOUCH-01**: User can access a dedicated page for each touch (1-4) within the deal detail
+- [x] **TOUCH-01**: User can access a dedicated page for each touch (1-4) within the deal detail
 - [x] **TOUCH-02**: Touch 1 page generates a two-pager/first contact pager through HITL workflow
 - [x] **TOUCH-03**: Touch 2 page generates a Meet Lumenalta deck through HITL workflow
 - [x] **TOUCH-04**: Touch 3 page generates a use cases/capability alignment deck through HITL workflow
@@ -131,7 +131,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHAT-03 | Phase 45 | Pending |
 | CHAT-04 | Phase 45 | Pending |
 | CHAT-05 | Phase 45 | Pending |
-| TOUCH-01 | Phase 46 | Pending |
+| TOUCH-01 | Phase 46 | Complete |
 | TOUCH-02 | Phase 46 | Complete |
 | TOUCH-03 | Phase 46 | Complete |
 | TOUCH-04 | Phase 46 | Complete |
