@@ -45,6 +45,10 @@ import {
 import { calculateConfidence } from "../deck-intelligence/deck-structure-schema";
 import { streamChatRefinement } from "../deck-intelligence/chat-refinement";
 
+const deckStructureArtifactQuerySchema = z.object({
+  artifactType: z.enum(ARTIFACT_TYPES).nullable().optional(),
+});
+
 // ────────────────────────────────────────────────────────────
 // Background Staleness Polling
 // ────────────────────────────────────────────────────────────
@@ -2596,9 +2600,7 @@ export const mastra = new Mastra({
         method: "GET",
         handler: async (c) => {
           const touchType = c.req.param("touchType");
-          const query = z
-            .object({ artifactType: z.string().nullable().optional() })
-            .parse(c.req.query());
+          const query = deckStructureArtifactQuerySchema.parse(c.req.query());
 
           let key;
           try {
@@ -2704,9 +2706,7 @@ export const mastra = new Mastra({
         method: "POST",
         handler: async (c) => {
           const touchType = c.req.param("touchType");
-          const query = z
-            .object({ artifactType: z.string().nullable().optional() })
-            .parse(c.req.query());
+          const query = deckStructureArtifactQuerySchema.parse(c.req.query());
 
           let key;
           try {
@@ -2777,9 +2777,7 @@ export const mastra = new Mastra({
         method: "POST",
         handler: async (c) => {
           const touchType = c.req.param("touchType");
-          const query = z
-            .object({ artifactType: z.string().nullable().optional() })
-            .parse(c.req.query());
+          const query = deckStructureArtifactQuerySchema.parse(c.req.query());
           const body = await c.req.json<{ message: string }>();
 
           let key;

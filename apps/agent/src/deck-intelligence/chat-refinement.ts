@@ -7,6 +7,7 @@
  */
 
 import { GoogleGenAI } from "@google/genai";
+import { type ArtifactType } from "@lumenalta/schemas";
 import { env } from "../env";
 import { prisma } from "../lib/db";
 import { resolveDeckStructureKey } from "./deck-structure-key";
@@ -135,7 +136,7 @@ export async function streamChatRefinement(
   touchType: string,
   userMessage: string,
   onChunk: (text: string) => void,
-  artifactType: string | null = null,
+  artifactType: ArtifactType | null = null,
 ): Promise<ChatRefinementResult> {
   const key = resolveDeckStructureKey(touchType, artifactType);
 
@@ -410,43 +411,52 @@ function normalizeDeckStructure(
 
   const sections = Array.isArray(candidate.sections)
     ? candidate.sections
-        .filter((section): section is Partial<DeckSection> =>
-          Boolean(section && typeof section === "object"),
-        )
         .map((section, index) => {
+          if (!section || typeof section !== "object") {
+            return null;
+          }
+
+          const normalizedSection = section as Partial<DeckSection>;
           const fallbackSection =
-            typeof section.name === "string"
-              ? fallbackByName.get(section.name)
+            typeof normalizedSection.name === "string"
+              ? fallbackByName.get(normalizedSection.name)
               : undefined;
 
-          const slideIds = Array.isArray(section.slideIds)
-            ? section.slideIds.filter((slideId): slideId is string => typeof slideId === "string")
+          const slideIds = Array.isArray(normalizedSection.slideIds)
+            ? normalizedSection.slideIds.filter(
+                (slideId): slideId is string => typeof slideId === "string",
+              )
             : (fallbackSection?.slideIds ?? []);
 
           return {
             order:
-              typeof section.order === "number" && Number.isFinite(section.order)
-                ? section.order
+              typeof normalizedSection.order === "number" &&
+              Number.isFinite(normalizedSection.order)
+                ? normalizedSection.order
                 : index + 1,
             name:
-              typeof section.name === "string" && section.name.trim().length > 0
-                ? section.name.trim()
+              typeof normalizedSection.name === "string" &&
+              normalizedSection.name.trim().length > 0
+                ? normalizedSection.name.trim()
                 : fallbackSection?.name ?? `Section ${index + 1}`,
             purpose:
-              typeof section.purpose === "string" && section.purpose.trim().length > 0
-                ? section.purpose.trim()
+              typeof normalizedSection.purpose === "string" &&
+              normalizedSection.purpose.trim().length > 0
+                ? normalizedSection.purpose.trim()
                 : fallbackSection?.purpose ?? "Explain this part of the deck flow.",
             isOptional:
-              typeof section.isOptional === "boolean"
-                ? section.isOptional
+              typeof normalizedSection.isOptional === "boolean"
+                ? normalizedSection.isOptional
                 : (fallbackSection?.isOptional ?? false),
             variationCount:
-              typeof section.variationCount === "number" && Number.isFinite(section.variationCount)
-                ? section.variationCount
+              typeof normalizedSection.variationCount === "number" &&
+              Number.isFinite(normalizedSection.variationCount)
+                ? normalizedSection.variationCount
                 : (fallbackSection?.variationCount ?? 0),
             slideIds,
           };
         })
+        .filter((section): section is DeckSection => Boolean(section))
     : [];
 
   return {
