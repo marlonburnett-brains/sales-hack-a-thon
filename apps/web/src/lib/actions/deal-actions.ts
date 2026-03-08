@@ -21,6 +21,10 @@ export async function createDealAction(formData: {
   salespersonName?: string;
   salespersonPhoto?: string;
   logoUrl?: string;
+  ownerId?: string;
+  ownerEmail?: string;
+  ownerName?: string;
+  collaborators?: Array<{ id?: string; email: string; name?: string }>;
 }): Promise<Deal> {
   // Create or upsert company
   const company: Company = await createCompany({
@@ -35,6 +39,12 @@ export async function createDealAction(formData: {
     name: formData.dealName,
     salespersonName: formData.salespersonName,
     salespersonPhoto: formData.salespersonPhoto,
+    ownerId: formData.ownerId,
+    ownerEmail: formData.ownerEmail,
+    ownerName: formData.ownerName,
+    collaborators: formData.collaborators
+      ? JSON.stringify(formData.collaborators)
+      : undefined,
   });
 
   revalidatePath("/deals");

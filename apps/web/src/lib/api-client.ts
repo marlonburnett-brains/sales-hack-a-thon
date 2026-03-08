@@ -121,6 +121,10 @@ export async function createDeal(data: {
   name: string;
   salespersonName?: string;
   salespersonPhoto?: string;
+  ownerId?: string;
+  ownerEmail?: string;
+  ownerName?: string;
+  collaborators?: string;
 }): Promise<Deal> {
   return fetchJSON<Deal>("/deals", {
     method: "POST",

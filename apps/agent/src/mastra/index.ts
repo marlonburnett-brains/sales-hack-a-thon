@@ -643,6 +643,10 @@ export const mastra = new Mastra({
               name: z.string().min(1),
               salespersonName: z.string().optional(),
               salespersonPhoto: z.string().optional(),
+              ownerId: z.string().optional(),
+              ownerEmail: z.string().optional(),
+              ownerName: z.string().optional(),
+              collaborators: z.string().optional(),
             })
             .parse(body);
 

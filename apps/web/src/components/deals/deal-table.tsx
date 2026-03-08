@@ -2,21 +2,17 @@
 
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { Badge } from "@/components/ui/badge";
 import { StackedAvatars } from "./stacked-avatars";
+import { DealStatusAction } from "./deal-status-action";
+import { DealAssignmentPicker } from "./deal-assignment-picker";
 import { FileX } from "lucide-react";
-import type { Deal } from "@/lib/api-client";
+import type { Deal, KnownUser } from "@/lib/api-client";
 
 interface DealTableProps {
   deals: Deal[];
+  knownUsers: KnownUser[];
 }
 
-const STATUS_BADGE_CLASSES: Record<string, string> = {
-  open: "bg-blue-100 text-blue-800",
-  won: "bg-emerald-100 text-emerald-800",
-  lost: "bg-red-100 text-red-800",
-  abandoned: "bg-slate-200 text-slate-700",
-};
 
 function parseCollaborators(
   collaborators: string
@@ -48,7 +44,7 @@ function TouchIndicatorSmall({
   );
 }
 
-export function DealTable({ deals }: DealTableProps) {
+export function DealTable({ deals, knownUsers }: DealTableProps) {
   if (deals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 py-16">
@@ -132,17 +128,24 @@ export function DealTable({ deals }: DealTableProps) {
                 </td>
                 <td className="px-4 py-3 text-slate-600">{deal.name}</td>
                 <td className="px-4 py-3">
-                  <Badge
-                    className={
-                      STATUS_BADGE_CLASSES[deal.status] ??
-                      "bg-slate-100 text-slate-600"
-                    }
-                  >
-                    {deal.status.charAt(0).toUpperCase() + deal.status.slice(1)}
-                  </Badge>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <DealStatusAction
+                      dealId={deal.id}
+                      currentStatus={deal.status}
+                    />
+                  </div>
                 </td>
                 <td className="hidden px-4 py-3 text-slate-600 md:table-cell">
-                  {deal.ownerName || deal.ownerEmail || "--"}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <DealAssignmentPicker
+                      dealId={deal.id}
+                      currentOwnerId={deal.ownerId}
+                      currentOwnerEmail={deal.ownerEmail}
+                      currentOwnerName={deal.ownerName}
+                      currentCollaborators={collabs}
+                      knownUsers={knownUsers}
+                    />
+                  </div>
                 </td>
                 <td className="hidden px-4 py-3 lg:table-cell">
                   <StackedAvatars people={people} />

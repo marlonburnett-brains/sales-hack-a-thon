@@ -1,13 +1,17 @@
-import { listDealsFilteredAction } from "@/lib/actions/deal-actions";
+import {
+  listDealsFilteredAction,
+  listKnownUsersAction,
+} from "@/lib/actions/deal-actions";
 import { DealDashboard } from "@/components/deals/deal-dashboard";
 import { DealTable } from "@/components/deals/deal-table";
 import { DealStatusFilter } from "@/components/deals/deal-status-filter";
 import { DealViewToggle } from "@/components/deals/deal-view-toggle";
+import { DealAssigneeFilter } from "@/components/deals/deal-assignee-filter";
 import { CreateDealDialog } from "@/components/deals/create-deal-dialog";
 import { createClient } from "@/lib/supabase/server";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Deal } from "@/lib/api-client";
+import type { Deal, KnownUser } from "@/lib/api-client";
 
 export const dynamic = "force-dynamic";
 
@@ -30,13 +34,13 @@ export default async function DealsPage({
   } = await supabase.auth.getUser();
 
   let deals: Deal[] = [];
+  let knownUsers: KnownUser[] = [];
 
   try {
-    deals = await listDealsFilteredAction({
-      status,
-      assignee,
-      userId: user?.id,
-    });
+    [deals, knownUsers] = await Promise.all([
+      listDealsFilteredAction({ status, assignee, userId: user?.id }),
+      listKnownUsersAction(),
+    ]);
   } catch {
     // Agent service may be unavailable during development
   }
@@ -61,14 +65,24 @@ export default async function DealsPage({
       </div>
 
       <div className="flex items-center justify-between">
-        <DealStatusFilter currentStatus={status} dealCount={deals.length} />
+        <div className="flex items-center gap-3">
+          <DealStatusFilter currentStatus={status} dealCount={deals.length} />
+          <DealAssigneeFilter
+            currentAssignee={assignee}
+            knownUsers={knownUsers}
+          />
+        </div>
         <DealViewToggle currentView={view} />
       </div>
 
       {view === "grid" ? (
-        <DealDashboard deals={deals} isFiltered={isFiltered} />
+        <DealDashboard
+          deals={deals}
+          isFiltered={isFiltered}
+          knownUsers={knownUsers}
+        />
       ) : (
-        <DealTable deals={deals} />
+        <DealTable deals={deals} knownUsers={knownUsers} />
       )}
     </div>
   );

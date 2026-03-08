@@ -3,14 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
 import { StackedAvatars } from "./stacked-avatars";
-import type { Deal } from "@/lib/api-client";
-
-const STATUS_BADGE_CLASSES: Record<string, string> = {
-  open: "bg-blue-100 text-blue-800",
-  won: "bg-emerald-100 text-emerald-800",
-  lost: "bg-red-100 text-red-800",
-  abandoned: "bg-slate-200 text-slate-700",
-};
+import { DealStatusAction } from "./deal-status-action";
+import { DealAssignmentPicker } from "./deal-assignment-picker";
+import type { Deal, KnownUser } from "@/lib/api-client";
 
 function parseCollaborators(
   collaborators: string
@@ -24,6 +19,7 @@ function parseCollaborators(
 
 interface DealCardProps {
   deal: Deal;
+  knownUsers: KnownUser[];
 }
 
 function TouchIndicator({
@@ -55,7 +51,7 @@ function TouchIndicator({
   );
 }
 
-export function DealCard({ deal }: DealCardProps) {
+export function DealCard({ deal, knownUsers }: DealCardProps) {
   // Determine which touches have been completed
   const interactions = deal.interactions ?? [];
   const completedTouches = new Set(
@@ -97,14 +93,12 @@ export function DealCard({ deal }: DealCardProps) {
               {deal.company?.name ?? "Unknown Company"}
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Badge
-                className={
-                  STATUS_BADGE_CLASSES[deal.status] ??
-                  "bg-slate-100 text-slate-600"
-                }
-              >
-                {deal.status.charAt(0).toUpperCase() + deal.status.slice(1)}
-              </Badge>
+              <div onClick={(e) => e.preventDefault()}>
+                <DealStatusAction
+                  dealId={deal.id}
+                  currentStatus={deal.status}
+                />
+              </div>
               {hasPendingAssetReview ? (
                 <Badge className="bg-blue-100 text-xs text-blue-800">
                   Assets Ready
@@ -167,11 +161,21 @@ export function DealCard({ deal }: DealCardProps) {
               });
             }
             people.push(...collabs);
-            return people.length > 0 ? (
-              <div className="mt-3">
-                <StackedAvatars people={people} />
+            return (
+              <div className="mt-3 flex items-center gap-2">
+                {people.length > 0 && <StackedAvatars people={people} />}
+                <div onClick={(e) => e.preventDefault()}>
+                  <DealAssignmentPicker
+                    dealId={deal.id}
+                    currentOwnerId={deal.ownerId}
+                    currentOwnerEmail={deal.ownerEmail}
+                    currentOwnerName={deal.ownerName}
+                    currentCollaborators={collabs}
+                    knownUsers={knownUsers}
+                  />
+                </div>
               </div>
-            ) : null;
+            );
           })()}
         </CardContent>
       </Card>

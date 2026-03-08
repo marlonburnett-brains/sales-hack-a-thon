@@ -1,15 +1,16 @@
 "use client";
 
 import { DealCard } from "./deal-card";
-import type { Deal } from "@/lib/api-client";
+import type { Deal, KnownUser } from "@/lib/api-client";
 import { FileText, Filter } from "lucide-react";
 
 interface DealDashboardProps {
   deals: Deal[];
   isFiltered?: boolean;
+  knownUsers: KnownUser[];
 }
 
-export function DealDashboard({ deals, isFiltered }: DealDashboardProps) {
+export function DealDashboard({ deals, isFiltered, knownUsers }: DealDashboardProps) {
   if (deals.length === 0) {
     if (isFiltered) {
       return (
@@ -40,7 +41,7 @@ export function DealDashboard({ deals, isFiltered }: DealDashboardProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
       {deals.map((deal) => (
-        <DealCard key={deal.id} deal={deal} />
+        <DealCard key={deal.id} deal={deal} knownUsers={knownUsers} />
       ))}
     </div>
   );
