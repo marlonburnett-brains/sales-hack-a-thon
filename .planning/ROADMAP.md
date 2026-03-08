@@ -289,7 +289,7 @@ Plans:
 | 41. Deal Pipeline Page | 3/3 | Complete    | 2026-03-08 | - |
 | 42. Deal Detail Layout | 3/3 | Complete    | 2026-03-08 | - |
 | 43. Named Agent Architecture | 5/5 | Complete    | 2026-03-08 | - |
-| 44. Agent Management UI | 1/3 | In Progress|  | - |
+| 44. Agent Management UI | 2/3 | In Progress|  | - |
 | 45. Persistent AI Chat Bar | v1.7 | 0/3 | Planned | - |
 | 46. Touch Pages & HITL Workflow | 1/3 | In Progress|  | - |
 | 47. Drive Artifact Integration | v1.7 | 0/TBD | Not started | - |
