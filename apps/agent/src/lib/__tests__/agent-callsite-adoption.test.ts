@@ -15,6 +15,7 @@ describe("internal/background named-agent adoption", () => {
       ["ingestion/classify-metadata.ts", "slide-metadata-classifier"],
       ["ingestion/describe-slide.ts", "slide-description-writer"],
       ["ingestion/auto-classify-templates.ts", "template-classification-analyst"],
+      ["validation/validate-schemas.ts", "schema-validation-auditor"],
     ] as const;
 
     for (const [relativePath, agentId] of adoptedCallsites) {
@@ -53,6 +54,13 @@ describe("internal/background named-agent adoption", () => {
     )?.toMatchObject({
       sourceSites: ["apps/agent/src/ingestion/auto-classify-templates.ts"],
       family: "ingestion",
+    });
+
+    expect(
+      AGENT_CATALOG.find((entry) => entry.agentId === "schema-validation-auditor"),
+    )?.toMatchObject({
+      sourceSites: ["apps/agent/src/validation/validate-schemas.ts"],
+      family: "validation",
     });
 
   });

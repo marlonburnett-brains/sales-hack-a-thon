@@ -10,9 +10,12 @@
  * Run: pnpm validate-schemas (from apps/agent)
  */
 
-import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { env } from "../env";
+import {
+  createJsonResponseOptions,
+  executeRuntimeNamedAgent,
+} from "../lib/agent-executor";
 import {
   zodToLlmJsonSchema,
   TranscriptFieldsLlmSchema,
@@ -38,8 +41,6 @@ if (!env.GOOGLE_CLOUD_PROJECT) {
   // eslint-disable-next-line unicorn/no-process-exit
   process.exit(1);
 }
-
-const ai = new GoogleGenAI({ vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION });
 
 // --- Schema test definitions ---
 
@@ -201,13 +202,10 @@ async function main(): Promise<void> {
       const jsonSchema = zodToLlmJsonSchema(test.schema);
 
       // Call LLM with responseJsonSchema
-      const response = await ai.models.generateContent({
-        model: "openai/gpt-oss-120b-maas",
-        contents: test.prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseJsonSchema: jsonSchema,
-        },
+      const response = await executeRuntimeNamedAgent({
+        agentId: "schema-validation-auditor",
+        messages: [{ role: "user", content: test.prompt }],
+        options: createJsonResponseOptions(jsonSchema as Record<string, unknown>),
       });
 
       const text = response.text ?? "{}";
