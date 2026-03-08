@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+type StreamChatRefinement = typeof import("../chat-refinement").streamChatRefinement;
+
+const _streamChatRefinementRejectsBroadArtifactString:
+  string extends Parameters<StreamChatRefinement>[3] ? never : true = true;
+
 const {
   mockDeckStructureFindFirst,
   mockDeckStructureUpdate,
@@ -205,5 +210,9 @@ describe("chat refinement", () => {
 
     expect(mockInferDeckStructure).toHaveBeenCalledTimes(1);
     expect(result.updatedStructure.sections[0]?.name).toBe("Fallback Intro");
+  });
+
+  it("uses the shared ArtifactType contract at the chat helper boundary", () => {
+    expect(_streamChatRefinementRejectsBroadArtifactString).toBe(true);
   });
 });

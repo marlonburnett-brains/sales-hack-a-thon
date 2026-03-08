@@ -186,6 +186,8 @@ describe("Phase 36 route and chat artifact contract", () => {
     expect(source).toMatch(/registerApiRoute\("\/deck-structures\/:touchType\/chat"/);
     expect(source).not.toMatch(/registerApiRoute\("\/api\/deck-structures\/:touchType\/chat"/);
     expect(source).toMatch(/c\.req\.query\(\)/);
+    expect(source).toMatch(/z\.enum\(ARTIFACT_TYPES\)\.nullable\(\)\.optional\(\)/);
+    expect(source).not.toMatch(/artifactType:\s*z\.string\(\)\.nullable\(\)\.optional\(\)/);
     expect(source).toMatch(/resolveDeckStructureKey\(touchType,\s*query\.artifactType/);
     expect(source).toMatch(/streamChatRefinement\([\s\S]*key\.artifactType/);
   });
