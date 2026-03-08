@@ -266,7 +266,7 @@ Plans:
 | 38. Live Verification Sweep | v1.6 | 6/6 | Complete | 2026-03-08 |
 | 39. Artifact Contract Hardening | v1.6 | 3/3 | Complete | 2026-03-08 |
 | 40. Agent Typecheck Cleanup | v1.6 | 3/3 | Complete | 2026-03-08 |
-| 41. Deal Pipeline Page | 3/3 | Complete   | 2026-03-08 | - |
+| 41. Deal Pipeline Page | 3/3 | Complete    | 2026-03-08 | - |
 | 42. Deal Detail Layout | v1.7 | 0/TBD | Not started | - |
 | 43. Named Agent Architecture | v1.7 | 0/TBD | Not started | - |
 | 44. Agent Management UI | v1.7 | 0/TBD | Not started | - |
