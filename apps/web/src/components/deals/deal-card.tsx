@@ -2,7 +2,25 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
+import { StackedAvatars } from "./stacked-avatars";
 import type { Deal } from "@/lib/api-client";
+
+const STATUS_BADGE_CLASSES: Record<string, string> = {
+  open: "bg-blue-100 text-blue-800",
+  won: "bg-emerald-100 text-emerald-800",
+  lost: "bg-red-100 text-red-800",
+  abandoned: "bg-slate-200 text-slate-700",
+};
+
+function parseCollaborators(
+  collaborators: string
+): Array<{ id?: string; email: string; name?: string }> {
+  try {
+    return JSON.parse(collaborators);
+  } catch {
+    return [];
+  }
+}
 
 interface DealCardProps {
   deal: Deal;
@@ -79,6 +97,14 @@ export function DealCard({ deal }: DealCardProps) {
               {deal.company?.name ?? "Unknown Company"}
             </CardTitle>
             <div className="flex items-center gap-2">
+              <Badge
+                className={
+                  STATUS_BADGE_CLASSES[deal.status] ??
+                  "bg-slate-100 text-slate-600"
+                }
+              >
+                {deal.status.charAt(0).toUpperCase() + deal.status.slice(1)}
+              </Badge>
               {hasPendingAssetReview ? (
                 <Badge className="bg-blue-100 text-xs text-blue-800">
                   Assets Ready
@@ -130,6 +156,23 @@ export function DealCard({ deal }: DealCardProps) {
               </div>
             )}
           </div>
+          {(() => {
+            const collabs = parseCollaborators(deal.collaborators);
+            const people: Array<{ id?: string; email: string; name?: string }> = [];
+            if (deal.ownerEmail) {
+              people.push({
+                id: deal.ownerId ?? undefined,
+                email: deal.ownerEmail,
+                name: deal.ownerName ?? undefined,
+              });
+            }
+            people.push(...collabs);
+            return people.length > 0 ? (
+              <div className="mt-3">
+                <StackedAvatars people={people} />
+              </div>
+            ) : null;
+          })()}
         </CardContent>
       </Card>
     </Link>
