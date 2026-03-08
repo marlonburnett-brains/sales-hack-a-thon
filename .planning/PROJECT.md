@@ -158,18 +158,20 @@ Shipped `v1.6 Touch 4 Artifact Intelligence` on 2026-03-08. Touch 4 Examples now
 
 ### Active
 
-None yet -- define the next milestone before creating a fresh `.planning/REQUIREMENTS.md`.
+## Current Milestone: v1.7 Deals & HITL Pipeline
 
-<details>
-<summary>Archived milestone focus: v1.6 Touch 4 Artifact Intelligence</summary>
+**Goal:** Transform the app from a content-generation tool into a full deal-management platform with pipeline views, deal detail navigation, AI chat assistance, and human-in-the-loop artifact generation across all four touches.
 
-Goal: Add artifact type sub-classification (Proposal / Talk Track / FAQ) to Touch 4 Examples and display per-artifact-type deck structures in Settings.
-
-Target features:
-- Touch 4 Example classification includes artifact type (Proposal, Talk Track, FAQ)
-- Settings deck structure view shows 3 separate structures for Touch 4 (one per artifact type)
-
-</details>
+**Target features:**
+- Deals page with view toggle, status lifecycle, assignment system, and filtering
+- Deal detail navigation overhaul with breadcrumbs and sidebar sub-pages
+- Deal overview dashboard page
+- Deal briefing page consolidating prep material
+- Persistent AI chat bar across deal sub-pages
+- Touch 1–4 pages with HITL 3-stage artifact generation
+- Google Drive integration for artifact saving with folder/sharing controls
+- Formalized named agent architecture with dedicated system prompts
+- Settings agent management UI with versioning and draft system
 
 ### Out of Scope
 
@@ -273,4 +275,4 @@ Target features:
 | Finish v1.6 on a green agent typecheck baseline | Artifact work should land on a clean compile target, not a broken repo baseline | ✓ Good — `pnpm --filter agent exec tsc --noEmit` passes at closeout |
 
 ---
-*Last updated: 2026-03-08 after v1.6 milestone completion*
+*Last updated: 2026-03-08 after v1.7 milestone start*

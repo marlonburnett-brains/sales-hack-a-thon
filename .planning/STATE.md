@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.6
-milestone_name: Touch 4 Artifact Intelligence
-status: completed
-stopped_at: Milestone archived and tagged
-last_updated: "2026-03-08T23:59:00Z"
-last_activity: 2026-03-08 — Archived milestone v1.6, updated planning docs, and prepared for next milestone planning
+milestone: v1.7
+milestone_name: Deals & HITL Pipeline
+status: defining_requirements
+stopped_at: null
+last_updated: "2026-03-08T00:00:00Z"
+last_activity: 2026-03-08 — Milestone v1.7 started
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 20
-  completed_plans: 20
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Planning the next milestone after shipping v1.6 Touch 4 Artifact Intelligence
+**Current focus:** Defining requirements for v1.7 Deals & HITL Pipeline
 
 ## Current Position
 
-Phase: Milestone complete
-Plan: Archive + transition
-Status: v1.6 is shipped, archived, and ready to hand off to next-milestone planning
-Last activity: 2026-03-08 — Archived milestone v1.6, updated planning docs, and prepared for next milestone planning
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-08 — Milestone v1.7 started
 
 ## Performance Metrics
 
@@ -46,7 +44,6 @@ Progress: [██████████] 100%
 All decisions logged in PROJECT.md Key Decisions table.
 - v1.6 shipped with a shared `ArtifactType` contract across schema, web, and agent surfaces.
 - Touch 4 settings chat proof is now closed with production browser plus backend persistence evidence on the same artifact-qualified flow.
-- The remaining milestone-transition step is defining the next milestone and writing a fresh `.planning/REQUIREMENTS.md`.
 
 ### Pending Todos
 
@@ -56,10 +53,9 @@ None.
 
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
-- Next milestone is not yet defined; start with `/gsd-new-milestone`
 
 ## Session Continuity
 
-Last session: 2026-03-08T23:59:00Z
-Stopped at: Milestone archived and tagged
-Next action: Start the next milestone and create a fresh `.planning/REQUIREMENTS.md`.
+Last session: 2026-03-08
+Stopped at: Milestone v1.7 started
+Next action: Define requirements and create roadmap for v1.7.
