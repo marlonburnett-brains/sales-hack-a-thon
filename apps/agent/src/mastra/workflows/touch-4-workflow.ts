@@ -91,10 +91,26 @@ const parseTranscript = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     extractedFields: TranscriptFieldsLlmSchema,
     agentVersions: agentVersionsSchema,
   }),
   execute: async ({ inputData }) => {
+    // Create InteractionRecord early so we can track hitlStage from the first suspend
+    const interaction = await prisma.interactionRecord.create({
+      data: {
+        dealId: inputData.dealId,
+        touchType: "touch_4",
+        status: "in_progress",
+        decision: null,
+        inputs: JSON.stringify({
+          companyName: inputData.companyName,
+          industry: inputData.industry,
+          subsector: inputData.subsector,
+        }),
+      },
+    });
+
     const prompt = `You are an expert sales intelligence analyst at Lumenalta, a technology consulting company specializing in ${SOLUTION_PILLARS.join(", ")}.
 
 You are extracting structured fields from a sales discovery call transcript for the ${inputData.industry} industry, specifically the "${inputData.subsector}" subsector.
@@ -146,6 +162,7 @@ Extract the following 6 fields:
       subsector: inputData.subsector,
       transcript: inputData.transcript,
       additionalNotes: inputData.additionalNotes,
+      interactionId: interaction.id,
       extractedFields: parsed,
       agentVersions: {
         transcriptExtractor: response.promptVersion.id,
@@ -171,6 +188,7 @@ const validateFields = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     extractedFields: TranscriptFieldsLlmSchema,
     agentVersions: agentVersionsSchema,
   }),
@@ -181,6 +199,7 @@ const validateFields = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     extractedFields: TranscriptFieldsLlmSchema,
     fieldSeverity: fieldSeveritySchema,
     hasErrors: z.boolean(),
@@ -218,6 +237,7 @@ const validateFields = createStep({
       subsector: inputData.subsector,
       transcript: inputData.transcript,
       additionalNotes: inputData.additionalNotes,
+      interactionId: inputData.interactionId,
       extractedFields: inputData.extractedFields,
       fieldSeverity,
       hasErrors,
@@ -227,7 +247,7 @@ const validateFields = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 3: Await Field Review (SUSPEND 1 for seller review)
+// Step 3: Await Field Review (SUSPEND 1 for seller review -- Skeleton stage)
 // ────────────────────────────────────────────────────────────
 
 const awaitFieldReview = createStep({
@@ -239,6 +259,7 @@ const awaitFieldReview = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     extractedFields: TranscriptFieldsLlmSchema,
     fieldSeverity: fieldSeveritySchema,
     hasErrors: z.boolean(),
@@ -251,6 +272,7 @@ const awaitFieldReview = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     extractedFields: TranscriptFieldsLlmSchema,
     fieldSeverity: fieldSeveritySchema,
     hasErrors: z.boolean(),
@@ -267,9 +289,23 @@ const awaitFieldReview = createStep({
     fieldSeverity: fieldSeveritySchema,
     hasErrors: z.boolean(),
     dealId: z.string(),
+    interactionId: z.string(),
   }),
   execute: async ({ inputData, resumeData, suspend }) => {
     if (!resumeData) {
+      // Update hitlStage to skeleton before suspending
+      await prisma.interactionRecord.update({
+        where: { id: inputData.interactionId },
+        data: {
+          hitlStage: "skeleton",
+          stageContent: JSON.stringify({
+            extractedFields: inputData.extractedFields,
+            fieldSeverity: inputData.fieldSeverity,
+            hasErrors: inputData.hasErrors,
+          }),
+        },
+      });
+
       // First execution: suspend and wait for seller review
       return await suspend({
         reason: "Seller field review required",
@@ -277,6 +313,7 @@ const awaitFieldReview = createStep({
         fieldSeverity: inputData.fieldSeverity,
         hasErrors: inputData.hasErrors,
         dealId: inputData.dealId,
+        interactionId: inputData.interactionId,
       });
     }
 
@@ -288,6 +325,7 @@ const awaitFieldReview = createStep({
       subsector: inputData.subsector,
       transcript: inputData.transcript,
       additionalNotes: inputData.additionalNotes,
+      interactionId: inputData.interactionId,
       extractedFields: inputData.extractedFields,
       fieldSeverity: inputData.fieldSeverity,
       hasErrors: inputData.hasErrors,
@@ -311,6 +349,7 @@ const mapPillarsAndGenerateBrief = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     extractedFields: TranscriptFieldsLlmSchema,
     fieldSeverity: fieldSeveritySchema,
     hasErrors: z.boolean(),
@@ -325,6 +364,7 @@ const mapPillarsAndGenerateBrief = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     reviewedFields: TranscriptFieldsLlmSchema,
     brief: SalesBriefLlmSchema,
     agentVersions: agentVersionsSchema,
@@ -380,6 +420,7 @@ OUTPUT: A complete sales brief with pillar mapping, evidence, and use cases.`;
       subsector: inputData.subsector,
       transcript: inputData.transcript,
       additionalNotes: inputData.additionalNotes,
+      interactionId: inputData.interactionId,
       reviewedFields: inputData.reviewedFields,
       brief,
       agentVersions: {
@@ -404,6 +445,7 @@ const generateROIFraming = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     reviewedFields: TranscriptFieldsLlmSchema,
     brief: SalesBriefLlmSchema,
     agentVersions: agentVersionsSchema,
@@ -415,6 +457,7 @@ const generateROIFraming = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     reviewedFields: TranscriptFieldsLlmSchema,
     brief: SalesBriefLlmSchema,
     roiFraming: ROIFramingLlmSchema,
@@ -479,6 +522,7 @@ OUTPUT: ROI framing for each use case with useCaseName matching the brief's use 
       subsector: inputData.subsector,
       transcript: inputData.transcript,
       additionalNotes: inputData.additionalNotes,
+      interactionId: inputData.interactionId,
       reviewedFields: inputData.reviewedFields,
       brief: inputData.brief,
       roiFraming,
@@ -493,7 +537,7 @@ OUTPUT: ROI framing for each use case with useCaseName matching the brief's use 
 
 // ────────────────────────────────────────────────────────────
 // Step 6: Record Interaction (Database persistence, no LLM)
-// Status: "pending_approval" -- Brief exists BEFORE approval checkpoint
+// Now UPDATES (not creates) the InteractionRecord created in parseTranscript
 // ────────────────────────────────────────────────────────────
 
 const recordInteraction = createStep({
@@ -505,6 +549,7 @@ const recordInteraction = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    interactionId: z.string(),
     reviewedFields: TranscriptFieldsLlmSchema,
     brief: SalesBriefLlmSchema,
     roiFraming: ROIFramingLlmSchema,
@@ -521,31 +566,23 @@ const recordInteraction = createStep({
   execute: async ({ inputData }) => {
     const { brief, roiFraming, reviewedFields } = inputData;
 
-    // a. Create InteractionRecord with status "pending_approval" (not "completed")
-    const interaction = await prisma.interactionRecord.create({
+    // a. Update InteractionRecord (created in parseTranscript) with status "pending_approval"
+    await prisma.interactionRecord.update({
+      where: { id: inputData.interactionId },
       data: {
-        dealId: inputData.dealId,
-        touchType: "touch_4",
         status: "pending_approval",
-        decision: null,
-        inputs: JSON.stringify({
-          companyName: inputData.companyName,
-          industry: inputData.industry,
-          subsector: inputData.subsector,
-        }),
         generatedContent: JSON.stringify({
           primaryPillar: brief.primaryPillar,
           secondaryPillars: brief.secondaryPillars,
           useCaseCount: brief.useCases.length,
         }),
-        outputRefs: null,
       },
     });
 
     // b. Create Transcript record
     const transcript = await prisma.transcript.create({
       data: {
-        interactionId: interaction.id,
+        interactionId: inputData.interactionId,
         rawText: inputData.transcript,
         additionalNotes: inputData.additionalNotes ?? null,
         subsector: inputData.subsector,
@@ -562,7 +599,7 @@ const recordInteraction = createStep({
     // workflowRunId left null -- will be set by the approve endpoint
     const briefRecord = await prisma.brief.create({
       data: {
-        interactionId: interaction.id,
+        interactionId: inputData.interactionId,
         primaryPillar: brief.primaryPillar,
         secondaryPillars: JSON.stringify(brief.secondaryPillars),
         evidence: brief.evidence,
@@ -581,7 +618,7 @@ const recordInteraction = createStep({
     // Note: FeedbackSignal is NOT created here -- moved to finalizeApproval step
 
     return {
-      interactionId: interaction.id,
+      interactionId: inputData.interactionId,
       transcriptId: transcript.id,
       briefId: briefRecord.id,
       briefData: brief,
@@ -629,6 +666,18 @@ const awaitBriefApproval = createStep({
   }),
   execute: async ({ inputData, resumeData, suspend }) => {
     if (!resumeData) {
+      // Update hitlStage to lowfi before suspending (brief = low-fi draft content)
+      await prisma.interactionRecord.update({
+        where: { id: inputData.interactionId },
+        data: {
+          hitlStage: "lowfi",
+          stageContent: JSON.stringify({
+            briefData: inputData.briefData,
+            roiFramingData: inputData.roiFramingData,
+          }),
+        },
+      });
+
       // First execution: suspend and wait for brief approval
       return await suspend({
         reason: "Brief approval required -- HITL Checkpoint 1",
@@ -1507,6 +1556,20 @@ const awaitAssetReview = createStep({
   }),
   execute: async ({ inputData, resumeData, suspend }) => {
     if (!resumeData) {
+      // Update hitlStage to highfi before suspending (final assets = high-fi)
+      await prisma.interactionRecord.update({
+        where: { id: inputData.interactionId },
+        data: {
+          hitlStage: "highfi",
+          stageContent: JSON.stringify({
+            deckUrl: inputData.deckUrl,
+            talkTrackUrl: inputData.talkTrackUrl,
+            faqUrl: inputData.faqUrl,
+            complianceResult: inputData.complianceResult,
+          }),
+        },
+      });
+
       // First execution: suspend for asset review
       await suspend({
         reason: "Asset review required -- HITL Checkpoint 2",
@@ -1521,7 +1584,12 @@ const awaitAssetReview = createStep({
       throw new Error("Unreachable after suspend");
     }
 
-    // Resumed with approval -- merge input + resume data
+    // Resumed with approval -- update hitlStage to ready
+    await prisma.interactionRecord.update({
+      where: { id: inputData.interactionId },
+      data: { hitlStage: "ready" },
+    });
+
     return {
       interactionId: inputData.interactionId,
       briefId: inputData.briefId,

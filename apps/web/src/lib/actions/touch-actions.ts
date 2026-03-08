@@ -7,11 +7,15 @@ import {
   resumeTouch1Workflow,
   startTouch2Workflow,
   getTouch2WorkflowStatus,
+  resumeTouch2Workflow,
   startTouch3Workflow,
   getTouch3WorkflowStatus,
+  resumeTouch3Workflow,
   startTouch4Workflow,
   getTouch4WorkflowStatus,
   resumeTouch4Workflow,
+  resumeWorkflowStep,
+  revertInteractionStage,
   getBrief,
   getBriefReview,
   approveBrief,
@@ -26,10 +30,13 @@ import {
 import type {
   WorkflowStartResult,
   WorkflowRunResult,
+  HitlStage,
   BriefRecord,
   BriefReviewData,
   AssetReviewData,
 } from "@/lib/api-client";
+
+export type { HitlStage };
 
 export async function generateTouch1PagerAction(
   dealId: string,
@@ -152,6 +159,89 @@ export async function resumeTouch4FieldReviewAction(
   }
 ): Promise<WorkflowRunResult> {
   const result = await resumeTouch4Workflow(runId, stepId, { reviewedFields });
+  revalidatePath("/deals");
+  return result;
+}
+
+// ────────────────────────────────────────────────────────────
+// Stage Transition Actions (3-Stage HITL Model)
+// ────────────────────────────────────────────────────────────
+
+const TOUCH_WORKFLOW_IDS: Record<string, string> = {
+  touch_1: "touch-1-workflow",
+  touch_2: "touch-2-workflow",
+  touch_3: "touch-3-workflow",
+  touch_4: "touch-4-workflow",
+};
+
+/**
+ * Resume a suspended workflow step with an approval or refinement decision.
+ * Used for advancing between HITL stages (skeleton -> lowfi -> highfi -> ready).
+ */
+export async function transitionStageAction(
+  interactionId: string,
+  runId: string,
+  stepId: string,
+  touchType: string,
+  decision: "approved" | "refined",
+  refinedContent?: unknown
+): Promise<WorkflowRunResult> {
+  const workflowId = TOUCH_WORKFLOW_IDS[touchType];
+  if (!workflowId) {
+    throw new Error(`Unknown touch type: ${touchType}`);
+  }
+
+  // Use per-touch resume functions where available for type safety,
+  // fall back to generic resume for all touches
+  let result: WorkflowRunResult;
+
+  switch (touchType) {
+    case "touch_1":
+      result = await resumeTouch1Workflow(runId, stepId, {
+        decision: decision === "approved" ? "approved" : "edited",
+        editedContent: refinedContent as Record<string, unknown> | undefined,
+      });
+      break;
+    case "touch_2":
+      result = await resumeTouch2Workflow(runId, stepId, {
+        decision,
+        refinedContent,
+      });
+      break;
+    case "touch_3":
+      result = await resumeTouch3Workflow(runId, stepId, {
+        decision,
+        refinedContent,
+      });
+      break;
+    case "touch_4":
+      result = await resumeWorkflowStep(workflowId, runId, stepId, {
+        decision,
+        refinedContent,
+      });
+      break;
+    default:
+      result = await resumeWorkflowStep(workflowId, runId, stepId, {
+        decision,
+        refinedContent,
+      });
+  }
+
+  revalidatePath("/deals");
+  return result;
+}
+
+/**
+ * Revert an interaction to a previous HITL stage.
+ * Updates InteractionRecord.hitlStage and clears downstream stageContent.
+ * Does NOT restart the workflow -- the UI triggers a new generation run.
+ * Per locked decision: "downstream stages regenerate" when user goes back.
+ */
+export async function revertStageAction(
+  interactionId: string,
+  targetStage: HitlStage
+): Promise<{ success: boolean }> {
+  const result = await revertInteractionStage(interactionId, targetStage);
   revalidatePath("/deals");
   return result;
 }

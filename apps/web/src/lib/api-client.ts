@@ -227,6 +227,8 @@ export interface InteractionRecord {
   generatedContent: string | null;
   outputRefs: string | null;
   driveFileId: string | null;
+  hitlStage: string | null;
+  stageContent: string | null;
   createdAt: string;
   updatedAt: string;
   feedbackSignals?: FeedbackSignal[];
@@ -344,6 +346,26 @@ export async function startTouch2Workflow(
   );
 }
 
+export async function resumeTouch2Workflow(
+  runId: string,
+  stepId: string,
+  resumeData: {
+    decision: "approved" | "refined";
+    refinedContent?: unknown;
+  }
+): Promise<WorkflowRunResult> {
+  return fetchJSON<WorkflowRunResult>(
+    `/api/workflows/touch-2-workflow/${runId}/resume`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        stepId,
+        resumeData,
+      }),
+    }
+  );
+}
+
 export async function getTouch2WorkflowStatus(
   runId: string
 ): Promise<WorkflowRunResult> {
@@ -375,6 +397,26 @@ export async function startTouch3Workflow(
           dealId,
           ...formData,
         },
+      }),
+    }
+  );
+}
+
+export async function resumeTouch3Workflow(
+  runId: string,
+  stepId: string,
+  resumeData: {
+    decision: "approved" | "refined";
+    refinedContent?: unknown;
+  }
+): Promise<WorkflowRunResult> {
+  return fetchJSON<WorkflowRunResult>(
+    `/api/workflows/touch-3-workflow/${runId}/resume`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        stepId,
+        resumeData,
       }),
     }
   );
@@ -440,6 +482,55 @@ export async function resumeTouch4Workflow(
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
     `/api/workflows/touch-4-workflow/${runId}/resume`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        stepId,
+        resumeData,
+      }),
+    }
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// HITL Stage Management
+// ────────────────────────────────────────────────────────────
+
+export type HitlStage = "skeleton" | "lowfi" | "highfi";
+
+/**
+ * Revert an interaction to an earlier HITL stage.
+ * Clears downstream stageContent so it can be regenerated.
+ */
+export async function revertInteractionStage(
+  interactionId: string,
+  targetStage: HitlStage
+): Promise<{ success: boolean }> {
+  return fetchJSON<{ success: boolean }>(
+    `/interactions/${interactionId}/revert-stage`,
+    {
+      method: "POST",
+      body: JSON.stringify({ targetStage }),
+    }
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Generic Workflow Resume Helper
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Generic resume function for any workflow step.
+ * Use per-touch resume functions when available; use this for generic stage transitions.
+ */
+export async function resumeWorkflowStep(
+  workflowId: string,
+  runId: string,
+  stepId: string,
+  resumeData: unknown
+): Promise<WorkflowRunResult> {
+  return fetchJSON<WorkflowRunResult>(
+    `/api/workflows/${workflowId}/${runId}/resume`,
     {
       method: "POST",
       body: JSON.stringify({
