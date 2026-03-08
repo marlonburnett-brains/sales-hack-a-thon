@@ -2,7 +2,7 @@
 
 import type { ArtifactType } from "@lumenalta/schemas";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { DeckSectionData, DeckChatMessageData } from "@/lib/api-client";
@@ -16,9 +16,11 @@ interface ChatBarProps {
   ) => void;
   disabled?: boolean;
   initialMessages?: DeckChatMessageData[];
+  onDeleteMessage?: (messageId: string) => Promise<void>;
 }
 
 interface LocalMessage {
+  id?: string;
   role: "user" | "assistant";
   content: string;
   createdAt: string;
@@ -30,6 +32,7 @@ export function ChatBar({
   onStructureUpdate,
   disabled,
   initialMessages,
+  onDeleteMessage,
 }: ChatBarProps) {
   const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [input, setInput] = useState("");
@@ -43,6 +46,7 @@ export function ChatBar({
     if (initialMessages && initialMessages.length > 0) {
       setMessages(
         initialMessages.map((m) => ({
+          id: m.id,
           role: m.role,
           content: m.content,
           createdAt: m.createdAt,
@@ -203,15 +207,24 @@ export function ChatBar({
         >
           {messages.map((msg, idx) => (
             <div
-              key={idx}
+              key={msg.id ?? idx}
               className={cn(
-                "rounded-lg p-3 text-sm",
+                "group relative rounded-lg p-3 text-sm",
                 msg.role === "user"
                   ? "ml-auto max-w-[80%] bg-blue-50 text-slate-900"
                   : "mr-auto max-w-[80%] bg-slate-50 text-slate-700",
               )}
             >
               {msg.content}
+              {msg.id && onDeleteMessage && (
+                <button
+                  onClick={() => void onDeleteMessage(msg.id!)}
+                  className="absolute -right-1 -top-1 hidden h-5 w-5 items-center justify-center rounded-full bg-red-100 text-red-500 hover:bg-red-200 group-hover:flex cursor-pointer"
+                  aria-label="Delete message"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
           ))}
           {isStreaming && streamingText && (
