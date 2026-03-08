@@ -132,3 +132,8 @@ Authenticated production browser state after the cron run:
 - `touch_4/proposal` cron behavior is re-confirmed live in production.
 - Live artifact-qualified chat reached the deployed proxy but failed upstream with `404 Not Found`, so successful streaming behavior remains unverified in production.
 - This evidence closes the checkpoint with truthful production observations, but it does not satisfy the original plan's successful streaming proof criteria. The remaining blocker is the production agent chat route failure behind `POST /api/deck-structures/chat`.
+
+## Root Cause and Shipped Resolution
+
+- Root cause: the checked-in web proxy targeted `${AGENT_SERVICE_URL}/api/deck-structures/:touchType/chat`, but the deployed Mastra custom route is registered at the service root as `/deck-structures/:touchType/chat`. Detail and infer requests already used the root-mounted family through `apps/web/src/lib/api-client.ts`, so chat was the only artifact-qualified deck-structure path drifting to a non-existent upstream URL.
+- Resolution shipped in `38-04`: update `apps/web/src/app/api/deck-structures/chat/route.ts` to call `${AGENT_SERVICE_URL}/deck-structures/:touchType/chat`, keep `artifactType` in `URLSearchParams`, and add regression coverage that fails if either the web proxy reintroduces `/api` or the agent route registration drifts away from `/deck-structures/:touchType/chat`.

@@ -2772,6 +2772,7 @@ export const mastra = new Mastra({
       }),
 
       // POST /deck-structures/:touchType/chat -- Streaming chat refinement
+      // Custom Mastra API routes are mounted at the service root, not under /api.
       registerApiRoute("/deck-structures/:touchType/chat", {
         method: "POST",
         handler: async (c) => {

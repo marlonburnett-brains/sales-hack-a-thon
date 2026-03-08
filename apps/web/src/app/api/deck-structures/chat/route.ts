@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
   const suffix = query.size > 0 ? `?${query.toString()}` : "";
 
-  const agentUrl = `${env.AGENT_SERVICE_URL}/api/deck-structures/${encodeURIComponent(body.data.touchType)}/chat${suffix}`;
+  const agentUrl = `${env.AGENT_SERVICE_URL}/deck-structures/${encodeURIComponent(body.data.touchType)}/chat${suffix}`;
 
   const agentRes = await fetch(agentUrl, {
     method: "POST",
