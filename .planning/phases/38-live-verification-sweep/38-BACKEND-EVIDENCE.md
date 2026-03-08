@@ -7,6 +7,18 @@
 - Verification target: `touch_4/proposal` primary, with unchanged observations for `touch_4/talk_track` and `touch_4/faq`
 - Evidence source: authenticated production browser session and Railway production logs provided by the Phase 38 orchestrator
 
+## 38-04 Deployment Confirmation Gate
+
+- Confirmation received before rerun: `deployed`
+- Deployment workflow: `sales-hack-a-thon / deploy`
+- Branch: `main`
+- Commit: `b3d805c`
+- Commit message: `docs(roadmap): align v1.6 audit gap closure`
+- Overall status: `Success`
+- Passed jobs: `lint-and-build #180`, `migrate #181`, `deploy-agent #182`, `deploy-web #183`, `notify-success #184`
+- User-reported rollout timing: pushed about `2m` before checkpoint release
+- Locked-origin attestation for this plan: the user confirmed the 38-04 fix was deployed on both `https://lumenalta-hackathon.vercel.app` and `https://lumenalta-agent-production.up.railway.app` before any new production proof was attempted
+
 ## Outcome Snapshot
 
 - `touch_4/proposal` cron re-inference was observed live and reflected in the production settings UI.
