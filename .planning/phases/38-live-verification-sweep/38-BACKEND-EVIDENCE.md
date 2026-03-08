@@ -82,3 +82,53 @@
 
 - Live artifact-qualified chat reached the deployed proxy but failed upstream with `404 Not Found`, so successful streaming behavior remains unverified in production.
 - Cron evidence is documented separately in Task 2 to keep the proof trail atomic.
+
+## Cron Verification
+
+### Pre-Run UI State
+
+Authenticated production browser state on `https://lumenalta-hackathon.vercel.app/settings/deck-structures/touch-4` before the cron evidence window:
+
+- `touch_4/proposal`: `No examples - needs more examples / 0 examples`
+- `touch_4/talk_track`: `No examples - needs more examples / 0 examples`
+- `touch_4/faq`: `No examples - needs more examples / 0 examples`
+
+### Railway Production Logs
+
+Observed JSON log lines around the live run:
+
+```text
+2026-03-08T01:11:03.610710329Z [deck-infer-cron] Starting inference cycle...
+2026-03-08T01:11:03.610725014Z [deck-infer-cron] Re-inferring touch_4/proposal (hash changed: e3b0c442 -> 60e56b69)
+2026-03-08T01:11:08.468103580Z [deck-inference] Inferred structure for touch_4/proposal: 2 sections, 1 examples, confidence 30% (Low confidence)
+2026-03-08T01:11:08.468108062Z [deck-infer-cron] touch_4/proposal: 2 sections inferred
+2026-03-08T01:11:08.468112193Z [deck-infer-cron] Inference cycle complete
+```
+
+### Post-Run UI State
+
+Authenticated production browser state after the cron run:
+
+- `touch_4/proposal`: `Low confidence - needs more examples / 1 example`
+- `touch_4/talk_track`: `No examples - needs more examples / 0 examples`
+- `touch_4/faq`: `No examples - needs more examples / 0 examples`
+- Proposal panel body displayed `30%`, `1 example`, and inferred structure content.
+
+### Cron Result
+
+- Positive result for `touch_4/proposal`: the production cron loop evaluated the artifact-qualified key, detected a hash change, and re-inferred the proposal structure.
+- Evidence pairing for the same key is consistent:
+  - Transport or UI proof: Proposal tab changed from `0 examples` to `1 example` and showed the inferred structure.
+  - System proof: Railway logs explicitly named `touch_4/proposal`, the old and new hash prefixes, and the resulting `30%` low-confidence inference.
+
+### Limits of Captured Proof
+
+- No direct production row dump was captured for `DeckStructure.dataHash`, `DeckStructure.inferredAt`, or `DeckStructure.lastChatAt`.
+- No active-chat skip event was observed in the supplied cron window, so this run confirms re-inference behavior but not skip semantics.
+- `touch_4/talk_track` and `touch_4/faq` remained unchanged in the browser state during the captured window, and no matching cron log lines for those artifact keys were supplied.
+
+## Final Assessment
+
+- `touch_4/proposal` cron behavior is re-confirmed live in production.
+- Live artifact-qualified chat reached the deployed proxy but failed upstream with `404 Not Found`, so successful streaming behavior remains unverified in production.
+- This evidence closes the checkpoint with truthful production observations, but it does not satisfy the original plan's successful streaming proof criteria. The remaining blocker is the production agent chat route failure behind `POST /api/deck-structures/chat`.
