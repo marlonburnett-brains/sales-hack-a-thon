@@ -8,7 +8,7 @@
 - v1.3 **Google API Auth: User-Delegated Credentials** -- Phases 22-26 (shipped 2026-03-06) -- [Archive](milestones/v1.3-ROADMAP.md)
 - v1.4 **AtlusAI Authentication & Discovery** -- Phases 27-31 (shipped 2026-03-07) -- [Archive](milestones/v1.4-ROADMAP.md)
 - v1.5 **Review Polish & Deck Intelligence** -- Phases 32-34 (shipped 2026-03-07) -- [Archive](milestones/v1.5-ROADMAP.md)
-- v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-37 (in progress)
+- v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (in progress)
 
 ## Phases
 
@@ -89,6 +89,9 @@
 - [x] **Phase 35: Schema & Constants Foundation** (2/2 plans) - Prisma migrations for artifactType columns and shared constants (completed 2026-03-07)
 - [x] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation (completed 2026-03-07)
 - [x] **Phase 37: Frontend UI** - Classify UI artifact selector, Settings tabbed deck structure views, and slide-viewer badge hydration (completed 2026-03-07)
+- [ ] **Phase 38: Live Verification Sweep** - Re-confirm backend live behavior and frontend browser flows for Touch 4 artifact handling
+- [ ] **Phase 39: Artifact Contract Hardening** - Eliminate artifact-aware UI reuse risks and tighten shared `ArtifactType` typing across web and chat paths
+- [ ] **Phase 40: Agent Typecheck Cleanup** - Resolve pre-existing `agent` TypeScript failures left outside the original milestone scope
 
 ## Phase Details
 
@@ -141,9 +144,55 @@ Plans:
 - [x] 37-03-PLAN.md — Wire both classify surfaces to the shared Touch 4 control and show saved artifact badges
 - [x] 37-04-PLAN.md — Hydrate persisted slide-viewer artifact badges after reload
 
+### Phase 38: Live Verification Sweep
+**Goal**: Clear remaining live-environment verification debt for Touch 4 artifact workflows
+**Depends on**: Phase 37
+**Requirements**: None (verification closure for v1.6)
+**Tech Debt Closure**: Backend live streaming and cron confirmation; frontend human browser confirmation for reload, settings tabs, and chat behavior
+**Success Criteria** (what must be TRUE):
+  1. Live external-service streaming behavior is exercised and documented against a reachable environment
+  2. Background cron behavior is re-confirmed in a live-like environment with artifact-qualified Touch 4 processing evidence
+  3. Human browser validation confirms cross-surface Touch 4 classification reload behavior end-to-end
+  4. Human browser validation confirms Touch 4 settings tab and chat behavior stay artifact-scoped end-to-end
+**Plans**: 3 plans
+
+Plans:
+- [ ] 38-01-PLAN.md — Lock one reachable verification target and write the Phase 38 live runbook
+- [ ] 38-02-PLAN.md — Capture live streaming and cron evidence for artifact-qualified Touch 4 backend paths
+- [ ] 38-03-PLAN.md — Run reachable-environment browser UAT for Touch 4 reload and settings/chat behavior
+
+### Phase 39: Artifact Contract Hardening
+**Goal**: Remove artifact-type maintenance risks and align web/chat code with the shared artifact contract
+**Depends on**: Phase 38
+**Requirements**: None (maintains DECK-03, DECK-04, DECK-05, CLSF-01, CLSF-02)
+**Tech Debt Closure**: `deck-structure-view.tsx` artifact-awareness gap and broad `string` typing for `artifactType`
+**Success Criteria** (what must be TRUE):
+  1. `apps/web/src/components/settings/deck-structure-view.tsx` correctly loads and preserves artifact-qualified Touch 4 details if reused
+  2. Web helper paths use the shared `ArtifactType` contract instead of broad `string` where artifact-qualified data is expected
+  3. Chat-related paths use the shared `ArtifactType` contract end-to-end for compile-time safety
+  4. Regression coverage or verification proves artifact-aware UI and chat flows still work after contract tightening
+**Plans**: 0 plans
+
+Plans:
+- [ ] Planning pending
+
+### Phase 40: Agent Typecheck Cleanup
+**Goal**: Restore a clean `agent` TypeScript baseline so v1.6 artifact work sits on a passing compile target
+**Depends on**: Phase 39
+**Requirements**: None (repo health cleanup for v1.6 closeout)
+**Tech Debt Closure**: Pre-existing `pnpm --filter agent exec tsc --noEmit` failures left outside prior plan scope
+**Success Criteria** (what must be TRUE):
+  1. Current `agent` TypeScript failures are inventoried and reduced to in-scope actionable fixes
+  2. Pre-existing `agent` type errors that block a clean no-emit compile are resolved without regressing Touch 4 behavior
+  3. `pnpm --filter agent exec tsc --noEmit` passes or remaining failures are explicitly isolated outside the repository baseline
+**Plans**: 0 plans
+
+Plans:
+- [ ] Planning pending
+
 ## Progress
 
-**Execution Order:** 35 -> 36 -> 37
+**Execution Order:** 35 -> 36 -> 37 -> 38 -> 39 -> 40
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -184,3 +233,6 @@ Plans:
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
+| 38. Live Verification Sweep | v1.6 | 1/3 | In Progress | |
+| 39. Artifact Contract Hardening | v1.6 | 0/0 | Planned | |
+| 40. Agent Typecheck Cleanup | v1.6 | 0/0 | Planned | |
