@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 47-03-PLAN.md
-last_updated: "2026-03-08T23:33:22.593Z"
-last_activity: "2026-03-08 - Completed 47-03 (Workflow migration: user-rooted Drive folders, org sharing, archive-on-regen, Drive status badge)"
+stopped_at: Completed 45-05-PLAN.md
+last_updated: "2026-03-08T23:33:30.766Z"
+last_activity: "2026-03-08 - Completed 45-05 (typed web deal-chat proxy, api-client helpers, and server actions)"
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 25
-  completed_plans: 24
-  percent: 95
+  total_plans: 41
+  completed_plans: 40
+  percent: 98
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.7 Deals & HITL Pipeline -- Phase 45 plan 02 complete, Phase 47 continuing in parallel
+**Current focus:** v1.7 Deals & HITL Pipeline -- Phase 45 plan 05 complete, Phase 45 plan 03 remains on the chat track
 
 ## Current Position
 
-Phase: 47 of 47 (Drive Artifact Integration)
-Plan: 4 of 5 in current phase (next)
+Phase: 45 of 47 (Persistent AI Chat Bar)
+Plan: 5 of 5 in phase (45-03 remaining)
 Status: Executing
-Last activity: 2026-03-08 - Completed 47-03 (Workflow migration: user-rooted Drive folders, org sharing, archive-on-regen, Drive status badge)
+Last activity: 2026-03-08 - Completed 45-05 (typed web deal-chat proxy, api-client helpers, and server actions)
 
-Progress: [██████████] 95%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
@@ -85,6 +85,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 47]: UserSetting CRUD uses dedicated agent API routes rather than direct Prisma from web app
 - [Phase 45]: Kept one governed deal-chat-assistant orchestration entrypoint that loads explicit deal grounding while route handlers stay thin and persist only messages plus confirmed bindings.
 - [Phase 45]: Returned structured answer metadata and prompt-version data with each streamed turn so the web proxy can mirror one verified contract.
+- [Phase 45]: Kept the web route family under /api/deals/[dealId]/chat and mirrored the verified agent contract instead of inventing a separate chat namespace.
+- [Phase 45]: Added a response-capable Google-auth fetch helper so server-only deal chat helpers can load bootstrap JSON and stream turn responses through one typed client seam.
 
 ### Pending Todos
 
@@ -112,6 +114,7 @@ None.
 | Phase 45 P01 | 1 min | 1 tasks | 6 files |
 | Phase 45 P04 | 8 min | 2 tasks | 6 files |
 | Phase 45 P02 | 10 min | 2 tasks | 8 files |
+| Phase 45 P05 | 7 min | 2 tasks | 7 files |
 
 ### Blockers/Concerns
 
@@ -122,7 +125,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T23:28:00Z
-Stopped at: Completed 47-03-PLAN.md
-Next action: Execute 47-04-PLAN.md for Drive picker integration.
-Next action: Execute 47-03-PLAN.md for workflow migration.
+Last session: 2026-03-08T23:33:30.763Z
+Stopped at: Completed 45-05-PLAN.md
+Next action: Execute 45-03-PLAN.md for the persistent dock and side-panel UI.
