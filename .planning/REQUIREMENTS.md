@@ -25,10 +25,10 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 
 ### Deal Overview
 
-- [ ] **OVER-01**: User can view deal state and status on the overview page
-- [ ] **OVER-02**: User can see accumulated data and key metrics for the deal
-- [ ] **OVER-03**: User can see activity summary and timeline for the deal
-- [ ] **OVER-04**: User can see assignment info (owner + collaborators) on the overview
+- [x] **OVER-01**: User can view deal state and status on the overview page
+- [x] **OVER-02**: User can see accumulated data and key metrics for the deal
+- [x] **OVER-03**: User can see activity summary and timeline for the deal
+- [x] **OVER-04**: User can see assignment info (owner + collaborators) on the overview
 
 ### Deal Briefing
 
@@ -120,10 +120,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-01 | Phase 42 | Complete |
 | NAV-02 | Phase 42 | Complete |
 | NAV-03 | Phase 42 | Complete |
-| OVER-01 | Phase 42 | Pending |
-| OVER-02 | Phase 42 | Pending |
-| OVER-03 | Phase 42 | Pending |
-| OVER-04 | Phase 42 | Pending |
+| OVER-01 | Phase 42 | Complete |
+| OVER-02 | Phase 42 | Complete |
+| OVER-03 | Phase 42 | Complete |
+| OVER-04 | Phase 42 | Complete |
 | BRIEF-01 | Phase 42 | Pending |
 | BRIEF-02 | Phase 42 | Pending |
 | CHAT-01 | Phase 45 | Pending |
