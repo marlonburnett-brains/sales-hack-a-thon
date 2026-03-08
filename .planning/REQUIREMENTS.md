@@ -40,8 +40,8 @@ Requirements for milestone v1.7 Deals & HITL Pipeline. Each maps to roadmap phas
 - [ ] **CHAT-01**: User can access a persistent AI chat bar on any deal sub-page
 - [ ] **CHAT-02**: User can add context or notes to the deal via chat
 - [ ] **CHAT-03**: User can upload/paste call transcripts and bind them to a specific touch step via chat
-- [ ] **CHAT-04**: User can ask questions about the deal's data and history via chat
-- [ ] **CHAT-05**: User can query similar cases/use cases from the knowledge base via chat
+- [x] **CHAT-04**: User can ask questions about the deal's data and history via chat
+- [x] **CHAT-05**: User can query similar cases/use cases from the knowledge base via chat
 
 ### Touch Pages & HITL
 
@@ -129,8 +129,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHAT-01 | Phase 45 | Pending |
 | CHAT-02 | Phase 45 | Pending |
 | CHAT-03 | Phase 45 | Pending |
-| CHAT-04 | Phase 45 | Pending |
-| CHAT-05 | Phase 45 | Pending |
+| CHAT-04 | Phase 45 | Complete |
+| CHAT-05 | Phase 45 | Complete |
 | TOUCH-01 | Phase 46 | Complete |
 | TOUCH-02 | Phase 46 | Complete |
 | TOUCH-03 | Phase 46 | Complete |

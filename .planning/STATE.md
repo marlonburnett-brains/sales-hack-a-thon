@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 46-03-PLAN.md
-last_updated: "2026-03-08T22:23:24.463Z"
-last_activity: 2026-03-08 - Completed 44-03 (AI chat panel, version history, diff view, rollback)
+stopped_at: Completed 45-01-PLAN.md
+last_updated: "2026-03-08T22:53:23.534Z"
+last_activity: 2026-03-08 - Completed 45-01 (deal chat contracts and governed named-agent identity)
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 22
-  completed_plans: 17
-  percent: 83
+  completed_plans: 18
+  percent: 82
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.7 Deals & HITL Pipeline -- Phases 41 and 43 executing in parallel
+**Current focus:** v1.7 Deals & HITL Pipeline -- Phase 45 execution underway, Phase 47 pending
 
 ## Current Position
 
-Phase: 44 of 47 (Agent Management UI)
-Plan: 3 of 3 in current phase (completed)
+Phase: 45 of 47 (Persistent AI Chat Bar)
+Plan: 2 of 5 in current phase (next)
 Status: Executing
-Last activity: 2026-03-08 - Completed 44-03 (AI chat panel, version history, diff view, rollback)
+Last activity: 2026-03-08 - Completed 45-01 (deal chat contracts and governed named-agent identity)
 
-Progress: [████████░░] 83%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -72,6 +72,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 46]: InteractionRecord created at workflow start for hitlStage tracking from first suspend
 - [Phase 46]: Touch 4 recordInteraction changed from create to update since InteractionRecord exists from parseTranscript
 - [Phase 46]: Touch page split into server+client components for data fetching and interactive HITL state management
+- [Phase 45]: Phase 45 starts from one shared deal-chat schema surface so downstream storage, route, and UI plans import canonical request and metadata contracts.
+- [Phase 45]: Deal chat uses one governed deal-chat-assistant orchestrator identity instead of per-page or transcript-cleanup prompt agents.
 
 ### Pending Todos
 
@@ -96,6 +98,7 @@ None.
 | Phase 44 P03 | 12min | 2 tasks | 12 files |
 | Phase 46 P02 | 13min | 2 tasks | 6 files |
 | Phase 46 P03 | 5min | 2 tasks | 8 files |
+| Phase 45 P01 | 1 min | 1 tasks | 6 files |
 
 ### Blockers/Concerns
 
@@ -106,6 +109,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T22:19:45.451Z
-Stopped at: Completed 46-03-PLAN.md
-Next action: Phase 44 complete. Continue parallel milestone work for Phases 45-47.
+Last session: 2026-03-08T22:53:23.531Z
+Stopped at: Completed 45-01-PLAN.md
+Next action: Execute 45-02-PLAN.md for the deal-chat orchestrator and route wiring.
