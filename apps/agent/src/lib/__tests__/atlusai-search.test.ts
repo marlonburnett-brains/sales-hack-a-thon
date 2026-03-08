@@ -346,6 +346,23 @@ describe("atlusai-search", () => {
       );
     });
 
+    it("cached prompt path does not overwrite the saved extraction template", async () => {
+      const mod = await freshModule();
+
+      mockIsMcpAvailable.mockReturnValue(true);
+      mockCallMcpTool.mockResolvedValue(MOCK_MCP_RAW_RESULT);
+      mockGetCachedExtractionPrompt.mockReturnValue(
+        "Cached template with {{RAW_RESULTS}} and {{SEARCH_QUERY}}",
+      );
+      mockGenerateContent.mockResolvedValue({
+        text: JSON.stringify(MOCK_LLM_EXTRACTED),
+      });
+
+      await mod.searchSlides({ query: "do not recache" });
+
+      expect(mockSetCachedExtractionPrompt).not.toHaveBeenCalled();
+    });
+
     it("LLM failure returns empty array (graceful degradation)", async () => {
       const mod = await freshModule();
 
