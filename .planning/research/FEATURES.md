@@ -1,285 +1,221 @@
-# Feature Research -- v1.6 Touch 4 Artifact Intelligence
+# Feature Research
 
-**Domain:** Artifact type sub-classification and per-artifact deck structures for agentic sales platform
-**Researched:** 2026-03-07
-**Confidence:** HIGH (all features build directly on existing v1.5 infrastructure; codebase reviewed; clear implementation paths)
+**Domain:** Agentic Sales Orchestration -- Deal Management & HITL Pipeline (v1.7)
+**Researched:** 2026-03-08
+**Confidence:** HIGH (existing codebase well-understood; patterns are established CRM/agentic UX)
 
-## Scope
+## Feature Landscape
 
-Features for v1.6 milestone ONLY. Two core capabilities:
-1. Touch 4 artifact type sub-classification (Proposal / Talk Track / FAQ)
-2. Per-artifact-type deck structures displayed in Settings
+### Table Stakes (Users Expect These)
 
-Existing v1.5 features leveraged: Template/Example classification with touch type binding, AI-inferred deck structures per touch type, streaming chat refinement, cron auto-inference, Popover classify UI, Settings page with per-touch-type pages.
-
----
-
-## Table Stakes
-
-Features users expect once artifact type sub-classification exists. Missing these = feature feels half-built.
+Features users assume exist. Missing these = product feels incomplete for a deal management platform.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **F1: Artifact type selector in classify UI** | When classifying as Example with Touch 4 selected, users expect to specify what KIND of Touch 4 artifact this is (Proposal deck, Talk Track doc, Buyer FAQ doc). Without this, Touch 4 examples are an undifferentiated bucket. | LOW | Extend existing Popover classify UI (`classification-panel.tsx` TemplateClassificationSection). Show artifact type radio group conditionally when `touch_4` is checked. Three values: `proposal`, `talk_track`, `faq`. |
-| **F2: Artifact type persisted on Template model** | The artifact type must survive page reloads and be queryable for deck structure inference. | LOW | Add `artifactType` column to `Template` model (String, nullable). Only populated when `contentClassification = "example"` AND `touchTypes` includes `touch_4`. Extend `/templates/:id/classify` endpoint to accept `artifactType` param. Forward-only migration per CLAUDE.md rules. |
-| **F3: Artifact type visible on template cards** | Users need to see at a glance whether a Touch 4 example is a Proposal, Talk Track, or FAQ. Classification label currently shows "Example (Touch 4+)" which is insufficient. | LOW | Extend `getClassificationLabel()` in `template-utils.ts` to append artifact type when present: "Example (Touch 4+ -- Proposal)". Display as chip/badge on template cards. |
-| **F4: Three separate deck structures for Touch 4 in Settings** | Touch 4 currently has one deck structure page. With artifact types, users expect to see the inferred structure for each artifact type independently. A Proposal deck structure is fundamentally different from a Talk Track structure. | MEDIUM | Replace single `/settings/deck-structures/touch-4` page with three sub-pages or tabbed view: Proposal, Talk Track, FAQ. Each runs independent deck structure inference against its own subset of examples. |
-| **F5: Independent deck structure inference per artifact type** | The inference engine must filter examples by artifact type, not just touch type. A Talk Track has a completely different section flow than a Proposal deck. Mixing them produces nonsensical structures. | MEDIUM | Modify `inferDeckStructure()` to accept optional `artifactType` filter. For `touch_4`, run inference 3x (once per artifact type). `DeckStructure` model needs a new unique key: `touchType + artifactType` instead of just `touchType`. |
-| **F6: Confidence scoring per artifact type** | Each artifact type may have different example counts. Proposal might have 3 examples (medium confidence) while FAQ has 0 (no examples). Users need per-artifact confidence. | LOW | Already handled by `calculateConfidence(exampleCount)`. Just pass filtered count per artifact type. No new logic needed -- just correct data partitioning. |
+| **Deal status lifecycle** | Every CRM shows deals moving through stages; sellers need pipeline health at a glance | LOW | Add `status` field to Deal model (Prospecting > Qualifying > Proposal > Closing > Won/Lost). InteractionRecord tracks per-touch progress but deal-level stage is missing. Forward-only migration required per CLAUDE.md |
+| **Deal list with filtering and status indicators** | Sellers must quickly find deals by status, company, or assignee | LOW | Existing `DealDashboard` renders deals but lacks status column, filtering controls, or color-coded status badges. Builds directly on status lifecycle |
+| **Pipeline view toggle (Board + List)** | CRMs universally offer kanban board view for visual pipeline management alongside list view for detail work | MEDIUM | Current deals page is list-only. Kanban requires column-per-stage layout with deal cards. Use native HTML drag or lightweight library. Depends on: Deal status lifecycle |
+| **Deal detail overview page** | Clicking a deal must show a summary dashboard with company info, stage, recent activity, next actions | MEDIUM | Current `deals/[dealId]/page.tsx` shows touch cards and timeline vertically but lacks a proper dashboard layout with metrics, progress indicators, and quick-action buttons |
+| **Breadcrumb navigation** | Users get lost in nested deal sub-pages (Overview > Briefing > Touch 1 > Review) | LOW | Not currently present. Standard Next.js pattern with `usePathname()` segment parsing. Essential for deal detail sub-page navigation |
+| **Deal detail sidebar sub-navigation** | Sellers need direct access to deal sub-pages (Overview, Briefing, Touch 1-4) without going back to overview first | MEDIUM | Current deal detail is a single long page. v1.7 requires separate routed sub-pages with a left sidebar or horizontal tab navigation within the deal layout |
+| **Per-touch artifact pages** | Each touch type needs a dedicated page with generation form, progress tracking, and output display | HIGH | Currently `TouchFlowCard` components handle Touch 1-4 inline on the deal page. v1.7 requires separate routed pages at `/deals/[dealId]/touch-1` through `/touch-4` with full multi-step HITL workflows |
+| **3-stage HITL artifact generation** | Generate > Review > Approve is the expected workflow for AI-assisted content creation | HIGH | Mastra suspend/resume proven for Touch 4 (brief approval + asset review). Extend consistently to Touch 1-3: (1) Configure inputs + Generate, (2) Review AI output with edit capability, (3) Approve/Override final artifacts. Each stage needs clear status indicators |
+| **Google Drive artifact saving with organized folders** | Generated decks/docs must land in organized Drive folders, not scattered across a flat directory | MEDIUM | `drive-folders.ts` already has `getOrCreateDealFolder` and `makePubliclyViewable`. Needs per-touch subfolder structure (e.g., "Meridian Capital - Q1 Pitch/Touch 1 - Pager/") and domain-scoped sharing |
+| **AI chat for deal context** | Sellers expect to ask questions about their deal ("What did the prospect say about budget?", "Suggest a follow-up approach") | HIGH | No chat infrastructure exists yet. Needs persistent message history, streaming responses, and deal-scoped context injection from InteractionRecord history |
 
-## Differentiators
+### Differentiators (Competitive Advantage)
 
-Features that add intelligence beyond basic sub-classification.
+Features that set the product apart. Not required by all CRMs, but valuable for this platform.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **F7: Per-artifact chat refinement** | Each artifact type gets its own chat history and refinement context. A user refining the Proposal structure should not see Talk Track chat messages. | LOW | `DeckStructure` already has `chatMessages` relation and `chatContextJson`. Since each artifact type gets its own `DeckStructure` row, chat is automatically scoped. Just ensure the chat endpoint passes `artifactType` alongside `touchType`. |
-| **F8: Cron auto-inference respects artifact types** | Background cron should detect changes per artifact type and re-infer independently. A new FAQ example should not trigger Proposal re-inference. | LOW | Extend `computeDataHash()` to include artifact type in the hash input. Cron iterates touch types; for `touch_4`, iterate 3 artifact types. Active session protection already works per `DeckStructure` row via `lastChatAt`. |
-| **F9: Artifact type filter in template list** | Users filtering templates by Touch 4 want to further filter by Proposal vs Talk Track vs FAQ. | LOW | Add artifact type to template filter UI. Already has touch type filter; add cascading dropdown. |
+| **Persistent AI chat bar across deal sub-pages** | Chat context persists as seller navigates between Overview, Briefing, and Touch pages -- unlike CRMs where AI resets per page. Seller can ask about budget on the briefing page, then navigate to Touch 4 and the chat remembers | HIGH | Modern UX pattern: context side panel in deal detail layout, not a floating chat bubble. Use React context or layout-level state to preserve conversation across sub-page navigations. Mount in deal `[dealId]/layout.tsx`. Streaming via existing delimiter protocol |
+| **Named agent architecture** | Dedicated agents (BriefingAgent, ProposalAgent, DealChatAgent) with specialized system prompts instead of one monolithic workflow. Each agent has domain expertise, consistent personality, and dedicated tool sets | MEDIUM | Mastra supports named agents with `instructions` as async functions. Currently only workflows exist (touch-1-workflow.ts through touch-4-workflow.ts) with no formal Agent definitions. Register agents in `mastra/index.ts`. Each agent wraps its corresponding workflow with a system prompt layer |
+| **Agent management UI with versioning** | Non-technical users (sales managers, product owners) can view, edit, and version agent system prompts through Settings without code changes. Draft/publish workflow prevents accidental production prompt breakage | HIGH | No existing UI. Requires: AgentConfig + AgentConfigVersion DB models, prompt editor with markdown support, version history with diff view, draft/published state machine, rollback capability. Settings page already has sidebar nav -- add "Agents" section |
+| **Cross-touch context carry-forward** | Chat and generation agents remember what happened in prior touches for the same deal. "In Touch 2, you used healthcare compliance slides -- reference those in the proposal" | MEDIUM | InteractionRecord already tracks per-touch history with inputs, decisions, and output references. ChatAgent queries prior interactions to provide contextual responses. Named agent architecture enables this by giving ChatAgent access to deal history tools |
+| **Deal briefing consolidation page** | Single page aggregating all prep material: pre-call briefing output, company research, prior interaction summaries, discovery questions. One-stop meeting prep surface | MEDIUM | Pre-call data exists via `PreCallSection` component. Prior interactions tracked in `InteractionRecord`. Consolidating into one `/deals/[dealId]/briefing` sub-page with sections for each data source |
+| **Domain-scoped Drive sharing** | Share generated artifacts with @lumenalta.com domain instead of public "anyone with link" access. Professional security posture for client-facing materials | LOW | Replace current `makePubliclyViewable` (type: "anyone") with `type: "domain", domain: "lumenalta.com"`. One-line permission change with significant security improvement |
+| **Deal assignment with user linking** | Link deals to Supabase Auth users for "my deals" filtering and ownership tracking | LOW | `Deal.salespersonName` exists as freeform text. Add `assignedToUserId` field linking to Supabase Auth user ID. Enable "My Deals" vs "All Deals" filter toggle |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build in v1.6.
+Features that seem good but create problems for this product.
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **AI-suggested artifact type** | Distinguishing Proposal from Talk Track requires understanding document intent, not just content. A slide deck with bullet points could be either. User classification is more reliable. | Manual classification via UI. User selects artifact type explicitly. |
-| **Artifact types for Touch 1-3** | Touch 1-3 produce single artifact types (pager, intro deck, capability deck). Sub-classification adds no value and confuses the model. | Artifact type UI only appears when Touch 4 is selected. |
-| **Cross-artifact structure comparison** | Comparing Proposal vs Talk Track structures adds UI complexity without clear user value. They serve different purposes. | Show each artifact type on its own page/tab. |
-| **Artifact type on slide-level classification** | Slides don't have artifact types -- presentations do. Adding artifact type to SlideEmbedding classificationJson pollutes the per-slide taxonomy. | Artifact type lives on Template model only. Inference queries join Template -> SlideEmbedding. |
-| **Custom artifact types** | Three artifact types (Proposal, Talk Track, FAQ) are the exact outputs of Touch 4 workflow. Custom types add UI complexity for no use case. | Fixed enum: `proposal`, `talk_track`, `faq`. |
-| **Artifact type migration for existing data** | Existing Touch 4 examples (if any) should not be auto-assigned artifact types. User must review and classify. | Show "Action Required" for Touch 4 examples missing artifact type. |
-
-## Feature-by-Feature Deep Analysis
-
-### F1: Artifact Type Selector in Classify UI
-
-**Current state:** `classification-panel.tsx` TemplateClassificationSection shows Template/Example radio, then touch type checkboxes when Example selected. No artifact type field.
-
-**Change:** Add a third conditional section: when `classifyType === "example"` AND `selectedTouches.includes("touch_4")`, show artifact type radio group (Proposal / Talk Track / FAQ).
-
-**Implementation:**
-- New state: `const [artifactType, setArtifactType] = useState<string | null>(null)`
-- Reset artifact type when touch_4 is unchecked
-- Pass artifact type to `classifyTemplateAction()` as optional param
-- Validation: if touch_4 selected, artifact type required
-
-**Complexity:** LOW. Pure frontend extension of existing Popover classify form.
-
----
-
-### F2: Artifact Type on Template Model
-
-**Current state:** `Template` model has `contentClassification` (String, nullable) and `touchTypes` (String, JSON array). No artifact type column.
-
-**Change:** Add `artifactType` column.
-
-**Schema migration:**
-```sql
-ALTER TABLE "Template" ADD COLUMN "artifactType" TEXT;
-```
-
-**Agent endpoint change:** Extend `/templates/:id/classify` Zod schema:
-```typescript
-z.object({
-  classification: z.enum(["template", "example"]),
-  touchTypes: z.array(z.string()).optional(),
-  artifactType: z.enum(["proposal", "talk_track", "faq"]).optional(),
-})
-```
-
-**Validation:** `artifactType` is only valid when `classification === "example"` AND `touchTypes` includes `touch_4`. Clear `artifactType` to null when reclassifying as template or removing touch_4.
-
-**Complexity:** LOW. One migration, one endpoint update.
-
----
-
-### F3: Artifact Type Visible on Template Cards
-
-**Current state:** `getClassificationLabel()` returns "Example (Touch 4+)" for Touch 4 examples.
-
-**Change:** When artifact type is set, return "Example (Touch 4+ -- Proposal)" format.
-
-**Implementation:**
-- `getClassificationLabel(classification, touchTypes, artifactType?)` -- add optional third param
-- Artifact type label map: `{ proposal: "Proposal", talk_track: "Talk Track", faq: "FAQ" }`
-- Template list API must include `artifactType` in response
-- Template card component passes artifact type through
-
-**Complexity:** LOW. String formatting + data passthrough.
-
----
-
-### F4: Three Deck Structure Views for Touch 4
-
-**Current state:** Settings sidebar has Touch 1, Touch 2, Touch 3, Touch 4 links. Touch 4 renders one `TouchTypeDetailView`.
-
-**Routing options:**
-1. **Sub-routes:** `/settings/deck-structures/touch-4/proposal`, `/touch-4/talk-track`, `/touch-4/faq`
-2. **Tabs within Touch 4 page:** Single route with horizontal tabs for Proposal / Talk Track / FAQ
-
-**Recommendation:** Tabs within Touch 4 page. Reason: sub-routes require sidebar nav changes and add 3 more sidebar items, making the nav cluttered. Tabs keep the information architecture clean -- Touch 4 is one section with 3 artifact views inside.
-
-**Implementation:**
-- Modify `/settings/deck-structures/touch-4` page to render a tab bar: Proposal | Talk Track | FAQ
-- Each tab renders a `TouchTypeDetailView` with `touchType="touch_4"` and `artifactType="proposal"|"talk_track"|"faq"`
-- `TouchTypeDetailView` passes `artifactType` to `getDeckStructureAction()`
-- Each tab has independent loading state, confidence badge, section flow, and chat bar
-
-**Complexity:** MEDIUM. UI restructuring + data flow changes, but all components exist.
-
----
-
-### F5: Independent Deck Structure Inference Per Artifact Type
-
-**Current state:** `DeckStructure` model has `touchType` as `@unique`. `inferDeckStructure(touchType)` queries all examples for that touch type.
-
-**Change:** Add `artifactType` to `DeckStructure` model and change unique constraint.
-
-**Schema migration:**
-```sql
-ALTER TABLE "DeckStructure" ADD COLUMN "artifactType" TEXT;
--- Drop the old unique index on touchType alone
-ALTER TABLE "DeckStructure" DROP CONSTRAINT "DeckStructure_touchType_key";
--- Create new composite unique
-CREATE UNIQUE INDEX "DeckStructure_touchType_artifactType_key" ON "DeckStructure"("touchType", "artifactType");
-```
-
-**Note:** For Touch 1-3 and Pre-Call, `artifactType` remains NULL. The unique constraint must handle NULL correctly. PostgreSQL treats NULLs as distinct in unique indexes, so `(touch_1, NULL)` and `(touch_2, NULL)` are both allowed. However, two rows with `(touch_4, NULL)` would also be allowed, which is undesirable. Use a partial unique index or always set artifact type for touch_4.
-
-**Recommended approach:** Use `@@unique([touchType, artifactType])` in Prisma, which creates a standard unique index. For touch_4, always require artifact type. For touch 1-3, artifact type is always null. This naturally prevents duplicates.
-
-**Inference changes:**
-- `inferDeckStructure(touchType, chatConstraints?, artifactType?)` -- add optional param
-- When `artifactType` is provided, filter examples to those with matching `artifactType` on their Template record
-- Query pattern: `prisma.template.findMany({ where: { contentClassification: "example", artifactType: artifactType } })` then filter by touch type in JSON
-- `computeDataHash()` includes artifact type in hash input
-
-**Complexity:** MEDIUM. Schema change + query filter + unique constraint migration.
-
----
-
-### F6-F9: Supporting Features
-
-These features are low complexity and naturally fall out of F1-F5 implementation:
-
-- **F6 (Confidence per artifact type):** No new logic. `calculateConfidence()` receives filtered example count per artifact type.
-- **F7 (Per-artifact chat):** Each `DeckStructure` row has its own `chatMessages`. Chat endpoint passes `artifactType` to find the right row.
-- **F8 (Cron per artifact type):** Extend cron loop: for touch_4, iterate `["proposal", "talk_track", "faq"]`. `computeDataHash()` includes artifact type.
-- **F9 (Template list filter):** Add `artifactType` to filter controls. Cascading: only show when Touch 4 filter active.
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Real-time collaborative editing of artifacts** | "Let multiple people edit the brief simultaneously" | Massive OT/CRDT complexity. Google Slides already handles collaborative editing natively. Building a parallel editing system is waste | Link to Google Slides/Docs for editing. Track edits via Drive API revision history comparison |
+| **Custom pipeline stages** | "Let teams define their own deal stages" | Over-engineering for ~20 sellers. Custom stages require migration tooling, validation logic, and kanban column management UI. Fixed stages cover the actual sales process | Fixed 5-stage pipeline (Prospecting > Qualifying > Proposal > Closing > Won/Lost). Matches their GTM strategy |
+| **Inline artifact content editing** | "Edit slide text directly in the web app" | Google Slides API content manipulation is fragile (EMU positioning, text run manipulation). Already explicitly out of scope in PROJECT.md | "Open in Google Slides" deep link button. Google provides superior editing UX |
+| **Autonomous generation without approval gates** | "Just generate everything automatically and send to client" | Violates core HITL philosophy -- the platform's primary value is AI-assisted, human-approved output. Removing gates introduces brand/quality risk | Keep explicit 3-stage approval. Speed comes from parallel generation and smart defaults, not skipping review |
+| **Per-agent model selection** | "Let each agent use a different LLM" | Increases cost, latency variance, testing surface, and prompt migration complexity. GPT-OSS 120b on Vertex AI handles all current needs adequately | Single model with agent-specific system prompts and tool configurations. Prompt engineering over model switching |
+| **Chat history search across all deals** | "Search all my AI conversations globally" | Requires full-text indexing infrastructure, cross-deal privacy considerations, and query UI. Low value compared to deal-scoped chat | Scope chat to current deal. Cross-deal patterns emerge from InteractionRecord analytics in v2 |
+| **Drag-and-drop slide reordering** | "Reorder generated slides before approving" | Already explicitly out of scope. Duplicates Google Slides native drag-and-drop. Building slide manipulation UI is months of work | "Open in Google Slides" for reordering, then return to approve final version |
+| **Real-time notification system** | "Push notifications when a brief needs approval" | WebSocket/SSE infrastructure for ~20 users is over-engineering. Polling and email suffice | Email notification on HITL checkpoint (Supabase Edge Function or simple SMTP). In-app polling on deals page |
 
 ## Feature Dependencies
 
 ```
-F1: Artifact Type Selector (UI)
-    depends on: Existing classify UI (v1.5)
-    enables: F2 (needs UI to set values)
+Deal Status Lifecycle
+    |-- required by --> Pipeline View Toggle (Board/List)
+    |-- required by --> Deal Assignment/Filtering
+    |-- required by --> Deal Overview Dashboard (stage display)
 
-F2: Artifact Type on Template Model (schema)
-    depends on: Template model (v1.2)
-    enables: F3, F5 (queryable data)
+Deal Detail Sub-Page Routing
+    |-- requires --> Breadcrumb Navigation
+    |-- required by --> Per-Touch Artifact Pages
+    |-- required by --> Deal Overview Dashboard Page
+    |-- required by --> Deal Briefing Page
+    |-- required by --> Persistent AI Chat Bar (layout mounting point)
 
-F3: Artifact Type Labels (display)
-    depends on: F2 (needs artifactType data)
+Named Agent Architecture
+    |-- required by --> Per-Touch Artifact Pages (agents power generation)
+    |-- required by --> Persistent AI Chat Bar (DealChatAgent)
+    |-- required by --> Agent Management UI (must exist before managing)
+    |-- required by --> Cross-Touch Context (agent queries history)
 
-F4: Three Deck Structure Views (UI)
-    depends on: Settings page (v1.5), F5 (needs per-artifact structures)
+Per-Touch Artifact Pages
+    |-- requires --> Deal Detail Sub-Page Routing
+    |-- requires --> Named Agent Architecture
+    |-- required by --> 3-Stage HITL Generation
 
-F5: Independent Inference Per Artifact Type (engine)
-    depends on: F2 (needs artifactType on Template)
-    depends on: DeckStructure model (v1.5)
-    enables: F4, F6, F7, F8
+3-Stage HITL Artifact Generation
+    |-- requires --> Per-Touch Artifact Pages
+    |-- requires --> Named Agent Architecture
+    |-- requires --> Google Drive Artifact Saving (stage 3 saves to Drive)
 
-F6: Per-Artifact Confidence (display)
-    depends on: F5 (filtered example counts)
+Google Drive Artifact Saving
+    |-- requires --> Drive Folder Structure (per-deal + per-touch subfolders)
+    |-- requires --> Domain-Scoped Sharing
+    |-- enhances --> 3-Stage HITL (completion saves to Drive)
 
-F7: Per-Artifact Chat (interaction)
-    depends on: F5 (per-artifact DeckStructure rows)
-    depends on: Chat refinement (v1.5)
+Agent Management UI with Versioning
+    |-- requires --> Named Agent Architecture
+    |-- requires --> AgentConfig DB Models
+    |-- enhances --> Named Agent Architecture (editable prompts)
 
-F8: Cron Per Artifact Type (background)
-    depends on: F5 (per-artifact inference)
-    depends on: Auto-infer cron (v1.5)
-
-F9: Template List Filter (UI)
-    depends on: F2 (artifactType on Template)
+Persistent AI Chat Bar
+    |-- requires --> Named Agent Architecture (DealChatAgent)
+    |-- requires --> Deal Detail Sub-Page Routing (layout-level mount)
+    |-- requires --> DealChatMessage DB Model
+    |-- enhances --> All Touch Pages (contextual AI during generation)
 ```
 
 ### Dependency Notes
 
-- **F1 and F2 are the foundation** -- everything else depends on artifact type being selectable (F1) and persisted (F2). Ship these first.
-- **F3 is independent of F4-F8** -- just needs F2. Can ship alongside F1+F2 as a single phase.
-- **F5 is the engine change** that unlocks F4, F6, F7, F8. Ship as its own phase.
-- **F4 is the capstone UI** -- renders the results of F5. Ship last.
-- **F7 and F8 are near-zero marginal cost** once F5 exists. Include in F5's phase.
+- **Deal Status Lifecycle is the foundation.** Pipeline views, filtering, and dashboard all depend on deals having a stage. Ship first.
+- **Deal Detail Sub-Page Routing unlocks everything inside a deal.** Overview, Briefing, Touch pages, and Chat bar all need the sub-page layout structure. Ship second.
+- **Named Agent Architecture enables all AI features.** Touch pages invoke agents, chat bar uses DealChatAgent, and the management UI configures agents. Define agents before building the features that use them.
+- **3-Stage HITL depends on both touch pages and Drive saving.** The approval stage must save artifacts to Drive to complete the workflow loop.
+- **Agent Management UI is downstream of everything.** It configures agents that must already exist and be working. Ship last.
 
-## MVP Recommendation
+## MVP Definition
 
-### Phase 1 -- Schema + Classification UI (foundation)
+### Launch With (v1.7 Core)
 
-1. F2: Add `artifactType` column to Template + extend classify endpoint
-2. F1: Add artifact type selector to classify UI (conditional on touch_4)
-3. F3: Update classification labels to show artifact type
+Minimum viable milestone -- what transforms the app from content-generation tool to deal-management platform.
 
-**Rationale:** Enables users to classify existing Touch 4 examples with artifact types. No inference changes yet.
+- [ ] Deal status lifecycle with 5 fixed stages and DB migration
+- [ ] Deals page with list/board view toggle and status filtering
+- [ ] Deal detail navigation overhaul: breadcrumbs + sidebar sub-pages (Overview, Briefing, Touch 1-4)
+- [ ] Deal overview dashboard page with company info, stage, activity summary, quick actions
+- [ ] Deal briefing consolidation page aggregating pre-call output and prior interactions
+- [ ] Named agent architecture: BriefingAgent, Touch1Agent, Touch2Agent, Touch3Agent, ProposalAgent, DealChatAgent with dedicated system prompts
+- [ ] Per-touch artifact pages with 3-stage HITL workflow (Configure > Review > Approve)
+- [ ] Google Drive artifact saving with per-deal/per-touch folder structure and @lumenalta.com domain sharing
+- [ ] Persistent AI chat bar across deal sub-pages with streaming responses and deal context
 
-### Phase 2 -- Deck Structure Engine + Settings UI (intelligence)
+### Add After Validation (v1.7.x)
 
-4. F5: Modify `DeckStructure` unique constraint, extend inference engine with artifact type filter
-5. F8: Extend cron to iterate artifact types for touch_4
-6. F7: Extend chat endpoint to pass artifact type
-7. F4: Add tabbed view to Touch 4 Settings page
-8. F6: Confidence displays per artifact type (falls out naturally)
+Features to add once core pipeline is working and agents are stable.
 
-**Rationale:** Once examples are classified with artifact types, the inference engine can produce meaningful per-artifact structures.
+- [ ] Agent management UI with versioning and draft/publish system -- add when prompt iteration becomes a bottleneck
+- [ ] Deal assignment with Supabase Auth user linking and "My Deals" filter -- add when team filtering is requested
+- [ ] Cross-touch context carry-forward in chat -- add after chat bar is proven useful and context quality can be validated
+- [ ] Pipeline analytics (stage distribution, average time per stage) -- add when enough deals exist
 
-### Defer to v1.7+
+### Future Consideration (v2+)
 
-- F9: Template list artifact type filter (nice to have, not essential)
-- Cross-artifact structural comparison
-- AI-suggested artifact type inference
+- [ ] Custom pipeline stages per team -- defer until multi-team usage demands it
+- [ ] Chat history search across deals -- defer until interaction volume warrants full-text indexing
+- [ ] Automated stage transitions based on interaction completion -- defer until transition patterns are understood
+- [ ] A/B testing for agent prompts via management UI -- defer until prompt versioning is stable
+- [ ] Email notifications on HITL checkpoints -- defer until polling UX proves insufficient
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority | Rationale |
-|---------|------------|---------------------|----------|-----------|
-| F2: Schema + endpoint | HIGH | LOW | P1 | Foundation. Everything depends on this. |
-| F1: Classify UI | HIGH | LOW | P1 | Users need UI to set artifact types. |
-| F3: Label display | MEDIUM | LOW | P1 | Visibility. Low cost to include with F1+F2. |
-| F5: Inference engine | HIGH | MEDIUM | P1 | Core intelligence. Unlocks deck structures. |
-| F4: Settings tabbed view | HIGH | MEDIUM | P1 | Primary user-facing value of the milestone. |
-| F7: Per-artifact chat | MEDIUM | LOW | P1 | Near-zero cost once F5 ships. |
-| F8: Cron per artifact | MEDIUM | LOW | P1 | Near-zero cost once F5 ships. |
-| F6: Per-artifact confidence | LOW | LOW | P1 | Falls out naturally from F5. |
-| F9: Template list filter | LOW | LOW | P2 | Nice to have. Can ship later. |
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Deal status lifecycle | HIGH | LOW | P1 |
+| Deals list/board view toggle | HIGH | MEDIUM | P1 |
+| Deal detail sub-page routing + breadcrumbs | HIGH | MEDIUM | P1 |
+| Deal overview dashboard | MEDIUM | MEDIUM | P1 |
+| Deal briefing page | MEDIUM | MEDIUM | P1 |
+| Named agent architecture | HIGH | MEDIUM | P1 |
+| Per-touch artifact pages (4 pages) | HIGH | HIGH | P1 |
+| 3-stage HITL generation workflow | HIGH | HIGH | P1 |
+| Google Drive folder structure + domain sharing | HIGH | MEDIUM | P1 |
+| Persistent AI chat bar | HIGH | HIGH | P1 |
+| Agent management UI with versioning | MEDIUM | HIGH | P2 |
+| Deal assignment + "My Deals" filter | MEDIUM | LOW | P2 |
+| Cross-touch context in chat | MEDIUM | MEDIUM | P2 |
+| Pipeline analytics | LOW | MEDIUM | P3 |
+| Chat history search | LOW | HIGH | P3 |
 
 **Priority key:**
-- P1: Must have for v1.6 -- core milestone features
-- P2: Should have, defer if time-constrained
+- P1: Must have for v1.7 milestone completion
+- P2: Should have, add in v1.7.x if time permits
+- P3: Nice to have, defer to v2+
 
-## Existing Infrastructure Leveraged
+## Existing Infrastructure to Leverage
 
-| v1.5 Component | How v1.6 Uses It | Changes Needed |
-|----------------|------------------|----------------|
-| `Template.contentClassification` | Continues to distinguish template/example | No change |
-| `Template.touchTypes` (JSON) | Continues to bind examples to touch types | No change |
-| Popover classify UI | Extended with artifact type selector | Conditional third section |
-| `DeckStructure` model | Extended with `artifactType` column | New column + new unique constraint |
-| `inferDeckStructure()` | Extended with `artifactType` filter param | Query filter + data hash change |
-| `calculateConfidence()` | Called with per-artifact example counts | No change to function |
-| Streaming chat refinement | Scoped per `DeckStructure` row (already works) | Endpoint passes artifact type |
-| Auto-infer cron | Extended to iterate artifact types for touch_4 | Loop change + hash change |
-| Settings sidebar nav | No change needed (tabs inside Touch 4 page) | Touch 4 page restructured internally |
-| `classifyTemplate` API client | Extended with `artifactType` param | One param addition |
-| `getClassificationLabel()` | Extended with optional `artifactType` param | String formatting |
+What already exists and how new features build on it.
+
+| Existing Asset | New Feature It Enables | Gap to Fill |
+|----------------|----------------------|-------------|
+| `Deal` model with `Company` relation | Deal status lifecycle | Add `status` field (String), `assignedToUserId` (String, nullable), status transition timestamps |
+| `InteractionRecord` with per-touch status | 3-stage HITL pages | Expand status enum to cover Configure/Review/Approve stages or add HITL stage tracking |
+| `TouchFlowCard` component | Per-touch artifact pages | Extract generation logic from cards into full page components with multi-step forms |
+| `drive-folders.ts` (`getOrCreateDealFolder`) | Drive folder structure | Add per-touch subfolder creation, organize by artifact type |
+| `makePubliclyViewable` | Domain-scoped sharing | Replace `type: "anyone"` with `type: "domain", domain: "lumenalta.com"` |
+| Mastra workflows (touch-1 through touch-4) | Named agent architecture | Wrap workflows in formal Mastra Agent definitions with `instructions` system prompts |
+| `DeckChatMessage` model | Persistent AI chat bar | Separate model needed: `DealChatMessage` for deal-scoped chat (distinct from deck structure chat) |
+| Streaming chat delimiter protocol | Chat bar streaming | Reuse `---STRUCTURE_UPDATE---` delimiter pattern for chat responses with structured payloads |
+| Sidebar component with nav items | Deal detail sub-navigation | Add nested sub-sidebar or tab navigation within `[dealId]/layout.tsx` |
+| Supabase Auth user ID | Deal assignment | Link `Deal.assignedToUserId` to Supabase Auth user ID for ownership |
+| `PreCallSection` component | Briefing consolidation page | Lift into dedicated briefing page alongside interaction history summaries |
+| Settings page with sidebar nav | Agent management UI | Add "Agents" nav section to existing Settings sidebar |
+| `Brief.approvalStatus` + `workflowRunId` | 3-stage HITL | Proven suspend/resume pattern for Touch 4; replicate for Touch 1-3 |
+
+## Competitor Feature Analysis
+
+| Feature | HubSpot | Salesforce | Pipedrive | Our Approach |
+|---------|---------|------------|-----------|--------------|
+| Pipeline view | Kanban + list + forecast | Kanban + list + path view | Kanban + list + timeline | Kanban + list (two views sufficient for ~20 sellers) |
+| Deal stages | Fully customizable | Fully customizable | Customizable with defaults | Fixed 5-stage pipeline (avoids config complexity for small team) |
+| AI chat | ChatSpot (separate tool, not deal-scoped) | Einstein Copilot (inline, general-purpose) | AI Sales Assistant (sidebar, email-focused) | Persistent context bar in deal detail layout, scoped to deal history and touch interactions |
+| Artifact generation | Template-based docs (no HITL) | CPQ for proposals (complex config) | Smart Docs with templates (basic merge) | 3-stage HITL with AI assembly from pre-approved slide blocks + Mastra suspend/resume |
+| HITL approval | Basic approval workflows | Multi-step approval chains | No formal approval flow | Mastra durable workflows with explicit suspend/resume gates per stage |
+| Drive integration | HubSpot Docs or GDrive sync | Salesforce Files (proprietary) | Google Drive sync (flat) | Native Google Workspace API with structured folder hierarchy per deal/touch |
+| Agent management | No user-facing prompt config | Einstein prompt builder (admin only) | No agent config | Settings UI with version history, draft/publish, and diff view |
+| Briefing prep | No consolidated prep view | Einstein account insights (separate) | No briefing feature | Dedicated briefing page with pre-call output + prior interaction history |
 
 ## Sources
 
-- Existing codebase: `schema.prisma`, `classification-panel.tsx`, `template-utils.ts`, `infer-deck-structure.ts`, `deck-structure-schema.ts`, `auto-infer-cron.ts`, `touch-type-detail-view.tsx`, `[touchType]/page.tsx`, `api-client.ts`, `template-actions.ts`, `mastra/index.ts` (HIGH confidence, read directly)
-- PROJECT.md milestone definition: Touch 4 artifact types and per-artifact deck structures (HIGH confidence, read directly)
-- v1.5 REQUIREMENTS.md: all deck intelligence features shipped (HIGH confidence, read directly)
-- PostgreSQL unique index NULL handling: NULLs are treated as distinct values in unique indexes (HIGH confidence, well-documented PostgreSQL behavior)
+- Existing codebase analysis (HIGH confidence): `apps/web/src/app/(authenticated)/deals/`, `apps/agent/src/mastra/`, `apps/agent/prisma/schema.prisma`, `apps/agent/src/lib/drive-folders.ts`, `apps/web/src/app/(authenticated)/layout.tsx`
+- [Pipedrive Pipeline Management](https://www.pipedrive.com/en/features/pipeline-management) -- kanban/list view patterns
+- [Pipeline CRM Kanban Board](https://help.pipelinecrm.com/articles/238265-kanban-board) -- deal card and drag patterns
+- [monday.com Sales Pipeline](https://support.monday.com/hc/en-us/articles/360013348719-Sales-pipeline-management-with-monday-CRM) -- view toggle patterns
+- [Mastra Agents Overview](https://mastra.ai/docs/agents/overview) -- named agent registration
+- [Mastra System Prompt Examples](https://mastra.ai/en/examples/agents/system-prompt) -- instructions as async functions
+- [Mastra HITL Workflows](https://mastra.ai/docs/workflows/human-in-the-loop) -- suspend/resume patterns
+- [Google Drive API Permissions](https://developers.google.com/drive/api/guides/manage-sharing) -- domain-scoped sharing
+- [Google Drive Permissions.create](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/create) -- permission types
+- [Prompt Versioning Best Practices 2025](https://www.getmaxim.ai/articles/prompt-versioning-and-its-best-practices-2025/) -- draft/publish patterns
+- [Conversational AI UI Comparison 2025](https://intuitionlabs.ai/articles/conversational-ai-ui-comparison-2025) -- chat sidebar patterns
+- [HITL AI Design Patterns 2025](https://blog.ideafloats.com/human-in-the-loop-ai-in-2025/) -- multi-stage approval UX
+- [AI UX Design for SaaS](https://userpilot.com/blog/ai-ux-design/) -- context panel patterns
+- [Agentic AI Workflow Patterns 2025](https://skywork.ai/blog/agentic-ai-examples-workflow-patterns-2025/) -- multi-stage generation patterns
 
 ---
-*Feature research for: Lumenalta v1.6 Touch 4 Artifact Intelligence*
-*Researched: 2026-03-07*
+*Feature research for: Agentic Sales Orchestration -- Deal Management & HITL Pipeline (v1.7)*
+*Researched: 2026-03-08*

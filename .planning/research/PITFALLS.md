@@ -1,188 +1,226 @@
 # Pitfalls Research
 
-**Domain:** Adding artifact type sub-classification (Proposal / Talk Track / FAQ) to Touch 4 Examples and per-artifact-type deck structures to existing classification/deck intelligence system
-**Researched:** 2026-03-07
-**Confidence:** HIGH (based on direct codebase analysis of all affected code paths)
+**Domain:** Adding deal management pipeline, persistent AI chat, HITL multi-stage generation, Google Drive folder/sharing, named agent systems, and agent management UI with versioning to an existing agentic sales platform (~50,876 LOC, 40 phases, Mastra workflows with suspend/resume, Prisma forward-only migrations)
+**Researched:** 2026-03-08
+**Confidence:** HIGH (based on direct codebase analysis of all affected code paths and existing patterns)
 
 ## Critical Pitfalls
 
-### Pitfall 1: DeckStructure unique constraint on touchType breaks artifact-type expansion
+### Pitfall 1: Workflow State Explosion From Multi-Touch HITL Parallelism
 
 **What goes wrong:**
-The existing `DeckStructure` model uses `touchType String @unique` as its identity. Touch 4 currently gets exactly one DeckStructure row. The new requirement is 3 separate structures for Touch 4 (Proposal, Talk Track, FAQ). If you try to store all three with `touchType: "touch_4"`, the unique constraint rejects the second insert. If you change the unique key to a composite `@@unique([touchType, artifactType])`, every existing query that does `findUnique({ where: { touchType } })` breaks -- and there are at least 6 such call sites: `auto-infer-cron.ts`, `infer-deck-structure.ts` (2 calls), `chat-refinement.ts` (2 calls), plus 3 API routes in `mastra/index.ts`.
+The existing Touch 4 workflow has 3 suspend/resume points in a single linear 17-step pipeline (field review, brief approval, asset review). Expanding HITL 3-stage generation to Touches 1-3 means up to 4 concurrent workflows per deal, each with their own suspend states stored in Mastra PostgresStore. When a seller starts Touch 1 and Touch 3 concurrently on the same deal, the resume handlers can race -- both may attempt to update the same `InteractionRecord` or `Deal.driveFolderId` simultaneously. The current `getOrCreateDealFolder` in `drive-folders.ts` is idempotent for a single caller but not for concurrent callers (two workflows could both pass the "does folder exist?" check on line 28-36 before either creates it, producing duplicate Drive folders).
 
 **Why it happens:**
-The DeckStructure model was designed for a 1:1 touchType-to-structure relationship. Adding a second dimension (artifact type) fundamentally changes the data model. Developers underestimate how many call sites depend on the `@unique` touchType constraint.
+The existing system was built for one-workflow-at-a-time per deal. The new milestone allows multiple touch types to run in parallel on the same deal, but the data model and Drive folder logic assume sequential execution.
 
 **How to avoid:**
-Use a composite key approach. Change the unique constraint from `touchType @unique` to `@@unique([touchType, artifactType])` where `artifactType` is a new nullable String column (null = no sub-classification, i.e., Touch 1-3 behavior). Forward-only migration: add the column as nullable with default null, drop the old unique index, add the composite unique index -- all in a single migration. Update all `findUnique({ where: { touchType } })` calls to `findUnique({ where: { touchType_artifactType: { touchType, artifactType: null } } })` for Touch 1-3, and use specific artifact types for Touch 4. Use `prisma migrate dev --create-only` to inspect the SQL before applying.
+- Add a database-level advisory lock or `SELECT ... FOR UPDATE` on the `Deal` row around `Deal.driveFolderId` assignment so the folder is created exactly once under concurrency.
+- Ensure each workflow writes only to its own `InteractionRecord` row and never mutates shared Deal-level state without a transaction guard.
+- Design the deal overview page to poll/subscribe to multiple in-flight workflow states, not assume a single active workflow.
 
 **Warning signs:**
-- Prisma `findUnique` calls using `{ where: { touchType } }` that fail at compile time after schema change
-- Cron job iterating `DECK_TOUCH_TYPES` without considering artifact type sub-keys
-- Runtime errors: "Unique constraint failed on the fields: (`touchType`)"
+- Duplicate Drive folders appearing with the same name under the parent folder.
+- `InteractionRecord.status` values flickering between states when viewed on the deal page.
+- Mastra PostgresStore showing multiple suspended runs for the same dealId with conflicting states.
 
 **Phase to address:**
-Schema migration phase (first phase) -- this is the foundational data model change everything else depends on.
+Deal management foundation phase (schema + deal lifecycle) -- must define concurrency rules before any workflow integration begins.
 
 ---
 
-### Pitfall 2: Cron auto-inference treats Touch 4 as one unit instead of three
+### Pitfall 2: Chat Message Persistence Without Conversation Scoping
 
 **What goes wrong:**
-`auto-infer-cron.ts` iterates `DECK_TOUCH_TYPES` (touch_1 through touch_4, filtering out pre_call) and calls `inferDeckStructure(touchType)` once per entry. After adding artifact types, it still calls inference once for "touch_4" instead of three times (once per artifact type). Result: only one artifact type gets inferred, or the cron silently skips Touch 4 artifact sub-types entirely because it does not know they exist.
+The "persistent AI chat bar across deal sub-pages" feature creates a scoping problem. Should chat context carry across touch pages? Should a seller's question on the Touch 2 page ("what slides did you pick?") have access to Touch 4 transcript data? If chat messages are stored globally per deal, the LLM context window fills with irrelevant cross-touch context. If stored per-page, navigation loses continuity and users repeat themselves.
 
 **Why it happens:**
-The cron loop is driven by the `TOUCH_TYPES` constant from `@lumenalta/schemas`, not by what actually exists in the database. When you add artifact types, the constant does not change -- "touch_4" is still just one entry. Developers add the artifact type to the schema and inference function but forget to update the cron driver loop.
+Developers build chat persistence first (store messages, show history) without defining the conversation boundary model. The existing `DeckChatMessage` pattern in the codebase is scoped to a single `DeckStructure` entity via FK -- clean and bounded. A deal-level chat has no single entity to anchor to.
 
 **How to avoid:**
-Define `TOUCH_4_ARTIFACT_TYPES = ["proposal", "talk_track", "faq"] as const` in `@lumenalta/schemas/constants.ts`. Expand the cron loop: iterate `DECK_TOUCH_TYPES` for Touch 1-3 (passing `artifactType: null`), then iterate `TOUCH_4_ARTIFACT_TYPES` for Touch 4 (passing each artifact type). Both `computeDataHash` and `inferDeckStructure` must accept an optional `artifactType` parameter. The cron must call `computeDataHash(touchType, artifactType)` with the correct pair.
+- Define explicit conversation scopes: one conversation per deal-touch combination (e.g., deal X + touch_3 = one thread), plus one "general" deal-level conversation for the overview/briefing pages.
+- Each conversation gets its own system prompt that includes only relevant context (deal metadata + touch-specific interaction data), not the entire deal history.
+- Store conversations in a new `ChatConversation` + `ChatMessage` table pair, with `dealId + touchType` as the natural composite key. The `touchType` column should be nullable (null = deal-level general chat).
+- Cap context window by summarizing older messages, following the existing `chatContextJson` summarization pattern in `DeckStructure`.
 
 **Warning signs:**
-- Touch 4 deck structures never auto-update after examples are classified with artifact types
-- All three Touch 4 structures show identical content
-- Agent logs show only one inference call for touch_4 per cycle instead of three
+- LLM responses referencing Touch 4 transcript data when the user is on the Touch 1 page.
+- Chat context growing unbounded (100+ messages with full content sent to LLM each time).
+- Users confused about whether the chat "knows" about other touches.
 
 **Phase to address:**
-Inference engine update phase -- after schema migration, before UI work.
+Persistent AI chat phase -- must define conversation scoping model before building the chat UI component.
 
 ---
 
-### Pitfall 3: Data hash collision across artifact types causes stale or redundant inference
+### Pitfall 3: Deal Status Lifecycle Becoming an Implicit State Machine
 
 **What goes wrong:**
-`computeDataHash` in `infer-deck-structure.ts` computes a SHA-256 over all examples matching a touch type. It filters by `contentClassification: "example"` and then checks if the template's `touchTypes` JSON array includes the touchType. It does not factor in artifact type. All three Touch 4 artifact types produce the identical hash because they query the same set of Touch 4 examples. The cron sees "hash unchanged" and skips re-inference for artifact types that actually need it, or re-infers all three every cycle even when only one artifact type's examples changed.
+The existing `InteractionRecord.status` already has 7+ possible values ("pending", "generating", "pending_review", "approved", "overridden", "edited", "pending_approval", "pending_asset_review"). The new deal pipeline needs a deal-level status (e.g., "new", "qualifying", "proposal_sent", "won", "lost") that synthesizes the states of child interactions. Without a formalized state machine, deal status becomes a derived value that different parts of the codebase compute differently -- the deals list page shows "In Progress" while the deal detail page shows "Proposal Ready" because they use different reduction logic over interactions.
 
 **Why it happens:**
-The current hash input is `${t.id}:${t.contentClassification}:${t.touchTypes}`. Since all Touch 4 examples share the same `contentClassification` and `touchTypes` values, the hash is identical regardless of artifact type. The Template model has no `artifactType` field to differentiate.
+The current `Deal` model in `schema.prisma` has no `status` column. Status is implicitly derived from the latest `InteractionRecord.status`. Adding a deal pipeline view requires an explicit pipeline stage, but developers often bolt it on as a derived value instead of a first-class field, leading to inconsistencies across views.
 
 **How to avoid:**
-Add an `artifactType` column (nullable String) to the `Template` model. Update `computeDataHash` to accept an optional `artifactType` parameter and filter examples by it. Include artifact type in the hash input: `${t.id}:${t.contentClassification}:${t.touchTypes}:${t.artifactType ?? "none"}`. This ensures each artifact type gets its own change-detection hash.
+- Add an explicit `Deal.status` column with a well-defined enum: "new" | "qualifying" | "engaged" | "proposal" | "review" | "won" | "lost" | "stale".
+- Define explicit transitions (e.g., "new" -> "qualifying" only when first interaction starts; "proposal" -> "review" only when HITL-2 generates assets).
+- Workflow steps should update `Deal.status` as a side effect within the same Prisma transaction that updates `InteractionRecord.status`.
+- Never derive deal status by scanning interactions on the fly -- compute once on mutation, store as source of truth.
 
 **Warning signs:**
-- Agent logs showing "hash unchanged" for Touch 4 artifact types that should have been re-inferred
-- All three Touch 4 structures always infer simultaneously even when only Proposal examples changed
-- Unnecessary LLM costs from redundant inference cycles
+- Pipeline view counts not matching deals list counts.
+- Deals "stuck" in a stage because no workflow step triggered the status transition.
+- Multiple places in the codebase computing deal status with subtly different logic.
 
 **Phase to address:**
-Schema migration phase (Template model change) combined with inference update phase (hash function change).
+Deal management foundation phase -- the status enum and transition rules must exist before the pipeline view or deal detail pages can render correctly.
 
 ---
 
-### Pitfall 4: Inference prompt conflates all Touch 4 examples regardless of artifact type
+### Pitfall 4: Prisma Migration Drift From Batched New Models
 
 **What goes wrong:**
-The inference engine in `infer-deck-structure.ts` gathers ALL examples with `touchType: "touch_4"` and feeds them to Gemini. When inferring the Proposal deck structure, it also sees Talk Track and FAQ examples. The LLM produces a muddled structure that blends proposal sections with talk track elements and FAQ elements. Result: "Introduction, Problem Statement, Talk Track Overview, FAQ Section, Pricing" as one incoherent structure.
+The project has strict forward-only migration discipline (per CLAUDE.md: never `db push`, never `migrate reset`). Adding deal pipeline enhancements, chat tables, agent configuration tables, and versioning tables means 5-8 new models in `schema.prisma`. If a developer adds all models in one migration, a single failure (e.g., column type mismatch, index name collision with existing 14 models) blocks the entire migration and leaves the database in a partially-applied state that requires manual intervention to fix with `prisma migrate resolve --applied`.
 
 **Why it happens:**
-`inferDeckStructure` queries `prisma.template.findMany({ where: { contentClassification: "example" } })` and then filters by touch type in the JSON array. It does not filter by artifact type because the field does not exist yet on the Template model. The `buildInferencePrompt` function similarly has no artifact type awareness.
+With 14 existing models and complex relationships, developers batch schema changes to minimize migration files. But forward-only discipline means a failed migration cannot be rolled back -- it must be fixed forward. Large migrations have higher failure probability, and the existing schema already has a history of drift (the `0_init` baseline required manual resolution).
 
 **How to avoid:**
-After adding `artifactType` to the Template model, update `inferDeckStructure` to accept an optional `artifactType` parameter. When provided, add it to the filter: only include examples where `t.artifactType === artifactType`. Update `buildInferencePrompt` to explicitly state which artifact type is being inferred: "You are analyzing **Proposal** decks for Touch 4+ presentations" (not generic "touch_4 presentations"). This scoping prevents cross-contamination.
+- One migration per model or logical unit (e.g., `ChatConversation` + `ChatMessage` together, but separate from `AgentConfig` + `AgentConfigVersion`).
+- Use `--create-only` to inspect SQL before applying, especially for any migration that adds indexes or foreign keys to existing tables like `Deal` or `InteractionRecord`.
+- Never add columns to existing models in the same migration as new model creation -- separate migrations for "alter existing" vs. "create new."
+- Test each migration against a local copy of the prod schema before deploying.
 
 **Warning signs:**
-- Inferred Proposal structure containing sections like "Objection Handling" or "FAQ Overview"
-- All three artifact type structures looking suspiciously similar
-- Low confidence scores despite having many Touch 4 examples total (because examples are diluted across 3 types)
+- Migration files with more than ~50 lines of SQL.
+- `prisma migrate dev` failing with "relation already exists" or "column already exists" errors.
+- Having to use `prisma migrate resolve --applied` more than once per milestone.
 
 **Phase to address:**
-Inference engine update phase -- must happen before the UI can meaningfully display per-artifact structures.
+Every phase that touches schema -- but most critically the foundation phase where the bulk of new models are introduced. Each plan should specify which migration(s) it creates.
 
 ---
 
-### Pitfall 5: Chat refinement scoped to wrong artifact type
+### Pitfall 5: Agent System Prompt Versioning Without Run-Time Pinning
 
 **What goes wrong:**
-Chat refinement in `chat-refinement.ts` uses `prisma.deckStructure.findUnique({ where: { touchType } })` to load the structure being refined. With the composite key, this call fails. Even after fixing the query, the chat API route (`/deck-structures/:touchType/chat`) only receives `touchType` from the URL -- there is no way to specify which artifact type the user is chatting about. The chat bar component also has no concept of artifact type; it sends requests scoped only to touch type. Result: user chats about refining the Proposal structure but the system loads/updates the Talk Track structure (whichever the query happens to return first).
+The "Settings agent management UI with versioning and draft system" introduces agent configuration as data (stored in DB) rather than code (hardcoded prompts). When a seller or admin edits an agent's system prompt in the UI, all subsequent workflow runs use the new prompt. If the edit degrades output quality, there is no way to revert except by manually editing again. Critically, in-flight workflows that were started with the old prompt may produce inconsistent results if they read the system prompt at resume time (after a suspend/resume cycle) rather than at start time. The existing Touch 4 workflow has 3 suspend points -- a prompt change during suspension means steps 1-7 used prompt v1 but steps 8-17 use prompt v2.
 
 **Why it happens:**
-The full chain -- ChatBar component, chat API route, `streamChatRefinement` function -- was built for the 1:1 touchType model. Every link in the chain passes only `touchType`. Adding artifact type requires changes at every level.
+Versioning is built for auditing ("we can see what changed") but not for operational pinning ("this workflow run uses version X forever"). The Mastra suspend/resume pattern stores workflow state in PostgresStore but does not capture external configuration like system prompts.
 
 **How to avoid:**
-Thread `artifactType` through the entire chain:
-1. `ChatBar` component accepts `artifactType` prop (nullable)
-2. Chat API route accepts `artifactType` as query parameter or in the request body
-3. `streamChatRefinement` accepts `artifactType` parameter, uses it in `findUnique` with composite key
-4. Chat context and constraints stored per composite key (already handled if DeckStructure key is composite)
-5. `lastChatAt` for active session protection must be checked per composite key, not just per touchType
+- Store agent configurations with immutable version records: `AgentConfig` (current pointer) + `AgentConfigVersion` (immutable snapshots with incrementing version numbers).
+- Each workflow run must capture the `agentConfigVersionId` it started with in its step context, and use that same version at every resume point -- never re-read the "current" config during a suspended workflow.
+- The UI should have a one-click "revert to version N" action, not just a history viewer.
+- Add a "draft" vs. "published" distinction so edits can be tested before going live.
 
 **Warning signs:**
-- Chat refinement for "Proposal" causing structure changes in "Talk Track" or "FAQ"
-- Active session protection on one artifact type blocking cron for a different artifact type of the same touch
-- Chat history from one artifact type appearing in another's conversation
+- Workflow outputs changing quality without any code deployment.
+- Users confused about which version of the prompt is "active."
+- In-flight workflows producing mixed-version outputs (brief uses prompt v3 from start, asset generation uses prompt v5 from after resume).
 
 **Phase to address:**
-Inference engine update phase (backend) + UI phase (frontend ChatBar).
+Agent architecture phase -- must define the versioning and pinning model before the Settings UI is built. The UI is a view over the versioning model, not the other way around.
 
 ---
 
-### Pitfall 6: Classify UI does not expose artifact type for Touch 4 examples
+### Pitfall 6: Google Drive Folder/Sharing Permissions Cascading Incorrectly
 
 **What goes wrong:**
-The classify popover in `template-card.tsx` lets users pick "Template" or "Example" and (for examples) select touch types via checkboxes. There is no UI for selecting artifact type. Users classify a presentation as a Touch 4 example but it has `artifactType: null`, so the inference engine cannot differentiate Proposals from Talk Tracks from FAQs. The feature appears to work (classification saves) but the downstream deck structures remain undifferentiated.
+The existing `getOrCreateDealFolder` creates a folder under a parent using service account credentials. The existing `makePubliclyViewable` function sets "anyone with link" access for iframe preview. The new milestone adds "folder/sharing controls" which implies per-deal permission management. Google Drive permissions inherit from parent by default, but if the system explicitly sets permissions on a child folder (e.g., sharing with a specific reviewer), those permissions may conflict with inherited permissions. If a deal folder is made publicly viewable (current pattern) but contains a confidential proposal, that is a data leak.
 
 **Why it happens:**
-The classify UI was built for binary classification (template/example) plus touch type binding. Developers add `artifactType` to the schema and inference engine but forget to surface it in the UI. The `classifyTemplateAction` still works (no errors) so nobody notices the gap until they check Settings and see identical or missing structures.
+Drive permission inheritance is invisible -- developers test with the service account (which has full access) and never notice that external users see different results. The existing system makes files publicly viewable for Google Slides iframe preview, which is a reasonable hack for demos but becomes dangerous when deal folders contain multiple sensitive artifacts.
 
 **How to avoid:**
-When the user selects "Example" AND checks "Touch 4+", conditionally render a required artifact type radio group (Proposal / Talk Track / FAQ). The `classifyTemplateAction` and the agent `/templates/:id/classify` route must accept and persist `artifactType`. Make artifact type REQUIRED when touch_4 is selected as an example -- validation should reject Touch 4 examples without an artifact type. Use the `TOUCH_4_ARTIFACT_TYPES` constant from `@lumenalta/schemas` for the options.
+- Define a clear permission model: deal folders should be shared with specific @lumenalta.com users (the assigned seller + reviewers), not made publicly viewable.
+- Replace `makePubliclyViewable` with a `shareWithUsers(fileId, emails[])` function for production use. If iframe preview needs public access, set it only on the specific presentation file, not the containing folder.
+- Use the user-delegated OAuth credentials (already in place via `getPooledGoogleAuth`) for sharing operations so files appear in the correct user's Drive.
+- Test sharing from a non-service-account perspective (incognito browser, different Google account).
 
 **Warning signs:**
-- Touch 4 examples in the database with `artifactType: null`
-- Users classifying Touch 4 examples without being prompted for artifact type
-- The classify popover looking identical before and after the feature launch
-- All Touch 4 examples lumped into one undifferentiated pool for inference
+- Files accessible to anyone with the link that should be restricted to team members.
+- Users unable to access files in "their" deal folder because the service account owns them and sharing was not set up.
+- Google Drive sharing dialogs showing unexpected "anyone with the link" entries on confidential proposals.
 
 **Phase to address:**
-UI phase -- after schema and inference are updated. This is the user-facing entry point for the entire feature.
+Google Drive integration phase -- must be addressed before artifacts are saved to deal folders in production.
 
 ---
 
-### Pitfall 7: Settings page routing and display assumes 1 structure per touch type
+### Pitfall 7: Named Agent Architecture Becoming a God Object Registry
 
 **What goes wrong:**
-The Settings deck structures page uses URL pattern `/settings/deck-structures/[touchType]` with `VALID_SLUGS` mapping `"touch-4" -> "touch_4"`. This maps to exactly one `TouchTypeDetailView` component that fetches one `DeckStructure`. With three artifact types, the page needs to show three structures for Touch 4 but the routing and data fetching only support one. The `getDeckStructureAction` calls `getDeckStructure(touchType)` which hits `GET /deck-structures/:touchType` -- returning a single record.
+"Formalized named agent architecture with dedicated system prompts" sounds like creating distinct agent personas (e.g., "Briefing Agent", "Proposal Agent", "Chat Agent"). The pitfall is making these agents too autonomous -- each with their own LLM client, tool set, and execution loop -- when the actual workflows need them to collaborate within a single Mastra pipeline. This leads to duplicated tool registrations in `mastra/index.ts` (already 47 lines of imports), inconsistent LLM configuration, and a "registry" pattern where agents are looked up by name at runtime, introducing string-based coupling.
 
 **Why it happens:**
-The routing, data fetching, and display were all designed for the 1:1 model. The API endpoint returns one DeckStructure. The component renders one section flow. None of these layers know about artifact types.
+Developers model agents like microservices ("each agent is independent") when they should model them like roles within a workflow ("each step uses the right prompt for the job"). The Mastra framework already has the right abstraction -- `createStep` with per-step input/output schemas -- but developers add an indirection layer (agent registry) that adds complexity without value.
 
 **How to avoid:**
-Use tabs within the Touch 4 page rather than new routes. The `TouchTypePage` for touch-4 should render a tab bar (Proposal / Talk Track / FAQ), each tab mounting its own `TouchTypeDetailView` with an `artifactType` prop. The `TouchTypeDetailView` passes `artifactType` to `getDeckStructureAction`. The API endpoint `GET /deck-structures/:touchType` accepts an optional `?artifactType=proposal` query parameter. For Touch 1-3, no query param is needed (artifactType defaults to null). This avoids changing the URL structure or sidebar navigation.
+- Named agents should be configuration objects (system prompt + model config + tool access list), not runtime entities with their own execution loops.
+- Each `createStep` in a workflow references an agent config by ID to get its system prompt, but the step itself handles execution via the existing `GoogleGenAI` client pattern.
+- The agent registry is a simple DB-backed lookup table, not a service locator pattern with `getAgent("briefing").execute()` methods.
+- Avoid giving agents "memory" separate from the workflow context -- all state flows through Mastra workflow step inputs/outputs, which is the established pattern in all 5 existing workflows.
 
 **Warning signs:**
-- Touch 4 page showing only one structure with no way to see the other two
-- API returning 404 or wrong structure for Touch 4 artifact types
-- Chat bar on Touch 4 page affecting the wrong artifact type's structure
-- Sidebar showing 6 items instead of 4 (if someone tries per-artifact routes)
+- Agents having their own `execute()` method that duplicates `createStep` logic.
+- Multiple `GoogleGenAI` client instantiations (one per agent) instead of a shared client with different prompts.
+- String-based agent lookups (`getAgent("briefing")`) scattered throughout the codebase.
+- Agent configurations storing tool lists that duplicate what is already registered in `Mastra` constructor.
 
 **Phase to address:**
-UI phase -- the final phase that brings everything together for the user.
+Agent architecture phase -- define the agent-as-configuration pattern before implementing individual agents.
 
 ---
 
-### Pitfall 8: Existing Touch 4 DeckStructure row and chat history become stale/conflicting
+### Pitfall 8: HITL 3-Stage Generation for Touches 1-3 Without Handling Simpler Flows
 
 **What goes wrong:**
-A DeckStructure row for `touchType: "touch_4"` may already exist from v1.5 (with chat history and context summaries). When the schema changes to composite key `[touchType, artifactType]`, this existing row needs `artifactType` assigned. If assigned null, it persists as a "generic Touch 4" structure that conflicts with the three new artifact-specific ones. Its chat context may contain constraints about all three artifact types mixed together, which would pollute any artifact-specific re-inference.
+Touch 4's 17-step workflow with 3 suspend/resume points makes sense because it involves transcript parsing, brief generation, approval, RAG retrieval, deck assembly, and asset review. Touches 1-3 are fundamentally simpler flows (select slides, assemble deck, save to Drive). Applying the same 3-stage HITL pattern (generate -> review -> approve) to Touch 1 (a 1-2 page pager) creates unnecessary friction -- sellers must approve a brief and review assets for a document that takes 30 seconds to scan. The workflow becomes the bottleneck instead of the enabler.
 
 **Why it happens:**
-The existing Touch 4 DeckStructure was inferred without artifact type awareness. Its `chatContextJson` and `DeckChatMessage` records reflect a combined view. There is no clean way to split one structure and its chat history into three artifact-specific pieces.
+Developers apply a uniform pattern ("every touch gets 3 HITL stages") for consistency, but the user need varies by touch complexity. Touch 1 might only need one approval gate (review final pager), while Touch 4 legitimately needs three.
 
 **How to avoid:**
-Accept that existing Touch 4 data will not carry forward. Migration strategy:
-1. In the migration, add `artifactType` as nullable to `DeckStructure`
-2. Drop the `touchType @unique` index, add `@@unique([touchType, artifactType])`
-3. Delete the existing `touchType: "touch_4"` DeckStructure row (cascade deletes its DeckChatMessages)
-4. The next cron cycle (or manual trigger) creates fresh rows for each artifact type
-5. Document this as a one-time trade-off: old Touch 4 chat refinements are lost
+- Define HITL stages per touch type, not uniformly:
+  - Touch 1: 1 stage (review generated pager, approve or override)
+  - Touch 2: 1 stage (review selected slides, approve or reorder)
+  - Touch 3: 1-2 stages (optionally review capability selection, then review deck)
+  - Touch 4: 3 stages (field review, brief approval, asset review) -- existing pattern
+- Each touch workflow should have a configurable number of suspend points, not a hardcoded three.
+- The UI should adapt: Touch 1 shows a simple approve/override flow, Touch 4 shows the full multi-step stepper.
 
 **Warning signs:**
-- Chat context from the old combined Touch 4 structure leaking into artifact-specific inferences
-- "Previous Constraints" in the prompt containing irrelevant instructions from a different artifact type
-- A fourth phantom Touch 4 structure with `artifactType: null` alongside the three real ones
+- Sellers skipping approval steps on Touches 1-2 because they always click "Approve" without reading.
+- Touch 1 taking 3 clicks to complete what should take 1.
+- Workflow code for Touch 1 having empty/passthrough suspend points that exist only for "consistency."
 
 **Phase to address:**
-Schema migration phase -- handle as part of the forward-only migration with explicit cleanup.
+HITL workflow phase -- design per-touch HITL stages before implementing any new workflows.
+
+---
+
+### Pitfall 9: Deal Detail Navigation Overhaul Breaking Existing Review Flows
+
+**What goes wrong:**
+The existing app has working routes for brief review (`/deals/[dealId]/review/[briefId]`) and asset review (`/deals/[dealId]/asset-review/[interactionId]`). The new milestone introduces "Deal detail navigation overhaul with breadcrumbs and sidebar sub-pages" which restructures the deal detail into Overview, Briefing, Touch 1-4, and Assets sub-pages. If the new navigation replaces the existing routes without maintaining backward compatibility, active deals with pending approvals (which have URLs stored in notifications, emails, or bookmarks) break. The existing `Alert` components on the deal page link to these exact routes.
+
+**Why it happens:**
+Navigation refactors feel like pure UI work, but URLs are API contracts. The existing `InteractionTimeline` component, `Alert` banners, and any stored links all encode the current URL structure.
+
+**How to avoid:**
+- Keep existing `/deals/[dealId]/review/[briefId]` and `/deals/[dealId]/asset-review/[interactionId]` routes as redirects to the new structure, or keep them as-is within the new layout.
+- Design the new sub-page structure to include the review flows rather than replace them.
+- Audit all `Link` components and `router.push()` calls that reference deal routes before restructuring.
+
+**Warning signs:**
+- 404 errors on previously-working review URLs.
+- Alert banners in the deal page linking to nonexistent routes.
+- Users bookmarking deal pages and getting 404s after deployment.
+
+**Phase to address:**
+Deal detail navigation phase -- audit existing routes before restructuring; implement redirects for any changed URLs.
 
 ---
 
@@ -190,107 +228,111 @@ Schema migration phase -- handle as part of the forward-only migration with expl
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Hardcoded `TOUCH_4_ARTIFACT_TYPES` constant instead of DB-driven | Simple, no extra query, compile-time safety | Adding new artifact types requires code change + deploy | Acceptable -- only 3 artifact types, very unlikely to change |
-| Storing `artifactType` as nullable String instead of enum | No migration for new values, backward compatible | Typos cause silent bugs, no DB-level validation | Acceptable -- matches existing pattern (`contentClassification` is also String, not enum) |
-| Nullable `artifactType` on Template model | Backward compatible, no data migration for Touch 1-3 | Null checks in queries and filters | Acceptable -- Touch 1-3 genuinely do not have artifact types |
-| Deleting old Touch 4 DeckStructure + chat history | Clean slate, no stale context | Loses prior user refinements for Touch 4 | Acceptable -- old structure is undifferentiated and not useful per-artifact |
-| Tabs on Touch 4 page instead of separate routes | No URL/sidebar changes, simpler routing | Tabs do not have distinct URLs for bookmarking/sharing | Acceptable -- internal tool for ~20 sellers, deep-linking not required |
+| Storing chat messages as JSON blob in InteractionRecord | No migration needed, fast to ship | Cannot query individual messages, no pagination, blob grows unbounded | Never -- chat is a first-class feature requiring proper tables |
+| Deriving deal status from interactions on every render | No new column or migration needed | N+1 queries on deals list, inconsistent status across views | Only for initial prototype within first plan; must add explicit column before pipeline view |
+| Hardcoding agent system prompts during initial development | Faster iteration without settings UI dependency | Prompts diverge between dev and prod, no version history | Acceptable during initial agent phase if migration to DB-backed config is planned in same milestone |
+| Using module-level Map for chat session state (existing pattern) | Avoids DB writes for ephemeral state | Lost on Railway server restart, fails with horizontal scaling | Acceptable for single-instance Railway deployment; document as known limitation |
+| Sharing Google Drive files via `makePubliclyViewable` (existing pattern) | Simple, works for iframe preview | All deal artifacts publicly accessible to anyone with link | Only acceptable during demo/hackathon phase; must replace with scoped sharing for production |
+| Copy-pasting Touch 4 workflow as template for Touches 1-3 | Fast to get started | 4 workflows with duplicated utility code diverging over time | Never -- extract shared steps (folder creation, Drive saving, interaction recording) into reusable step factories |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Prisma forward-only migration with unique constraint change | Using `prisma db push` to prototype the schema change, then struggling to create a proper migration | Use `prisma migrate dev --create-only --name add_artifact_type` to inspect SQL. Per CLAUDE.md: NEVER use `db push`. NEVER reset the database. |
-| DeckStructure unique constraint change | Dropping old unique index and creating new composite one in separate migrations (leaves a window with no constraint) | Do both in a single migration: `ALTER TABLE DROP CONSTRAINT ... ; CREATE UNIQUE INDEX ...` with cleanup of old touch_4 row |
-| API routes with query params | Forgetting to pass `artifactType` through the full chain: web action -> api-client -> agent route -> inference | Audit the full request chain: `deck-structure-actions.ts` -> `api-client.ts` (getDeckStructure, triggerDeckInference) -> agent `/deck-structures/:touchType` -> `inferDeckStructure()` |
-| Chat refinement composite key | Using `findUnique({ where: { touchType } })` which no longer works after schema change | Use `findUnique({ where: { touchType_artifactType: { touchType, artifactType } } })` with the composite key name from Prisma |
-| Classify action extension | Adding `artifactType` to the classify action but not validating it against touch type | Only accept `artifactType` when `touch_4` is in selected touch types. Return 400 if `artifactType` is set for non-Touch-4 examples. |
-| `computeDataHash` with artifact type | Passing `artifactType` to hash function but not filtering the example query by it | Filter examples by BOTH `touchTypes` containing `touch_4` AND `artifactType` matching the target. Hash must include artifact type in its input string. |
+| Mastra suspend/resume + Deal.status | Updating `Deal.status` after workflow step completes but outside the step's Prisma transaction, causing status to be "generating" even though the step already finished | Update `Deal.status` inside the workflow step's `execute()` function, in the same `prisma.$transaction` that updates `InteractionRecord.status` |
+| Google Drive folder creation + concurrent workflows | Calling `getOrCreateDealFolder` from multiple workflows without locking -- both pass the "folder exists?" check before either creates | Use `Deal.driveFolderId` as a cached result; if null, acquire a row-level lock on the Deal row (`SELECT FOR UPDATE`) before calling Drive API, then update the column |
+| Mastra PostgresStore + workflow step schema changes | Changing workflow step schemas between deployments while suspended workflows exist in the store -- resume fails with Zod validation errors | Never change the schema of a step that has active suspended instances; add new steps instead; migrate old runs via a one-time cleanup script |
+| Google Slides iframe + Drive sharing model change | Using `makePubliclyViewable` for preview in current code, then switching to restricted sharing in the same milestone, breaking all existing previews | Decide the sharing model once at the start of the milestone; if restricted, use a server-side proxy endpoint for previews instead of direct iframe |
+| Next.js Server Actions + streaming chat | Using Server Actions for chat message send/receive, which creates a new HTTP request per action and does not support streaming responses | Use a dedicated API route with `ReadableStream` for chat responses (following the existing `/deck-structures/:touchType/chat` streaming pattern); Server Actions are fine for loading history |
+| Prisma + new FKs to existing tables | Adding `agentConfigVersionId` FK to `InteractionRecord` in a migration, but existing rows have null values and the FK is non-nullable | Always make new FK columns nullable with no default; backfill in a separate migration or application-level script |
+| Agent config versioning + existing workflow runs | Workflow reads "current" agent config on resume instead of the version it started with | Store `agentConfigVersionId` in workflow step context at start time; read from context (not DB) at resume time |
+| Deal assignment + user auth | Assuming `userId` from Supabase Auth is stable across sessions; using email as identifier instead | Use `userId` (stable UUID) for ownership/assignment; email is for display only. The existing `UserGoogleToken.userId` pattern is correct. |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Cron running 3x more inferences for Touch 4 | 3 additional Gemini calls per cycle; LLM cost triples for Touch 4 | Data hash per artifact type prevents unnecessary re-inference; only infer when that artifact type's examples change | Cost concern at ~$0.01/inference -- acceptable at current scale |
-| Loading all 3 Touch 4 structures on page mount | Touch 4 Settings page takes 3x longer to load; 3 API calls on mount | Use tabs with lazy loading -- only fetch the active tab's structure on tab select | Not a scale issue with current data; lazy load is a UX improvement |
-| Chat context accumulating across many refinement sessions | Prompt grows with each chat session as `chatContextJson` expands | Existing summarization logic (>10 messages -> summarize oldest) already handles this per structure | Unlikely with per-artifact structures since chat volume is split 3 ways |
+| Loading all chat messages for LLM context on every send | Chat responses getting slower over long conversations; LLM token costs increasing linearly | Implement rolling context window (last N messages + summarized older context), following existing `chatContextJson` pattern in `DeckStructure` | After ~50 messages per conversation |
+| Deals list page querying all interactions for status derivation | Deals page load time increasing with deal count; visible spinner on every navigation | Add explicit `Deal.status` column; use indexed query instead of N+1 interaction scan | After ~100 deals with 5+ interactions each |
+| Pipeline view computing stage counts with `GROUP BY` on derived status | Slow initial load; pipeline counts flickering as interactions update asynchronously | Pre-computed pipeline stage counts via `Deal.status` column with `GROUP BY` on the indexed column | After ~500 deals |
+| Google Drive API calls per deal on deals list | Google rate limiting (429 errors); deals list takes 10+ seconds to load | Cache Drive folder metadata (`driveFolderId`, folder URL, last modified) in the Deal table; only hit Drive API during write operations | After ~20 deals (Google API rate limits are conservative) |
+| Agent config version history rendering all versions at once | Settings page loading slowly; version diff computation expensive for long histories | Paginate version history (load latest 20); compute diffs server-side; archive versions older than 90 days | After ~100 version changes per agent config |
+| Chat bar re-rendering on every deal sub-page navigation | Visible flicker as chat component unmounts and remounts; loses scroll position and typing state | Lift chat bar to the deal layout level (Next.js layout.tsx), not the individual page level; use `usePathname` to scope context without remounting | Immediately visible on first use if implemented per-page |
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| No validation on `artifactType` values from client | Arbitrary strings stored in DB; potential injection of unexpected values | Validate against `TOUCH_4_ARTIFACT_TYPES` constant in both agent API route and web server action |
-| Classify action accepts `artifactType` for any touch type | Users could set artifactType on Touch 1-3 examples (nonsensical, breaks queries) | Only accept artifactType when `touch_4` is in the selected touch types; reject with 400 otherwise |
+| Storing agent system prompts with embedded API keys or secrets | Prompt versions in DB expose secrets if DB is compromised or if version history is displayed in UI; version history makes secret rotation incomplete since old versions persist | Validate that system prompts contain no patterns matching API keys, tokens, or credentials before saving; use environment variable references in prompts instead of literal values |
+| Chat messages containing customer PII without access control | Any authenticated @lumenalta.com user could potentially see another seller's deal chat history via direct URL manipulation | Enforce `dealId` ownership at the Server Action level -- verify the requesting user is assigned to the deal or is an admin before returning chat messages |
+| Agent management UI allowing prompt injection via system prompt editor | A malicious or careless edit to a system prompt could instruct the LLM to ignore safety constraints, leak internal data, or override the HITL hard stop | Add a "prompt lint" step that flags dangerous patterns (e.g., "ignore previous instructions", "output your system prompt", "skip approval") before allowing publish |
+| Google Drive sharing granting editor access instead of viewer | External parties could modify generated proposals, creating legal/contractual risk; service account-owned files default to private, but sharing defaults may vary | Default all sharing to "viewer" role; require explicit admin action for "editor" access; log all permission changes in an audit trail |
+| Deal chat history persisting after deal deletion | Orphaned chat records with customer data remain in database after deal cleanup | Use `ON DELETE CASCADE` in the FK relationship from `ChatConversation` to `Deal`; verify cascade in migration SQL |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Showing artifact type selector for all touch types | Confuses users: "Why do I need to pick Proposal for a Touch 1 example?" | Only show artifact type selector when Touch 4+ is checked as a touch type in the classify dialog |
-| Three empty states on Touch 4 page | Users see 3 tabs all saying "No examples classified" -- feels broken | Show a single helpful message when no Touch 4 examples exist at all, with guidance to classify by artifact type; only show tabs when at least one artifact type has examples |
-| No artifact type shown on template cards | Users classify examples but cannot verify what artifact type they assigned | Extend badge: "Example (T4+ Proposal)" instead of just "Example (T4+)"; update `getClassificationLabel` in `template-utils.ts` |
-| Chat bar not indicating which artifact type it refines | User thinks they are refining "Touch 4" globally but only affecting one artifact type | Label the chat bar: "Refine Touch 4+ Proposal structure" with artifact type name visible |
-| Reclassifying artifact type loses chat history | User changes a presentation from Proposal to Talk Track; the old Proposal structure's example count drops but its chat refinements remain stale | Show warning when reclassifying: "This will remove this example from the Proposal deck structure" |
+| Chat bar obscuring deal content on narrow screens | Sellers on 13" laptops cannot see deal details and chat simultaneously; productivity drops | Use a collapsible side panel (not bottom bar) that can be toggled; persist collapse state in localStorage; default to collapsed on screens < 1280px |
+| Pipeline view showing stale status after workflow completion | Seller completes a Touch 1 flow, returns to deals list, but status still shows "Generating" because the page was server-rendered before the workflow finished | Use client-side polling (following existing `ingestionProgress` polling pattern) or `router.refresh()` on workflow completion callback to update deal status in real-time |
+| Agent version history showing raw JSON diffs | Non-technical sellers cannot understand what changed between prompt versions | Show human-readable highlighted text diff (added in green, removed in red) instead of raw JSON; include a one-line "what changed" summary |
+| Too many sub-pages in deal detail navigation | Sellers feel lost navigating between Overview, Briefing, Touch 1, Touch 2, Touch 3, Touch 4, Chat -- 7+ pages per deal with deep nesting | Group touches under a single "Engagement" tab with a touch type selector; keep top-level deal navigation to 3-4 items (Overview, Prep, Engagement, Assets) |
+| HITL approval steps without clear "what am I approving?" context | Reviewer clicks "Approve" without understanding consequences; approvals become rubber stamps that defeat the purpose of HITL | Show explicit consequence text before each approval button: "Approving this brief will start slide generation (~5 minutes)" or "Approving will save the final deck to Google Drive and share with the prospect" |
+| Chat bar losing state on sub-page navigation | User types a long message, navigates to a different deal sub-page, and their draft message disappears | Lift chat to deal-level layout; use `useRef` or localStorage to persist draft messages across navigations within the same deal |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Schema migration:** `artifactType` column added to both `Template` and `DeckStructure` -- verify both models, not just one
-- [ ] **Schema migration:** Old `touchType @unique` index dropped AND new composite `@@unique([touchType, artifactType])` added in same migration -- verify no window without constraint
-- [ ] **Schema migration:** Existing touch_4 DeckStructure row deleted in migration -- verify no orphan with `artifactType: null` persists
-- [ ] **Classify UI:** Artifact type selector appears ONLY when Touch 4+ is checked -- verify it is hidden for Touch 1-3
-- [ ] **Classify action:** `artifactType` persisted on Template model -- verify DB has non-null value after classifying Touch 4 example
-- [ ] **Inference engine:** `inferDeckStructure` filters by artifact type -- verify Proposal inference only includes Proposal examples (check agent logs for prompt content)
-- [ ] **Data hash:** `computeDataHash` produces different hashes for different artifact types -- verify with manual test
-- [ ] **Cron job:** Touch 4 produces 3 separate inference runs per cycle -- verify agent logs show 3 entries
-- [ ] **Active session protection:** Works per composite key -- chat on Proposal does NOT block cron for Talk Track
-- [ ] **API route:** `GET /deck-structures/touch_4?artifactType=proposal` returns correct structure -- verify all 3 artifact types return distinct data
-- [ ] **Chat refinement:** Chat on Touch 4 Proposal only updates Proposal structure -- verify Talk Track and FAQ unchanged after Proposal chat
-- [ ] **Template card badge:** Shows "Example (T4+ Proposal)" not just "Example (T4+)" -- verify text includes artifact type
-- [ ] **Settings page:** Touch 4 shows tabs for Proposal / Talk Track / FAQ -- verify each tab loads its own structure and chat history
-- [ ] **Touch 1-3 regression:** Touch 1-3 deck structures still work with `artifactType: null` -- verify no compile errors or runtime failures
+- [ ] **Deal Pipeline View:** Often missing pipeline stage transitions on edge cases -- verify that deals move from "qualifying" to "engaged" when the first touch interaction starts AND that they don't move backward when a second touch starts
+- [ ] **Persistent Chat:** Often missing conversation cleanup on deal deletion -- verify that deleting a deal cascades to delete all associated chat conversations and messages via `ON DELETE CASCADE`
+- [ ] **HITL 3-Stage Generation for Touches 1-3:** Often missing the "cancel" path -- verify that a seller can abandon a touch generation mid-workflow without leaving orphaned suspended runs in Mastra PostgresStore
+- [ ] **Google Drive Folder Sharing:** Often missing the "user already has access" check -- verify that sharing a folder with a user who already has access doesn't throw a Google API error or create duplicate permission entries
+- [ ] **Agent Versioning:** Often missing the "no published version" edge case -- verify that the system handles an agent config with only draft versions (no published version yet) without crashing workflows
+- [ ] **Agent Management UI:** Often missing optimistic UI rollback on save failure -- verify that if the API call to save a draft fails, the UI reverts to the previous state instead of showing the unsaved draft as current
+- [ ] **Deal Detail Breadcrumbs:** Often missing dynamic segment resolution -- verify that breadcrumbs show "Meridian Capital Group > Q1 Pitch > Touch 2" not "deals > cuid123 > touch_2"
+- [ ] **Chat Bar Across Pages:** Often missing message ordering guarantees -- verify that rapidly sent messages appear in send order, not arrival order, especially when streaming responses are in flight
+- [ ] **Deal Assignment:** Often missing the "unassigned deal" state -- verify that deals without a `salespersonName` are visible in the pipeline and can have workflows started
+- [ ] **Touch 1-3 HITL workflows:** Often missing interaction history continuity -- verify that starting a new Touch 1 flow on a deal that already has a completed Touch 1 creates a new InteractionRecord, not overwrites the old one
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Unique constraint migration failure | LOW | Fix migration SQL, run `prisma migrate resolve --applied` on the failed migration, create corrective migration |
-| Inference producing blended/cross-artifact structures | LOW | Fix artifact type filter in inference query, re-run inference for each artifact type; no data loss |
-| Chat affecting wrong artifact type | LOW | Fix composite key in `streamChatRefinement`, delete incorrect chat messages, re-infer affected structures |
-| Examples classified without artifact type | MEDIUM | Query `Template` where `contentClassification = "example"` AND `touchTypes` contains "touch_4" AND `artifactType IS NULL`; prompt users to re-classify or batch-update |
-| Old Touch 4 DeckStructure not cleaned up | LOW | Delete the row manually: `DELETE FROM "DeckStructure" WHERE "touchType" = 'touch_4' AND "artifactType" IS NULL`; cascade cleans chat messages |
-| Cron overwriting chat-refined artifact structure | MEDIUM | Restore from `chatContextJson`; re-infer with constraints; strengthen active session protection to use composite key |
-| Touch 1-3 regression from composite key change | LOW | Verify all Touch 1-3 queries use `artifactType: null` in composite key lookup; fix any that omit it |
+| Duplicate Drive folders | LOW | Query Drive API for duplicate-named folders under parent; merge contents into the older folder; update `Deal.driveFolderId`; delete duplicate |
+| Chat context window overflow | LOW | Add summarization step to conversation; truncate messages older than threshold; re-summarize context for next LLM call |
+| Deal status inconsistency between views | MEDIUM | Write a one-time migration script that scans all deals, computes correct status from interactions, updates explicit `Deal.status` column; add constraint to prevent future drift |
+| Agent prompt version causing quality regression | LOW | Revert to previous published version via Settings UI one-click action; re-run affected workflows if needed |
+| Workflow schema change breaking suspended runs | HIGH | Write a data migration to transform suspended workflow payloads in Mastra PostgresStore to match new schema; or force-complete old runs with error status and notify users to restart |
+| Migration failure on production database | HIGH | Inspect failed migration SQL; write corrective forward-only migration; apply with `prisma migrate resolve --applied`; never reset. Test future migrations against schema clone first |
+| Existing review route URLs breaking after navigation refactor | LOW | Add Next.js redirect rules in `next.config.ts` mapping old routes to new structure; keep as permanent redirects |
+| Chat bar losing state on navigation | LOW | Move chat component to deal layout level; restore from localStorage on remount |
 
 ## Pitfall-to-Phase Mapping
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| DeckStructure unique constraint breaks | Phase 1: Schema Migration | `prisma migrate dev` succeeds; all `findUnique` calls compile; existing Touch 1-3 data unchanged |
-| Cron treats Touch 4 as one unit | Phase 2: Inference Engine Update | Cron logs show 3 separate Touch 4 inferences per cycle; each produces distinct section flows |
-| Data hash collision across artifact types | Phase 1 + Phase 2 | Different artifact types produce different hashes; cron correctly skips unchanged types |
-| Inference conflates examples across artifacts | Phase 2: Inference Engine Update | Proposal inference prompt only contains Proposal examples; verify via agent log inspection |
-| Chat refinement scoped to wrong artifact type | Phase 2 (backend) + Phase 3 (frontend) | Chat on Proposal updates only Proposal structure; Talk Track and FAQ remain unchanged |
-| Classify UI missing artifact type | Phase 3: UI Updates | Selecting Touch 4+ shows artifact type radio; saving persists artifact type; badge displays it |
-| Settings routing assumes 1:1 | Phase 3: UI Updates | Touch 4 page shows 3 tabs; each loads its own structure and has independent chat |
-| Existing Touch 4 data conflicts | Phase 1: Schema Migration | Old touch_4 DeckStructure deleted; fresh rows created per artifact type by first inference run |
+| Workflow state explosion from concurrent touches | Deal management foundation (schema + lifecycle) | Create two Touch workflows on the same deal simultaneously; verify no duplicate folders and no status races |
+| Chat scoping confusion | Persistent AI chat | Send a message on Touch 2 page, navigate to Touch 4 page; verify chat context is scoped correctly and does not leak cross-touch |
+| Deal status as implicit state machine | Deal management foundation (schema + lifecycle) | Run a deal through full lifecycle (new -> qualifying -> proposal -> won); verify pipeline view counts match deals list at every stage |
+| Prisma migration drift from batched models | Every phase (enforce in each plan) | Each plan specifies exact migration name(s); CI runs `prisma migrate deploy` against test DB clone before production |
+| Agent prompt versioning without run-time pinning | Agent architecture | Create version 1, publish, create version 2, publish, start a Touch 4 workflow, change prompt mid-suspension, resume; verify resumed steps use version from start |
+| Drive folder permissions cascading | Google Drive integration | Create a deal folder, share with specific user; verify non-shared user cannot access; verify shared user can view but not edit |
+| Named agents becoming god objects | Agent architecture | Verify each "agent" is a configuration record (DB row); grep for `agent.execute()` or `new Agent()` patterns -- they should not exist |
+| HITL stage count mismatch per touch type | HITL workflow design | Touch 1 has 1 approval gate; Touch 4 has 3; verify no empty passthrough suspend points |
+| Navigation refactor breaking existing routes | Deal detail navigation | Visit all existing deal routes (`/review/[briefId]`, `/asset-review/[id]`); verify they still resolve correctly after restructure |
 
 ## Sources
 
-- Direct codebase analysis of all affected files:
-  - `apps/agent/prisma/schema.prisma` -- DeckStructure model with `touchType @unique`, Template model with `contentClassification`
-  - `apps/agent/src/deck-intelligence/infer-deck-structure.ts` -- `inferDeckStructure()` and `computeDataHash()` filtering by touchType only
-  - `apps/agent/src/deck-intelligence/auto-infer-cron.ts` -- cron iterating `DECK_TOUCH_TYPES`, active session protection logic
-  - `apps/agent/src/deck-intelligence/chat-refinement.ts` -- `streamChatRefinement()` using `findUnique({ where: { touchType } })`
-  - `apps/agent/src/deck-intelligence/deck-structure-schema.ts` -- `DeckSection` and `DeckStructureOutput` interfaces, `calculateConfidence()`
-  - `apps/web/src/components/template-card.tsx` -- classify dialog with no artifact type UI
-  - `apps/web/src/components/settings/touch-type-detail-view.tsx` -- single-structure display per touch type
-  - `apps/web/src/app/(authenticated)/settings/deck-structures/[touchType]/page.tsx` -- 1:1 slug-to-touchType routing
-  - `apps/web/src/lib/template-utils.ts` -- `getClassificationLabel()` without artifact type
-  - `apps/web/src/lib/actions/deck-structure-actions.ts` -- actions passing only touchType
-  - `apps/web/src/components/settings/chat-bar.tsx` -- chat bar with touchType-only scoping
-  - `packages/schemas/constants.ts` -- `TOUCH_TYPES` constant
-  - `CLAUDE.md` -- Prisma migration discipline (no db push, no reset, forward-only)
+- Direct codebase analysis of `/Users/marlonburnett/source/lumenalta-hackathon` (50,876 LOC across 40 phases)
+- `apps/agent/src/mastra/workflows/touch-4-workflow.ts`: 17-step pipeline with 3 suspend points (field review, brief approval, asset review)
+- `apps/agent/src/lib/drive-folders.ts`: `getOrCreateDealFolder()` idempotent pattern, `makePubliclyViewable()` public sharing
+- `apps/agent/prisma/schema.prisma`: 14 existing models including Deal (no status column), InteractionRecord (7+ status values), DeckStructure/DeckChatMessage (scoped chat pattern)
+- `apps/web/src/app/(authenticated)/deals/[dealId]/page.tsx`: current deal detail with Alert banners linking to review routes
+- `apps/web/src/app/(authenticated)/deals/page.tsx`: current deals list with `listDealsAction`
+- `apps/agent/src/mastra/index.ts`: 47 lines of imports, route registrations, existing API structure
+- `apps/agent/src/deck-intelligence/chat-refinement.ts`: existing streaming chat pattern with context summarization
+- CLAUDE.md: Prisma migration discipline (no `db push`, no reset, forward-only migrations)
+- PROJECT.md: v1.7 milestone scope, constraints, and key decisions
 
 ---
-*Pitfalls research for: Touch 4 artifact type sub-classification and per-artifact deck structures*
-*Researched: 2026-03-07*
+*Pitfalls research for: v1.7 Deals & HITL Pipeline milestone on Lumenalta Agentic Sales Orchestration*
+*Researched: 2026-03-08*

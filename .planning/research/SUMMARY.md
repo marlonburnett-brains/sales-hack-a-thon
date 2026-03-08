@@ -1,167 +1,183 @@
 # Project Research Summary
 
-**Project:** AtlusAI Agentic Sales Orchestration -- v1.6 Touch 4 Artifact Intelligence
-**Domain:** Artifact type sub-classification and per-artifact deck structures for existing sales intelligence platform
-**Researched:** 2026-03-07
+**Project:** Lumenalta Agentic Sales Orchestration v1.7 -- Deals & HITL Pipeline
+**Domain:** Deal management pipeline with AI-powered artifact generation for agentic sales platform
+**Researched:** 2026-03-08
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v1.6 extends the existing deck intelligence system to recognize that Touch 4 produces three distinct artifact types -- Proposal decks, Talk Tracks, and Buyer FAQs -- rather than treating all Touch 4 examples as a single undifferentiated pool. The core problem is simple: the current system infers one deck structure per touch type, but Touch 4's three output formats have fundamentally different section flows. Mixing them in a single inference produces incoherent structures. The fix requires zero new dependencies and builds entirely on existing infrastructure: two Prisma schema migrations (adding `artifactType` columns to `Template` and `DeckStructure`), logic changes to the inference engine/cron/chat refinement pipeline, and UI changes to the classify popover and Settings page.
+v1.7 transforms the platform from a content-generation tool into a deal-management platform. The core addition is a deal pipeline with stage lifecycle, sub-page navigation within each deal, persistent AI chat, and a 3-stage HITL artifact generation workflow (Generate > Review > Approve) across all four touch types. The existing Mastra workflow infrastructure with suspend/resume, Google Drive integration, and Prisma data layer provide a solid foundation -- the work is primarily about extending established patterns rather than introducing new architectural paradigms.
 
-The recommended approach is a composite key pattern: replace the single-column `touchType @unique` constraint on `DeckStructure` with `@@unique([touchType, artifactType])`. Touch 1-3 keep `artifactType = null` (unchanged behavior). Touch 4 gets up to three rows: one per artifact type. This is the minimal schema evolution that cleanly separates the three artifact structures while preserving backward compatibility. The same nullable `artifactType` column is added to `Template` for classification filtering.
+The recommended approach centers on three pillars: (1) add explicit deal lifecycle state to the database as a first-class field (not derived from interactions), (2) restructure the deal detail view from a single page into a layout with routed sub-pages hosting a persistent chat bar, and (3) formalize the currently-inline LLM calls into named Mastra Agent instances with DB-backed system prompts. The stack additions are minimal -- `@dnd-kit` for kanban drag-and-drop, `@mastra/editor` for agent config versioning, and several shadcn/ui components. No new databases, no new infrastructure services, no WebSocket layer.
 
-The primary risk is the cascading impact of changing the `DeckStructure` unique constraint. At least 6 call sites use `findUnique({ where: { touchType } })`, and every one breaks after the schema change. The cron, inference engine, chat refinement, and all API routes must be updated atomically. The mitigation is clear phasing: land the schema migration first (including cleanup of the old mixed Touch 4 row), then update all backend consumers, then wire up the frontend. There are no ambiguous technical decisions -- all four research files converge on the same approach.
+The primary risks are: concurrent workflow execution on the same deal causing race conditions in Drive folder creation and status updates; Prisma migration failures from batching too many schema changes; and agent prompt versioning without runtime pinning causing inconsistent outputs across workflow suspend/resume boundaries. All three are preventable with well-scoped migrations, transactional state updates, and capturing the agent config version at workflow start time.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new packages. No new infrastructure. No new API providers. Every capability needed for v1.6 is already installed in the monorepo. The work is purely schema evolution, logic changes, and UI extension.
+The existing stack (Next.js 15, Mastra 1.8, Prisma 6.x, Supabase PostgreSQL, googleapis) is unchanged. Only 4 new npm packages are needed: `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities` for kanban drag-and-drop in the pipeline view, plus `@mastra/editor` for agent config versioning and persistence. Eight new shadcn/ui components (breadcrumb, tooltip, scroll-area, sheet, switch, table, command, resizable) provide UI primitives with no additional npm dependencies beyond auto-installed Radix primitives.
 
-**Core technologies (unchanged):**
-- **Prisma 6.19.x**: ORM and migrations -- extended with `artifactType` columns and composite unique constraint
-- **@google/genai 1.43.x**: Gemini structured output for deck inference -- only prompt text changes, schema unchanged
-- **@radix-ui/react-tabs 1.1.x**: Already installed -- reused for Touch 4 artifact sub-tabs in Settings
-- **@lumenalta/schemas**: Shared constants package -- extended with `ARTIFACT_TYPES` constant
+**Core new technologies:**
+- `@dnd-kit/core` + `sortable` + `utilities`: Kanban board drag-and-drop -- standard React DnD library for 2025-2026, accessible, lightweight, React 19 compatible
+- `@mastra/editor@^0.7.0`: Agent config versioning and persistence -- first-party Mastra package, uses existing PostgresStore, peer-compatible with current stack
+- Prisma new models (Artifact, AgentConfig, AgentConfigVersion): Deal pipeline fields, HITL artifact tracking, and agent versioning -- forward-only migrations per CLAUDE.md
 
-**Critical version note:** Prisma `@@unique([touchType, artifactType])` with nullable columns works correctly in PostgreSQL 15 (`NULLS DISTINCT` is default). Use `--create-only` to verify Prisma does not generate `NULLS NOT DISTINCT`.
+**Critical version note:** Stay on Prisma 6.x. Prisma 7.x has a vector migration regression (#28867).
 
 ### Expected Features
 
-**Must have (table stakes -- P1):**
-- **F1: Artifact type selector in classify UI** -- conditional radio group when Touch 4 Example selected
-- **F2: Artifact type persisted on Template model** -- nullable `artifactType` column, forward-only migration
-- **F3: Artifact type visible on template cards** -- "Example (Touch 4+, Proposal)" labeling
-- **F4: Three deck structure views for Touch 4** -- tabbed Settings page (Proposal / Talk Track / FAQ)
-- **F5: Independent inference per artifact type** -- composite key upsert, filtered example queries
-- **F7: Per-artifact chat refinement** -- chat scoped to specific artifact type structure
-- **F8: Cron per artifact type** -- three separate inference runs for Touch 4 per cycle
+**Must have (table stakes):**
+- Deal status lifecycle with 5 fixed pipeline stages
+- Deal list with filtering, status indicators, and board/list view toggle
+- Deal detail navigation overhaul with breadcrumbs and sidebar sub-pages
+- Per-touch artifact pages with 3-stage HITL workflow (Configure > Review > Approve)
+- Google Drive artifact saving with per-deal/per-touch folder structure and domain-scoped sharing
+- AI chat for deal context with persistent message history and streaming responses
 
-**Should have (falls out naturally -- P1):**
-- **F6: Per-artifact confidence scoring** -- no new logic, just filtered example counts
+**Should have (differentiators):**
+- Persistent AI chat bar surviving sub-page navigation within a deal (not just per-page chat)
+- Named agent architecture with dedicated system prompts per agent type
+- Agent management UI with versioning and draft/publish system
+- Cross-touch context carry-forward in chat responses
+- Deal briefing consolidation page
 
-**Defer (v1.7+):**
-- **F9: Template list artifact type filter** -- nice to have, not essential
-- AI-suggested artifact type classification
-- Cross-artifact structural comparison
-- Custom artifact types beyond the fixed three
+**Defer (v2+):**
+- Custom pipeline stages per team
+- Chat history search across deals
+- Automated stage transitions based on interaction completion
+- A/B testing for agent prompts
+- Email notifications on HITL checkpoints
 
 ### Architecture Approach
 
-The architecture adds a single new dimension (`artifactType`) threaded through four existing layers: data model (Prisma), inference engine (Gemini), API routes (Hono), and UI (Next.js). No new components or services. The composite key pattern on `DeckStructure` is the linchpin -- it enables per-artifact structures while preserving Touch 1-3 behavior unchanged. The UI uses tabs within the existing Touch 4 Settings page rather than new routes, keeping the information architecture clean.
+The architecture extends the existing monorepo (apps/web + apps/agent) without introducing new services. The deal detail view becomes a Next.js layout at `deals/[dealId]/layout.tsx` hosting breadcrumb navigation, sidebar sub-nav, and a persistent chat bar -- all sub-pages (overview, briefing, touch-1 through touch-4) render within this layout, preserving chat state across navigation. Named Mastra agents replace inline LLM calls in workflows, with DB-backed system prompts loaded via async `instructions` functions with in-memory caching. Chat persistence uses Mastra Memory with PostgresStore (thread per deal, no custom ChatMessage model needed). The HITL 3-stage flow reuses the proven suspend/resume pattern from Touch 4, extended to Touches 1-3 with per-touch stage counts (Touch 1-2 need 1 gate, Touch 3 needs 1-2, Touch 4 keeps 3).
 
-**Major components modified:**
-1. **Template model** -- adds `artifactType` column for classification storage
-2. **DeckStructure model** -- adds `artifactType` column + composite unique constraint for per-artifact structures
-3. **Inference engine** (`infer-deck-structure.ts`) -- accepts `artifactType` param, filters examples, uses composite key upsert
-4. **Cron job** (`auto-infer-cron.ts`) -- expands Touch 4 loop to iterate three artifact types
-5. **Chat refinement** (`chat-refinement.ts`) -- threads `artifactType` through entire chain
-6. **API routes** (`mastra/index.ts`) -- adds `?artifactType=` query param to deck structure endpoints
-7. **Classify UI** (`template-card.tsx`) -- conditional artifact type selector
-8. **Settings UI** (`deck-structure-view.tsx`) -- tabbed Touch 4 page with per-artifact detail views
+**Major components:**
+1. Deal Pipeline Page -- list/board view toggle with filtering, stage badges, drag-and-drop stage changes
+2. Deal Detail Layout -- sub-page routing, breadcrumbs, DealContextProvider, persistent chat bar host
+3. Named Agent System -- 5 agents (deal-chat, brief-generator, content-selector, pager-generator, deck-assembler) with DB-backed versioned prompts
+4. HITL Touch Sub-pages -- per-touch artifact generation with configurable suspend/resume gates
+5. Agent Management Settings -- prompt editor with draft/publish versioning and rollback
 
 ### Critical Pitfalls
 
-1. **DeckStructure unique constraint breaks 6+ call sites** -- Every `findUnique({ where: { touchType } })` must be updated to use the composite key `{ touchType_artifactType: { touchType, artifactType } }`. Miss even one and you get runtime failures. Audit all consumers before shipping the migration.
+1. **Concurrent workflow race conditions** -- Multiple touch workflows running on the same deal can race on Drive folder creation and Deal status updates. Prevent with `SELECT FOR UPDATE` on the Deal row around shared state mutations and per-workflow InteractionRecord isolation.
 
-2. **Cron treats Touch 4 as one unit instead of three** -- The cron loop iterates `DECK_TOUCH_TYPES` which has one "touch_4" entry. Must expand to iterate three artifact types for Touch 4. Without this, only one artifact type gets inferred.
+2. **Deal status as implicit state machine** -- Without an explicit `Deal.status` column, different views compute status differently from InteractionRecord scans. Add the column in the foundation phase, update it transactionally within workflow steps.
 
-3. **Data hash collision across artifact types** -- `computeDataHash` does not include artifact type, so all three Touch 4 types produce identical hashes. Cron skips re-inference or redundantly re-infers all three. Include `artifactType` in both the hash input and the example query filter.
+3. **Agent prompt versioning without runtime pinning** -- Editing a prompt mid-workflow causes steps before and after a suspend point to use different prompt versions. Capture `agentConfigVersionId` at workflow start; read from context at resume, never from "current" DB record.
 
-4. **Inference conflates examples across artifact types** -- Without filtering by `artifactType`, Gemini sees all Touch 4 examples mixed together and produces incoherent structures. The query AND the prompt must be artifact-type-aware.
+4. **Prisma migration drift from batched models** -- Adding 5-8 models in one migration risks partial-apply failures with no rollback. One migration per logical unit, `--create-only` to inspect SQL, separate "alter existing" from "create new" migrations.
 
-5. **Existing Touch 4 DeckStructure row becomes stale** -- The old mixed-data row must be deleted in the migration. Its chat context contains cross-artifact constraints that would pollute artifact-specific inference. Accept the one-time loss of Touch 4 chat history.
+5. **Navigation refactor breaking existing review routes** -- Existing `/deals/[dealId]/review/[briefId]` and `/asset-review/[interactionId]` routes are URL contracts (stored in alerts, bookmarks). Keep them as routes within the new layout or add permanent redirects.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Schema + Constants Foundation
+### Phase 1: Deal Model Extensions + Pipeline View
+**Rationale:** Deal status lifecycle is the dependency root -- pipeline views, filtering, dashboard, and HITL stages all require deals to have explicit stage and status fields. Ship first to unblock everything else.
+**Delivers:** Explicit `Deal.status` and `Deal.stage` columns, pipeline constants in shared schemas, deals list page with table/board view toggle and filtering, PATCH endpoint for deal updates.
+**Addresses:** Deal status lifecycle, deal list with filtering, pipeline view toggle (table stakes).
+**Avoids:** Pitfall 3 (implicit state machine) by establishing explicit status from day one.
 
-**Rationale:** Everything depends on the data model. The composite unique constraint on `DeckStructure` and the `artifactType` column on `Template` are prerequisites for all other work. Landing this first means all subsequent phases can build on stable schema.
+### Phase 2: Deal Detail Layout + Sub-Page Restructure
+**Rationale:** Every feature inside a deal (overview, briefing, touch pages, chat bar) requires the sub-page routing structure to exist. This is the mounting point for everything that follows.
+**Delivers:** `[dealId]/layout.tsx` with sidebar nav + breadcrumbs, DealContextProvider, overview sub-page (migrated from current page), briefing page placeholder, touch-1 through touch-4 placeholders.
+**Addresses:** Breadcrumb navigation, deal detail sidebar sub-navigation, deal overview dashboard, deal briefing page (table stakes).
+**Avoids:** Pitfall 9 (breaking existing review routes) by keeping existing routes within the new layout.
 
-**Delivers:**
-- `ARTIFACT_TYPES` constant in `@lumenalta/schemas`
-- `artifactType` column on `Template` model (migration 1)
-- `artifactType` column on `DeckStructure` + composite `@@unique([touchType, artifactType])` (migration 2)
-- Cleanup of existing Touch 4 DeckStructure row (in migration 2)
+### Phase 3: Named Agent Architecture + Agent Config Models
+**Rationale:** Chat bar, touch pages, and agent management UI all depend on named agents existing. Define agents before building features that use them. This also establishes the DB-backed prompt versioning model that the Settings UI will later expose.
+**Delivers:** Named Mastra Agent definitions (5 agents), AgentConfig + AgentConfigVersion Prisma models, agent-config.ts with DB loading + caching, agent registration in Mastra instance, seed data for default prompts.
+**Addresses:** Named agent architecture (differentiator), foundation for agent management UI.
+**Avoids:** Pitfall 7 (god object registry) by defining agents as configuration objects, not runtime entities. Pitfall 5 (prompt versioning without pinning) by establishing immutable version records from the start.
 
-**Addresses:** F2 (artifact type on Template model)
-**Avoids:** Pitfall 1 (unique constraint), Pitfall 3 (hash collision foundation), Pitfall 8 (stale Touch 4 data)
+### Phase 4: Persistent AI Chat Bar
+**Rationale:** High-visibility differentiator. With the layout and agents in place, the chat bar can be mounted and connected. Delivers immediate user value while touch pages are still being built.
+**Delivers:** Chat components (bar, message list, input, useChat hook), POST /api/chat streaming endpoint, chat history retrieval, Mastra Memory integration with PostgresStore.
+**Addresses:** AI chat for deal context (table stakes), persistent chat bar across sub-pages (differentiator).
+**Avoids:** Pitfall 2 (chat scoping confusion) by using Mastra Memory thread-per-deal with touch context from URL segment.
 
-### Phase 2: Backend Engine + API Routes
+### Phase 5: Touch 1-4 Sub-Pages with 3-Stage HITL
+**Rationale:** Core product value -- this is what makes v1.7 a deal-management platform rather than a content-generation tool. Depends on agents (Phase 3) and sub-page routing (Phase 2).
+**Delivers:** Four touch sub-pages with artifact-stage-stepper UI, modified touch workflows using named agents, suspend/resume gates with per-touch stage counts (1 gate for Touch 1-2, 1-2 for Touch 3, 3 for Touch 4).
+**Addresses:** Per-touch artifact pages, 3-stage HITL generation workflow (table stakes).
+**Avoids:** Pitfall 8 (uniform HITL stages for simple flows) by designing per-touch stage counts. Pitfall 1 (concurrent workflow races) by isolating per-workflow state.
 
-**Rationale:** Backend must be ready before frontend can consume it. The inference engine, cron, chat refinement, and API routes form a tight cluster that should be updated together -- they all share the same `artifactType` parameter threading.
+### Phase 6: Google Drive Artifact Saving + Sharing
+**Rationale:** Completes the HITL loop -- the "Save" stage in Phase 5 needs Drive integration to function. Extend existing `drive-folders.ts` rather than building new infrastructure.
+**Delivers:** Per-deal/per-touch subfolder creation, domain-scoped sharing (@lumenalta.com), Drive links in completion UI, replacement of `makePubliclyViewable` with scoped permissions.
+**Addresses:** Google Drive artifact saving with organized folders, domain-scoped sharing (table stakes + differentiator).
+**Avoids:** Pitfall 6 (permissions cascading incorrectly) by defining a clear sharing model upfront.
 
-**Delivers:**
-- `inferDeckStructure()` accepts and filters by `artifactType`
-- `computeDataHash()` includes `artifactType` in hash
-- `auto-infer-cron.ts` iterates artifact types for Touch 4
-- `streamChatRefinement()` uses composite key
-- `POST /templates/:id/classify` accepts `artifactType`
-- All deck structure API routes accept `?artifactType=` query param
-- `GET /deck-structures` returns 6 entries (3 for Touch 4)
-
-**Addresses:** F5 (independent inference), F7 (per-artifact chat), F8 (cron per artifact type)
-**Avoids:** Pitfall 2 (cron single unit), Pitfall 3 (hash collision), Pitfall 4 (mixed inference), Pitfall 5 (chat wrong scope)
-
-### Phase 3: Frontend UI
-
-**Rationale:** Frontend is the final layer that consumes all backend changes. The classify UI and Settings UI changes depend on the API endpoints being ready.
-
-**Delivers:**
-- Artifact type selector in classify popover (conditional on Touch 4 Example)
-- Updated classification labels ("Example (Touch 4+, Proposal)")
-- `api-client.ts` updated with `artifactType` on all deck structure functions
-- Touch 4 Settings page with Proposal / Talk Track / FAQ tabs
-- Each tab has independent structure display, confidence badge, and chat bar
-- `deck-structure-actions.ts` passes `artifactType` through
-
-**Addresses:** F1 (classify UI), F3 (labels), F4 (Settings views), F6 (per-artifact confidence)
-**Avoids:** Pitfall 6 (missing artifact type UI), Pitfall 7 (Settings routing assumes 1:1)
+### Phase 7: Settings Agent Management UI
+**Rationale:** Downstream of everything -- configures agents that must already exist and be working. Can be built in parallel with Phases 5-6 if resources allow.
+**Delivers:** Settings > Agents page with agent list, prompt editor with markdown support, version history with text diff, draft/publish workflow, cache invalidation on publish.
+**Addresses:** Agent management UI with versioning (differentiator).
+**Avoids:** Pitfall 5 (versioning without pinning) by building on the immutable version records established in Phase 3.
 
 ### Phase Ordering Rationale
 
-- **Schema first** because every subsequent change depends on the `artifactType` column existing and the composite unique constraint being in place. Attempting backend changes before the migration causes compile errors.
-- **Backend second** because the inference engine, cron, and API routes form a dependency cluster. The cron calls inference, inference uses the composite key, chat uses the composite key, and API routes wire it all to HTTP. They must be updated together.
-- **Frontend last** because it is pure consumer of backend APIs. No frontend change is meaningful without the backend endpoints accepting `artifactType`.
-- **All three phases avoid the biggest pitfall** (unique constraint breakage) by sequencing the migration before any code that depends on the new schema.
+- **Dependency-driven:** Deal status (Phase 1) -> Sub-page routing (Phase 2) -> Named agents (Phase 3) follows the strict dependency chain identified in FEATURES.md. Each phase unblocks the next.
+- **Value-first:** Chat bar (Phase 4) ships before touch pages (Phase 5) because it delivers immediate visible value to sellers while the more complex HITL workflows are being built.
+- **Risk-front-loaded:** The highest-risk items (schema migrations, architectural patterns, agent definitions) ship in Phases 1-3 before the high-complexity integration work in Phases 5-6.
+- **Pitfall-aware:** Concurrent workflow races (Pitfall 1) are addressed in Phase 1's schema design before any workflows are modified. Navigation breakage (Pitfall 9) is handled in Phase 2 before sub-pages are added.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 1 (Schema):** Needs `/gsd:research-phase` to verify Prisma generates correct `NULLS DISTINCT` behavior on the composite unique index. Use `--create-only` and inspect SQL. PostgreSQL 15 default is correct, but Prisma 6.19.x behavior should be confirmed.
+- **Phase 3 (Named Agents):** `@mastra/editor` integration with existing PostgresStore is not fully documented. Verify during planning whether the editor can share a PostgresStore instance and whether it ships its own React components or is API-only.
+- **Phase 4 (Chat Bar):** Mastra Memory thread management API surface needs validation -- confirm thread listing, message retrieval for UI display, and context window behavior with the PostgresStore backend.
+- **Phase 5 (HITL Touch Pages):** Per-touch HITL stage design requires examining each existing workflow's suspend/resume points to determine which can be simplified vs. extended.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 2 (Backend):** All changes are parameter threading through existing functions. Well-understood patterns, direct codebase analogs exist for every change.
-- **Phase 3 (Frontend):** Conditional UI rendering, tab components, and API client updates are all established patterns in this codebase. No novel work.
+- **Phase 1 (Deal Model + Pipeline):** Well-documented Prisma migration patterns + shadcn table/kanban components. Standard CRM patterns.
+- **Phase 2 (Deal Detail Layout):** Standard Next.js App Router layout patterns. Well-established in existing codebase.
+- **Phase 6 (Drive Integration):** Extends existing `drive-folders.ts` with documented Google Drive API calls. Existing credential chain handles auth.
+- **Phase 7 (Agent Management UI):** Standard CRUD settings page with version history. shadcn components cover all UI needs.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Zero new dependencies. All packages already installed and verified in production. |
-| Features | HIGH | All features build directly on v1.5 infrastructure. Clear implementation paths with existing code analogs. |
-| Architecture | HIGH | Every affected file was read directly. All integration points documented with line numbers. |
-| Pitfalls | HIGH | Based on direct codebase analysis of all 13+ affected files. Every pitfall maps to specific code paths. |
+| Stack | HIGH | All packages verified via npm registry. Version compatibility confirmed. Minimal new dependencies. |
+| Features | HIGH | Feature landscape well-understood from existing codebase analysis and established CRM patterns. Clear dependency chain. |
+| Architecture | HIGH | Extends proven patterns (Next.js layouts, Mastra workflows, Prisma models). No new architectural paradigms. |
+| Pitfalls | HIGH | Identified from direct codebase analysis of all affected code paths. Concrete line-number references to existing issues. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **PostgreSQL NULLS DISTINCT verification:** Must confirm Prisma 6.19.x migration output. Low risk (PG 15 default is correct) but must be verified with `--create-only` before applying.
-- **Auto-classify vs manual artifact type:** ARCHITECTURE.md suggests extending `auto-classify-templates.ts` to include `artifactType` in LLM classification. FEATURES.md lists AI-suggested artifact type as an anti-feature. Recommendation: do NOT auto-classify artifact type in v1.6 -- keep it manual. If auto-classify is extended later, treat it as a separate enhancement.
-- **Touch 4 Settings empty state UX:** When no Touch 4 examples are classified with artifact types, the tabbed view shows three empty tabs. Consider a single helpful message instead of three empty states. Handle during Phase 3 UI implementation.
+- **@mastra/editor API surface:** Documentation is sparse on whether it ships React components or is API-only, and whether it can share an existing PostgresStore instance. Validate during Phase 3 planning; fallback is custom AgentConfig + AgentConfigVersion Prisma models (design already in ARCHITECTURE.md).
+- **Mastra Memory thread retrieval for UI:** Unclear whether Mastra Memory exposes a client-friendly API for listing threads and retrieving message history for display (vs. just feeding context to the LLM). If not, may need raw SQL queries against the `mastra` schema or a thin wrapper. Validate during Phase 4 planning.
+- **Touch 1-3 workflow complexity assessment:** The research recommends per-touch HITL stage counts (1 gate for Touch 1-2, 1-2 for Touch 3) but the exact workflow modifications need per-workflow analysis during Phase 5 planning.
+- **Google Drive sharing model decision:** Research flags the need to replace `makePubliclyViewable` with domain-scoped sharing, but the impact on existing iframe previews needs testing. If restricted sharing breaks previews, a server-side proxy endpoint may be needed. Decide during Phase 6 planning.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase analysis of all affected files: `schema.prisma`, `infer-deck-structure.ts`, `chat-refinement.ts`, `auto-infer-cron.ts`, `template-card.tsx`, `deck-structure-view.tsx`, `touch-type-detail-view.tsx`, `api-client.ts`, `template-utils.ts`, `deck-structure-actions.ts`, `constants.ts`, `mastra/index.ts`, `auto-classify-templates.ts`
-- PostgreSQL 15 documentation on NULLS DISTINCT in unique indexes
-- Prisma 6.x documentation on compound unique constraints
-- PROJECT.md milestone definitions
+- Existing codebase analysis: `prisma/schema.prisma` (14 models), `drive-folders.ts`, `touch-4-workflow.ts` (17 steps, 3 suspend points), `mastra/index.ts`, `api-client.ts`, deal pages, settings pages
+- npm registry verification: `@dnd-kit/core@6.3.1`, `@dnd-kit/sortable@10.0.0`, `@mastra/editor@0.7.0`
+- CLAUDE.md: Prisma migration discipline constraints
+- PROJECT.md: v1.7 milestone scope and constraints
+
+### Secondary (MEDIUM confidence)
+- [Mastra Agent docs](https://mastra.ai/docs/agents/overview) -- named agent registration and async instructions
+- [Mastra Agent Memory](https://mastra.ai/docs/agents/agent-memory) -- thread-based memory with PostgresStore
+- [Mastra HITL Workflows](https://mastra.ai/docs/workflows/human-in-the-loop) -- suspend/resume patterns
+- [@dnd-kit](https://dndkit.com/) -- React 19 compatibility, accessibility
+- [Google Drive Permissions API](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/create) -- domain-scoped sharing
+- CRM feature analysis: Pipedrive, HubSpot, monday.com pipeline patterns
+
+### Tertiary (LOW confidence)
+- `@mastra/editor` integration with shared PostgresStore -- needs validation during implementation
+- `@mastra/editor` UI component surface -- unclear if API-only or ships React components
+- Mastra Memory message retrieval API for UI display -- needs validation
 
 ---
-*Research completed: 2026-03-07*
+*Research completed: 2026-03-08*
 *Ready for roadmap: yes*
