@@ -4,7 +4,7 @@ milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
 stopped_at: Completed 42-03-PLAN.md
-last_updated: "2026-03-08T20:32:59.608Z"
+last_updated: "2026-03-08T20:35:29.216Z"
 last_activity: 2026-03-08 - Completed 43-03 (seller workflows and shared helpers now run through named agents with pinned prompt versions)
 progress:
   total_phases: 7
