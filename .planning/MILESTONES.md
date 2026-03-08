@@ -1,5 +1,27 @@
 # Milestones
 
+## v1.6 Touch 4 Artifact Intelligence (Shipped: 2026-03-08)
+
+**Phases:** 6 (35-40) | **Plans:** 20 | **Commits:** 110 | **Files changed:** 116 | **LOC:** ~50,876 TypeScript/TSX/Prisma (total)
+**Timeline:** 2 days (2026-03-07 -> 2026-03-08)
+**Git range:** `685c1ed..9527493`
+
+**Key accomplishments:**
+- Shared `ArtifactType` constants and forward-only Prisma schema changes now support Proposal, Talk Track, and FAQ classification for Touch 4 Examples
+- Touch 4 inference, cron, routes, and chat refinement now operate on artifact-qualified deck structure keys instead of one generic row
+- Classification flows and slide-viewer reloads persist and rehydrate saved artifact badges across both classify surfaces
+- Settings now shows separate Touch 4 Proposal, Talk Track, and FAQ structures with per-artifact confidence and scoped chat refinement
+- Production evidence now proves the artifact-scoped settings chat flow end to end after the route-parity and UI persistence fixes
+- Web and agent artifact contracts were tightened to the shared type surface, and `pnpm --filter agent exec tsc --noEmit` is green again
+
+**Tech debt (accepted):**
+- `Touch4ArtifactTabs` and `TouchTypeDetailView` still double-fetch artifact detail on some tab changes
+- Content-library breadth is still limited by missing Drive access on external source presentations
+
+**Archives:** [v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md) | [v1.6-REQUIREMENTS.md](milestones/v1.6-REQUIREMENTS.md) | [v1.6-MILESTONE-AUDIT.md](milestones/v1.6-MILESTONE-AUDIT.md)
+
+---
+
 ## v1.5 Review Polish & Deck Intelligence (Shipped: 2026-03-07)
 
 **Phases:** 3 (32-34) | **Plans:** 8 | **Commits:** 49 | **Files changed:** 83 | **LOC:** ~40,833 TypeScript/TSX (total)

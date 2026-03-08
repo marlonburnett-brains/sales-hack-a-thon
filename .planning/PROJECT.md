@@ -8,6 +8,16 @@ A deployed agentic AI platform for Lumenalta sellers covering all four touch poi
 
 Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
 
+## Current State
+
+Shipped `v1.6 Touch 4 Artifact Intelligence` on 2026-03-08. Touch 4 Examples now carry Proposal / Talk Track / FAQ artifact typing end to end, Settings renders separate artifact-qualified deck structures with scoped chat refinement, the live production verification trail is closed, and the `agent` workspace is back to a clean no-emit TypeScript baseline.
+
+## Next Milestone Goals
+
+- Define the next milestone scope and fresh requirements in a new `.planning/REQUIREMENTS.md`
+- Reduce the remaining Touch 4 settings double-fetch behavior on artifact tab changes
+- Expand content-library coverage once Drive access blockers are cleared
+
 ## Requirements
 
 ### Validated
@@ -139,15 +149,27 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 - ✓ Streaming chat refinement with LLM re-inference, diff highlights, and context summarization -- v1.5
 - ✓ Cron-based auto-inference with SHA-256 change detection and active session protection -- v1.5
 
+**Touch 4 Artifact Intelligence** -- v1.6
+- ✓ Touch 4 Example classification includes artifact type (Proposal, Talk Track, FAQ) -- v1.6
+- ✓ Touch 4 Settings shows separate Proposal, Talk Track, and FAQ deck structures with scoped confidence and chat refinement -- v1.6
+- ✓ Production verification proves artifact-scoped settings chat behavior end to end -- v1.6
+- ✓ Shared web and agent artifact contracts now use the canonical `ArtifactType` surface -- v1.6
+- ✓ `pnpm --filter agent exec tsc --noEmit` passes at milestone closeout -- v1.6
+
 ### Active
 
-**Current Milestone: v1.6 Touch 4 Artifact Intelligence**
+None yet -- define the next milestone before creating a fresh `.planning/REQUIREMENTS.md`.
 
-**Goal:** Add artifact type sub-classification (Proposal / Talk Track / FAQ) to Touch 4 Examples and display per-artifact-type deck structures in Settings.
+<details>
+<summary>Archived milestone focus: v1.6 Touch 4 Artifact Intelligence</summary>
 
-**Target features:**
+Goal: Add artifact type sub-classification (Proposal / Talk Track / FAQ) to Touch 4 Examples and display per-artifact-type deck structures in Settings.
+
+Target features:
 - Touch 4 Example classification includes artifact type (Proposal, Talk Track, FAQ)
 - Settings deck structure view shows 3 separate structures for Touch 4 (one per artifact type)
+
+</details>
 
 ### Out of Scope
 
@@ -167,7 +189,7 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ## Context
 
-**Current state:** v1.5 shipped. ~40,833 LOC TypeScript/TSX. 34 phases, 73 plans across 6 milestones over 5 days (2026-03-03 → 2026-03-07). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
+**Current state:** v1.6 shipped. ~50,876 LOC TypeScript/TSX/Prisma. 40 phases, 93 plans across 7 milestones over 6 days (2026-03-03 -> 2026-03-08). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
 
 **Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification fallback), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI via Mastra MCP client (RAG + knowledge base + semantic search), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications), @mastra/mcp (MCP SSE transport).
 
@@ -245,6 +267,10 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 | Streaming chat with delimiter protocol | Text chunks then ---STRUCTURE_UPDATE--- then JSON payload | ✓ Good — simple parsing, no SSE complexity |
 | SHA-256 data hash for cron change detection | Cron skips re-inference if examples haven't changed | ✓ Good — avoids redundant LLM calls |
 | Active session protection (30-min window) | Cron skips re-inference during active chat sessions | ✓ Good — prevents overwriting user refinements |
+| Shared `ArtifactType` contract across schema, web, and agent | Prevent Touch 4 artifact behavior from drifting between data, API, and UI layers | ✓ Good — kept Proposal / Talk Track / FAQ flows aligned end to end |
+| Existing route family plus validated `artifactType` | Avoid endpoint sprawl while adding artifact-qualified deck structure operations | ✓ Good — fixed deployed route parity without creating a second API family |
+| Production-locked live verification for Touch 4 settings chat | Milestone DoD required browser and backend proof on the same artifact-qualified flow | ✓ Good — closed `DECK-05` with durable post-fix evidence |
+| Finish v1.6 on a green agent typecheck baseline | Artifact work should land on a clean compile target, not a broken repo baseline | ✓ Good — `pnpm --filter agent exec tsc --noEmit` passes at closeout |
 
 ---
-*Last updated: 2026-03-07 after v1.6 milestone start*
+*Last updated: 2026-03-08 after v1.6 milestone completion*

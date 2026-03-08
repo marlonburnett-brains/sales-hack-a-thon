@@ -8,7 +8,7 @@
 - v1.3 **Google API Auth: User-Delegated Credentials** -- Phases 22-26 (shipped 2026-03-06) -- [Archive](milestones/v1.3-ROADMAP.md)
 - v1.4 **AtlusAI Authentication & Discovery** -- Phases 27-31 (shipped 2026-03-07) -- [Archive](milestones/v1.4-ROADMAP.md)
 - v1.5 **Review Polish & Deck Intelligence** -- Phases 32-34 (shipped 2026-03-07) -- [Archive](milestones/v1.5-ROADMAP.md)
-- v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (shipped 2026-03-08)
+- v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (shipped 2026-03-08) -- [Archive](milestones/v1.6-ROADMAP.md)
 
 ## Phases
 
@@ -82,127 +82,7 @@
 
 </details>
 
-### v1.6 Touch 4 Artifact Intelligence (In Progress)
-
-**Milestone Goal:** Add artifact type sub-classification (Proposal / Talk Track / FAQ) to Touch 4 Examples and display per-artifact-type deck structures in Settings.
-
-- [x] **Phase 35: Schema & Constants Foundation** (2/2 plans) - Prisma migrations for artifactType columns and shared constants (completed 2026-03-07)
-- [x] **Phase 36: Backend Engine & API Routes** - Inference, cron, chat refinement, and API routes updated for per-artifact-type operation (completed 2026-03-07)
-- [x] **Phase 37: Frontend UI** - Classify UI artifact selector, Settings tabbed deck structure views, and slide-viewer badge hydration (completed 2026-03-07)
-- [x] **Phase 38: Live Verification Sweep** - Production artifact-scoped chat proof, final browser approval, and verification closure completed (6/6 plans complete) (completed 2026-03-08)
-- [x] **Phase 39: Artifact Contract Hardening** - Eliminate artifact-aware UI reuse risks and tighten shared `ArtifactType` typing across web and chat paths (3/3 plans complete) (completed 2026-03-08)
-- [x] **Phase 40: Agent Typecheck Cleanup** - Resolve pre-existing `agent` TypeScript failures left outside the original milestone scope (completed 2026-03-08)
-
-## Phase Details
-
-### Phase 35: Schema & Constants Foundation
-**Goal**: Data model supports artifact type classification and per-artifact deck structures
-**Depends on**: Nothing (first phase of v1.6)
-**Requirements**: SCHM-01, SCHM-02, SCHM-03
-**Success Criteria** (what must be TRUE):
-  1. `ARTIFACT_TYPES` constant is importable from `@lumenalta/schemas` and contains `proposal`, `talk_track`, `faq`
-  2. Template model has nullable `artifactType` column and existing templates are unaffected (null value)
-  3. DeckStructure model has nullable `artifactType` column with composite unique constraint on `(touchType, artifactType)`
-  4. Existing mixed Touch 4 DeckStructure row is cleaned up during migration
-  5. All migrations are forward-only and applied without reset
-**Plans**: 2 plans
-
-Plans:
-- [x] 35-01-PLAN.md — Publish shared artifact type constants, labels, and type exports from `@lumenalta/schemas`
-- [x] 35-02-PLAN.md — Add `artifactType` schema migration and preserve non-Touch-4 deck structure compatibility
-
-### Phase 36: Backend Engine & API Routes
-**Goal**: Inference, cron, and chat operate independently per artifact type for Touch 4
-**Depends on**: Phase 35
-**Requirements**: DECK-01, DECK-02, DECK-05
-**Success Criteria** (what must be TRUE):
-  1. `inferDeckStructure()` accepts `artifactType` parameter and filters Touch 4 examples to only that artifact type before sending to the LLM
-  2. Cron auto-inference iterates 6 keys (Touch 1-3 + Touch 4 x3 artifact types) with per-key change detection including `artifactType` in hash
-  3. Chat refinement threads `artifactType` through the entire chain, scoping conversation to the correct artifact-type structure
-  4. API routes accept `?artifactType=` query parameter and return 7 deck structure entries: Touch 1, Touch 2, Touch 3, Pre-call, and 3 artifact-specific Touch 4 entries
-**Plans**: 2 plans
-
-Plans:
-- [x] 36-01-PLAN.md — Add shared artifact-aware deck keys plus Touch 4 inference and cron isolation
-- [x] 36-02-PLAN.md — Thread artifactType through deck-structure routes, chat refinement, and web proxies
-
-### Phase 37: Frontend UI
-**Goal**: Users can classify Touch 4 examples by artifact type and view per-artifact deck structures in Settings
-**Depends on**: Phase 36
-**Requirements**: CLSF-01, CLSF-02, DECK-03, DECK-04
-**Success Criteria** (what must be TRUE):
-  1. When classifying a presentation as Touch 4 Example, user sees artifact type selector (Proposal / Talk Track / FAQ) and selection is persisted
-  2. Artifact type selector only appears when both Touch 4 and Example are selected -- hidden for all other combinations
-  3. Settings Touch 4 page shows three tabs (Proposal / Talk Track / FAQ) each with its own deck structure display
-  4. Each Touch 4 artifact tab shows independent confidence scoring based on classified example count for that specific artifact type
-  5. Chat refinement on each tab is scoped to the correct artifact type structure
-**Plans**: 4 plans
-
-Plans:
-- [x] 37-01-PLAN.md — Add shared Touch 4 artifact classification controls and persist `artifactType` through the classify flow
-- [x] 37-02-PLAN.md — Convert Touch 4 settings into artifact tabs with per-tab confidence, empty states, and scoped chat
-- [x] 37-03-PLAN.md — Wire both classify surfaces to the shared Touch 4 control and show saved artifact badges
-- [x] 37-04-PLAN.md — Hydrate persisted slide-viewer artifact badges after reload
-
-### Phase 38: Live Verification Sweep
-**Goal**: Close the remaining milestone blocker by capturing post-fix production evidence for Touch 4 artifact-qualified settings chat and completing live verification closure
-**Depends on**: Phase 37
-**Requirements**: DECK-05
-**Gap Closure**: Closes the v1.6 audit requirement, integration, and flow gaps tied to Touch 4 settings-tab chat refinement
-**Tech Debt Closure**: Backend live streaming and cron confirmation; frontend human browser confirmation for reload, settings tabs, and chat behavior
-**Success Criteria** (what must be TRUE):
-  1. Live external-service streaming behavior is exercised and documented against a reachable environment
-  2. Background cron behavior is re-confirmed in a live-like environment with artifact-qualified Touch 4 processing evidence
-  3. Human browser validation confirms cross-surface Touch 4 classification reload behavior end-to-end
-  4. Human browser validation confirms Touch 4 settings tab and chat behavior stay artifact-scoped end-to-end
-**Plans**: 6 plans
-
-Plans:
-- [x] 38-01-PLAN.md — Lock one reachable verification target and write the Phase 38 live runbook
-- [x] 38-02-PLAN.md — Capture live streaming and cron evidence for artifact-qualified Touch 4 backend paths
-- [x] 38-03-PLAN.md — Run reachable-environment browser UAT for Touch 4 reload and settings/chat behavior
-- [x] 38-04-PLAN.md — Eliminate the production artifact-scoped chat 404 and lock the route contract into regression coverage
-- [x] 38-05-PLAN.md — Confirm the 38-04 production deploy and re-capture backend chat proof for the fixed artifact-scoped path
-- [ ] 38-06-PLAN.md — Re-run the final settings-tab browser scenario and close the Phase 38 UAT/verification trail
-
-### Phase 39: Artifact Contract Hardening
-**Goal**: Remove artifact-type maintenance risks and align web/chat code with the shared artifact contract
-**Depends on**: Phase 38
-**Requirements**: None (maintains DECK-03, DECK-04, DECK-05, CLSF-01, CLSF-02)
-**Gap Closure**: Closes the v1.6 audit tech-debt gaps around shared `ArtifactType` typing and Touch 4 artifact-view reuse safety
-**Tech Debt Closure**: `deck-structure-view.tsx` artifact-awareness gap and broad `string` typing for `artifactType`
-**Success Criteria** (what must be TRUE):
-  1. `apps/web/src/components/settings/deck-structure-view.tsx` correctly loads and preserves artifact-qualified Touch 4 details if reused
-  2. Web helper paths use the shared `ArtifactType` contract instead of broad `string` where artifact-qualified data is expected
-  3. Chat-related paths use the shared `ArtifactType` contract end-to-end for compile-time safety
-  4. Regression coverage or verification proves artifact-aware UI and chat flows still work after contract tightening
-**Plans**: 3 plans
-
-Plans:
-- [x] 39-01-PLAN.md — Tighten web deck-structure helpers, settings chat, and proxy boundaries to the shared `ArtifactType` contract
-- [x] 39-02-PLAN.md — Tighten agent deck-intelligence and Mastra route seams to the shared `ArtifactType` contract
-- [ ] 39-03-PLAN.md — Harden legacy `deck-structure-view.tsx` reuse with artifact-qualified state and chat scope
-
-### Phase 40: Agent Typecheck Cleanup
-**Goal**: Restore a clean `agent` TypeScript baseline so v1.6 artifact work sits on a passing compile target
-**Depends on**: Phase 39
-**Requirements**: None (repo health cleanup for v1.6 closeout)
-**Gap Closure**: Closes the v1.6 audit gap for the missing agent typecheck cleanup and verification trail
-**Tech Debt Closure**: Pre-existing `pnpm --filter agent exec tsc --noEmit` failures left outside prior plan scope
-**Success Criteria** (what must be TRUE):
-  1. Current `agent` TypeScript failures are inventoried and reduced to in-scope actionable fixes
-  2. Pre-existing `agent` type errors that block a clean no-emit compile are resolved without regressing Touch 4 behavior
-  3. `pnpm --filter agent exec tsc --noEmit` passes or remaining failures are explicitly isolated outside the repository baseline
-**Plans**: 3 plans
-
-Plans:
-- [x] 40-01-PLAN.md — Clear shared schema import drift and current Mastra/Zod API mismatches blocking agent compile
-- [x] 40-02-PLAN.md — Repair the MCP client seam and stale Vitest suites that still fail the agent baseline
-- [x] 40-03-PLAN.md — Run the final agent no-emit gate and publish the Phase 40 verification trail
-
 ## Progress
-
-**Execution Order:** 35 -> 36 -> 37 -> 38 -> 39 -> 40
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -242,7 +122,7 @@ Plans:
 | 34. Deck Intelligence | v1.5 | 3/3 | Complete | 2026-03-07 |
 | 35. Schema & Constants Foundation | v1.6 | 2/2 | Complete | 2026-03-07 |
 | 36. Backend Engine & API Routes | v1.6 | 2/2 | Complete | 2026-03-07 |
-| 37. Frontend UI | v1.6 | Complete    | 2026-03-07 | 2026-03-07 |
+| 37. Frontend UI | v1.6 | 4/4 | Complete | 2026-03-07 |
 | 38. Live Verification Sweep | v1.6 | 6/6 | Complete | 2026-03-08 |
-| 39. Artifact Contract Hardening | 3/3 | Complete    | 2026-03-08 | |
-| 40. Agent Typecheck Cleanup | 3/3 | Complete    | 2026-03-08 | |
+| 39. Artifact Contract Hardening | v1.6 | 3/3 | Complete | 2026-03-08 |
+| 40. Agent Typecheck Cleanup | v1.6 | 3/3 | Complete | 2026-03-08 |

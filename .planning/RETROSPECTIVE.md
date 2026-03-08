@@ -2,6 +2,50 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.6 — Touch 4 Artifact Intelligence
+
+**Shipped:** 2026-03-08
+**Phases:** 6 | **Plans:** 20 | **Commits:** 110
+
+### What Was Built
+- Shared `ArtifactType` schema contract plus forward-only Prisma support for Touch 4 artifact typing
+- Artifact-qualified Touch 4 inference, cron, routes, and chat refinement paths
+- Shared classify controls and saved badge hydration for Proposal / Talk Track / FAQ across both classify surfaces
+- Separate Touch 4 Settings tabs with per-artifact confidence, detail views, and scoped chat refinement
+- Production-verified artifact-scoped settings chat flow after route-parity and UI persistence fixes
+- Shared type-contract hardening and a restored green `agent` no-emit TypeScript baseline
+
+### What Worked
+- **Audit-driven gap closure:** The stale `gaps_found` audit created a tight follow-up loop; Phases 38-40 closed live proof, contract, and compile-baseline gaps cleanly.
+- **Shared contract first:** Publishing `ArtifactType` once in `@lumenalta/schemas` prevented schema, proxy, and UI drift while the milestone expanded.
+- **Focused production evidence:** Locking verification to one Vercel and Railway pair kept every live proof tied to the same deploy reality.
+- **Regression-before-fix discipline:** Failing tests around route parity, typed seams, and streamed state persistence made the final fixes low risk.
+
+### What Was Inefficient
+- **Audit staleness:** The milestone audit became outdated within hours; the final closeout needed a rerun before archival.
+- **Roadmap drift:** `.planning/ROADMAP.md` still showed `38-06` and `39-03` as incomplete even after their summaries and verifications existed.
+- **Double-fetch debt remains:** Touch 4 artifact tabs still trigger redundant detail fetches on some tab transitions.
+
+### Patterns Established
+- **Artifact-qualified keying:** Touch 4 data identity is `touchType + artifactType`, not touchType alone.
+- **Validated route extension:** Reusing the existing route family with typed `artifactType` payloads scaled better than spinning up parallel endpoints.
+- **Production proof pairing:** Final live verification should pair browser-visible success with backend persistence on the exact same request window.
+- **Closeout compile gate:** Milestone-level feature work should finish on a passing typecheck baseline, not just passing targeted tests.
+
+### Key Lessons
+1. **Artifact subtypes become architecture quickly:** What starts as UI metadata quickly touches schema, inference, transport, and verification.
+2. **Production verification needs a single locked target:** Mixing localhost, preview, and production evidence obscures the real blocker.
+3. **Live chat fixes need UI-state verification too:** A repaired backend stream is not enough if the client still drops the visible update.
+4. **Audit reruns should be part of milestone closeout:** A stale audit can be directionally wrong even when the workspace is already green.
+5. **Repo-health cleanup can be the right milestone-end phase:** Finishing on a clean compile target reduced risk for the next milestone immediately.
+
+### Cost Observations
+- Model mix: ~65% sonnet (executors, verifiers), ~20% haiku (researchers, explorers), ~15% opus (audit and orchestration)
+- Sessions: ~6 sessions across 2 days
+- Notable: This milestone spent more effort on live-proof closure and contract hardening than raw feature breadth, but it materially improved release confidence.
+
+---
+
 ## Milestone: v1.5 — Review Polish & Deck Intelligence
 
 **Shipped:** 2026-03-07
@@ -307,6 +351,7 @@
 | v1.3 | 17 | 5 | User-delegated Google OAuth — token storage, passthrough, pool |
 | v1.4 | ~60 | 5 | AtlusAI MCP integration — token pool, semantic search, discovery UI |
 | v1.5 | 49 | 3 | UX polish, slide intelligence v2, content classification, deck intelligence |
+| v1.6 | 110 | 6 | Touch 4 artifact intelligence, live proof closure, contract hardening, and agent baseline cleanup |
 
 ### Cumulative Quality
 
@@ -318,16 +363,17 @@
 | v1.3 | 5 | 5 | 0 (52 tests, Nyquist compliant) |
 | v1.4 | 5 | 5 | 0 (35 requirements, partial Nyquist — meta-phases exempt) |
 | v1.5 | 3 | 1 | 2 (phases 32, 33 — UI-heavy, human verification) |
+| v1.6 | 6 | 6 | 0 (all in-scope verifications passed after audit rerun) |
 
 ### Cumulative Stats
 
-| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | Total |
-|--------|------|------|------|------|------|------|-------|
-| Phases | 13 | 4 | 4 | 5 | 5 | 3 | 34 |
-| Plans | 27 | 6 | 10 | 10 | 12 | 8 | 73 |
-| Commits | 169 | 55 | 37 | 17 | ~60 | 49 | ~387 |
-| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~40,833 | ~40,833 |
-| Days | 2 | 1 | 2 | 1 | 2 | 1 | 5 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | v1.6 | Total |
+|--------|------|------|------|------|------|------|------|-------|
+| Phases | 13 | 4 | 4 | 5 | 5 | 3 | 6 | 40 |
+| Plans | 27 | 6 | 10 | 10 | 12 | 8 | 20 | 93 |
+| Commits | 169 | 55 | 37 | 17 | ~60 | 49 | 110 | ~497 |
+| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~40,833 | ~50,876 | ~50,876 |
+| Days | 2 | 1 | 2 | 1 | 2 | 1 | 2 | 6 |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -347,3 +393,5 @@
 14. Dedicated pages beat accordions for complex data views — user checkpoint feedback confirmed this for deck structures (v1.5)
 15. Classification is a high-leverage foundation feature — enables downstream inference, assembly, and similarity improvements (v1.5)
 16. Streaming delimiter protocol is simpler than SSE for chat — text + ---DELIMITER--- + JSON is easy to parse, no infrastructure needed (v1.5)
+17. Audit reruns belong in milestone closeout when gap-closure phases land late — stale audit status can lag the real workspace state (v1.6)
+18. Artifact-qualified features need proof across schema, transport, UI, and production evidence — UI-only or backend-only verification is not enough (v1.6)
