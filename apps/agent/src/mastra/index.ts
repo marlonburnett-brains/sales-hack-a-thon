@@ -7,8 +7,9 @@ import { touch2Workflow } from "./workflows/touch-2-workflow";
 import { touch3Workflow } from "./workflows/touch-3-workflow";
 import { touch4Workflow } from "./workflows/touch-4-workflow";
 import { preCallWorkflow } from "./workflows/pre-call-workflow";
-import { getOrCreateDealFolder, makePubliclyViewable } from "../lib/drive-folders";
+import { getOrCreateDealFolder, shareWithOrg } from "../lib/drive-folders";
 import { getDriveClient, getSlidesClient, getPooledGoogleAuth } from "../lib/google-auth";
+import { getAccessTokenForUser } from "../lib/token-cache";
 import { extractGoogleAuth } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
@@ -995,8 +996,8 @@ export const mastra = new Mastra({
             const fileId = uploaded.data.id!;
             const driveUrl = `https://docs.google.com/presentation/d/${fileId}/edit`;
 
-            // Make publicly viewable for iframe preview
-            await makePubliclyViewable(fileId);
+            // Share with org (domain-wide viewer access)
+            await shareWithOrg({ fileId });
 
             // Create interaction record with "overridden" decision
             const interaction = await prisma.interactionRecord.create({
@@ -2127,6 +2128,58 @@ export const mastra = new Mastra({
             select: { isValid: true },
           });
           return c.json({ hasToken: !!token?.isValid });
+        },
+      }),
+
+      // GET /tokens/access/:userId -- Get a fresh Google access token for a specific user
+      registerApiRoute("/tokens/access/:userId", {
+        method: "GET",
+        handler: async (c) => {
+          const userId = c.req.param("userId");
+          try {
+            const accessToken = await getAccessTokenForUser(userId);
+            if (!accessToken) {
+              return c.json({ error: "No valid token for user" }, 404);
+            }
+            return c.json({ accessToken });
+          } catch (err) {
+            console.error(`[tokens/access] Failed for user ${userId}:`, err);
+            return c.json({ error: "Failed to get access token" }, 500);
+          }
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Phase 47: UserSetting CRUD Routes
+      // ────────────────────────────────────────────────────────────
+
+      // GET /user-settings/:userId/:key -- Read a single user setting
+      registerApiRoute("/user-settings/:userId/:key", {
+        method: "GET",
+        handler: async (c) => {
+          const userId = c.req.param("userId");
+          const key = c.req.param("key");
+          const setting = await prisma.userSetting.findUnique({
+            where: { userId_key: { userId, key } },
+          });
+          return c.json({ value: setting?.value ?? null });
+        },
+      }),
+
+      // PUT /user-settings/:userId/:key -- Upsert a single user setting
+      registerApiRoute("/user-settings/:userId/:key", {
+        method: "PUT",
+        handler: async (c) => {
+          const userId = c.req.param("userId");
+          const key = c.req.param("key");
+          const body = await c.req.json();
+          const value = String(body.value);
+          await prisma.userSetting.upsert({
+            where: { userId_key: { userId, key } },
+            create: { userId, key, value },
+            update: { value },
+          });
+          return c.json({ success: true });
         },
       }),
 
