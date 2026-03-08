@@ -80,27 +80,27 @@ describe("deal chat binding proxy route", () => {
           "X-Google-Access-Token": "google-token",
           "X-User-Id": "user-1",
         }),
-        body: JSON.stringify({
-          action: "correct",
-          touchType: "touch_2",
-          source: {
-            id: null,
-            sourceType: "transcript",
-            touchType: null,
-            title: null,
-            rawText: "speaker 1 ???",
-            refinedText: "Clean transcript text",
-            routeContext: {
-              section: "briefing",
-              touchType: null,
-              pathname: "/deals/deal-1/briefing",
-              pageLabel: "Briefing",
-            },
-          },
-          refinedText: "Clean transcript text",
-        }),
       }),
     );
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body as string)).toEqual({
+      action: "correct",
+      touchType: "touch_2",
+      source: {
+        id: null,
+        sourceType: "transcript",
+        touchType: null,
+        title: null,
+        rawText: "speaker 1 ???",
+        refinedText: "Clean transcript text",
+        routeContext: {
+          section: "briefing",
+          touchType: null,
+          pathname: "/deals/deal-1/briefing",
+          pageLabel: "Briefing",
+        },
+      },
+      refinedText: "Clean transcript text",
+    });
     expect(payload).toMatchObject({
       source: {
         id: "source-1",

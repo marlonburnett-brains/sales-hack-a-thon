@@ -26,40 +26,45 @@ function createStreamResponse(body: string) {
 describe("deal chat proxy route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetch.mockResolvedValue(
-      createStreamResponse(
-        [
-          "Direct answer: I can help with this deal.",
-          "",
-          "---DEAL_CHAT_META---",
-          JSON.stringify({
-            response: {
-              directAnswer: "I can help with this deal.",
-              supportingBullets: ["Deal context is loaded."],
-              missingInfoCallouts: [],
-              nextSteps: ["Confirm the transcript target."],
-              knowledgeMatches: [],
-            },
-            suggestions: [],
-            binding: null,
-            refineBeforeSave: {
-              required: true,
-              reason: "Transcript looks messy.",
-              suggestedPrompt: "Clean this transcript before save.",
-              draftText: "speaker 1 ??? joining late",
-            },
-            confirmationChips: [],
-            promptVersion: {
-              agentId: "deal-chat-assistant",
-              id: "version-1",
-              version: 1,
-              publishedAt: "2026-03-08T23:00:00.000Z",
-              publishedBy: "planner",
-            },
-          }),
-        ].join("\n"),
-      ),
-    );
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ messages: [], greeting: null, suggestions: [] }),
+      })
+      .mockResolvedValue(
+        createStreamResponse(
+          [
+            "Direct answer: I can help with this deal.",
+            "",
+            "---DEAL_CHAT_META---",
+            JSON.stringify({
+              response: {
+                directAnswer: "I can help with this deal.",
+                supportingBullets: ["Deal context is loaded."],
+                missingInfoCallouts: [],
+                nextSteps: ["Confirm the transcript target."],
+                knowledgeMatches: [],
+              },
+              suggestions: [],
+              binding: null,
+              refineBeforeSave: {
+                required: true,
+                reason: "Transcript looks messy.",
+                suggestedPrompt: "Clean this transcript before save.",
+                draftText: "speaker 1 ??? joining late",
+              },
+              confirmationChips: [],
+              promptVersion: {
+                agentId: "deal-chat-assistant",
+                id: "version-1",
+                version: 1,
+                publishedAt: "2026-03-08T23:00:00.000Z",
+                publishedBy: "planner",
+              },
+            }),
+          ].join("\n"),
+        ),
+      );
   });
 
   it("forwards dealId, route context, and message body to the agent route", async () => {
@@ -139,6 +144,41 @@ describe("deal chat proxy route", () => {
 
   it("preserves the stream and keeps refine-before-save metadata intact", async () => {
     const { POST } = await import("@/app/api/deals/[dealId]/chat/route");
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce(
+      createStreamResponse(
+        [
+          "Direct answer: I can help with this deal.",
+          "",
+          "---DEAL_CHAT_META---",
+          JSON.stringify({
+            response: {
+              directAnswer: "I can help with this deal.",
+              supportingBullets: ["Deal context is loaded."],
+              missingInfoCallouts: [],
+              nextSteps: ["Confirm the transcript target."],
+              knowledgeMatches: [],
+            },
+            suggestions: [],
+            binding: null,
+            refineBeforeSave: {
+              required: true,
+              reason: "Transcript looks messy.",
+              suggestedPrompt: "Clean this transcript before save.",
+              draftText: "speaker 1 ??? joining late",
+            },
+            confirmationChips: [],
+            promptVersion: {
+              agentId: "deal-chat-assistant",
+              id: "version-1",
+              version: 1,
+              publishedAt: "2026-03-08T23:00:00.000Z",
+              publishedBy: "planner",
+            },
+          }),
+        ].join("\n"),
+      ),
+    );
     const request = new NextRequest("http://localhost/api/deals/deal-1/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
