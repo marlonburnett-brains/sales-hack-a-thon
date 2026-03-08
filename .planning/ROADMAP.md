@@ -9,6 +9,7 @@
 - v1.4 **AtlusAI Authentication & Discovery** -- Phases 27-31 (shipped 2026-03-07) -- [Archive](milestones/v1.4-ROADMAP.md)
 - v1.5 **Review Polish & Deck Intelligence** -- Phases 32-34 (shipped 2026-03-07) -- [Archive](milestones/v1.5-ROADMAP.md)
 - v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (shipped 2026-03-08) -- [Archive](milestones/v1.6-ROADMAP.md)
+- **v1.7 Deals & HITL Pipeline** -- Phases 41-47 (in progress)
 
 ## Phases
 
@@ -17,17 +18,17 @@
 
 - [x] Phase 1: Monorepo Foundation (3/3 plans) -- completed 2026-03-03
 - [x] Phase 2: Content Library Ingestion (3/3 plans) -- completed 2026-03-03
-- [x] Phase 3: Zod Schema Layer and Gemini Validation (2/2 plans) -- completed 2026-03-03
-- [x] Phase 4: Touch 1-3 Asset Generation & Interaction Tracking (3/3 plans) -- completed 2026-03-04
-- [x] Phase 5: Transcript Processing and Brief Generation (3/3 plans) -- completed 2026-03-04
-- [x] Phase 6: HITL Checkpoint 1 -- Brief Approval (2/2 plans) -- completed 2026-03-04
-- [x] Phase 7: RAG Retrieval and Slide Block Assembly (2/2 plans) -- completed 2026-03-04
-- [x] Phase 8: Google Workspace Output Generation (3/3 plans) -- completed 2026-03-04
-- [x] Phase 9: HITL Checkpoint 2 and Review Delivery UI (2/2 plans) -- completed 2026-03-04
-- [x] Phase 10: Pre-Call Briefing Flow (2/2 plans) -- completed 2026-03-04
-- [x] Phase 11: End-to-End Integration and Demo Polish (2/2 plans) -- completed 2026-03-04
-- [x] Phase 12: Content Library Re-ingestion (2/2 plans) -- completed 2026-03-04
-- [x] Phase 13: Touch 4 Poll Loop & Integration Fixes (1/1 plan) -- completed 2026-03-04
+- [x] Phase 3: Zod Schema Layer (2/2 plans) -- completed 2026-03-03
+- [x] Phase 4: Touch 1-3 Asset Generation (3/3 plans) -- completed 2026-03-04
+- [x] Phase 5: Transcript Processing (3/3 plans) -- completed 2026-03-04
+- [x] Phase 6: HITL Checkpoint 1 (2/2 plans) -- completed 2026-03-04
+- [x] Phase 7: RAG Retrieval (2/2 plans) -- completed 2026-03-04
+- [x] Phase 8: Google Workspace Output (3/3 plans) -- completed 2026-03-04
+- [x] Phase 9: HITL Checkpoint 2 (2/2 plans) -- completed 2026-03-04
+- [x] Phase 10: Pre-Call Briefing (2/2 plans) -- completed 2026-03-04
+- [x] Phase 11: E2E Integration (2/2 plans) -- completed 2026-03-04
+- [x] Phase 12: Content Re-ingestion (2/2 plans) -- completed 2026-03-04
+- [x] Phase 13: Touch 4 Poll Loop Fixes (1/1 plan) -- completed 2026-03-04
 
 </details>
 
@@ -52,7 +53,7 @@
 </details>
 
 <details>
-<summary>v1.3 Google API Auth: User-Delegated Credentials (Phases 22-26) -- SHIPPED 2026-03-06</summary>
+<summary>v1.3 Google API Auth (Phases 22-26) -- SHIPPED 2026-03-06</summary>
 
 - [x] Phase 22: OAuth Scope Expansion & Token Storage (3/3 plans) -- completed 2026-03-06
 - [x] Phase 23: User-Delegated API Clients & Token Passthrough (2/2 plans) -- completed 2026-03-06
@@ -82,7 +83,135 @@
 
 </details>
 
+<details>
+<summary>v1.6 Touch 4 Artifact Intelligence (Phases 35-40) -- SHIPPED 2026-03-08</summary>
+
+- [x] Phase 35: Schema & Constants Foundation (2/2 plans) -- completed 2026-03-07
+- [x] Phase 36: Backend Engine & API Routes (2/2 plans) -- completed 2026-03-07
+- [x] Phase 37: Frontend UI (4/4 plans) -- completed 2026-03-07
+- [x] Phase 38: Live Verification Sweep (6/6 plans) -- completed 2026-03-08
+- [x] Phase 39: Artifact Contract Hardening (3/3 plans) -- completed 2026-03-08
+- [x] Phase 40: Agent Typecheck Cleanup (3/3 plans) -- completed 2026-03-08
+
+</details>
+
+### v1.7 Deals & HITL Pipeline (In Progress)
+
+**Milestone Goal:** Transform the app from a content-generation tool into a full deal-management platform with pipeline views, deal detail navigation, AI chat assistance, and human-in-the-loop artifact generation across all four touches.
+
+**Parallelization Map:**
+```
+Tier 1 (start immediately):  41 ────┐     43 ────┐
+                                     |            |
+Tier 2 (after tier 1):       42 ────┤     44 ────┤
+                              (needs 41)   (needs 43)
+                                     |            |
+Tier 3 (after 42 + 43):      45 ────┤     46 ────┤
+                           (needs 42+43) (needs 42+43)
+                                                  |
+Tier 4 (after 46):                           47 ──┘
+                                            (needs 46)
+```
+
+- [ ] **Phase 41: Deal Pipeline Page** - Deal list with status lifecycle, view toggle, filtering, and assignment
+- [ ] **Phase 42: Deal Detail Layout** - Sub-page routing with breadcrumbs, sidebar, overview dashboard, and briefing page
+- [ ] **Phase 43: Named Agent Architecture** - Formalized agents with DB-backed versioned system prompts
+- [ ] **Phase 44: Agent Management UI** - Settings page for viewing, editing, versioning, and publishing agent prompts
+- [ ] **Phase 45: Persistent AI Chat Bar** - Deal-scoped chat with context, transcripts, and knowledge base queries
+- [ ] **Phase 46: Touch Pages & HITL Workflow** - Per-touch artifact generation with 3-stage HITL and chat refinement
+- [ ] **Phase 47: Drive Artifact Integration** - Folder selection, sharing controls, and org-default permissions for generated artifacts
+
+## Phase Details
+
+### Phase 41: Deal Pipeline Page
+**Goal**: Users can manage their deal pipeline with status tracking, multiple views, and team assignment
+**Depends on**: Nothing (Tier 1 -- start immediately)
+**Parallel with**: Phase 43
+**Requirements**: DEAL-01, DEAL-02, DEAL-03, DEAL-04, DEAL-05, DEAL-06, DEAL-07
+**Success Criteria** (what must be TRUE):
+  1. User sees each deal's status (Open, Won, Lost, Abandoned) displayed on the deals page
+  2. User can change a deal's status and the change persists across page reloads
+  3. User can switch between card grid view and list/table view on the deals page
+  4. Deals page loads showing Open deals by default, with filters available for other statuses
+  5. User can assign an owner and collaborators to a deal, and filter the list by assignee
+**Plans**: TBD
+
+### Phase 42: Deal Detail Layout
+**Goal**: Users can navigate within a deal through organized sub-pages with overview and briefing content
+**Depends on**: Phase 41 (Deal model with status/assignment fields)
+**Parallel with**: Phase 44
+**Requirements**: NAV-01, NAV-02, NAV-03, OVER-01, OVER-02, OVER-03, OVER-04, BRIEF-01, BRIEF-02
+**Success Criteria** (what must be TRUE):
+  1. User sees breadcrumbs on any deal sub-page and can navigate back to the deals list
+  2. Deal detail has a left sidebar with links to Overview, Briefing, and Touch 1-4, each loading its own sub-page
+  3. Overview page displays deal state, status, key metrics, activity timeline, and assignment info
+  4. Briefing page shows consolidated pre-call briefing, research data, and meeting notes in one place
+**Plans**: TBD
+
+### Phase 43: Named Agent Architecture
+**Goal**: All LLM interactions use formalized named agents with dedicated, versioned system prompts
+**Depends on**: Nothing (Tier 1 -- start immediately)
+**Parallel with**: Phase 41
+**Requirements**: AGENT-01, AGENT-02
+**Success Criteria** (what must be TRUE):
+  1. Every LLM call in the system routes through a named agent with a dedicated system prompt
+  2. Each agent has a clear responsibility boundary documented in its configuration
+  3. Agent system prompts are stored in the database with version history and can be loaded with caching
+**Plans**: TBD
+
+### Phase 44: Agent Management UI
+**Goal**: Users can view, edit, version, and publish agent system prompts from the Settings page
+**Depends on**: Phase 43 (agent config models and seed data)
+**Parallel with**: Phase 42
+**Requirements**: MGMT-01, MGMT-02, MGMT-03, MGMT-04, MGMT-05
+**Success Criteria** (what must be TRUE):
+  1. User can see all formal agents and their current system prompts listed in Settings
+  2. User can edit an agent's system prompt via direct text editing or conversational AI chat
+  3. Saving a prompt edit creates a draft version; changes are not live until the user publishes
+  4. Each published version is retained in full history, and the user can review or rollback to any prior version
+**Plans**: TBD
+
+### Phase 45: Persistent AI Chat Bar
+**Goal**: Users can interact with an AI assistant on any deal sub-page for context, transcripts, and knowledge queries
+**Depends on**: Phase 42 (deal detail layout) + Phase 43 (named agents)
+**Parallel with**: Phase 46
+**Requirements**: CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05
+**Success Criteria** (what must be TRUE):
+  1. User can open a persistent chat bar on any deal sub-page, and it survives navigation between sub-pages
+  2. User can add context, notes, or paste call transcripts via chat and bind them to a specific touch step
+  3. User can ask questions about the deal's data and history and receive relevant answers
+  4. User can query similar cases and use cases from the knowledge base and get results via chat
+**Plans**: TBD
+
+### Phase 46: Touch Pages & HITL Workflow
+**Goal**: Users can generate artifacts for each touch through a 3-stage human-in-the-loop workflow with AI chat refinement
+**Depends on**: Phase 42 (deal detail layout with sub-page routing) + Phase 43 (named agents)
+**Parallel with**: Phase 45
+**Requirements**: TOUCH-01, TOUCH-02, TOUCH-03, TOUCH-04, TOUCH-05, TOUCH-06, TOUCH-07
+**Success Criteria** (what must be TRUE):
+  1. User can access a dedicated page for each touch (1-4) within the deal detail sidebar
+  2. Touch 1 generates a first-contact pager, Touch 2 a Meet Lumenalta deck, Touch 3 a capability deck, Touch 4 a proposal + talk track + FAQ
+  3. Each touch follows a visible 3-stage HITL workflow (Skeleton > Low-fi sketch > High-fi presentation) with stage indicators
+  4. User can interact with AI chat at each HITL stage to refine the artifact before approving and advancing
+**Plans**: TBD
+
+### Phase 47: Drive Artifact Integration
+**Goal**: Users can save generated artifacts to Google Drive with folder and sharing controls
+**Depends on**: Phase 46 (touch pages that produce artifacts to save)
+**Requirements**: DRIVE-01, DRIVE-02, DRIVE-03
+**Success Criteria** (what must be TRUE):
+  1. User can choose a destination folder in Google Drive when saving a generated artifact
+  2. User can configure the sharing scope of newly generated documents before saving
+  3. Default sharing is set to entire org plus the service account, applied automatically unless overridden
+**Plans**: TBD
+
 ## Progress
+
+**Execution Order (with parallelization):**
+- Tier 1: Phase 41 + Phase 43 (concurrent, no dependencies)
+- Tier 2: Phase 42 + Phase 44 (concurrent, each depends on one Tier 1 phase)
+- Tier 3: Phase 45 + Phase 46 (concurrent, both depend on Phases 42 + 43)
+- Tier 4: Phase 47 (depends on Phase 46)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -126,3 +255,10 @@
 | 38. Live Verification Sweep | v1.6 | 6/6 | Complete | 2026-03-08 |
 | 39. Artifact Contract Hardening | v1.6 | 3/3 | Complete | 2026-03-08 |
 | 40. Agent Typecheck Cleanup | v1.6 | 3/3 | Complete | 2026-03-08 |
+| 41. Deal Pipeline Page | v1.7 | 0/TBD | Not started | - |
+| 42. Deal Detail Layout | v1.7 | 0/TBD | Not started | - |
+| 43. Named Agent Architecture | v1.7 | 0/TBD | Not started | - |
+| 44. Agent Management UI | v1.7 | 0/TBD | Not started | - |
+| 45. Persistent AI Chat Bar | v1.7 | 0/TBD | Not started | - |
+| 46. Touch Pages & HITL Workflow | v1.7 | 0/TBD | Not started | - |
+| 47. Drive Artifact Integration | v1.7 | 0/TBD | Not started | - |

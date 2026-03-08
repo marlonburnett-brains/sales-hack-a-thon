@@ -110,50 +110,50 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEAL-01 | Pending | Pending |
-| DEAL-02 | Pending | Pending |
-| DEAL-03 | Pending | Pending |
-| DEAL-04 | Pending | Pending |
-| DEAL-05 | Pending | Pending |
-| DEAL-06 | Pending | Pending |
-| DEAL-07 | Pending | Pending |
-| NAV-01 | Pending | Pending |
-| NAV-02 | Pending | Pending |
-| NAV-03 | Pending | Pending |
-| OVER-01 | Pending | Pending |
-| OVER-02 | Pending | Pending |
-| OVER-03 | Pending | Pending |
-| OVER-04 | Pending | Pending |
-| BRIEF-01 | Pending | Pending |
-| BRIEF-02 | Pending | Pending |
-| CHAT-01 | Pending | Pending |
-| CHAT-02 | Pending | Pending |
-| CHAT-03 | Pending | Pending |
-| CHAT-04 | Pending | Pending |
-| CHAT-05 | Pending | Pending |
-| TOUCH-01 | Pending | Pending |
-| TOUCH-02 | Pending | Pending |
-| TOUCH-03 | Pending | Pending |
-| TOUCH-04 | Pending | Pending |
-| TOUCH-05 | Pending | Pending |
-| TOUCH-06 | Pending | Pending |
-| TOUCH-07 | Pending | Pending |
-| DRIVE-01 | Pending | Pending |
-| DRIVE-02 | Pending | Pending |
-| DRIVE-03 | Pending | Pending |
-| AGENT-01 | Pending | Pending |
-| AGENT-02 | Pending | Pending |
-| MGMT-01 | Pending | Pending |
-| MGMT-02 | Pending | Pending |
-| MGMT-03 | Pending | Pending |
-| MGMT-04 | Pending | Pending |
-| MGMT-05 | Pending | Pending |
+| DEAL-01 | Phase 41 | Pending |
+| DEAL-02 | Phase 41 | Pending |
+| DEAL-03 | Phase 41 | Pending |
+| DEAL-04 | Phase 41 | Pending |
+| DEAL-05 | Phase 41 | Pending |
+| DEAL-06 | Phase 41 | Pending |
+| DEAL-07 | Phase 41 | Pending |
+| NAV-01 | Phase 42 | Pending |
+| NAV-02 | Phase 42 | Pending |
+| NAV-03 | Phase 42 | Pending |
+| OVER-01 | Phase 42 | Pending |
+| OVER-02 | Phase 42 | Pending |
+| OVER-03 | Phase 42 | Pending |
+| OVER-04 | Phase 42 | Pending |
+| BRIEF-01 | Phase 42 | Pending |
+| BRIEF-02 | Phase 42 | Pending |
+| CHAT-01 | Phase 45 | Pending |
+| CHAT-02 | Phase 45 | Pending |
+| CHAT-03 | Phase 45 | Pending |
+| CHAT-04 | Phase 45 | Pending |
+| CHAT-05 | Phase 45 | Pending |
+| TOUCH-01 | Phase 46 | Pending |
+| TOUCH-02 | Phase 46 | Pending |
+| TOUCH-03 | Phase 46 | Pending |
+| TOUCH-04 | Phase 46 | Pending |
+| TOUCH-05 | Phase 46 | Pending |
+| TOUCH-06 | Phase 46 | Pending |
+| TOUCH-07 | Phase 46 | Pending |
+| DRIVE-01 | Phase 47 | Pending |
+| DRIVE-02 | Phase 47 | Pending |
+| DRIVE-03 | Phase 47 | Pending |
+| AGENT-01 | Phase 43 | Pending |
+| AGENT-02 | Phase 43 | Pending |
+| MGMT-01 | Phase 44 | Pending |
+| MGMT-02 | Phase 44 | Pending |
+| MGMT-03 | Phase 44 | Pending |
+| MGMT-04 | Phase 44 | Pending |
+| MGMT-05 | Phase 44 | Pending |
 
 **Coverage:**
 - v1.7 requirements: 38 total
-- Mapped to phases: 0
-- Unmapped: 38
+- Mapped to phases: 38
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-08*
-*Last updated: 2026-03-08 after initial definition*
+*Last updated: 2026-03-08 after roadmap creation*
