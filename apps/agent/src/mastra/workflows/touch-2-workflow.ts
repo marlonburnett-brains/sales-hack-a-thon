@@ -1,15 +1,14 @@
 /**
- * Touch 2 Meet Lumenalta Intro Deck Workflow
+ * Touch 2 Meet Lumenalta Intro Deck Workflow (3-Stage HITL)
  *
- * End-to-end generation: AI selects industry-relevant slides from the Meet
- * Lumenalta source deck, assembles them into a customized presentation with
- * salesperson/customer branding, saves to Drive, and records the interaction.
+ * 3-stage HITL model:
+ *   Skeleton = slide selection rationale (why these slides were chosen, which templates matched)
+ *   Low-fi   = draft slide order + notes per slide
+ *   High-fi  = Google Slides deck (assembled from selected slides)
  *
- * Unlike Touch 1 (which has a two-step review), Touch 2 generates directly
- * without an intermediate seller review step. The seller reviews the final
- * deck via iframe preview and can regenerate with tweaked inputs.
- *
- * Steps: selectSlides -> assembleDeck -> recordInteraction
+ * Steps: createInteraction -> selectSlides -> awaitSkeletonApproval ->
+ *        generateDraftOrder -> awaitLowfiApproval ->
+ *        assembleDeck -> recordInteraction
  */
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
@@ -37,7 +36,25 @@ const inputSchema = z.object({
   priorTouchOutputs: z.array(z.string()).optional(),
 });
 
-const selectSlidesOutputSchema = z.object({
+const skeletonContentSchema = z.object({
+  selectedSlideIds: z.array(z.string()),
+  slideOrder: z.array(z.string()),
+  selectionRationale: z.string(),
+  personalizationNotes: z.string(),
+});
+
+const lowfiContentSchema = z.object({
+  slideOrder: z.array(z.string()),
+  slideNotes: z.array(z.object({
+    slideId: z.string(),
+    notes: z.string(),
+    purpose: z.string(),
+  })),
+  personalizationNotes: z.string(),
+});
+
+// Common passthrough fields
+const touch2BaseFields = {
   dealId: z.string(),
   companyName: z.string(),
   industry: z.string(),
@@ -47,25 +64,38 @@ const selectSlidesOutputSchema = z.object({
   customerLogoUrl: z.string().optional(),
   context: z.string().optional(),
   priorTouchOutputs: z.array(z.string()).optional(),
-  selectedSlideIds: z.array(z.string()),
-  slideOrder: z.array(z.string()),
-  personalizationNotes: z.string(),
-});
-
-const assembleDeckOutputSchema = selectSlidesOutputSchema.extend({
-  presentationId: z.string(),
-  driveUrl: z.string(),
-});
+  interactionId: z.string(),
+};
 
 // ────────────────────────────────────────────────────────────
-// Step 1: Select slides via AI
+// Step 1: Create InteractionRecord + Select slides via AI (Skeleton)
 // ────────────────────────────────────────────────────────────
 
 const selectSlides = createStep({
   id: "select-slides",
   inputSchema,
-  outputSchema: selectSlidesOutputSchema,
+  outputSchema: z.object({
+    ...touch2BaseFields,
+    skeletonContent: skeletonContentSchema,
+  }),
   execute: async ({ inputData }) => {
+    // Create InteractionRecord at start
+    const interaction = await prisma.interactionRecord.create({
+      data: {
+        dealId: inputData.dealId,
+        touchType: "touch_2",
+        status: "in_progress",
+        decision: null,
+        inputs: JSON.stringify({
+          companyName: inputData.companyName,
+          industry: inputData.industry,
+          salespersonName: inputData.salespersonName,
+          customerName: inputData.customerName,
+          context: inputData.context,
+        }),
+      },
+    });
+
     const result = await selectSlidesForDeck({
       touchType: "touch_2",
       companyName: inputData.companyName,
@@ -74,23 +104,227 @@ const selectSlides = createStep({
       priorTouchOutputs: inputData.priorTouchOutputs,
     });
 
-    return {
-      ...inputData,
+    const skeletonContent = {
       selectedSlideIds: result.selectedSlideIds,
       slideOrder: result.slideOrder,
+      selectionRationale: `Selected ${result.selectedSlideIds.length} slides for ${inputData.companyName} in ${inputData.industry}. ${result.personalizationNotes}`,
       personalizationNotes: result.personalizationNotes,
+    };
+
+    // Update hitlStage to skeleton
+    await prisma.interactionRecord.update({
+      where: { id: interaction.id },
+      data: {
+        hitlStage: "skeleton",
+        stageContent: JSON.stringify(skeletonContent),
+      },
+    });
+
+    return {
+      ...inputData,
+      interactionId: interaction.id,
+      skeletonContent,
     };
   },
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 2: Assemble deck from selected slides
+// Step 2: Await Skeleton Approval (SUSPEND 1)
+// ────────────────────────────────────────────────────────────
+
+const awaitSkeletonApproval = createStep({
+  id: "await-skeleton-approval",
+  inputSchema: z.object({
+    ...touch2BaseFields,
+    skeletonContent: skeletonContentSchema,
+  }),
+  outputSchema: z.object({
+    ...touch2BaseFields,
+    approvedSkeleton: skeletonContentSchema,
+  }),
+  resumeSchema: z.object({
+    decision: z.enum(["approved", "refined"]),
+    refinedContent: skeletonContentSchema.optional(),
+  }),
+  suspendSchema: z.object({
+    stage: z.literal("skeleton"),
+    content: skeletonContentSchema,
+    dealId: z.string(),
+    interactionId: z.string(),
+  }),
+  execute: async ({ inputData, resumeData, suspend }) => {
+    if (!resumeData) {
+      return await suspend({
+        stage: "skeleton" as const,
+        content: inputData.skeletonContent,
+        dealId: inputData.dealId,
+        interactionId: inputData.interactionId,
+      });
+    }
+
+    const approvedSkeleton = resumeData.refinedContent ?? inputData.skeletonContent;
+
+    if (resumeData.refinedContent) {
+      await prisma.interactionRecord.update({
+        where: { id: inputData.interactionId },
+        data: { stageContent: JSON.stringify(approvedSkeleton) },
+      });
+    }
+
+    return {
+      dealId: inputData.dealId,
+      companyName: inputData.companyName,
+      industry: inputData.industry,
+      salespersonName: inputData.salespersonName,
+      salespersonPhotoUrl: inputData.salespersonPhotoUrl,
+      customerName: inputData.customerName,
+      customerLogoUrl: inputData.customerLogoUrl,
+      context: inputData.context,
+      priorTouchOutputs: inputData.priorTouchOutputs,
+      interactionId: inputData.interactionId,
+      approvedSkeleton,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Step 3: Generate Draft Slide Order + Notes (Low-fi)
+// ────────────────────────────────────────────────────────────
+
+const generateDraftOrder = createStep({
+  id: "generate-draft-order",
+  inputSchema: z.object({
+    ...touch2BaseFields,
+    approvedSkeleton: skeletonContentSchema,
+  }),
+  outputSchema: z.object({
+    ...touch2BaseFields,
+    lowfiContent: lowfiContentSchema,
+    selectedSlideIds: z.array(z.string()),
+  }),
+  execute: async ({ inputData }) => {
+    const skeleton = inputData.approvedSkeleton;
+
+    // Generate notes for each slide based on the selection rationale
+    const slideNotes = skeleton.slideOrder.map((slideId) => ({
+      slideId,
+      notes: `Personalized for ${inputData.companyName} - ${inputData.industry}. ${skeleton.personalizationNotes}`,
+      purpose: `Part of ${inputData.companyName} intro deck sequence`,
+    }));
+
+    const lowfiContent = {
+      slideOrder: skeleton.slideOrder,
+      slideNotes,
+      personalizationNotes: skeleton.personalizationNotes,
+    };
+
+    // Update hitlStage to lowfi
+    await prisma.interactionRecord.update({
+      where: { id: inputData.interactionId },
+      data: {
+        hitlStage: "lowfi",
+        stageContent: JSON.stringify(lowfiContent),
+      },
+    });
+
+    return {
+      dealId: inputData.dealId,
+      companyName: inputData.companyName,
+      industry: inputData.industry,
+      salespersonName: inputData.salespersonName,
+      salespersonPhotoUrl: inputData.salespersonPhotoUrl,
+      customerName: inputData.customerName,
+      customerLogoUrl: inputData.customerLogoUrl,
+      context: inputData.context,
+      priorTouchOutputs: inputData.priorTouchOutputs,
+      interactionId: inputData.interactionId,
+      lowfiContent,
+      selectedSlideIds: skeleton.selectedSlideIds,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Step 4: Await Low-fi Approval (SUSPEND 2)
+// ────────────────────────────────────────────────────────────
+
+const awaitLowfiApproval = createStep({
+  id: "await-lowfi-approval",
+  inputSchema: z.object({
+    ...touch2BaseFields,
+    lowfiContent: lowfiContentSchema,
+    selectedSlideIds: z.array(z.string()),
+  }),
+  outputSchema: z.object({
+    ...touch2BaseFields,
+    approvedLowfi: lowfiContentSchema,
+    selectedSlideIds: z.array(z.string()),
+  }),
+  resumeSchema: z.object({
+    decision: z.enum(["approved", "refined"]),
+    refinedContent: lowfiContentSchema.optional(),
+  }),
+  suspendSchema: z.object({
+    stage: z.literal("lowfi"),
+    content: lowfiContentSchema,
+    dealId: z.string(),
+    interactionId: z.string(),
+  }),
+  execute: async ({ inputData, resumeData, suspend }) => {
+    if (!resumeData) {
+      return await suspend({
+        stage: "lowfi" as const,
+        content: inputData.lowfiContent,
+        dealId: inputData.dealId,
+        interactionId: inputData.interactionId,
+      });
+    }
+
+    const approvedLowfi = resumeData.refinedContent ?? inputData.lowfiContent;
+
+    if (resumeData.refinedContent) {
+      await prisma.interactionRecord.update({
+        where: { id: inputData.interactionId },
+        data: { stageContent: JSON.stringify(approvedLowfi) },
+      });
+    }
+
+    return {
+      dealId: inputData.dealId,
+      companyName: inputData.companyName,
+      industry: inputData.industry,
+      salespersonName: inputData.salespersonName,
+      salespersonPhotoUrl: inputData.salespersonPhotoUrl,
+      customerName: inputData.customerName,
+      customerLogoUrl: inputData.customerLogoUrl,
+      context: inputData.context,
+      priorTouchOutputs: inputData.priorTouchOutputs,
+      interactionId: inputData.interactionId,
+      approvedLowfi,
+      selectedSlideIds: inputData.selectedSlideIds,
+    };
+  },
+});
+
+// ────────────────────────────────────────────────────────────
+// Step 5: Assemble deck from selected slides (High-fi)
 // ────────────────────────────────────────────────────────────
 
 const assembleDeck = createStep({
   id: "assemble-deck",
-  inputSchema: selectSlidesOutputSchema,
-  outputSchema: assembleDeckOutputSchema,
+  inputSchema: z.object({
+    ...touch2BaseFields,
+    approvedLowfi: lowfiContentSchema,
+    selectedSlideIds: z.array(z.string()),
+  }),
+  outputSchema: z.object({
+    ...touch2BaseFields,
+    selectedSlideIds: z.array(z.string()),
+    slideOrder: z.array(z.string()),
+    personalizationNotes: z.string(),
+    presentationId: z.string(),
+    driveUrl: z.string(),
+  }),
   execute: async ({ inputData }) => {
     // Get or create per-deal folder
     const deal = await prisma.deal.findUniqueOrThrow({
@@ -122,7 +356,7 @@ const assembleDeck = createStep({
     const result = await assembleDeckFromSlides({
       sourcePresentationId,
       selectedSlideIds: inputData.selectedSlideIds,
-      slideOrder: inputData.slideOrder,
+      slideOrder: inputData.approvedLowfi.slideOrder,
       targetFolderId: folderId,
       deckName,
       customizations: {
@@ -133,8 +367,32 @@ const assembleDeck = createStep({
       },
     });
 
+    // Update hitlStage to highfi then ready (no separate high-fi suspend for Touch 2/3)
+    await prisma.interactionRecord.update({
+      where: { id: inputData.interactionId },
+      data: {
+        hitlStage: "ready",
+        stageContent: JSON.stringify({
+          presentationId: result.presentationId,
+          driveUrl: result.driveUrl,
+        }),
+      },
+    });
+
     return {
-      ...inputData,
+      dealId: inputData.dealId,
+      companyName: inputData.companyName,
+      industry: inputData.industry,
+      salespersonName: inputData.salespersonName,
+      salespersonPhotoUrl: inputData.salespersonPhotoUrl,
+      customerName: inputData.customerName,
+      customerLogoUrl: inputData.customerLogoUrl,
+      context: inputData.context,
+      priorTouchOutputs: inputData.priorTouchOutputs,
+      interactionId: inputData.interactionId,
+      selectedSlideIds: inputData.selectedSlideIds,
+      slideOrder: inputData.approvedLowfi.slideOrder,
+      personalizationNotes: inputData.approvedLowfi.personalizationNotes,
       presentationId: result.presentationId,
       driveUrl: result.driveUrl,
     };
@@ -142,34 +400,31 @@ const assembleDeck = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Step 3: Record interaction + feedback + AtlusAI ingestion
+// Step 6: Record interaction + feedback + AtlusAI ingestion
 // ────────────────────────────────────────────────────────────
 
 const recordInteraction = createStep({
   id: "record-interaction",
-  inputSchema: assembleDeckOutputSchema,
+  inputSchema: z.object({
+    ...touch2BaseFields,
+    selectedSlideIds: z.array(z.string()),
+    slideOrder: z.array(z.string()),
+    personalizationNotes: z.string(),
+    presentationId: z.string(),
+    driveUrl: z.string(),
+  }),
   outputSchema: z.object({
     interactionId: z.string(),
     presentationId: z.string(),
     driveUrl: z.string(),
   }),
   execute: async ({ inputData }) => {
-    // Touch 2/3 are direct generation — status is "approved" (no intermediate review)
-    const interaction = await prisma.interactionRecord.create({
+    // Update existing interaction record with final content
+    await prisma.interactionRecord.update({
+      where: { id: inputData.interactionId },
       data: {
-        dealId: inputData.dealId,
-        touchType: "touch_2",
         status: "approved",
         decision: "approved",
-        inputs: JSON.stringify({
-          companyName: inputData.companyName,
-          industry: inputData.industry,
-          salespersonName: inputData.salespersonName,
-          salespersonPhotoUrl: inputData.salespersonPhotoUrl,
-          customerName: inputData.customerName,
-          customerLogoUrl: inputData.customerLogoUrl,
-          context: inputData.context,
-        }),
         generatedContent: JSON.stringify({
           selectedSlideIds: inputData.selectedSlideIds,
           slideOrder: inputData.slideOrder,
@@ -180,10 +435,10 @@ const recordInteraction = createStep({
       },
     });
 
-    // Create positive feedback signal (direct generation = approved)
+    // Create positive feedback signal
     await prisma.feedbackSignal.create({
       data: {
-        interactionId: interaction.id,
+        interactionId: inputData.interactionId,
         signalType: "positive",
         source: "touch_2_generate",
         content: JSON.stringify({
@@ -211,7 +466,7 @@ const recordInteraction = createStep({
     }
 
     return {
-      interactionId: interaction.id,
+      interactionId: inputData.interactionId,
       presentationId: inputData.presentationId,
       driveUrl: inputData.driveUrl,
     };
@@ -219,7 +474,7 @@ const recordInteraction = createStep({
 });
 
 // ────────────────────────────────────────────────────────────
-// Workflow: Touch 2 Meet Lumenalta Intro Deck
+// Workflow: Touch 2 Meet Lumenalta Intro Deck (3-Stage HITL)
 // ────────────────────────────────────────────────────────────
 
 export const touch2Workflow = createWorkflow({
@@ -232,6 +487,9 @@ export const touch2Workflow = createWorkflow({
   }),
 })
   .then(selectSlides)
+  .then(awaitSkeletonApproval)
+  .then(generateDraftOrder)
+  .then(awaitLowfiApproval)
   .then(assembleDeck)
   .then(recordInteraction)
   .commit();
