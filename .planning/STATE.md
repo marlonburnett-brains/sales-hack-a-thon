@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 41-01-PLAN.md
-last_updated: "2026-03-08T19:29:22Z"
-last_activity: 2026-03-08 - Completed 41-01 (Deal pipeline schema, API endpoints, web client)
+stopped_at: Completed 41-02-PLAN.md
+last_updated: "2026-03-08T19:35:22.091Z"
+last_activity: 2026-03-08 - Completed 41-02 (Pipeline display layer - filters, views, cards)
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 4
-  completed_plans: 1
-  percent: 14
+  total_plans: 8
+  completed_plans: 2
+  percent: 75
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 41 of 47 (Deal Pipeline Page)
-Plan: 1 of 4 in current phase (completed)
+Plan: 2 of 4 in current phase (completed)
 Status: Executing
-Last activity: 2026-03-08 -- Completed 41-01 (Deal pipeline schema, API endpoints, web client)
+Last activity: 2026-03-08 - Completed 41-02 (Pipeline display layer - filters, views, cards)
 
-Progress: [#░░░░░░░░░] 14%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ All decisions logged in PROJECT.md Key Decisions table.
 - 41-01: Used manual migration + resolve --applied to bypass init migration drift (per CLAUDE.md: never reset)
 - 41-01: Collaborators stored as JSON string field, parsed client-side
 - 41-01: Known users derived from UserGoogleToken with email-to-name heuristic
+- [Phase 41]: Filter state stored in URL params (status, assignee, view) for shareability and refresh persistence
 
 ### Pending Todos
 
@@ -69,6 +70,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T19:29:22Z
-Stopped at: Completed 41-01-PLAN.md
+Last session: 2026-03-08T19:35:22.088Z
+Stopped at: Completed 41-02-PLAN.md
 Next action: Execute 41-02-PLAN.md (Pipeline list view UI) or continue Phase 43 planning.
