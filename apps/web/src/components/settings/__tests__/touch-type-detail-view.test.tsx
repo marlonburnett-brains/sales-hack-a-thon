@@ -100,6 +100,7 @@ describe("TouchTypeDetailView", () => {
       screen.queryByText(/enable chat refinement/i),
     ).not.toBeInTheDocument();
   });
+
 });
 
 describe("ChatBar", () => {

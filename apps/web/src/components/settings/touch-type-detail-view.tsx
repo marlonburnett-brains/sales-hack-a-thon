@@ -69,6 +69,14 @@ export function TouchTypeDetailView({
       newStructure: { sections: DeckSectionData[]; sequenceRationale: string },
       newDiff: { added: string[]; modified: string[] },
     ) => {
+      setStructure((prev) =>
+        prev
+          ? {
+              ...prev,
+              structure: newStructure,
+            }
+          : prev,
+      );
       setLocalSections(newStructure.sections);
       setLocalRationale(newStructure.sequenceRationale);
       setDiff(newDiff);
@@ -119,10 +127,8 @@ export function TouchTypeDetailView({
     (isTouch4Artifact
       ? `Classify ${artifactLabel} examples on Templates to improve this structure.`
       : "Classify presentations as examples and assign touch types on the Templates page to enable AI inference.");
-  const effectiveSections = diff ? localSections : structure?.structure.sections ?? [];
-  const effectiveRationale = diff
-    ? localRationale
-    : structure?.structure.sequenceRationale ?? "";
+  const effectiveSections = localSections;
+  const effectiveRationale = localRationale;
 
   if (!hasData) {
     return (
