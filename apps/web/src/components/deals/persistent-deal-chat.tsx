@@ -58,7 +58,6 @@ export function PersistentDealChat({ dealId }: { dealId: string }) {
   const segmentsKey = segments.join("/");
   const routeContext = useMemo(
     () => buildRouteContext(pathname, segments),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- segments is derived from segmentsKey
     [pathname, segmentsKey],
   );
 
