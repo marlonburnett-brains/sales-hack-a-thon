@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.7
-milestone_name: Deals & HITL Pipeline
-status: archived
-stopped_at: Milestone v1.7 archived
-last_updated: "2026-03-09T04:10:00.000Z"
-last_activity: "2026-03-09 - Archived v1.7 Deals & HITL Pipeline milestone"
+milestone: v1.8
+milestone_name: Structure-Driven Deck Generation
+status: active
+stopped_at: null
+last_updated: "2026-03-09T05:00:00.000Z"
+last_activity: "2026-03-09 - Milestone v1.8 started"
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 30
-  completed_plans: 30
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,15 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v1.8
 
 ## Current Position
 
-Phase: All 49 phases complete (v1.0 through v1.7)
-Status: Milestone v1.7 archived
-Last activity: 2026-03-09 - Archived v1.7 Deals & HITL Pipeline milestone
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-09 — Milestone v1.8 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -64,5 +65,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-09
-Stopped at: Milestone v1.7 archived
-Next action: `/gsd:new-milestone` to define next milestone scope
+Stopped at: Defining requirements for v1.8
+Next action: Define requirements and create roadmap

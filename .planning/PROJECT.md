@@ -12,12 +12,17 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 Shipped `v1.7 Deals & HITL Pipeline` on 2026-03-09. The app is now a full deal-management platform with pipeline views (card/table toggle, status lifecycle, assignment filtering), deal detail navigation (breadcrumbs, sidebar, overview dashboard, briefing page), persistent AI chat across all deal pages, 3-stage HITL artifact generation for all 4 touches with stage revert, Google Drive integration with folder selection and org sharing, named agent architecture with 20+ DB-backed versioned agents, and agent management UI with draft/publish and version rollback.
 
-## Next Milestone Goals
+## Current Milestone: v1.8 Structure-Driven Deck Generation
 
-- Define the next milestone scope and fresh requirements in a new `.planning/REQUIREMENTS.md`
-- Expand content-library coverage once Drive access blockers are cleared
-- Address pipeline analytics and cross-touch intelligence (v2 requirements)
-- Consider Mastra auth fix to replace Bearer workaround with proper X-API-Key
+**Goal:** Close the 5 gaps between the intelligence layer (DeckStructure + element maps) and the generation layer so all touches (1-4) produce visually diverse, design-preserved decks assembled from multiple source presentations using DeckStructure blueprints, context-aware slide selection, and element-map-guided surgical modifications.
+
+**Target features:**
+- DeckStructure consumed as generation blueprint for all touches
+- Multi-source slide assembly (cherry-pick slides from different source presentations)
+- Design-preserved output (each slide retains its original layout)
+- Per-slide modification planning using element maps
+- Context-aware section-to-slide matching (industry, pillar, persona, funnel stage)
+- 3-stage HITL integration (Skeleton=blueprint+selections, Low-fi=assembled deck, High-fi=surgical modifications)
 
 ## Requirements
 
@@ -168,7 +173,12 @@ Shipped `v1.7 Deals & HITL Pipeline` on 2026-03-09. The app is now a full deal-m
 
 ### Active
 
-(No active requirements — define next milestone with `/gsd:new-milestone`)
+- [ ] DeckStructure serves as generation blueprint for all touches
+- [ ] Multi-source slide assembly from multiple source presentations
+- [ ] Design-preserved slides (each retains original layout)
+- [ ] Per-slide modification planning via element maps
+- [ ] Context-aware section-to-slide matching
+- [ ] 3-stage HITL: Skeleton (blueprint+selections), Low-fi (assembled deck), High-fi (surgical mods)
 
 ### Out of Scope
 
@@ -280,4 +290,4 @@ Shipped `v1.7 Deals & HITL Pipeline` on 2026-03-09. The app is now a full deal-m
 | Archive-on-regeneration as non-blocking | try/catch around archive to avoid failing workflows on archive errors | ✓ Good — resilient workflow execution |
 
 ---
-*Last updated: 2026-03-09 after v1.7 milestone completion*
+*Last updated: 2026-03-09 after v1.8 milestone start*
