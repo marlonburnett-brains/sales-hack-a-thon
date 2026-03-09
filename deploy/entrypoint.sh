@@ -6,6 +6,10 @@
 # but it only supports file paths (not inline JSON). This script bridges
 # the gap by writing the JSON content to a file at startup.
 
+if [ -n "$PORT" ] && [ -z "$MASTRA_PORT" ]; then
+  export MASTRA_PORT="$PORT"
+fi
+
 if [ -n "$VERTEX_SERVICE_ACCOUNT_KEY" ]; then
   echo "$VERTEX_SERVICE_ACCOUNT_KEY" > /tmp/vertex-credentials.json
   export GOOGLE_APPLICATION_CREDENTIALS=/tmp/vertex-credentials.json

@@ -52,8 +52,9 @@ export const env = createEnv({
     // is set so the @google/genai SDK can read it.
     VERTEX_SERVICE_ACCOUNT_KEY: z.string().min(1),
 
-    // Port for the Mastra HTTP server (default 4111)
-    MASTRA_PORT: z.string().default('4111'),
+    // Port for the Mastra HTTP server.
+    // Railway injects PORT for health checks, so prefer that when MASTRA_PORT is unset.
+    MASTRA_PORT: z.string().default(process.env.PORT ?? '4111'),
 
     // Supabase project URL for JWKS-based JWT verification
     // The agent fetches public keys from {SUPABASE_URL}/auth/v1/.well-known/jwks.json
