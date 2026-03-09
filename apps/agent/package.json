@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "mastra dev",
+    "dev": "NODE_OPTIONS='--experimental-strip-types' mastra dev",
     "build": "mastra build",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

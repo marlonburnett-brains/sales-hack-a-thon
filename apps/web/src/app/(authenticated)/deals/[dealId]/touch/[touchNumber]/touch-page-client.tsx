@@ -387,9 +387,11 @@ export function TouchPageClient({
 
       setIsRegenerating(true);
       try {
-        // Determine which stage to revert to
+        // Only revert if we're past the first stage — at skeleton there's nothing to revert to
         const revertTarget: HitlStage = currentStage ?? "highfi";
-        await revertStageAction(activeInteraction.id, revertTarget);
+        if (revertTarget !== "skeleton") {
+          await revertStageAction(activeInteraction.id, revertTarget);
+        }
 
         const result = await startGeneration(
           touchType,

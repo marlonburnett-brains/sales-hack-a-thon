@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(status);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Status check failed";
+    console.error("[workflows/status] Error:", message);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }
