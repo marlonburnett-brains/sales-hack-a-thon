@@ -8,9 +8,6 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
-    // Shared API key for service-to-service auth (web <-> agent)
-    // Generate with: openssl rand -base64 32
-    AGENT_API_KEY: z.string().min(32, "AGENT_API_KEY must be at least 32 characters"),
   },
   client: {
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
@@ -21,7 +18,6 @@ export const env = createEnv({
   runtimeEnv: {
     AGENT_SERVICE_URL: process.env.AGENT_SERVICE_URL,
     NODE_ENV: process.env.NODE_ENV,
-    AGENT_API_KEY: process.env.AGENT_API_KEY,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_GOOGLE_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_API_KEY,

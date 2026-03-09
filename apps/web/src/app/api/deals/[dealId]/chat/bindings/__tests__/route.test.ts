@@ -4,8 +4,17 @@ import { NextRequest } from "next/server";
 vi.mock("@/env", () => ({
   env: {
     AGENT_SERVICE_URL: "http://test-agent:4111",
-    AGENT_API_KEY: "test-key",
   },
+}));
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn().mockResolvedValue({
+    auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: { access_token: "test-supabase-jwt" } },
+      }),
+    },
+  }),
 }));
 
 const mockFetch = vi.fn();

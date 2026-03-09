@@ -11,11 +11,15 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/env", () => ({
   env: {
     AGENT_SERVICE_URL: "http://localhost:4111",
-    AGENT_API_KEY: "test-api-key-that-is-at-least-32-chars-long!!",
   },
 }));
 
-// 3. Mock getGoogleAccessToken
+// 3. Mock Supabase access token
+vi.mock("@/lib/supabase/get-access-token", () => ({
+  getSupabaseAccessToken: vi.fn().mockResolvedValue("test-supabase-jwt"),
+}));
+
+// 4. Mock getGoogleAccessToken
 const mockGetGoogleAccessToken = vi.fn();
 vi.mock("@/lib/supabase/google-token", () => ({
   getGoogleAccessToken: mockGetGoogleAccessToken,

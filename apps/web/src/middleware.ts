@@ -90,15 +90,15 @@ export async function middleware(request: NextRequest) {
     if (!tokenStatus) {
       // No cookie — check agent API for token existence
       const agentUrl = process.env.AGENT_SERVICE_URL || "http://localhost:4111";
-      const agentKey = process.env.AGENT_API_KEY;
+      const { data: { session: authSession } } = await supabase.auth.getSession();
 
-      if (agentKey) {
+      if (authSession?.access_token) {
         try {
           const checkResponse = await fetch(
             `${agentUrl}/tokens/check/${user.id}`,
             {
               headers: {
-                Authorization: `Bearer ${agentKey}`,
+                Authorization: `Bearer ${authSession.access_token}`,
                 "Content-Type": "application/json",
               },
               signal: AbortSignal.timeout(3000),

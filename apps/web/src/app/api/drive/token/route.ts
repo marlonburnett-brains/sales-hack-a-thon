@@ -25,11 +25,13 @@ export async function GET() {
     }
 
     // Call the agent service to get a fresh access token for this user
+    const { data: { session } } = await supabase.auth.getSession();
+
     const response = await fetch(
       `${env.AGENT_SERVICE_URL}/tokens/access/${user.id}`,
       {
         headers: {
-          Authorization: `Bearer ${env.AGENT_API_KEY}`,
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
         },
       },
     );

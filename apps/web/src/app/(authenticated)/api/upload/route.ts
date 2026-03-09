@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/env";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,10 +28,13 @@ export async function POST(request: NextRequest) {
     agentFormData.append("file", file);
     agentFormData.append("dealId", dealId.toString());
 
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+
     const response = await fetch(`${env.AGENT_SERVICE_URL}/touch-1/upload`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.AGENT_API_KEY}`,
+        Authorization: `Bearer ${session?.access_token ?? ""}`,
       },
       body: agentFormData,
     });

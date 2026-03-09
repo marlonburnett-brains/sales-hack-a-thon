@@ -20,17 +20,22 @@ import type {
 
 import { env } from "@/env";
 import { getGoogleAccessToken } from "@/lib/supabase/google-token";
+import { getSupabaseAccessToken } from "@/lib/supabase/get-access-token";
 
 const BASE_URL = env.AGENT_SERVICE_URL;
 
 async function fetchAgent(path: string, init?: RequestInit): Promise<Response> {
+  const accessToken = await getSupabaseAccessToken();
+  if (!accessToken) {
+    throw new Error("Not authenticated — no Supabase session");
+  }
+
   try {
     return await fetch(`${BASE_URL}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
-        // AUTH-CONTRACT: Sends Bearer but agent expects X-API-Key. Works via Mastra internals. See .planning/AUTH-CONTRACT.md
-        Authorization: `Bearer ${env.AGENT_API_KEY}`,
+        Authorization: `Bearer ${accessToken}`,
         ...init?.headers,
       },
     });
@@ -61,11 +66,11 @@ export async function fetchWithGoogleAuth<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const { accessToken, userId } = await getGoogleAccessToken();
+  const { accessToken } = await getGoogleAccessToken();
 
   const googleHeaders: Record<string, string> = {};
   if (accessToken) googleHeaders["X-Google-Access-Token"] = accessToken;
-  if (userId) googleHeaders["X-User-Id"] = userId;
+  // userId is now derived from the Supabase JWT on the agent side
 
   return fetchJSON<T>(path, {
     ...init,
@@ -80,11 +85,11 @@ export async function fetchWithGoogleAuthResponse(
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
-  const { accessToken, userId } = await getGoogleAccessToken();
+  const { accessToken } = await getGoogleAccessToken();
 
   const googleHeaders: Record<string, string> = {};
   if (accessToken) googleHeaders["X-Google-Access-Token"] = accessToken;
-  if (userId) googleHeaders["X-User-Id"] = userId;
+  // userId is now derived from the Supabase JWT on the agent side
 
   const response = await fetchAgent(path, {
     ...init,

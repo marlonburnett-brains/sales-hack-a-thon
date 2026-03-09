@@ -5,26 +5,24 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import { env } from "@/env";
+import { createClient } from "@/lib/supabase/server";
 
 type RouteParams = {
   dealId: string;
 };
 
-function buildProxyHeaders(request: NextRequest): HeadersInit {
+async function buildProxyHeaders(request: NextRequest): Promise<HeadersInit> {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${env.AGENT_API_KEY}`,
+    Authorization: `Bearer ${session?.access_token ?? ""}`,
   };
 
   const googleAccessToken = request.headers.get("X-Google-Access-Token");
-  const userId = request.headers.get("X-User-Id");
-
   if (googleAccessToken) {
     headers["X-Google-Access-Token"] = googleAccessToken;
-  }
-
-  if (userId) {
-    headers["X-User-Id"] = userId;
   }
 
   return headers;
@@ -67,7 +65,7 @@ export async function GET(
     `${env.AGENT_SERVICE_URL}/deals/${encodeURIComponent(dealId)}/chat?${query.toString()}`,
     {
       method: "GET",
-      headers: buildProxyHeaders(request),
+      headers: await buildProxyHeaders(request),
     },
   );
 
@@ -103,7 +101,7 @@ export async function POST(
     `${env.AGENT_SERVICE_URL}/deals/${encodeURIComponent(dealId)}/chat`,
     {
       method: "POST",
-      headers: buildProxyHeaders(request),
+      headers: await buildProxyHeaders(request),
       body: JSON.stringify(body.data),
     },
   );

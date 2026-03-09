@@ -1,221 +1,206 @@
 # Feature Research
 
-**Domain:** Agentic Sales Orchestration -- Deal Management & HITL Pipeline (v1.7)
-**Researched:** 2026-03-08
-**Confidence:** HIGH (existing codebase well-understood; patterns are established CRM/agentic UX)
+**Domain:** Structure-driven deck generation for agentic sales platform (v1.8)
+**Researched:** 2026-03-09
+**Confidence:** HIGH
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = product feels incomplete for a deal management platform.
+Features that close the 5 identified gaps between the intelligence layer (DeckStructure + element maps) and the generation layer. Without these, the DeckStructure intelligence layer produces blueprints that no generation code reads.
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Deal status lifecycle** | Every CRM shows deals moving through stages; sellers need pipeline health at a glance | LOW | Add `status` field to Deal model (Prospecting > Qualifying > Proposal > Closing > Won/Lost). InteractionRecord tracks per-touch progress but deal-level stage is missing. Forward-only migration required per CLAUDE.md |
-| **Deal list with filtering and status indicators** | Sellers must quickly find deals by status, company, or assignee | LOW | Existing `DealDashboard` renders deals but lacks status column, filtering controls, or color-coded status badges. Builds directly on status lifecycle |
-| **Pipeline view toggle (Board + List)** | CRMs universally offer kanban board view for visual pipeline management alongside list view for detail work | MEDIUM | Current deals page is list-only. Kanban requires column-per-stage layout with deal cards. Use native HTML drag or lightweight library. Depends on: Deal status lifecycle |
-| **Deal detail overview page** | Clicking a deal must show a summary dashboard with company info, stage, recent activity, next actions | MEDIUM | Current `deals/[dealId]/page.tsx` shows touch cards and timeline vertically but lacks a proper dashboard layout with metrics, progress indicators, and quick-action buttons |
-| **Breadcrumb navigation** | Users get lost in nested deal sub-pages (Overview > Briefing > Touch 1 > Review) | LOW | Not currently present. Standard Next.js pattern with `usePathname()` segment parsing. Essential for deal detail sub-page navigation |
-| **Deal detail sidebar sub-navigation** | Sellers need direct access to deal sub-pages (Overview, Briefing, Touch 1-4) without going back to overview first | MEDIUM | Current deal detail is a single long page. v1.7 requires separate routed sub-pages with a left sidebar or horizontal tab navigation within the deal layout |
-| **Per-touch artifact pages** | Each touch type needs a dedicated page with generation form, progress tracking, and output display | HIGH | Currently `TouchFlowCard` components handle Touch 1-4 inline on the deal page. v1.7 requires separate routed pages at `/deals/[dealId]/touch-1` through `/touch-4` with full multi-step HITL workflows |
-| **3-stage HITL artifact generation** | Generate > Review > Approve is the expected workflow for AI-assisted content creation | HIGH | Mastra suspend/resume proven for Touch 4 (brief approval + asset review). Extend consistently to Touch 1-3: (1) Configure inputs + Generate, (2) Review AI output with edit capability, (3) Approve/Override final artifacts. Each stage needs clear status indicators |
-| **Google Drive artifact saving with organized folders** | Generated decks/docs must land in organized Drive folders, not scattered across a flat directory | MEDIUM | `drive-folders.ts` already has `getOrCreateDealFolder` and `makePubliclyViewable`. Needs per-touch subfolder structure (e.g., "Meridian Capital - Q1 Pitch/Touch 1 - Pager/") and domain-scoped sharing |
-| **AI chat for deal context** | Sellers expect to ask questions about their deal ("What did the prospect say about budget?", "Suggest a follow-up approach") | HIGH | No chat infrastructure exists yet. Needs persistent message history, streaming responses, and deal-scoped context injection from InteractionRecord history |
+| Feature | Why Expected | Complexity | Dependencies | Notes |
+|---------|--------------|------------|--------------|-------|
+| **DeckStructure as generation blueprint** | DeckStructure already exists with ordered sections and mapped slideIds; users see it in Settings UI but generation ignores it entirely. The intelligence-to-generation bridge does not exist. | MEDIUM | Existing `DeckStructure` model, `deck-structure-schema.ts`, `structureJson` column | Resolver reads `structureJson`, iterates sections in order, resolves each section's `slideIds` to full `SlideEmbedding` records with classification metadata. All 7 logical keys (touch_1 through touch_4 x artifact) must route through this. Replaces the current independent RAG retrieval in Touch 4 and manual selection in Touch 2-3. |
+| **Context-aware section-to-slide matching** | Each DeckStructure section maps to multiple candidate slideIds (variations). Without context-aware scoring, the system picks arbitrarily. Sellers expect industry-relevant, persona-appropriate slides. | MEDIUM | Blueprint consumption, `SlideEmbedding.classificationJson` (industry, pillar, persona, stage arrays), deal context | LLM-scored or vector-similarity-scored selection from candidates per section. Similar to existing `slide-selection.ts` but scoped per-section rather than whole-deck. Scores candidates on: industry match, pillar alignment, persona fit, funnel stage appropriateness. Falls back to highest-confidence candidate when deal context is sparse. |
+| **Multi-source slide assembly** | The vision requires cherry-picking slides from different source presentations into one deck. Current system copies ONE source and prunes. A typical deck draws from 3-5 different templates. | HIGH | Google Slides API constraints, `Template.presentationId` for source resolution, section-to-slide matching output | **Critical API constraint:** Google Slides API `duplicateObject` works within a single presentation only. No native cross-presentation slide copy exists ([Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584)). Requires copy-per-source-group strategy (see "Multi-Source Assembly" section below). |
+| **Design-preserved output** | Current Touch 4 duplicates one template slide N times -- every output slide looks identical. Users expect each slide to retain its original layout (charts, images, branded designs preserved). | HIGH | Multi-source assembly (slides must come from their original source decks to preserve design) | Design preservation IS multi-source assembly. When you copy a slide from its source presentation, you automatically get its original layout. The constraint is NOT generating new layouts but copying existing ones and modifying only text content. |
+| **Per-slide modification planning via element maps** | Element maps exist in the DB (`SlideElement` model with elementId, position, size, type, contentText per element) but are never consumed during generation. Surgical text replacement requires knowing WHICH text boxes to modify and HOW. | MEDIUM | `SlideElement` table data, multi-source assembly (need the actual copied slide), deal context for content decisions | LLM reads element map for a copied slide, receives deal context (company name, industry, desired outcomes), and produces a modification plan: `[{elementId, action: "replace"|"keep", newContent}]`. Only text/shape elements get modified; images, tables, groups are preserved. Executes via Google Slides `replaceAllText` scoped to `pageObjectIds` or individual `deleteText` + `insertText` requests per element. |
+| **3-stage HITL alignment with new pipeline** | Existing HITL has Skeleton/Low-fi/High-fi stages from v1.7. These must map to the new generation pipeline data flow. | MEDIUM | All above features, existing Mastra suspend/resume pattern | **Skeleton** = DeckStructure blueprint with selected slide candidates (thumbnails, scores, section assignments). Seller reviews/swaps selections. **Low-fi** = assembled multi-source deck in Google Slides. Seller reviews in Google Slides, confirms or requests changes. **High-fi** = element-map-guided modification plan applied. Seller reviews final deck. Each uses existing suspend/resume -- only the data payloads change. |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set the product apart. Not required by all CRMs, but valuable for this platform.
+Features beyond closing the 5 gaps. Not required for v1.8 but create significant seller value.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Persistent AI chat bar across deal sub-pages** | Chat context persists as seller navigates between Overview, Briefing, and Touch pages -- unlike CRMs where AI resets per page. Seller can ask about budget on the briefing page, then navigate to Touch 4 and the chat remembers | HIGH | Modern UX pattern: context side panel in deal detail layout, not a floating chat bubble. Use React context or layout-level state to preserve conversation across sub-page navigations. Mount in deal `[dealId]/layout.tsx`. Streaming via existing delimiter protocol |
-| **Named agent architecture** | Dedicated agents (BriefingAgent, ProposalAgent, DealChatAgent) with specialized system prompts instead of one monolithic workflow. Each agent has domain expertise, consistent personality, and dedicated tool sets | MEDIUM | Mastra supports named agents with `instructions` as async functions. Currently only workflows exist (touch-1-workflow.ts through touch-4-workflow.ts) with no formal Agent definitions. Register agents in `mastra/index.ts`. Each agent wraps its corresponding workflow with a system prompt layer |
-| **Agent management UI with versioning** | Non-technical users (sales managers, product owners) can view, edit, and version agent system prompts through Settings without code changes. Draft/publish workflow prevents accidental production prompt breakage | HIGH | No existing UI. Requires: AgentConfig + AgentConfigVersion DB models, prompt editor with markdown support, version history with diff view, draft/published state machine, rollback capability. Settings page already has sidebar nav -- add "Agents" section |
-| **Cross-touch context carry-forward** | Chat and generation agents remember what happened in prior touches for the same deal. "In Touch 2, you used healthcare compliance slides -- reference those in the proposal" | MEDIUM | InteractionRecord already tracks per-touch history with inputs, decisions, and output references. ChatAgent queries prior interactions to provide contextual responses. Named agent architecture enables this by giving ChatAgent access to deal history tools |
-| **Deal briefing consolidation page** | Single page aggregating all prep material: pre-call briefing output, company research, prior interaction summaries, discovery questions. One-stop meeting prep surface | MEDIUM | Pre-call data exists via `PreCallSection` component. Prior interactions tracked in `InteractionRecord`. Consolidating into one `/deals/[dealId]/briefing` sub-page with sections for each data source |
-| **Domain-scoped Drive sharing** | Share generated artifacts with @lumenalta.com domain instead of public "anyone with link" access. Professional security posture for client-facing materials | LOW | Replace current `makePubliclyViewable` (type: "anyone") with `type: "domain", domain: "lumenalta.com"`. One-line permission change with significant security improvement |
-| **Deal assignment with user linking** | Link deals to Supabase Auth users for "my deals" filtering and ownership tracking | LOW | `Deal.salespersonName` exists as freeform text. Add `assignedToUserId` field linking to Supabase Auth user ID. Enable "My Deals" vs "All Deals" filter toggle |
+| **Variation preview in Skeleton stage** | Show all candidate slides per section with thumbnails, classification badges, and match scores. Seller can swap candidates before committing to assembly. | MEDIUM | Thumbnails already cached per slide via `thumbnailUrl`. Classification data exists in `classificationJson`. Requires UI component showing N candidates per section with select/swap interaction. |
+| **Cross-touch slide exclusion** | Slides selected for Touch 2 (intro) inform Touch 3 (capability) and Touch 4 (proposal) to avoid repeating content. Prior touch history already tracked in `InteractionRecord`. | LOW | `priorTouchOutputs` already passed to `slide-selection.ts`. Extend to structure-driven selection by including previously-used slideIds as an exclusion set in the scoring function. |
+| **Fallback synthesis for missing sections** | When DeckStructure has a required section but no good candidate slides exist (low similarity scores, wrong industry), fall back to the branded-template content injection approach. | LOW | Existing `deck-assembly.ts` placeholder injection works for this. Use as fallback when no retrieved slide scores above a configurable threshold. Prevents empty sections in the output deck. |
+| **Confidence-gated generation** | Only auto-generate with DeckStructure when confidence is green (6+ examples). Yellow/red confidence shows a warning and offers manual section selection instead. | LOW | `calculateConfidence()` already returns color tier. Gate the generation entry point on confidence level. Prevents poor-quality auto-generation from under-trained structures. |
+| **Modification diff preview** | In High-fi stage, show before/after text diffs for each element the LLM plans to modify. Seller approves or edits the modification plan before execution. | MEDIUM | Requires rendering element map contents alongside proposed changes. SlideElement positions enable approximate visual placement in a preview layout. |
+| **Section-level regeneration** | In Low-fi or High-fi stage, seller can mark a single section for re-generation (pick a different candidate slide or re-run modifications) without rebuilding the entire deck. | MEDIUM | Requires tracking which slides map to which sections in the assembled deck. Delete the section's slides, re-run assembly for just that section, insert at the correct position. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create problems for this product.
-
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Real-time collaborative editing of artifacts** | "Let multiple people edit the brief simultaneously" | Massive OT/CRDT complexity. Google Slides already handles collaborative editing natively. Building a parallel editing system is waste | Link to Google Slides/Docs for editing. Track edits via Drive API revision history comparison |
-| **Custom pipeline stages** | "Let teams define their own deal stages" | Over-engineering for ~20 sellers. Custom stages require migration tooling, validation logic, and kanban column management UI. Fixed stages cover the actual sales process | Fixed 5-stage pipeline (Prospecting > Qualifying > Proposal > Closing > Won/Lost). Matches their GTM strategy |
-| **Inline artifact content editing** | "Edit slide text directly in the web app" | Google Slides API content manipulation is fragile (EMU positioning, text run manipulation). Already explicitly out of scope in PROJECT.md | "Open in Google Slides" deep link button. Google provides superior editing UX |
-| **Autonomous generation without approval gates** | "Just generate everything automatically and send to client" | Violates core HITL philosophy -- the platform's primary value is AI-assisted, human-approved output. Removing gates introduces brand/quality risk | Keep explicit 3-stage approval. Speed comes from parallel generation and smart defaults, not skipping review |
-| **Per-agent model selection** | "Let each agent use a different LLM" | Increases cost, latency variance, testing surface, and prompt migration complexity. GPT-OSS 120b on Vertex AI handles all current needs adequately | Single model with agent-specific system prompts and tool configurations. Prompt engineering over model switching |
-| **Chat history search across all deals** | "Search all my AI conversations globally" | Requires full-text indexing infrastructure, cross-deal privacy considerations, and query UI. Low value compared to deal-scoped chat | Scope chat to current deal. Cross-deal patterns emerge from InteractionRecord analytics in v2 |
-| **Drag-and-drop slide reordering** | "Reorder generated slides before approving" | Already explicitly out of scope. Duplicates Google Slides native drag-and-drop. Building slide manipulation UI is months of work | "Open in Google Slides" for reordering, then return to approve final version |
-| **Real-time notification system** | "Push notifications when a brief needs approval" | WebSocket/SSE infrastructure for ~20 users is over-engineering. Polling and email suffice | Email notification on HITL checkpoint (Supabase Edge Function or simple SMTP). In-app polling on deals page |
+| **Real-time in-browser slide preview rendering** | Sellers want to see assembled slides in the app without opening Google Slides. | Google Slides API has no render-to-image endpoint for arbitrary slides. Thumbnails are only available via `presentations.pages.getThumbnail` after the presentation exists. Building a PPTX/Slides renderer is a multi-month effort. | Use cached ingestion thumbnails in Skeleton stage. Link to Google Slides for Low-fi and High-fi review. Already works this way for existing preview flows. |
+| **Drag-and-drop slide reordering in browser** | Intuitive UX for adjusting slide order after assembly. | Explicitly out of scope in PROJECT.md. Google Slides has a better editor for this. Building a partial Slides editor in-browser creates maintenance burden without matching Google's capability. | Show ordered list with move-up/move-down in Skeleton stage for section reordering. Sellers use Google Slides for fine-grained slide reordering. |
+| **AI-generated slide layouts** | Create novel layouts that don't exist in any source template. | Violates brand compliance constraint: "AI may only assemble pre-approved Lumenalta building blocks -- no generated layouts." Generated layouts look amateur compared to professionally designed templates. | Select from existing slide variations in the template library. Library grows as more templates are ingested via the Discovery UI. |
+| **Full element-level content generation** | Replace ALL text on every slide with fresh AI-generated content. | Destroys the original slide's information architecture. Case study slides contain specific data points (client names, metrics, timelines) that shouldn't be hallucinated. Methodology slides describe real Lumenalta processes. | Surgical modification: only replace deal-specific content (company names, industry references, customizable summary bullets). Preserve structural content (methodology descriptions, capability definitions, case study specifics). |
+| **Cross-presentation theme harmonization** | Auto-reconcile visual themes when mixing slides from different source presentations. | Google Slides API has no theme merge capability. Each slide retains its source presentation's theme. Forcing a theme change via API is destructive -- it can break custom layouts, color schemes, and font stacks. | Standardize on consistent Lumenalta branding across all source templates (already the case since templates are professionally designed to Lumenalta brand). Flag visually inconsistent slides in HITL review for seller awareness. |
+| **Automated deck length optimization** | AI decides how many slides the deck should have. | Sellers have strong opinions on deck length based on meeting context (15-min call vs. 1-hour workshop vs. written leave-behind). Auto-sizing often over-generates. | DeckStructure's `isOptional` flag lets the system include/exclude optional sections. Seller confirms section selection in Skeleton stage. Section count drives slide count naturally. |
 
 ## Feature Dependencies
 
 ```
-Deal Status Lifecycle
-    |-- required by --> Pipeline View Toggle (Board/List)
-    |-- required by --> Deal Assignment/Filtering
-    |-- required by --> Deal Overview Dashboard (stage display)
+DeckStructure Blueprint Consumption
+    |
+    +--requires--> Context-Aware Section-to-Slide Matching
+    |                  |
+    |                  +--requires--> SlideEmbedding classification data (EXISTS)
+    |                  +--requires--> Deal context: industry, pillar, persona (EXISTS)
+    |
+    +--feeds-------> Multi-Source Slide Assembly
+                         |
+                         +--requires--> Source presentation resolution via Template.presentationId (EXISTS)
+                         +--requires--> Copy-per-source-group strategy (NEW)
+                         +--enables---> Design-Preserved Output (automatic consequence of source copying)
+                         |
+                         +--feeds-------> Per-Slide Modification Planning
+                                             |
+                                             +--requires--> SlideElement data per slide (EXISTS)
+                                             +--requires--> Copied slide with resolvable elementIds (from assembly)
+                                             +--enables---> Surgical text replacement via batchUpdate
 
-Deal Detail Sub-Page Routing
-    |-- requires --> Breadcrumb Navigation
-    |-- required by --> Per-Touch Artifact Pages
-    |-- required by --> Deal Overview Dashboard Page
-    |-- required by --> Deal Briefing Page
-    |-- required by --> Persistent AI Chat Bar (layout mounting point)
-
-Named Agent Architecture
-    |-- required by --> Per-Touch Artifact Pages (agents power generation)
-    |-- required by --> Persistent AI Chat Bar (DealChatAgent)
-    |-- required by --> Agent Management UI (must exist before managing)
-    |-- required by --> Cross-Touch Context (agent queries history)
-
-Per-Touch Artifact Pages
-    |-- requires --> Deal Detail Sub-Page Routing
-    |-- requires --> Named Agent Architecture
-    |-- required by --> 3-Stage HITL Generation
-
-3-Stage HITL Artifact Generation
-    |-- requires --> Per-Touch Artifact Pages
-    |-- requires --> Named Agent Architecture
-    |-- requires --> Google Drive Artifact Saving (stage 3 saves to Drive)
-
-Google Drive Artifact Saving
-    |-- requires --> Drive Folder Structure (per-deal + per-touch subfolders)
-    |-- requires --> Domain-Scoped Sharing
-    |-- enhances --> 3-Stage HITL (completion saves to Drive)
-
-Agent Management UI with Versioning
-    |-- requires --> Named Agent Architecture
-    |-- requires --> AgentConfig DB Models
-    |-- enhances --> Named Agent Architecture (editable prompts)
-
-Persistent AI Chat Bar
-    |-- requires --> Named Agent Architecture (DealChatAgent)
-    |-- requires --> Deal Detail Sub-Page Routing (layout-level mount)
-    |-- requires --> DealChatMessage DB Model
-    |-- enhances --> All Touch Pages (contextual AI during generation)
+3-Stage HITL Integration
+    |
+    +--Skeleton stage--requires--> Blueprint consumption + section-to-slide matching
+    +--Low-fi stage---requires--> Multi-source assembly
+    +--High-fi stage--requires--> Per-slide modification planning
 ```
 
 ### Dependency Notes
 
-- **Deal Status Lifecycle is the foundation.** Pipeline views, filtering, and dashboard all depend on deals having a stage. Ship first.
-- **Deal Detail Sub-Page Routing unlocks everything inside a deal.** Overview, Briefing, Touch pages, and Chat bar all need the sub-page layout structure. Ship second.
-- **Named Agent Architecture enables all AI features.** Touch pages invoke agents, chat bar uses DealChatAgent, and the management UI configures agents. Define agents before building the features that use them.
-- **3-Stage HITL depends on both touch pages and Drive saving.** The approval stage must save artifacts to Drive to complete the workflow loop.
-- **Agent Management UI is downstream of everything.** It configures agents that must already exist and be working. Ship last.
+- **Blueprint consumption is the foundation.** Everything else depends on the system reading DeckStructure and iterating its sections. Must be built first.
+- **Section-to-slide matching enables assembly.** Cannot assemble slides from multiple sources until you know WHICH slides to pick for each section.
+- **Multi-source assembly enables design preservation.** Design preservation is not a separate implementation -- it is the natural consequence of copying slides from their original source presentations rather than injecting content into a generic template.
+- **Modification planning requires assembled slides.** Element-level modifications can only be planned on slides that exist in the target presentation (elementIds must be resolvable in the target context after copy).
+- **HITL stages map cleanly to the pipeline.** Skeleton = blueprint + selections, Low-fi = assembled deck, High-fi = modifications. No changes needed to the suspend/resume pattern -- only the data passed at each checkpoint changes.
+- **Fallback synthesis is independent.** Can be added at any point since it uses the existing branded-template injection path as a safety net.
 
 ## MVP Definition
 
-### Launch With (v1.7 Core)
+### Launch With (v1.8 Core)
 
-Minimum viable milestone -- what transforms the app from content-generation tool to deal-management platform.
+The minimum set that closes all 5 gaps from the gap analysis.
 
-- [ ] Deal status lifecycle with 5 fixed stages and DB migration
-- [ ] Deals page with list/board view toggle and status filtering
-- [ ] Deal detail navigation overhaul: breadcrumbs + sidebar sub-pages (Overview, Briefing, Touch 1-4)
-- [ ] Deal overview dashboard page with company info, stage, activity summary, quick actions
-- [ ] Deal briefing consolidation page aggregating pre-call output and prior interactions
-- [ ] Named agent architecture: BriefingAgent, Touch1Agent, Touch2Agent, Touch3Agent, ProposalAgent, DealChatAgent with dedicated system prompts
-- [ ] Per-touch artifact pages with 3-stage HITL workflow (Configure > Review > Approve)
-- [ ] Google Drive artifact saving with per-deal/per-touch folder structure and @lumenalta.com domain sharing
-- [ ] Persistent AI chat bar across deal sub-pages with streaming responses and deal context
+- [ ] **DeckStructure blueprint resolver** -- Reads `structureJson`, iterates sections in order, resolves slideIds to `SlideEmbedding` records with full classification and element metadata. Returns a `ResolvedBlueprint` with section-level candidate lists.
+- [ ] **Section-to-slide scorer** -- For each section, scores candidate slides against deal context (industry, pillar, persona, stage) using classification metadata comparison and optional vector similarity. Selects the best match per section. Produces a `SlideSelectionPlan` mapping section -> chosen slideId + source presentationId.
+- [ ] **Multi-source slide assembler** -- Groups selected slides by source `presentationId`. Copies source presentations to temp files, prunes to only needed slides, merges into a single target presentation. Cleans up temp files. Handles the primary-source optimization (largest group becomes the base).
+- [ ] **Element-map modification planner** -- For each assembled slide: loads `SlideElement` records, LLM produces a modification plan with per-element actions, executes via Google Slides `batchUpdate` with element-scoped text operations.
+- [ ] **HITL stage data contracts** -- Skeleton checkpoint sends blueprint + slide selections (with thumbnails and scores) for review. Low-fi checkpoint sends assembled presentation URL. High-fi checkpoint sends modification plan summary for approval.
+- [ ] **Touch-type router** -- Routes all touch types through the structure-driven pipeline when a DeckStructure exists with sufficient confidence. Falls back to existing generation paths (copy-and-prune for Touch 2-3, template injection for Touch 1, RAG-to-JSON for Touch 4) when DeckStructure is unavailable.
 
-### Add After Validation (v1.7.x)
+### Add After Validation (v1.8.x)
 
-Features to add once core pipeline is working and agents are stable.
+Features to add once the core pipeline works end to end.
 
-- [ ] Agent management UI with versioning and draft/publish system -- add when prompt iteration becomes a bottleneck
-- [ ] Deal assignment with Supabase Auth user linking and "My Deals" filter -- add when team filtering is requested
-- [ ] Cross-touch context carry-forward in chat -- add after chat bar is proven useful and context quality can be validated
-- [ ] Pipeline analytics (stage distribution, average time per stage) -- add when enough deals exist
+- [ ] **Variation preview UI** -- Trigger: sellers want to see alternative slide candidates before committing to assembly
+- [ ] **Cross-touch slide exclusion** -- Trigger: sellers notice repeated slides across touch decks for the same deal
+- [ ] **Modification diff preview** -- Trigger: sellers want to review AI text changes before they hit the deck
+- [ ] **Confidence-gated generation** -- Trigger: low-confidence structures produce poor results that need gating
+- [ ] **Section-level regeneration** -- Trigger: sellers want to fix one section without rebuilding the entire deck
 
 ### Future Consideration (v2+)
 
-- [ ] Custom pipeline stages per team -- defer until multi-team usage demands it
-- [ ] Chat history search across deals -- defer until interaction volume warrants full-text indexing
-- [ ] Automated stage transitions based on interaction completion -- defer until transition patterns are understood
-- [ ] A/B testing for agent prompts via management UI -- defer until prompt versioning is stable
-- [ ] Email notifications on HITL checkpoints -- defer until polling UX proves insufficient
+- [ ] **Custom section insertion** -- Allow sellers to add ad-hoc sections not in the DeckStructure blueprint. Requires UI for section creation and slide library browsing.
+- [ ] **Template-level theme enforcement** -- Ensure all slides in a multi-source deck conform to a single theme. Requires Google Slides theme API research (currently no viable approach).
+- [ ] **Generation analytics** -- Track which slides are most frequently selected, modified, or rejected. Feed back into DeckStructure refinement and confidence scoring.
+- [ ] **Smart modification learning** -- Track which element modifications sellers approve vs. override. Use patterns to improve future modification plans.
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Deal status lifecycle | HIGH | LOW | P1 |
-| Deals list/board view toggle | HIGH | MEDIUM | P1 |
-| Deal detail sub-page routing + breadcrumbs | HIGH | MEDIUM | P1 |
-| Deal overview dashboard | MEDIUM | MEDIUM | P1 |
-| Deal briefing page | MEDIUM | MEDIUM | P1 |
-| Named agent architecture | HIGH | MEDIUM | P1 |
-| Per-touch artifact pages (4 pages) | HIGH | HIGH | P1 |
-| 3-stage HITL generation workflow | HIGH | HIGH | P1 |
-| Google Drive folder structure + domain sharing | HIGH | MEDIUM | P1 |
-| Persistent AI chat bar | HIGH | HIGH | P1 |
-| Agent management UI with versioning | MEDIUM | HIGH | P2 |
-| Deal assignment + "My Deals" filter | MEDIUM | LOW | P2 |
-| Cross-touch context in chat | MEDIUM | MEDIUM | P2 |
-| Pipeline analytics | LOW | MEDIUM | P3 |
-| Chat history search | LOW | HIGH | P3 |
+| Feature | User Value | Implementation Cost | Priority | Phase Suggestion |
+|---------|------------|---------------------|----------|------------------|
+| DeckStructure blueprint resolver | HIGH | LOW | P1 | Phase 1 -- unlocks everything |
+| Section-to-slide scorer | HIGH | MEDIUM | P1 | Phase 1 -- paired with resolver |
+| Multi-source slide assembler | HIGH | HIGH | P1 | Phase 2 -- most complex, core capability |
+| Fallback synthesis for missing sections | MEDIUM | LOW | P1 | Phase 2 -- safety net during assembly |
+| Element-map modification planner | HIGH | MEDIUM | P1 | Phase 3 -- post-assembly refinement |
+| HITL stage data contracts | HIGH | MEDIUM | P1 | Phase 4 -- wires into existing workflow |
+| Touch-type router with fallbacks | HIGH | LOW | P1 | Phase 4 -- integration layer |
+| Variation preview UI | MEDIUM | MEDIUM | P2 | v1.8.x |
+| Cross-touch slide exclusion | MEDIUM | LOW | P2 | v1.8.x |
+| Confidence-gated generation | LOW | LOW | P3 | v1.8.x |
+| Modification diff preview | MEDIUM | MEDIUM | P3 | v1.8.x |
+| Section-level regeneration | MEDIUM | MEDIUM | P3 | v1.8.x |
 
 **Priority key:**
-- P1: Must have for v1.7 milestone completion
-- P2: Should have, add in v1.7.x if time permits
-- P3: Nice to have, defer to v2+
+- P1: Must have -- closes one of the 5 identified gaps
+- P2: Should have -- improves quality or seller experience
+- P3: Nice to have -- polish and advanced UX
+
+## Multi-Source Assembly: The Hard Problem
+
+The single most complex feature in v1.8. Requires careful strategy due to Google Slides API limitations.
+
+### Why It's Hard
+
+Google Slides API `duplicateObject` only works within a single presentation. There is no `importSlide` or `appendSlide` in the REST API ([Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584)). Apps Script has `appendSlides()` but it has documented performance issues and is not available via REST API.
+
+### Recommended Strategy: Copy-and-Prune Per Source Group
+
+1. **Group** selected slides by source `presentationId` (typically 2-5 groups)
+2. **Identify the largest group** as the "base" source
+3. **Copy the base source** to the deal folder via `drive.files.copy` -- these slides get perfect design preservation
+4. **Delete unneeded slides** from the base copy (reuse existing copy-and-prune pattern from `deck-customizer.ts`)
+5. **For each additional source group:**
+   a. Copy the additional source to a temp file via `drive.files.copy`
+   b. Read all slides via `presentations.get`
+   c. For each needed slide: read its `pageElements` structure
+   d. In the target presentation: `createSlide` then recreate elements via `createShape`, `createImage`, `insertText`, and styling requests
+   e. Delete the temp copy
+6. **Reorder** all slides in the target to match the DeckStructure section order via `updateSlidesPosition`
+7. **Share** with org via existing `shareWithOrg`
+
+### Design Preservation Tiers
+
+| Tier | Method | Fidelity | When Used |
+|------|--------|----------|-----------|
+| **Perfect** | Copy-and-prune from source | 100% -- identical to original | Slides from the base (largest) source group |
+| **High** | Element-level reconstruction | ~90% -- text, images, basic shapes preserved; complex SmartArt/charts may lose formatting | Slides from secondary source groups |
+| **Fallback** | Branded template injection | ~60% -- content preserved, layout is generic | When source presentation is inaccessible or reconstruction fails |
+
+### API Call Budget
+
+For a 12-slide deck drawing from 3 source presentations (6 + 4 + 2 distribution):
+- 3 `drive.files.copy` (base + 2 additional sources)
+- 1 `presentations.get` per source (3 total)
+- 1 `presentations.batchUpdate` for deleting unneeded slides from base
+- N `presentations.batchUpdate` for element reconstruction (2-4 per secondary slide, ~12-24 total)
+- 1 `presentations.batchUpdate` for final reordering
+- 2 `drive.files.delete` for temp copies
+- 1 permission update for sharing
+- **Total: ~25-35 API calls** (well within Google Slides API quotas of 60 requests/minute/project)
 
 ## Existing Infrastructure to Leverage
 
-What already exists and how new features build on it.
-
 | Existing Asset | New Feature It Enables | Gap to Fill |
 |----------------|----------------------|-------------|
-| `Deal` model with `Company` relation | Deal status lifecycle | Add `status` field (String), `assignedToUserId` (String, nullable), status transition timestamps |
-| `InteractionRecord` with per-touch status | 3-stage HITL pages | Expand status enum to cover Configure/Review/Approve stages or add HITL stage tracking |
-| `TouchFlowCard` component | Per-touch artifact pages | Extract generation logic from cards into full page components with multi-step forms |
-| `drive-folders.ts` (`getOrCreateDealFolder`) | Drive folder structure | Add per-touch subfolder creation, organize by artifact type |
-| `makePubliclyViewable` | Domain-scoped sharing | Replace `type: "anyone"` with `type: "domain", domain: "lumenalta.com"` |
-| Mastra workflows (touch-1 through touch-4) | Named agent architecture | Wrap workflows in formal Mastra Agent definitions with `instructions` system prompts |
-| `DeckChatMessage` model | Persistent AI chat bar | Separate model needed: `DealChatMessage` for deal-scoped chat (distinct from deck structure chat) |
-| Streaming chat delimiter protocol | Chat bar streaming | Reuse `---STRUCTURE_UPDATE---` delimiter pattern for chat responses with structured payloads |
-| Sidebar component with nav items | Deal detail sub-navigation | Add nested sub-sidebar or tab navigation within `[dealId]/layout.tsx` |
-| Supabase Auth user ID | Deal assignment | Link `Deal.assignedToUserId` to Supabase Auth user ID for ownership |
-| `PreCallSection` component | Briefing consolidation page | Lift into dedicated briefing page alongside interaction history summaries |
-| Settings page with sidebar nav | Agent management UI | Add "Agents" nav section to existing Settings sidebar |
-| `Brief.approvalStatus` + `workflowRunId` | 3-stage HITL | Proven suspend/resume pattern for Touch 4; replicate for Touch 1-3 |
-
-## Competitor Feature Analysis
-
-| Feature | HubSpot | Salesforce | Pipedrive | Our Approach |
-|---------|---------|------------|-----------|--------------|
-| Pipeline view | Kanban + list + forecast | Kanban + list + path view | Kanban + list + timeline | Kanban + list (two views sufficient for ~20 sellers) |
-| Deal stages | Fully customizable | Fully customizable | Customizable with defaults | Fixed 5-stage pipeline (avoids config complexity for small team) |
-| AI chat | ChatSpot (separate tool, not deal-scoped) | Einstein Copilot (inline, general-purpose) | AI Sales Assistant (sidebar, email-focused) | Persistent context bar in deal detail layout, scoped to deal history and touch interactions |
-| Artifact generation | Template-based docs (no HITL) | CPQ for proposals (complex config) | Smart Docs with templates (basic merge) | 3-stage HITL with AI assembly from pre-approved slide blocks + Mastra suspend/resume |
-| HITL approval | Basic approval workflows | Multi-step approval chains | No formal approval flow | Mastra durable workflows with explicit suspend/resume gates per stage |
-| Drive integration | HubSpot Docs or GDrive sync | Salesforce Files (proprietary) | Google Drive sync (flat) | Native Google Workspace API with structured folder hierarchy per deal/touch |
-| Agent management | No user-facing prompt config | Einstein prompt builder (admin only) | No agent config | Settings UI with version history, draft/publish, and diff view |
-| Briefing prep | No consolidated prep view | Einstein account insights (separate) | No briefing feature | Dedicated briefing page with pre-call output + prior interaction history |
+| `DeckStructure.structureJson` with sections + slideIds | Blueprint resolver | Parse JSON, resolve slideIds to SlideEmbedding records |
+| `SlideEmbedding.classificationJson` (8-axis) | Section-to-slide scoring | Build scoring function using classification match against deal context |
+| `SlideElement` table (elementId, type, position, content) | Modification planning | LLM-driven modification plan generator + batchUpdate executor |
+| `deck-customizer.ts` (copy-and-prune) | Multi-source assembly base group | Extend to handle multiple source groups, not just one |
+| `deck-assembly.ts` (template duplication + injection) | Fallback synthesis | Use as fallback when no candidate slide meets quality threshold |
+| `slide-selection.ts` (LLM-driven selection) | Section-to-slide scoring | Refactor to per-section scoring instead of whole-deck selection |
+| `proposal-assembly.ts` (buildSlideJSON) | Blueprint-driven assembly | Replace fixed section template with DeckStructure sections |
+| `Template.presentationId` | Source presentation resolution | Map slideId -> SlideEmbedding.templateId -> Template.presentationId |
+| `thumbnailUrl` on SlideEmbedding | Skeleton stage preview | Display candidate thumbnails in HITL review UI |
+| Mastra suspend/resume in workflows | HITL stage checkpoints | Reuse pattern, change checkpoint data payloads |
+| `calculateConfidence()` in deck-structure-schema.ts | Confidence gating | Gate auto-generation on confidence color tier |
+| `extractElements()` in extract-elements.ts | Element map reading | Already extracts what's needed; just need to consume it downstream |
 
 ## Sources
 
-- Existing codebase analysis (HIGH confidence): `apps/web/src/app/(authenticated)/deals/`, `apps/agent/src/mastra/`, `apps/agent/prisma/schema.prisma`, `apps/agent/src/lib/drive-folders.ts`, `apps/web/src/app/(authenticated)/layout.tsx`
-- [Pipedrive Pipeline Management](https://www.pipedrive.com/en/features/pipeline-management) -- kanban/list view patterns
-- [Pipeline CRM Kanban Board](https://help.pipelinecrm.com/articles/238265-kanban-board) -- deal card and drag patterns
-- [monday.com Sales Pipeline](https://support.monday.com/hc/en-us/articles/360013348719-Sales-pipeline-management-with-monday-CRM) -- view toggle patterns
-- [Mastra Agents Overview](https://mastra.ai/docs/agents/overview) -- named agent registration
-- [Mastra System Prompt Examples](https://mastra.ai/en/examples/agents/system-prompt) -- instructions as async functions
-- [Mastra HITL Workflows](https://mastra.ai/docs/workflows/human-in-the-loop) -- suspend/resume patterns
-- [Google Drive API Permissions](https://developers.google.com/drive/api/guides/manage-sharing) -- domain-scoped sharing
-- [Google Drive Permissions.create](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/create) -- permission types
-- [Prompt Versioning Best Practices 2025](https://www.getmaxim.ai/articles/prompt-versioning-and-its-best-practices-2025/) -- draft/publish patterns
-- [Conversational AI UI Comparison 2025](https://intuitionlabs.ai/articles/conversational-ai-ui-comparison-2025) -- chat sidebar patterns
-- [HITL AI Design Patterns 2025](https://blog.ideafloats.com/human-in-the-loop-ai-in-2025/) -- multi-stage approval UX
-- [AI UX Design for SaaS](https://userpilot.com/blog/ai-ux-design/) -- context panel patterns
-- [Agentic AI Workflow Patterns 2025](https://skywork.ai/blog/agentic-ai-examples-workflow-patterns-2025/) -- multi-stage generation patterns
+- [Google Slides API - Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides) -- official API samples for slide duplication (HIGH confidence)
+- [Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584) -- feature request for cross-presentation slide import, unresolved as of 2026 (HIGH confidence)
+- [Google Slides API batchUpdate Reference](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations/batchUpdate) -- full request type documentation (HIGH confidence)
+- [Google Slides API presentations.pages.getThumbnail](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations.pages/getThumbnail) -- thumbnail generation (HIGH confidence)
+- Existing codebase: `deck-assembly.ts`, `deck-customizer.ts`, `slide-selection.ts`, `proposal-assembly.ts`, `extract-elements.ts`, `deck-structure-schema.ts`, `schema.prisma` (HIGH confidence -- direct code review)
 
 ---
-*Feature research for: Agentic Sales Orchestration -- Deal Management & HITL Pipeline (v1.7)*
-*Researched: 2026-03-08*
+*Feature research for: Structure-driven deck generation (v1.8)*
+*Researched: 2026-03-09*

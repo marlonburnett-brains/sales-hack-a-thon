@@ -11,8 +11,11 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/env", () => ({
   env: {
     AGENT_SERVICE_URL: "http://test-agent:4111",
-    AGENT_API_KEY: "test-key",
   },
+}));
+
+vi.mock("@/lib/supabase/get-access-token", () => ({
+  getSupabaseAccessToken: vi.fn().mockResolvedValue("test-supabase-jwt"),
 }));
 
 vi.mock("@/lib/supabase/google-token", () => ({

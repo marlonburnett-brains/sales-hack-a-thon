@@ -1,155 +1,177 @@
 # Stack Research
 
-**Domain:** Deal management pipeline, HITL artifact generation, AI chat, agent management for agentic sales platform
-**Researched:** 2026-03-08
+**Domain:** Structure-driven deck generation -- multi-source slide assembly, element-map-guided modifications, DeckStructure as blueprint
+**Researched:** 2026-03-09
 **Confidence:** HIGH
 
 ## Scope
 
-This covers only NEW additions/changes for v1.7 (Deals and HITL Pipeline). The existing stack (Next.js 15, Mastra 1.8, Prisma 6.x, shadcn/ui, Supabase, googleapis, etc.) is validated and unchanged. See v1.6 STACK.md history for prior research.
+This covers only NEW additions/changes for v1.8 (Structure-Driven Deck Generation). The existing stack is validated and unchanged. See v1.7 STACK.md for prior research.
 
 **Focus areas:**
-1. Deal pipeline views (kanban + table toggle with drag-and-drop)
-2. Persistent AI chat bar across deal sub-pages
-3. HITL 3-stage artifact generation workflow
-4. Google Drive folder/sharing integration enhancements
-5. Formalized named agent architecture
-6. Settings agent management UI with versioning and draft system
+1. DeckStructure consumed as generation blueprint for all touches
+2. Multi-source slide assembly (cherry-pick slides from different source presentations)
+3. Design-preserved output (each slide retains its original layout)
+4. Per-slide modification planning using element maps
+5. Context-aware section-to-slide matching
+6. 3-stage HITL integration (Skeleton=blueprint+selections, Low-fi=assembled deck, High-fi=surgical modifications)
 
 ---
 
 ## Executive Summary
 
-v1.7 requires **3 new npm packages** in `apps/web` and **1 new npm package** in `apps/agent`, plus several new shadcn/ui component files. The additions are:
+v1.8 requires **zero new npm dependencies**. Every capability needed for multi-source assembly, element-map-guided modification, and structure-driven generation is achievable with the existing `googleapis`, `@google/genai`, `openai`, Prisma, and Mastra packages. The work is entirely new TypeScript modules, Prisma schema evolution, and workflow step additions.
 
-- **`@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`** in web for kanban drag-and-drop
-- **`@mastra/editor@^0.7.0`** in agent for agent config versioning and persistence
-
-Everything else -- persistent chat, HITL workflows, Drive folder management, named agents -- uses existing installed packages and established patterns (Mastra workflows, googleapis, Server Actions with streaming, Prisma models).
+The defining technical constraint: the Google Slides REST API has **no cross-presentation slide copy** method. Apps Script has `appendSlide()` but the REST API does not (confirmed via Google Issue Tracker #167977584). Multi-source assembly must use a "sequential copy-and-prune" strategy where each source presentation is copied independently and unwanted slides are deleted, then the results are combined.
 
 ---
 
-## Recommended Stack (New Additions Only)
+## Recommended Stack (No Changes to Dependencies)
 
-### Core Technologies
+### Core Technologies (Already In Place)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `@dnd-kit/core` | ^6.3.1 | Drag-and-drop for deal pipeline kanban board | The standard React DnD library for 2025-2026. Accessible (keyboard + screen reader), lightweight (~10KB gzip), works with React 19, proven with shadcn/ui + Tailwind. Replaces deprecated react-beautiful-dnd. |
-| `@dnd-kit/sortable` | ^10.0.0 | Sortable deal cards within pipeline stage columns | Companion to @dnd-kit/core. Handles reordering within columns and moving between columns (stage changes). |
-| `@dnd-kit/utilities` | ^3.2.2 | CSS transform utilities for smooth drag animations | Required for visual drag feedback. Tiny dependency. |
-| `@mastra/editor` | ^0.7.0 | Agent config versioning, persistence, and activation in DB | First-party Mastra package purpose-built for exactly the "settings agent management with versioning" requirement. Stores complete agent configs (instructions, model, tools) with version management and activation. Peer-compatible with our @mastra/core ^1.8.0 and zod ^4.x. Uses the same @mastra/pg PostgresStore we already run. |
+| Technology | Current Version | Purpose for v1.8 | Status |
+|------------|----------------|-------------------|--------|
+| `googleapis` | ^144.0.0 | Drive `files.copy`, Slides `batchUpdate` (`replaceAllText`, `deleteObject`, `updateSlidesPosition`, `insertText`) | Sufficient. Latest is 171.x but upgrade adds no new Slides API methods relevant to v1.8. No cross-presentation copy exists in ANY version. |
+| `@google/genai` | ^1.43.0 | Gemini 2.5 Flash for modification planning (structured output), section-to-slide scoring | Sufficient. New structured output schemas needed but library handles them. |
+| `openai` | ^6.27.0 | GPT-OSS 120b on Vertex AI for per-slide custom copy generation | Sufficient. Same generate-text pattern as current `proposal-assembly.ts`. |
+| `@prisma/client` + `prisma` | ^6.3.1 | Schema additions for assembly manifest storage | Stay on 6.x per constraint (Prisma 7.x has vector regression #28867). Forward-only migrations only. |
+| `@mastra/core` | ^1.8.0 | New workflow steps for structure-driven generation pipeline | Sufficient. Existing suspend/resume pattern handles HITL stages. |
+| `pgvector` | 0.2.0 | Cosine similarity for initial slide candidate filtering | Sufficient. Same raw SQL pattern as existing slide search. |
+| `zod` | ^4.3.6 | New schemas for assembly params, modification plans, resolved blueprints | Sufficient. Same workflow I/O validation pattern. |
 
-### New shadcn/ui Components
+### Supporting Libraries (Already In Place)
 
-These are added via `npx shadcn@latest add [name]`. No new npm dependencies -- they install as local component files using already-installed Radix primitives.
-
-| Component | Radix Dependency | Purpose | Feature Area |
-|-----------|-----------------|---------|--------------|
-| `breadcrumb` | None (HTML nav) | Deal detail navigation: Deals > Company > Deal > Touch | Deal detail navigation overhaul |
-| `tooltip` | `@radix-ui/react-tooltip` (new) | Pipeline card hover previews, action button labels, agent status hints | Pipeline view, agent management |
-| `scroll-area` | `@radix-ui/react-scroll-area` (new) | Chat message history scrolling, kanban column overflow | Persistent chat bar, pipeline columns |
-| `sheet` | Already installed as dialog variant | Slide-out panel for deal quick-view from pipeline, agent config editing | Pipeline actions, settings panels |
-| `switch` | `@radix-ui/react-switch` (new) | Toggle agent active/inactive, draft/published | Agent management UI |
-| `table` | None (HTML table + styling) | Deal listing table view, agent version history | Deals table view, agent versions |
-| `command` | `cmdk` (new) | Deal search/filter, agent prompt search | Deal filtering, agent management |
-| `resizable` | `react-resizable-panels` (new) | Chat bar height adjustment | Persistent chat bar resize |
-
-### Prisma Schema Additions
-
-New models and field additions (forward-only migrations per CLAUDE.md):
-
-**Extend existing `Deal` model:**
-
-| Field | Type | Purpose |
-|-------|------|---------|
-| `stage` | `String @default("discovery")` | Pipeline stage: "discovery" / "qualification" / "proposal" / "negotiation" / "closed_won" / "closed_lost" |
-| `priority` | `String @default("medium")` | Deal priority for sorting: "low" / "medium" / "high" |
-| `assignedTo` | `String?` | Supabase user ID of assigned seller |
-| `expectedCloseDate` | `DateTime?` | For pipeline forecasting display |
-| `stageChangedAt` | `DateTime?` | Track when deal moved to current stage |
-
-**New `ChatMessage` model:**
-
-| Field | Type | Purpose |
-|-------|------|---------|
-| `id` | `String @id @default(cuid())` | Primary key |
-| `dealId` | `String` | FK to Deal -- scopes chat to a deal |
-| `role` | `String` | "user" / "assistant" / "system" |
-| `content` | `String` | Message text |
-| `touchContext` | `String?` | Which touch page the message was sent from (for context) |
-| `metadata` | `String?` | JSON: tool calls, citations, agent name, etc. |
-| `createdAt` | `DateTime @default(now())` | Ordering |
-
-**New `Artifact` model:**
-
-| Field | Type | Purpose |
-|-------|------|---------|
-| `id` | `String @id @default(cuid())` | Primary key |
-| `interactionId` | `String` | FK to InteractionRecord |
-| `artifactType` | `String` | "proposal" / "talk_track" / "faq" / "briefing" / "pager" / "deck" |
-| `stage` | `String @default("generating")` | HITL stage: "generating" / "draft" / "review" / "approved" / "rejected" / "revision" |
-| `title` | `String` | Display name for the artifact |
-| `content` | `String?` | JSON: structured content before Drive rendering |
-| `driveFileId` | `String?` | Google Drive file ID once generated |
-| `driveUrl` | `String?` | Direct link to Drive file |
-| `reviewerName` | `String?` | Who reviewed this artifact |
-| `reviewedAt` | `DateTime?` | When review completed |
-| `reviewNotes` | `String?` | Reviewer feedback |
-| `version` | `Int @default(1)` | Artifact revision number |
-| `createdAt` | `DateTime @default(now())` | |
-| `updatedAt` | `DateTime @updatedAt` | |
-
-**Why separate `Artifact` model instead of extending `InteractionRecord`:**
-- A single Touch 4 interaction produces 3 artifacts (Proposal + Talk Track + FAQ), each with independent HITL stages
-- Touch 1-3 interactions produce 1 artifact each, but the stage tracking pattern is the same
-- Separating artifacts from interactions allows per-artifact review without JSON blob parsing
-- Consistent with the existing decision to separate Transcript and Brief from InteractionRecord
+| Library | Version | v1.8 Usage |
+|---------|---------|------------|
+| `google-auth-library` | ^9.15.1 | Same auth chain. Multi-source assembly uses same Drive/Slides clients. |
+| `@mastra/pg` | ^1.7.1 | Workflow state persistence for new generation steps. |
+| `@t3-oss/env-core` | ^0.13.10 | No new env vars needed. |
 
 ---
 
-## Installation
+## What's Actually New (Code, Not Dependencies)
 
-```bash
-# In apps/web -- drag-and-drop for kanban pipeline
-cd apps/web
-pnpm add @dnd-kit/core@^6.3.1 @dnd-kit/sortable@^10.0.0 @dnd-kit/utilities@^3.2.2
+### New Agent Modules
 
-# shadcn components (these install Radix primitives as needed)
-npx shadcn@latest add breadcrumb tooltip scroll-area sheet switch table command resizable
+| Module | Purpose | Existing Deps Used |
+|--------|---------|-------------------|
+| `structure-blueprint-resolver.ts` | Consume DeckStructure as generation blueprint: load sections, resolve slideIds to SlideEmbedding records with element maps, produce ordered assembly plan | Prisma (DeckStructure, SlideEmbedding, SlideElement) |
+| `section-slide-matcher.ts` | For each DeckStructure section, score candidate slides against deal context (industry, pillar, persona, funnel stage) and select the best match | `@google/genai` (Gemini Flash structured scoring), `pgvector` (cosine similarity pre-filter), Prisma |
+| `multi-source-assembler.ts` | Given a resolved blueprint with slides from N source presentations, assemble a single output deck using sequential copy-and-prune | `googleapis` (Drive `files.copy`, Slides `batchUpdate`) |
+| `modification-planner.ts` | Given a copied slide's SlideElement records and deal context, generate a modification plan: which elements to change, what new content to inject | `@google/genai` (Gemini Flash structured output) |
+| `surgical-modifier.ts` | Execute planned modifications on assembled slides via scoped Slides API calls | `googleapis` (Slides `replaceAllText` with `pageObjectIds`, `deleteText`, `insertText`) |
+| `structure-driven-workflow-steps.ts` | Mastra workflow steps that wire the above modules into the touch generation pipelines | `@mastra/core` (createStep with Zod I/O schemas) |
 
-# In apps/agent -- agent config versioning
-cd apps/agent
-pnpm add @mastra/editor@^0.7.0
+### Prisma Schema Evolution
 
-# Prisma migrations (after schema changes)
-cd apps/agent
-pnpm exec prisma migrate dev --create-only --name add-deal-pipeline-fields
-# Inspect SQL, then apply
-pnpm exec prisma migrate dev --name add-deal-pipeline-fields
+No new models required. Small field additions to existing models:
 
-pnpm exec prisma migrate dev --create-only --name add-chat-message-model
-pnpm exec prisma migrate dev --name add-chat-message-model
+| Model | Field | Type | Purpose |
+|-------|-------|------|---------|
+| `InteractionRecord` | `blueprintJson` | `String?` | Store resolved blueprint (sections + selected slides + source presentations) for Skeleton HITL review |
+| `InteractionRecord` | `assemblyManifest` | `String?` | Store multi-source assembly plan (which slides from which sources, in what order) for audit trail |
 
-pnpm exec prisma migrate dev --create-only --name add-artifact-model
-pnpm exec prisma migrate dev --name add-artifact-model
+These are nullable String columns added via forward-only migration. No existing data is affected.
+
+### New Zod Schemas (in `packages/schemas`)
+
+| Schema | Purpose | Fields |
+|--------|---------|--------|
+| `ResolvedBlueprint` | Output of blueprint resolution + slide matching | `sections: [{name, purpose, selectedSlide: {slideId, templateId, presentationId, slideObjectId}, alternatives: [...]}]` |
+| `AssemblyManifest` | Input to multi-source assembler | `basePresentationId, slideGroups: [{sourcePresentationId, slideObjectIds: [...]}], outputOrder: [...]` |
+| `ModificationPlan` | Output of modification planner (per-slide) | `slideObjectId, modifications: [{elementId, action, currentText, newText, reason}]` |
+| `ModificationAction` | Flat schema for Gemini structured output | `elementId: string, action: string, newText: string, reason: string` |
+
+---
+
+## Critical Technical Constraints
+
+### 1. No Cross-Presentation Slide Copy in Google Slides REST API
+
+**Confidence:** HIGH
+**Sources:** [Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584), [Slides API Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides), [Slides API REST Reference](https://developers.google.com/workspace/slides/api/reference/rest)
+
+`duplicateObject` works within a single presentation only. Apps Script has `appendSlide()` but the REST API has no equivalent. This is a long-standing feature request (filed 2020, still open).
+
+**Required strategy: Sequential Copy-and-Prune**
+
+For a deck needing slides from sources A (3 slides), B (2 slides), C (1 slide):
+
 ```
+1. Pick source A as "base" (most slides selected)
+2. Drive files.copy(A) -> outputDeck
+3. Slides batchUpdate: deleteObject for all slides NOT in A's selection
+4. Slides batchUpdate: updateSlidesPosition to reorder A's slides
+5. Drive files.copy(B) -> tempB
+6. Slides batchUpdate: deleteObject for all slides NOT in B's selection
+7. Read tempB's remaining slides via presentations.get
+8. For each slide in tempB: read full element data, create equivalent in outputDeck
+   via createSlide + shape/text insertion (design approximation)
+   OR: accept single-source-per-section constraint (simpler)
+9. Delete tempB
+10. Repeat for C
+```
+
+**Pragmatic recommendation for v1.8:** Use a hybrid approach:
+- **Primary slides** (majority from one source): copy-and-prune preserves 100% design
+- **Secondary slides** (from other sources): use the branded template with content injected from the source slide's element map data (already captured in SlideElement). This trades pixel-perfect layout for API simplicity.
+- **Future enhancement:** If design preservation across ALL sources becomes critical, add an Apps Script bridge via `googleapis` Apps Script API (`script.projects.run`). Defer this complexity.
+
+### 2. ObjectId Drift After batchUpdate
+
+**Confidence:** HIGH (documented in codebase, already handled in `deck-assembly.ts`)
+
+After any `batchUpdate`, re-read the presentation via `presentations.get()` before referencing any objectIds. Multi-source assembly involves many mutations -- budget for re-reads after each batch.
+
+### 3. replaceAllText Scoping is Mandatory
+
+**Confidence:** HIGH (documented in codebase)
+
+Every `replaceAllText` call must include `pageObjectIds: [targetSlideId]`. Without scoping, text replacement bleeds across all slides. When assembling from multiple sources with potentially overlapping text patterns, scoping prevents cross-contamination.
+
+### 4. Gemini Structured Output: Flat Schemas Only
+
+**Confidence:** HIGH (gap analysis constraint, verified in codebase pattern)
+
+Modification plan schemas for Gemini must be flat objects with no optionals or unions:
+
+```typescript
+// Correct: flat, all required
+{ elementId: string, action: string, newText: string, reason: string }
+
+// Wrong: nested optionals
+{ elementId: string, modifications?: { text?: string } }
+```
+
+The `ModificationAction` schema must be an array of flat objects. The wrapping `ModificationPlan` with its nested structure is for internal use (Zod), not sent to Gemini.
+
+### 5. Element Maps Use EMU Positioning
+
+**Confidence:** HIGH (documented in `extract-elements.ts`)
+
+SlideElement positions are in EMU (English Metric Units, 1 EMU = 1/914400 inch). When planning modifications, element identification should use `elementId` (the Google Slides objectId), not position. Position data is informational for the LLM to understand layout context, not for addressing elements in API calls.
+
+### 6. Forward-Only Prisma Migrations
+
+**Confidence:** HIGH (CLAUDE.md constraint)
+
+All schema changes use `prisma migrate dev --name <name>`. No `db push`, no `migrate reset`. The two new nullable columns (`blueprintJson`, `assemblyManifest`) are safe additive migrations.
 
 ---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| `@dnd-kit/core` for kanban DnD | No DnD (click-to-move stage selector) | If kanban board is descoped to table-only view. Pipeline without DnD is functional; DnD is polish, not blocker. Can ship table-only first and add DnD later. |
-| `@dnd-kit/core` | `react-beautiful-dnd` | Never -- deprecated since 2024, no React 19 support. |
-| `@dnd-kit/core` | `react-dnd` | Never -- lower-level API, more boilerplate, weaker accessibility story. |
-| `@mastra/editor` for agent versioning | Custom Prisma `AgentConfig` + `AgentVersion` models | If @mastra/editor proves too opinionated about storage schema or too tightly coupled to its own UI components. Custom models give full control but require building version diffing, activation logic, and dependency resolution manually. **Validate during phase research.** |
-| `@mastra/editor` for agent versioning | JSON files in repo with deploy-time loading | Never for this project -- need runtime editing via Settings UI without redeployment. |
-| Next.js App Router layout for persistent chat | React portal-based chat overlay | If chat needs to float over content rather than be docked to the layout. Layout approach is simpler and preserves state across sub-page navigation naturally via Next.js layout caching. |
-| Prisma `ChatMessage` model for chat history | `@mastra/memory` package | If we later need sliding context windows, token counting, or conversation summarization for the agent. For now, `ChatMessage` is a UI chat log -- simple CRUD is sufficient. @mastra/memory adds unnecessary dependency complexity. |
-| `cmdk` (via shadcn `command`) for search/filter | `@tanstack/react-table` for deal filtering | If deal list grows beyond ~100 rows with complex column sorting. For ~20 sellers with <50 active deals, shadcn table + command palette is simpler. |
-| URL search params for filter/view state | Zustand/Jotai for global state | Never -- URL params are shareable, bookmarkable, and work with Next.js Server Components. No client state library needed. |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Sequential copy-and-prune (REST API only) | Apps Script `appendSlide()` via Apps Script API | Adds deployment complexity (must create/maintain Apps Script project), introduces server-to-server latency, and Apps Script has documented performance issues for batch operations. Copy-and-prune works entirely within the REST API already used. |
+| Sequential copy-and-prune (REST API only) | Element-by-element reconstruction (`createSlide` + shape/text insertion) | Loses visual design (fonts, colors, images, gradients, shapes, positioning). Reconstruction cannot replicate complex layouts. Defeats the "design-preserved" goal. |
+| Gemini Flash for modification planning | Heuristic rules for element matching | LLM understands semantic intent ("this text says 'Acme Corp', replace with deal company"). Rules would miss context and require exhaustive pattern matching. Flash is fast and cheap for structured classification. |
+| Gemini Flash for modification planning | GPT-OSS 120b for modification planning | Flash is faster (sub-second) and cheaper for structured classification tasks. GPT-OSS reserved for creative generation (per-slide custom copy). Division of labor: Flash classifies/plans, GPT-OSS generates. |
+| GPT-OSS 120b for per-slide copy generation | Gemini for copy generation | GPT-OSS produces higher quality long-form marketing copy. Current proposal-assembly already uses GPT-OSS for this exact task. Keep the proven pattern. |
+| Keep `googleapis` at ^144.0.0 | Upgrade to ^171.x | No new Slides API methods for cross-presentation copy. The upgrade would be risk (breaking changes in types) without benefit. If a future Slides API version adds `importSlides`, upgrade then. |
+| Store assembly manifest as JSON String column | New `AssemblySlide` junction model | JSON column is simpler for audit trail storage. The manifest is write-once, read-for-debugging -- not queried relationally. Avoids migration complexity. |
+| Hybrid approach (primary source copy-and-prune + template merge for secondary) | Full design preservation across all sources | Full preservation requires either Apps Script or element-by-element reconstruction, both adding significant complexity. Hybrid gives 80% of the visual diversity benefit with 20% of the implementation complexity. |
 
 ---
 
@@ -157,111 +179,87 @@ pnpm exec prisma migrate dev --name add-artifact-model
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `react-beautiful-dnd` | Deprecated 2024, no React 19 support, unmaintained | `@dnd-kit/core` |
-| `@mastra/memory` for chat persistence | Agent memory package for context windows, not UI chat logs. Adds complexity for simple message storage. | Prisma `ChatMessage` model |
-| `react-dnd` | More boilerplate, weaker accessibility than @dnd-kit | `@dnd-kit/core` |
-| Socket.io / Pusher for chat | Chat is user-to-AI, not multi-user real-time. Server Actions + streaming is sufficient and already proven. | Next.js Server Actions with streaming (same pattern as deck chat refinement) |
-| `@tanstack/react-table` | Over-engineered for ~20 sellers. shadcn Table handles our scale. | shadcn `table` component |
-| Zustand / Jotai / Redux | React Server Components + Server Actions + useState/useContext handle all patterns. URL params for shareable state. | React built-in state + URL search params |
-| New database (Redis, etc.) for chat | PostgreSQL handles chat message storage at our scale. No need for a cache layer. | Prisma + existing Supabase PostgreSQL |
-| Custom DnD implementation | Accessibility (ARIA, keyboard nav), touch support, and edge cases (scroll containers, overflow) are extremely hard to get right | `@dnd-kit/core` |
-| Separate API service for agents | Agent management is part of the existing Mastra server. Adding a service adds deployment complexity for no benefit. | @mastra/editor integrated into existing agent server |
+| `pptxgenjs` or any PPTX library | We generate Google Slides natively via API. PPTX would create a parallel format, break Drive integration, and lose real-time collaboration. | `googleapis` Slides API |
+| Apps Script API (`script.projects.run`) | Adds deployment/maintenance of separate Apps Script project, latency, and auth complexity for marginal benefit over copy-and-prune. | Sequential copy-and-prune via REST API |
+| `puppeteer` / `playwright` for slide rendering | Thumbnails already cached via GCS. No need for browser-based rendering. | Existing `gcs-thumbnails.ts` |
+| Any new LLM SDK or provider | GPT-OSS (creative generation) + Gemini Flash (structured classification) cover all v1.8 needs. No gap in capability. | `openai` + `@google/genai` already installed |
+| `diff` / `json-diff` libraries for modification planning | Element maps are flat structures. LLM structured output directly produces modification plans. No need for programmatic diffing. | Gemini Flash structured output |
+| `googleapis` upgrade to 171.x | No new Slides API features relevant to v1.8. Risk of type breakage without benefit. | Stay on ^144.0.0 |
+| Prisma 7.x | Known vector migration regression (#28867). pgvector is critical for slide matching. | Stay on ^6.3.1 |
+| New state management (Redis, message queues) | Assembly is a synchronous pipeline within Mastra workflow steps. No need for external state coordination at ~20 user scale. | Mastra workflow state + Prisma |
 
 ---
 
-## Stack Patterns by Feature
+## Stack Patterns by HITL Stage
 
-### 1. Deal Pipeline View (Kanban + Table Toggle)
+### Skeleton Stage: Blueprint Resolution + Slide Selection
 
-**Pattern:** URL-driven view toggle with @dnd-kit kanban
+**Pattern:** DeckStructure query -> slide candidate filtering -> LLM scoring -> resolved blueprint
 
-- Toggle between kanban and table via URL param: `?view=kanban` or `?view=table`
-- Kanban uses `@dnd-kit/core` `DndContext` with `DragOverlay` for smooth cross-column dragging
-- Each pipeline stage is a `SortableContext` column; deal cards are `useSortable` items
-- Dropping a card into a different column triggers a Server Action to update `Deal.stage`
-- Table view uses shadcn `table` with sortable column headers
-- Filter state (stage, assignee, priority) stored in URL search params
-- Deal stage stored as String column on Deal model (not separate table -- stages are fixed, not user-configurable)
+```
+1. Load DeckStructure for touch type (+ artifact type for Touch 4)
+2. For each section: query SlideEmbedding candidates using section.slideIds
+3. Enrich candidates with classification metadata + element map summary
+4. Score candidates against deal context via Gemini Flash structured output:
+   - Industry match (deal.company.industry vs slide.industry)
+   - Pillar alignment (brief.primaryPillar vs slide.solutionPillar)
+   - Persona fit (deal context vs slide.persona)
+   - Funnel stage (touch type mapping vs slide.funnelStage)
+5. Select top candidate per section, store as ResolvedBlueprint
+6. Suspend workflow for HITL review (seller sees blueprint + selections)
+```
 
-### 2. Persistent AI Chat Bar
+**Libraries used:** Prisma, `pgvector` (raw SQL cosine similarity), `@google/genai` (Gemini Flash), `@mastra/core` (suspend)
 
-**Pattern:** Next.js nested layout with streaming Server Actions
+### Low-fi Stage: Multi-Source Assembly
 
-- Chat bar lives in `/deals/[dealId]/layout.tsx` -- shared across all deal sub-pages (overview, briefing, touch-1, touch-2, etc.)
-- Layout renders: `<DealSidebar />` + `<main>{children}</main>` + `<ChatBar dealId={dealId} />`
-- ChatBar is a Client Component with `useState` for messages + `useRef` for scroll position
-- Messages stored in Prisma `ChatMessage` model, loaded on mount, appended on send
-- Streaming uses the same delimiter protocol as existing deck chat: text chunks then `---STRUCTURE_UPDATE---` then JSON
-- Chat bar includes `touchContext` from current URL segment so the agent knows what page the user is on
-- shadcn `scroll-area` for message history, `resizable` panel for height control
-- No WebSocket needed -- POST Server Action streams response, same as deck intelligence chat
+**Pattern:** Group slides by source -> sequential copy-and-prune -> merge -> reorder
 
-### 3. HITL 3-Stage Artifact Generation
+```
+1. Resume workflow with approved/modified blueprint
+2. Group selected slides by source presentation ID
+3. Pick source with most slides as "base" -> Drive files.copy to deal folder
+4. Delete unwanted slides from base copy (batchUpdate deleteObject)
+5. For secondary sources: copy-and-prune each, then either:
+   a. Use branded template slide + inject content from element map (pragmatic)
+   b. OR read elements and approximate in base deck (complex, deferred)
+6. Reorder all slides via updateSlidesPosition to match blueprint order
+7. Apply deal-level customizations (company name, salesperson) via replaceAllText
+8. Suspend for HITL review (seller sees assembled deck in Google Slides)
+```
 
-**Pattern:** Extend existing Mastra suspend/resume workflow
+**Libraries used:** `googleapis` (Drive + Slides APIs), Prisma, `@mastra/core` (suspend)
 
-- Reuses the proven `suspend/resume` pattern from Touch 4 workflow
-- Three stages per artifact: Generate (AI produces draft) -> Review (human reviews) -> Approve/Reject
-- New `Artifact` model tracks per-artifact stage independently
-- A single Touch 4 interaction creates 3 Artifact rows (proposal, talk_track, faq)
-- Touch 1-3 interactions create 1 Artifact row each
-- Stage transitions happen via Server Actions that call agent API endpoints
-- Workflow `suspend` at review stage; `resume` with approval/rejection decision
-- Existing `InteractionRecord.status` becomes a computed rollup of its artifacts' stages
+### High-fi Stage: Element-Map-Guided Surgical Modifications
 
-### 4. Google Drive Folder/Sharing Integration
+**Pattern:** Load element map per slide -> LLM modification planning -> scoped API execution
 
-**Pattern:** Extend existing drive-folders.ts
+```
+1. Resume workflow with approved/modified assembled deck
+2. For each slide in the deck:
+   a. Load SlideElement records (elementId, type, position, content, styling)
+   b. Send to Gemini Flash: "Given this element map and deal context, which elements
+      need modification? Return flat array of {elementId, action, newText, reason}"
+   c. For elements needing new creative copy: send to GPT-OSS for generation
+   d. Execute modifications via scoped replaceAllText (pageObjectIds per slide)
+3. Re-read presentation after each batch of modifications (objectId drift)
+4. Share final deck with org
+5. Complete workflow (HITL approved state)
+```
 
-- No new packages -- `googleapis@^144.0.0` already installed with Drive v3 API
-- Extend `getOrCreateDealFolder` to create sub-folders per touch type
-- Folder hierarchy: `{Parent} / {Company - Deal} / Touch 1 / artifact.pptx`
-- Add domain-scoped sharing: `permissions.create` with `type: "domain"`, `domain: "lumenalta.com"`, `role: "reader"`
-- This replaces the current `makePubliclyViewable` (anyone with link) with org-scoped access
-- Store `driveFolderId` on each `Artifact` row for direct linking
-- Existing user-delegated OAuth credential chain handles auth (user token -> pool -> service account fallback)
-
-### 5. Formalized Named Agent Architecture
-
-**Pattern:** Mastra Agent class instances with @mastra/editor for runtime config
-
-- Define named agents as Mastra `Agent` instances in `apps/agent/src/agents/`:
-  - `briefing-agent` -- pre-call research and discovery question generation
-  - `extraction-agent` -- transcript field extraction
-  - `proposal-agent` -- brief generation, slide selection, deck assembly
-  - `chat-agent` -- persistent deal chat (context-aware based on touch page)
-  - `classification-agent` -- slide classification and deck structure inference
-- Each agent has a dedicated system prompt, model config, and tool set
-- Agents are registered in `apps/agent/src/mastra/index.ts` via the `agents` config
-- `@mastra/editor` overlays runtime config on top of code-defined agents: edit system prompts, toggle models, version changes -- all persisted in PostgresStore
-- Code defines the baseline; @mastra/editor enables runtime tuning without redeployment
-
-### 6. Settings Agent Management UI
-
-**Pattern:** @mastra/editor API + shadcn components
-
-- New Settings sub-page: `/settings/agents`
-- Lists all named agents with current version, status (active/draft), model
-- Click agent to open shadcn `sheet` with system prompt editor (textarea)
-- Version history displayed in shadcn `table` with diff indicators
-- `switch` component for activate/deactivate toggle
-- Draft system: edit creates a new draft version; explicit "Publish" action activates it
-- API calls go to @mastra/editor's storage methods via agent server routes
-- System prompt changes take effect immediately on publish (no server restart needed because @mastra/editor resolves configs at runtime)
+**Libraries used:** Prisma (SlideElement), `@google/genai` (Gemini Flash), `openai` (GPT-OSS), `googleapis` (Slides API), `@mastra/core` (resume/complete)
 
 ---
 
 ## Version Compatibility
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| `@mastra/editor@^0.7.0` | `@mastra/core@^1.8.0`, `zod@^4.3.6`, `@mastra/pg@^1.7.1` | Peer deps: `@mastra/core >=1.7.1`, `zod ^3.25 \|\| ^4.0`, `@mastra/mcp >=1.0.0`. All satisfied by current stack. |
-| `@dnd-kit/core@^6.3.1` | `react@^19.0.0`, `react-dom@^19.0.0` | Supports React 16.8+ including 19. No peer dep conflicts. |
-| `@dnd-kit/sortable@^10.0.0` | `@dnd-kit/core@^6.3.1` | Must install together. sortable 10.x requires core 6.x. |
-| `prisma@^6.3.1` | All new models | Stay on 6.x. Prisma 7.x has vector migration regression (#28867). |
-| `next@^15.5.12` | All new packages | App Router layouts are the recommended pattern for persistent chat. No conflicts. |
-| shadcn `command` | `cmdk@^1.0.0` (auto-installed) | cmdk is a React 19 compatible command palette. |
-| shadcn `resizable` | `react-resizable-panels@^2.x` (auto-installed) | Mature, maintained by bvaughn (React core team). |
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `prisma@^6.3.1` | `pgvector@0.2.0` | Prisma 7.x breaks vector migrations. Stay on 6.x. |
+| `@mastra/core@^1.8.0` | `zod@^4.3.6` | Mastra 1.8 requires Zod v4 for workflow step schemas. New steps follow same pattern. |
+| `googleapis@^144.0.0` | `google-auth-library@^9.15.1` | Stable pairing. Drive v3 + Slides v1 APIs unchanged. |
+| `@google/genai@^1.43.0` | Gemini 2.5 Flash | Structured output with `responseSchema` works for flat schemas. |
+| `openai@^6.27.0` | GPT-OSS 120b on Vertex AI | Same API pattern as existing proposal generation. |
 
 ---
 
@@ -269,65 +267,61 @@ pnpm exec prisma migrate dev --name add-artifact-model
 
 ### Extend (Not Replace)
 
-| Existing Module | Extension | Notes |
-|----------------|-----------|-------|
-| `apps/agent/src/lib/drive-folders.ts` | Add touch-type sub-folders, domain-scoped sharing | Has `getOrCreateDealFolder` and `makePubliclyViewable` already |
-| `apps/agent/src/mastra/workflows/` | Each workflow becomes a named agent's tool/capability | Workflows remain; agents orchestrate them |
-| `apps/agent/src/mastra/index.ts` | Register named agents, add agent CRUD routes, chat endpoint | Already registers workflows and custom API routes |
-| `apps/web/src/app/(authenticated)/deals/` | Expand from simple list to pipeline + detail sub-pages | Has `page.tsx`, `[dealId]/page.tsx`, `loading.tsx` |
-| `apps/web/src/app/(authenticated)/settings/` | Add agent management sub-page | Already has sidebar navigation with vertical tabs |
-| `apps/agent/prisma/schema.prisma` | Add Deal fields, ChatMessage, Artifact models | Forward-only migrations per CLAUDE.md |
-| `packages/schemas/` | Add deal stage constants, artifact stage constants, chat types | Shared types between web and agent |
-| `apps/web/src/app/(authenticated)/deals/[dealId]/` | Add layout.tsx (persistent chat), sub-page routes | Currently has page.tsx only |
+| Existing Module | Extension for v1.8 | Notes |
+|----------------|---------------------|-------|
+| `deck-assembly.ts` | Refactor to support multi-source input instead of single-template duplication | Currently duplicates one template slide N times. New: copies actual source slides. |
+| `deck-customizer.ts` | Extend `assembleDeckFromSlides` to handle multiple source presentations | Currently single-source copy-and-prune. New: sequential multi-source. |
+| `slide-selection.ts` | Add DeckStructure-aware candidate filtering (section.slideIds as pre-filter) | Currently uses RAG retrieval independently. New: structure-guided selection. |
+| `proposal-assembly.ts` | Consume ResolvedBlueprint instead of building SlideAssembly from scratch | Currently generates flat JSON. New: uses blueprint sections as scaffold. |
+| `touch-4-workflow.ts` | Add new workflow steps for blueprint resolution, assembly, and modification | Currently goes straight from RAG to SlideAssembly JSON. New: 3 explicit stages. |
+| Touch 2/3 workflows | Wire in structure-driven pipeline (same steps, different DeckStructure key) | Currently manual slide selection from single source. New: automated via blueprint. |
+| `extract-elements.ts` | No changes needed | Element extraction already captures everything modification planning needs. |
+| `deck-structure-schema.ts` | No changes needed | DeckSection already has `slideIds` array for candidate mapping. |
 
 ### New Files to Create
 
-| File/Directory | Purpose |
-|----------------|---------|
-| `apps/agent/src/agents/` | Named agent definitions (one file per agent) |
-| `apps/web/src/app/(authenticated)/deals/[dealId]/layout.tsx` | Persistent chat bar + deal sub-nav |
-| `apps/web/src/app/(authenticated)/deals/[dealId]/overview/page.tsx` | Deal overview dashboard |
-| `apps/web/src/app/(authenticated)/deals/[dealId]/briefing/page.tsx` | Pre-call briefing page |
-| `apps/web/src/app/(authenticated)/deals/[dealId]/touch-[1-4]/page.tsx` | Touch-specific artifact generation pages |
-| `apps/web/src/app/(authenticated)/settings/agents/page.tsx` | Agent management UI |
-| `apps/web/src/components/pipeline/` | Kanban board, pipeline column, deal card components |
-| `apps/web/src/components/chat/` | ChatBar, ChatMessage, ChatInput components |
-| `apps/web/src/components/artifacts/` | ArtifactCard, ArtifactReview, StageIndicator components |
+| File | Purpose |
+|------|---------|
+| `apps/agent/src/generation/structure-blueprint-resolver.ts` | Resolve DeckStructure to concrete slide selections |
+| `apps/agent/src/generation/section-slide-matcher.ts` | Score/rank slide candidates per section |
+| `apps/agent/src/generation/multi-source-assembler.ts` | Assemble slides from N source presentations |
+| `apps/agent/src/generation/modification-planner.ts` | Generate per-slide modification plans from element maps |
+| `apps/agent/src/generation/surgical-modifier.ts` | Execute planned modifications via Slides API |
+| `packages/schemas/generation/resolved-blueprint.ts` | ResolvedBlueprint Zod schema |
+| `packages/schemas/generation/assembly-manifest.ts` | AssemblyManifest Zod schema |
+| `packages/schemas/generation/modification-plan.ts` | ModificationPlan + ModificationAction Zod schemas |
 
-### @mastra/editor Integration with Existing PostgresStore
+---
 
-The `@mastra/editor` package uses `@mastra/pg` for persistence. We already configure `PostgresStore` in `index.ts`:
+## Installation
 
-```typescript
-const store = new PostgresStore({ connectionString: env.DATABASE_URL });
+```bash
+# No new packages to install.
+# All capabilities come from existing dependencies.
+
+# Only Prisma migration needed:
+cd apps/agent
+pnpm exec prisma migrate dev --create-only --name add-blueprint-assembly-fields
+# Inspect SQL (adds blueprintJson and assemblyManifest to InteractionRecord)
+pnpm exec prisma migrate dev --name add-blueprint-assembly-fields
 ```
-
-The editor should be initialized with the same store instance to share the database connection and keep agent configs alongside workflow state in the same database. This avoids a second connection pool and keeps all Mastra state co-located.
 
 ---
 
 ## Sources
 
-### HIGH Confidence (npm registry verified)
-- `@mastra/editor@0.7.0` -- verified via `npm view @mastra/editor version` (peer deps: @mastra/core >=1.7.1, zod ^3.25 || ^4.0, @mastra/mcp >=1.0.0)
-- `@dnd-kit/core@6.3.1` -- verified via `npm view @dnd-kit/core version`
-- `@dnd-kit/sortable@10.0.0` -- verified via `npm view @dnd-kit/sortable version`
-- Existing codebase analysis -- `schema.prisma`, `drive-folders.ts`, `index.ts`, `package.json` files
+### HIGH Confidence (Official docs + codebase verified)
+- [Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584) -- confirmed no REST API cross-presentation slide copy
+- [Google Slides API - Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides) -- `duplicateObject` is intra-presentation only
+- [Google Slides API REST Reference](https://developers.google.com/workspace/slides/api/reference/rest) -- verified available batchUpdate request types
+- [Google Slides Merge Guide](https://developers.google.com/workspace/slides/api/guides/merge) -- template merge patterns via replaceAllText
+- [googleapis npm](https://www.npmjs.com/package/googleapis) -- latest 171.x, no new Slides methods relevant to v1.8
+- Codebase: `deck-assembly.ts`, `deck-customizer.ts`, `extract-elements.ts`, `schema.prisma`, `deck-structure-schema.ts` -- verified existing patterns and capabilities
 
-### MEDIUM Confidence (official docs + web search)
-- [Mastra agent docs](https://mastra.ai/docs/agents/overview) -- named agent instructions format
-- [Mastra changelog 2026-02-04](https://mastra.ai/blog/changelog-2026-02-04) -- @mastra/editor announcement
-- [Mastra changelog 2026-03-04](https://mastra.ai/blog/changelog-2026-03-04) -- latest Mastra release info
-- [@dnd-kit official site](https://dndkit.com/) -- React 19 compatibility confirmed
-- [dnd-kit + shadcn + Tailwind kanban example](https://github.com/Georgegriff/react-dnd-kit-tailwind-shadcn-ui) -- proven pattern
-- [shadcn/ui Breadcrumb](https://ui.shadcn.com/docs/components/radix/breadcrumb) -- component API
-- [shadcn/ui Sidebar](https://ui.shadcn.com/docs/components/radix/sidebar) -- composable sidebar for deal nav
-- [Google Drive permissions API](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/create) -- domain-scoped sharing
-
-### LOW Confidence (needs phase-specific validation)
-- @mastra/editor integration with existing PostgresStore -- API surface not fully documented; verify during implementation that editor can share a PostgresStore instance
-- @mastra/editor UI requirements -- unclear whether it ships its own React components or is API-only; may affect Settings agent management UI approach
+### MEDIUM Confidence (Multiple sources agree)
+- Apps Script `appendSlide()` exists but REST API equivalent does not -- confirmed across Google docs, Issue Tracker, and developer forums
+- Sequential copy-and-prune as standard workaround -- multiple developer blog posts and Stack Overflow answers describe this pattern
 
 ---
-*Stack research for: Lumenalta Agentic Sales Orchestration v1.7 Deals and HITL Pipeline*
-*Researched: 2026-03-08*
+*Stack research for: v1.8 Structure-Driven Deck Generation*
+*Researched: 2026-03-09*

@@ -1,183 +1,165 @@
 # Project Research Summary
 
-**Project:** Lumenalta Agentic Sales Orchestration v1.7 -- Deals & HITL Pipeline
-**Domain:** Deal management pipeline with AI-powered artifact generation for agentic sales platform
-**Researched:** 2026-03-08
+**Project:** v1.8 Structure-Driven Deck Generation
+**Domain:** Multi-source slide assembly with element-map-guided modifications for agentic sales platform
+**Researched:** 2026-03-09
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v1.7 transforms the platform from a content-generation tool into a deal-management platform. The core addition is a deal pipeline with stage lifecycle, sub-page navigation within each deal, persistent AI chat, and a 3-stage HITL artifact generation workflow (Generate > Review > Approve) across all four touch types. The existing Mastra workflow infrastructure with suspend/resume, Google Drive integration, and Prisma data layer provide a solid foundation -- the work is primarily about extending established patterns rather than introducing new architectural paradigms.
+v1.8 bridges the gap between the intelligence layer (DeckStructure blueprints, slide classification, element maps) and the generation layer (Google Slides deck assembly). The core challenge is consuming DeckStructure as a generation blueprint, selecting context-appropriate slides from multiple source presentations, assembling them into a single output deck while preserving original designs, and applying surgical per-element text modifications using stored element maps. All of this must flow through the existing 3-stage HITL pipeline (Skeleton/Low-fi/High-fi) with enriched data payloads at each checkpoint.
 
-The recommended approach centers on three pillars: (1) add explicit deal lifecycle state to the database as a first-class field (not derived from interactions), (2) restructure the deal detail view from a single page into a layout with routed sub-pages hosting a persistent chat bar, and (3) formalize the currently-inline LLM calls into named Mastra Agent instances with DB-backed system prompts. The stack additions are minimal -- `@dnd-kit` for kanban drag-and-drop, `@mastra/editor` for agent config versioning, and several shadcn/ui components. No new databases, no new infrastructure services, no WebSocket layer.
+The recommended approach requires zero new dependencies -- every capability is achievable with the existing `googleapis`, `@google/genai`, `openai`, Prisma, and Mastra packages. The work is 6 new TypeScript modules in a `generation/` directory, 2 nullable column additions to `InteractionRecord`, and new Zod schemas for the pipeline data contracts. The architecture follows a blueprint-first pattern: every generation starts by resolving DeckStructure into an ordered list of section slots, matching slides to sections using deal context, assembling from source presentations, and then applying element-map-guided modifications.
 
-The primary risks are: concurrent workflow execution on the same deal causing race conditions in Drive folder creation and status updates; Prisma migration failures from batching too many schema changes; and agent prompt versioning without runtime pinning causing inconsistent outputs across workflow suspend/resume boundaries. All three are preventable with well-scoped migrations, transactional state updates, and capturing the agent config version at workflow start time.
+The dominant technical risk is Google Slides API's lack of cross-presentation slide copy (confirmed via Google Issue Tracker #167977584, open since 2020). The mitigation is a "sequential copy-and-prune" strategy where the primary source presentation is copied and pruned, and secondary source slides use content injection from element maps into branded template slides. This hybrid approach trades pixel-perfect layout for secondary slides in exchange for API simplicity, with a future path to Apps Script `appendSlide()` if visual fidelity becomes critical. Secondary risks include objectId collisions during multi-source merge, element map staleness between ingestion and generation, and HITL state payload bloat -- all have clear prevention strategies documented in the research.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack (Next.js 15, Mastra 1.8, Prisma 6.x, Supabase PostgreSQL, googleapis) is unchanged. Only 4 new npm packages are needed: `@dnd-kit/core`, `@dnd-kit/sortable`, and `@dnd-kit/utilities` for kanban drag-and-drop in the pipeline view, plus `@mastra/editor` for agent config versioning and persistence. Eight new shadcn/ui components (breadcrumb, tooltip, scroll-area, sheet, switch, table, command, resizable) provide UI primitives with no additional npm dependencies beyond auto-installed Radix primitives.
+No dependency changes. All capabilities come from existing packages. Stay on `googleapis@^144.0.0` (no new Slides methods in 171.x), `prisma@^6.3.1` (Prisma 7.x has vector regression), and `@mastra/core@^1.8.0` (suspend/resume handles HITL stages). See [STACK.md](./STACK.md) for full details.
 
-**Core new technologies:**
-- `@dnd-kit/core` + `sortable` + `utilities`: Kanban board drag-and-drop -- standard React DnD library for 2025-2026, accessible, lightweight, React 19 compatible
-- `@mastra/editor@^0.7.0`: Agent config versioning and persistence -- first-party Mastra package, uses existing PostgresStore, peer-compatible with current stack
-- Prisma new models (Artifact, AgentConfig, AgentConfigVersion): Deal pipeline fields, HITL artifact tracking, and agent versioning -- forward-only migrations per CLAUDE.md
-
-**Critical version note:** Stay on Prisma 6.x. Prisma 7.x has a vector migration regression (#28867).
+**Core technologies (all existing):**
+- `googleapis` (^144.0.0): Drive `files.copy` for multi-source assembly, Slides `batchUpdate` for modifications -- no upgrade needed
+- `@google/genai` (^1.43.0): Gemini 2.5 Flash for modification planning and section-to-slide scoring -- flat structured output schemas only
+- `openai` (^6.27.0): GPT-OSS 120b for per-slide creative copy generation -- same pattern as existing proposal assembly
+- `@prisma/client` (^6.3.1): 2 new nullable columns on InteractionRecord via forward-only migration -- no new models
+- `@mastra/core` (^1.8.0): New workflow steps using existing suspend/resume for enriched HITL checkpoints
 
 ### Expected Features
 
-**Must have (table stakes):**
-- Deal status lifecycle with 5 fixed pipeline stages
-- Deal list with filtering, status indicators, and board/list view toggle
-- Deal detail navigation overhaul with breadcrumbs and sidebar sub-pages
-- Per-touch artifact pages with 3-stage HITL workflow (Configure > Review > Approve)
-- Google Drive artifact saving with per-deal/per-touch folder structure and domain-scoped sharing
-- AI chat for deal context with persistent message history and streaming responses
+See [FEATURES.md](./FEATURES.md) for full analysis.
 
-**Should have (differentiators):**
-- Persistent AI chat bar surviving sub-page navigation within a deal (not just per-page chat)
-- Named agent architecture with dedicated system prompts per agent type
-- Agent management UI with versioning and draft/publish system
-- Cross-touch context carry-forward in chat responses
-- Deal briefing consolidation page
+**Must have (table stakes -- closes 5 identified gaps):**
+- DeckStructure blueprint resolver -- reads structureJson, resolves sections to SlideEmbedding records with classification and element metadata
+- Context-aware section-to-slide matching -- scores candidates on industry, pillar, persona, funnel stage; cascading fallback for sparse library
+- Multi-source slide assembly -- cherry-picks slides from different source presentations into one deck via copy-and-prune strategy
+- Per-slide modification planning via element maps -- LLM reads element map, produces targeted modification plan, executes via scoped batchUpdate
+- 3-stage HITL data contracts -- Skeleton=blueprint+selections, Low-fi=assembled deck URL, High-fi=modification plan summary
+- Touch-type router with fallbacks -- routes through structure-driven pipeline when DeckStructure exists, falls back to existing paths otherwise
+
+**Should have (differentiators for v1.8.x):**
+- Variation preview in Skeleton stage -- show all candidate slides per section with thumbnails and match scores
+- Cross-touch slide exclusion -- prevent repeated slides across touch decks for same deal
+- Fallback synthesis for missing sections -- branded template injection when no good candidate exists
+- Confidence-gated generation -- gate auto-generation on DeckStructure confidence level
 
 **Defer (v2+):**
-- Custom pipeline stages per team
-- Chat history search across deals
-- Automated stage transitions based on interaction completion
-- A/B testing for agent prompts
-- Email notifications on HITL checkpoints
+- Custom section insertion, template-level theme enforcement, generation analytics, smart modification learning
 
 ### Architecture Approach
 
-The architecture extends the existing monorepo (apps/web + apps/agent) without introducing new services. The deal detail view becomes a Next.js layout at `deals/[dealId]/layout.tsx` hosting breadcrumb navigation, sidebar sub-nav, and a persistent chat bar -- all sub-pages (overview, briefing, touch-1 through touch-4) render within this layout, preserving chat state across navigation. Named Mastra agents replace inline LLM calls in workflows, with DB-backed system prompts loaded via async `instructions` functions with in-memory caching. Chat persistence uses Mastra Memory with PostgresStore (thread per deal, no custom ChatMessage model needed). The HITL 3-stage flow reuses the proven suspend/resume pattern from Touch 4, extended to Touches 1-3 with per-touch stage counts (Touch 1-2 need 1 gate, Touch 3 needs 1-2, Touch 4 keeps 3).
+The architecture adds a `generation/` module layer between the existing intelligence layer (DeckStructure, SlideEmbedding, SlideElement) and the existing HITL/workflow layer. Six new components form a linear pipeline: Blueprint Resolver -> Section Matcher -> Multi-Source Assembler (with Slide Copier) -> Modification Planner -> Element-Map Executor. Each component has a graceful degradation fallback to existing code paths. See [ARCHITECTURE.md](./ARCHITECTURE.md) for full details.
 
 **Major components:**
-1. Deal Pipeline Page -- list/board view toggle with filtering, stage badges, drag-and-drop stage changes
-2. Deal Detail Layout -- sub-page routing, breadcrumbs, DealContextProvider, persistent chat bar host
-3. Named Agent System -- 5 agents (deal-chat, brief-generator, content-selector, pager-generator, deck-assembler) with DB-backed versioned prompts
-4. HITL Touch Sub-pages -- per-touch artifact generation with configurable suspend/resume gates
-5. Agent Management Settings -- prompt editor with draft/publish versioning and rollback
+1. **Blueprint Resolver** -- reads DeckStructure, produces GenerationBlueprint with ordered SectionSlots and candidate slideIds
+2. **Section Matcher** -- scores candidate slides per section using classification metadata + vector similarity against deal context
+3. **Multi-Source Assembler + Slide Copier** -- groups slides by source presentation, executes copy-and-prune for primary source, content injection for secondary sources
+4. **Modification Planner** -- loads SlideElement records per assembled slide, LLM produces per-element modification actions (flat schema for Gemini compatibility)
+5. **Element-Map Executor** -- executes planned modifications via scoped Slides API batchUpdate; re-reads presentation between slides for objectId stability
 
 ### Critical Pitfalls
 
-1. **Concurrent workflow race conditions** -- Multiple touch workflows running on the same deal can race on Drive folder creation and Deal status updates. Prevent with `SELECT FOR UPDATE` on the Deal row around shared state mutations and per-workflow InteractionRecord isolation.
+See [PITFALLS.md](./PITFALLS.md) for all 10 pitfalls with full recovery strategies.
 
-2. **Deal status as implicit state machine** -- Without an explicit `Deal.status` column, different views compute status differently from InteractionRecord scans. Add the column in the foundation phase, update it transactionally within workflow steps.
-
-3. **Agent prompt versioning without runtime pinning** -- Editing a prompt mid-workflow causes steps before and after a suspend point to use different prompt versions. Capture `agentConfigVersionId` at workflow start; read from context at resume, never from "current" DB record.
-
-4. **Prisma migration drift from batched models** -- Adding 5-8 models in one migration risks partial-apply failures with no rollback. One migration per logical unit, `--create-only` to inspect SQL, separate "alter existing" from "create new" migrations.
-
-5. **Navigation refactor breaking existing review routes** -- Existing `/deals/[dealId]/review/[briefId]` and `/asset-review/[interactionId]` routes are URL contracts (stored in alerts, bookmarks). Keep them as routes within the new layout or add permanent redirects.
+1. **No cross-presentation slide copy in Google Slides REST API** -- use sequential copy-and-prune with hybrid approach (primary source preserves design, secondary sources use content injection). Prototype with real API integration test before building full pipeline.
+2. **ObjectId collisions when merging from multiple presentations** -- never reuse source objectIds; generate new IDs; maintain source-to-output ID mapping; always re-read presentation after batchUpdate.
+3. **Element map staleness between ingestion and generation** -- re-fetch source slide elements via `presentations.get` at generation time; lock source data for workflow duration; suppress auto-re-ingestion during active generation.
+4. **DeckStructure slideIds becoming dangling references** -- validate every slideId against DB at generation time; filter archived/deleted slides; fall back to vector similarity search when sections have zero valid candidates.
+5. **replaceAllText cross-contamination in multi-source decks** -- use element-targeted `deleteText`+`insertText` instead of `replaceAllText` for content modifications; always scope with `pageObjectIds` for placeholder replacements.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on dependency analysis from architecture research and pitfall-to-phase mapping:
 
-### Phase 1: Deal Model Extensions + Pipeline View
-**Rationale:** Deal status lifecycle is the dependency root -- pipeline views, filtering, dashboard, and HITL stages all require deals to have explicit stage and status fields. Ship first to unblock everything else.
-**Delivers:** Explicit `Deal.status` and `Deal.stage` columns, pipeline constants in shared schemas, deals list page with table/board view toggle and filtering, PATCH endpoint for deal updates.
-**Addresses:** Deal status lifecycle, deal list with filtering, pipeline view toggle (table stakes).
-**Avoids:** Pitfall 3 (implicit state machine) by establishing explicit status from day one.
+### Phase 1: Foundation Types + Blueprint Resolution + Section Matching
 
-### Phase 2: Deal Detail Layout + Sub-Page Restructure
-**Rationale:** Every feature inside a deal (overview, briefing, touch pages, chat bar) requires the sub-page routing structure to exist. This is the mounting point for everything that follows.
-**Delivers:** `[dealId]/layout.tsx` with sidebar nav + breadcrumbs, DealContextProvider, overview sub-page (migrated from current page), briefing page placeholder, touch-1 through touch-4 placeholders.
-**Addresses:** Breadcrumb navigation, deal detail sidebar sub-navigation, deal overview dashboard, deal briefing page (table stakes).
-**Avoids:** Pitfall 9 (breaking existing review routes) by keeping existing routes within the new layout.
+**Rationale:** Blueprint Resolver is the foundation -- every downstream component depends on GenerationBlueprint and SectionSlot types. Section Matcher fills the selected slideId per section, which is required before assembly can begin. These are pure data transforms and DB queries with no Google API mutations, making them low-risk to build first.
+**Delivers:** `generation/types.ts`, `generation/blueprint-resolver.ts`, `generation/section-matcher.ts`, new Zod schemas (ResolvedBlueprint, ModificationAction)
+**Addresses:** DeckStructure blueprint consumption, context-aware section-to-slide matching (Features P1)
+**Avoids:** Context matching over-fitting (Pitfall 8) -- build cascading fallback from day one; dangling slideId references (Pitfall 4) -- validate slideIds at resolution time
+**Uses:** Prisma (DeckStructure, SlideEmbedding, SlideElement), pgvector (cosine similarity pre-filter), Gemini Flash (structured scoring)
 
-### Phase 3: Named Agent Architecture + Agent Config Models
-**Rationale:** Chat bar, touch pages, and agent management UI all depend on named agents existing. Define agents before building features that use them. This also establishes the DB-backed prompt versioning model that the Settings UI will later expose.
-**Delivers:** Named Mastra Agent definitions (5 agents), AgentConfig + AgentConfigVersion Prisma models, agent-config.ts with DB loading + caching, agent registration in Mastra instance, seed data for default prompts.
-**Addresses:** Named agent architecture (differentiator), foundation for agent management UI.
-**Avoids:** Pitfall 7 (god object registry) by defining agents as configuration objects, not runtime entities. Pitfall 5 (prompt versioning without pinning) by establishing immutable version records from the start.
+### Phase 2: Multi-Source Slide Assembly
 
-### Phase 4: Persistent AI Chat Bar
-**Rationale:** High-visibility differentiator. With the layout and agents in place, the chat bar can be mounted and connected. Delivers immediate user value while touch pages are still being built.
-**Delivers:** Chat components (bar, message list, input, useChat hook), POST /api/chat streaming endpoint, chat history retrieval, Mastra Memory integration with PostgresStore.
-**Addresses:** AI chat for deal context (table stakes), persistent chat bar across sub-pages (differentiator).
-**Avoids:** Pitfall 2 (chat scoping confusion) by using Mastra Memory thread-per-deal with touch context from URL segment.
+**Rationale:** Most complex component and highest technical risk due to Google API limitations. Must be built and validated before modification planning, because Low-fi HITL (assembled deck review) is useful even without surgical modifications. Needs an integration test proving the cross-presentation merge strategy works before building downstream.
+**Delivers:** `generation/multi-source-assembler.ts`, `generation/slide-copier.ts`, AssemblyManifest schema, Prisma migration for `blueprintJson` and `assemblyManifest` columns
+**Addresses:** Multi-source slide assembly, design-preserved output (Features P1)
+**Avoids:** No cross-presentation copy API (Pitfall 1) -- prototype early; objectId collisions (Pitfall 2) -- generate new IDs with mapping; theme conflicts (Pitfall 6) -- verify theme compatibility before assembly
+**Uses:** googleapis (Drive files.copy, Slides batchUpdate), existing deck-customizer.ts copy-and-prune patterns
 
-### Phase 5: Touch 1-4 Sub-Pages with 3-Stage HITL
-**Rationale:** Core product value -- this is what makes v1.7 a deal-management platform rather than a content-generation tool. Depends on agents (Phase 3) and sub-page routing (Phase 2).
-**Delivers:** Four touch sub-pages with artifact-stage-stepper UI, modified touch workflows using named agents, suspend/resume gates with per-touch stage counts (1 gate for Touch 1-2, 1-2 for Touch 3, 3 for Touch 4).
-**Addresses:** Per-touch artifact pages, 3-stage HITL generation workflow (table stakes).
-**Avoids:** Pitfall 8 (uniform HITL stages for simple flows) by designing per-touch stage counts. Pitfall 1 (concurrent workflow races) by isolating per-workflow state.
+### Phase 3: Modification Planning + Execution
 
-### Phase 6: Google Drive Artifact Saving + Sharing
-**Rationale:** Completes the HITL loop -- the "Save" stage in Phase 5 needs Drive integration to function. Extend existing `drive-folders.ts` rather than building new infrastructure.
-**Delivers:** Per-deal/per-touch subfolder creation, domain-scoped sharing (@lumenalta.com), Drive links in completion UI, replacement of `makePubliclyViewable` with scoped permissions.
-**Addresses:** Google Drive artifact saving with organized folders, domain-scoped sharing (table stakes + differentiator).
-**Avoids:** Pitfall 6 (permissions cascading incorrectly) by defining a clear sharing model upfront.
+**Rationale:** Can be developed in parallel with Phase 2 once types are defined (Phase 1 complete). Depends on assembled slides existing in the target presentation for elementId resolution. The modification planner and executor form a tight pair.
+**Delivers:** `generation/modification-planner.ts`, `generation/element-map-executor.ts`, ModificationPlan schema, new named agent "modification-planner"
+**Addresses:** Per-slide modification planning via element maps (Features P1)
+**Avoids:** Element map staleness (Pitfall 3) -- re-fetch live data at generation time; element type assumptions (Pitfall 9) -- build type-specific executors; replaceAllText cross-contamination (Pitfall 5) -- use element-targeted operations
+**Uses:** Prisma (SlideElement), Gemini Flash (modification planning), GPT-OSS 120b (creative copy generation), googleapis (Slides batchUpdate)
 
-### Phase 7: Settings Agent Management UI
-**Rationale:** Downstream of everything -- configures agents that must already exist and be working. Can be built in parallel with Phases 5-6 if resources allow.
-**Delivers:** Settings > Agents page with agent list, prompt editor with markdown support, version history with text diff, draft/publish workflow, cache invalidation on publish.
-**Addresses:** Agent management UI with versioning (differentiator).
-**Avoids:** Pitfall 5 (versioning without pinning) by building on the immutable version records established in Phase 3.
+### Phase 4: Workflow Integration + HITL Wiring
+
+**Rationale:** Integrates the full pipeline into existing touch workflows with HITL checkpoints. Must come last because it depends on all pipeline components. Each touch can be migrated independently with fallback to existing behavior.
+**Delivers:** Modified touch 1-4 workflows, HITL stage data contracts, touch-type router with fallbacks, modified proposal-assembly.ts
+**Addresses:** 3-stage HITL alignment, touch-type router with fallbacks (Features P1)
+**Avoids:** HITL state explosion (Pitfall 7) -- store heavy data in DB, keep suspend payloads under 5KB with IDs only; concurrent modification between stages (Pitfall 10) -- check revisionId before High-fi modifications
+**Uses:** @mastra/core (suspend/resume), all Phase 1-3 components
+
+### Phase 5: Polish + Differentiators (v1.8.x)
+
+**Rationale:** Only after core pipeline works end-to-end. These improve quality and seller experience but are not required to close the 5 gaps.
+**Delivers:** Variation preview UI, cross-touch slide exclusion, fallback synthesis for missing sections, confidence-gated generation
 
 ### Phase Ordering Rationale
 
-- **Dependency-driven:** Deal status (Phase 1) -> Sub-page routing (Phase 2) -> Named agents (Phase 3) follows the strict dependency chain identified in FEATURES.md. Each phase unblocks the next.
-- **Value-first:** Chat bar (Phase 4) ships before touch pages (Phase 5) because it delivers immediate visible value to sellers while the more complex HITL workflows are being built.
-- **Risk-front-loaded:** The highest-risk items (schema migrations, architectural patterns, agent definitions) ship in Phases 1-3 before the high-complexity integration work in Phases 5-6.
-- **Pitfall-aware:** Concurrent workflow races (Pitfall 1) are addressed in Phase 1's schema design before any workflows are modified. Navigation breakage (Pitfall 9) is handled in Phase 2 before sub-pages are added.
+- **Dependency chain:** Blueprint resolution (P1) -> section matching (P1) -> assembly (P2) -> modifications (P3) -> integration (P4). This mirrors the data flow: you cannot assemble slides you have not selected, and you cannot modify slides you have not assembled.
+- **Risk front-loading:** Phase 2 (multi-source assembly) is the highest-risk component due to Google API constraints. Building it in Phase 2 (not Phase 4) means the hardest problem is solved early, and downstream phases can adapt to whatever assembly strategy proves viable.
+- **Parallel opportunity:** Phase 3 (modification) can run in parallel with Phase 2 after Phase 1 types are defined. This compresses the timeline.
+- **Graceful degradation:** Each phase adds value independently. After Phase 1-2, the system can produce assembled decks from DeckStructure without surgical modifications. After Phase 3, modifications work but are not yet wired into HITL. Phase 4 connects everything.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 3 (Named Agents):** `@mastra/editor` integration with existing PostgresStore is not fully documented. Verify during planning whether the editor can share a PostgresStore instance and whether it ships its own React components or is API-only.
-- **Phase 4 (Chat Bar):** Mastra Memory thread management API surface needs validation -- confirm thread listing, message retrieval for UI display, and context window behavior with the PostgresStore backend.
-- **Phase 5 (HITL Touch Pages):** Per-touch HITL stage design requires examining each existing workflow's suspend/resume points to determine which can be simplified vs. extended.
+- **Phase 2 (Multi-Source Assembly):** Highest technical risk. Needs a spike/prototype proving the Drive copy-and-prune merge strategy works with real Google Slides API calls. The hybrid approach (primary source copy-and-prune + secondary source content injection) must be validated with actual presentations to determine visual fidelity.
+- **Phase 4 (HITL Wiring):** The suspend/resume payload contracts need careful schema design. The Skeleton stage UI rendering complexity (12+ sections with thumbnails and alternatives) needs frontend prototyping.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (Deal Model + Pipeline):** Well-documented Prisma migration patterns + shadcn table/kanban components. Standard CRM patterns.
-- **Phase 2 (Deal Detail Layout):** Standard Next.js App Router layout patterns. Well-established in existing codebase.
-- **Phase 6 (Drive Integration):** Extends existing `drive-folders.ts` with documented Google Drive API calls. Existing credential chain handles auth.
-- **Phase 7 (Agent Management UI):** Standard CRUD settings page with version history. shadcn components cover all UI needs.
+- **Phase 1 (Blueprint + Matching):** Well-documented patterns -- Prisma queries, vector similarity, LLM structured output. All patterns exist in the current codebase.
+- **Phase 3 (Modification):** Element map consumption is a new application of existing patterns (SlideElement queries + Gemini structured output + Slides batchUpdate). The type-specific executor pattern is standard.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All packages verified via npm registry. Version compatibility confirmed. Minimal new dependencies. |
-| Features | HIGH | Feature landscape well-understood from existing codebase analysis and established CRM patterns. Clear dependency chain. |
-| Architecture | HIGH | Extends proven patterns (Next.js layouts, Mastra workflows, Prisma models). No new architectural paradigms. |
-| Pitfalls | HIGH | Identified from direct codebase analysis of all affected code paths. Concrete line-number references to existing issues. |
+| Stack | HIGH | Zero new dependencies. All existing packages verified sufficient. Version constraints documented with rationale. |
+| Features | HIGH | 5 gaps clearly identified from gap analysis. Feature dependency chain validated against codebase. MVP vs. defer boundary is clear. |
+| Architecture | HIGH | Full codebase analysis (61,245 LOC). Component boundaries, data joins, and existing code extensions all verified against actual source files. |
+| Pitfalls | HIGH | All 10 pitfalls verified against Google Slides API documentation and existing codebase patterns. Cross-presentation copy limitation confirmed via Google Issue Tracker. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **@mastra/editor API surface:** Documentation is sparse on whether it ships React components or is API-only, and whether it can share an existing PostgresStore instance. Validate during Phase 3 planning; fallback is custom AgentConfig + AgentConfigVersion Prisma models (design already in ARCHITECTURE.md).
-- **Mastra Memory thread retrieval for UI:** Unclear whether Mastra Memory exposes a client-friendly API for listing threads and retrieving message history for display (vs. just feeding context to the LLM). If not, may need raw SQL queries against the `mastra` schema or a thin wrapper. Validate during Phase 4 planning.
-- **Touch 1-3 workflow complexity assessment:** The research recommends per-touch HITL stage counts (1 gate for Touch 1-2, 1-2 for Touch 3) but the exact workflow modifications need per-workflow analysis during Phase 5 planning.
-- **Google Drive sharing model decision:** Research flags the need to replace `makePubliclyViewable` with domain-scoped sharing, but the impact on existing iframe previews needs testing. If restricted sharing breaks previews, a server-side proxy endpoint may be needed. Decide during Phase 6 planning.
+- **Multi-source assembly visual fidelity:** The hybrid approach (primary source copy-and-prune + secondary source content injection) has not been tested with real presentations. A spike in Phase 2 must validate that content injection into branded template slides produces acceptable output quality. If not, the fallback is single-source assembly per deck (simpler but less visually diverse).
+- **Table cell modification support:** Current element map extraction concatenates table cell text into a single `contentText` string. If table modifications are in scope for v1.8, the element map schema needs extension to capture `{rowIndex, columnIndex}` per cell. This can be deferred if table content is treated as "preserve as-is."
+- **Sparse library matching quality:** With only 38 slides from 5 presentations, the cascading fallback matcher may frequently fall through to the lowest tier (any available slide). Actual match quality will only be measurable after Phase 1 is built against real deal contexts.
+- **Apps Script migration path:** If the hybrid multi-source approach proves insufficient for visual fidelity, migration to Apps Script `appendSlide()` via the Apps Script API is the documented escape hatch. This adds infrastructure complexity (Apps Script project deployment, execution permissions) and should only be pursued if seller feedback demands it.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Existing codebase analysis: `prisma/schema.prisma` (14 models), `drive-folders.ts`, `touch-4-workflow.ts` (17 steps, 3 suspend points), `mastra/index.ts`, `api-client.ts`, deal pages, settings pages
-- npm registry verification: `@dnd-kit/core@6.3.1`, `@dnd-kit/sortable@10.0.0`, `@mastra/editor@0.7.0`
-- CLAUDE.md: Prisma migration discipline constraints
-- PROJECT.md: v1.7 milestone scope and constraints
+- [Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584) -- confirmed no REST API cross-presentation slide copy
+- [Google Slides API Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides) -- `duplicateObject` is single-presentation only
+- [Google Slides API REST Reference](https://developers.google.com/workspace/slides/api/reference/rest) -- verified batchUpdate request types
+- [Google Slides API Merge Guide](https://developers.google.com/workspace/slides/api/guides/merge) -- template merge via replaceAllText
+- [Google Slides API Batch Requests](https://developers.google.com/slides/api/guides/batch) -- all-or-nothing batchUpdate semantics
+- [Google Apps Script Presentation.appendSlides](https://developers.google.com/apps-script/reference/slides/presentation) -- cross-presentation copy exists in Apps Script only
+- [googleapis npm](https://www.npmjs.com/package/googleapis) -- latest 171.x has no new Slides methods for v1.8
+- Codebase analysis: `deck-assembly.ts`, `deck-customizer.ts`, `extract-elements.ts`, `slide-selection.ts`, `proposal-assembly.ts`, `deck-structure-schema.ts`, `schema.prisma`, touch workflows
 
 ### Secondary (MEDIUM confidence)
-- [Mastra Agent docs](https://mastra.ai/docs/agents/overview) -- named agent registration and async instructions
-- [Mastra Agent Memory](https://mastra.ai/docs/agents/agent-memory) -- thread-based memory with PostgresStore
-- [Mastra HITL Workflows](https://mastra.ai/docs/workflows/human-in-the-loop) -- suspend/resume patterns
-- [@dnd-kit](https://dndkit.com/) -- React 19 compatibility, accessibility
-- [Google Drive Permissions API](https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/create) -- domain-scoped sharing
-- CRM feature analysis: Pipedrive, HubSpot, monday.com pipeline patterns
-
-### Tertiary (LOW confidence)
-- `@mastra/editor` integration with shared PostgresStore -- needs validation during implementation
-- `@mastra/editor` UI component surface -- unclear if API-only or ships React components
-- Mastra Memory message retrieval API for UI display -- needs validation
+- [Experiments with Google Slides API to recreate slides](https://www.bentumbleson.com/experiments-with-the-google-slides-api-to-recreate-slides/) -- confirms element reconstruction is lossy
+- Sequential copy-and-prune as standard multi-source workaround -- multiple developer blog posts and Stack Overflow answers
 
 ---
-*Research completed: 2026-03-08*
+*Research completed: 2026-03-09*
 *Ready for roadmap: yes*

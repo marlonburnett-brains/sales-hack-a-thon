@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { env } from "@/env";
+import { createClient } from "@/lib/supabase/server";
 
 type RouteParams = {
   dealId: string;
@@ -20,21 +21,18 @@ const dealChatBindingRequestSchema = z.object({
   refinedText: z.string().nullable().optional(),
 });
 
-function buildProxyHeaders(request: NextRequest): HeadersInit {
+async function buildProxyHeaders(request: NextRequest): Promise<HeadersInit> {
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${env.AGENT_API_KEY}`,
+    Authorization: `Bearer ${session?.access_token ?? ""}`,
   };
 
   const googleAccessToken = request.headers.get("X-Google-Access-Token");
-  const userId = request.headers.get("X-User-Id");
-
   if (googleAccessToken) {
     headers["X-Google-Access-Token"] = googleAccessToken;
-  }
-
-  if (userId) {
-    headers["X-User-Id"] = userId;
   }
 
   return headers;
@@ -62,7 +60,7 @@ export async function POST(
     `${env.AGENT_SERVICE_URL}/deals/${encodeURIComponent(dealId)}/chat/bindings`,
     {
       method: "POST",
-      headers: buildProxyHeaders(request),
+      headers: await buildProxyHeaders(request),
       body: JSON.stringify(body.data),
     },
   );

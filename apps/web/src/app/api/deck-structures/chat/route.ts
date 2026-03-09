@@ -1,5 +1,6 @@
 import { ARTIFACT_TYPES, type ArtifactType } from "@lumenalta/schemas";
 import { env } from "@/env";
+import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -46,11 +47,14 @@ export async function POST(request: NextRequest) {
 
   const agentUrl = `${env.AGENT_SERVICE_URL}/deck-structures/${encodeURIComponent(body.data.touchType)}/chat${suffix}`;
 
+  const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
   const agentRes = await fetch(agentUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${env.AGENT_API_KEY}`,
+      Authorization: `Bearer ${session?.access_token ?? ""}`,
     },
     body: JSON.stringify({ message: body.data.message.trim() }),
   });

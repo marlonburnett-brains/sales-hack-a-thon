@@ -1,226 +1,294 @@
 # Pitfalls Research
 
-**Domain:** Adding deal management pipeline, persistent AI chat, HITL multi-stage generation, Google Drive folder/sharing, named agent systems, and agent management UI with versioning to an existing agentic sales platform (~50,876 LOC, 40 phases, Mastra workflows with suspend/resume, Prisma forward-only migrations)
-**Researched:** 2026-03-08
-**Confidence:** HIGH (based on direct codebase analysis of all affected code paths and existing patterns)
+**Domain:** Adding structure-driven deck generation with multi-source slide assembly, element-map-guided modifications, and context-aware matching to an existing Google Slides-based agentic sales platform (~61,245 LOC, 49 phases, Mastra workflows with 3-stage HITL suspend/resume, Prisma forward-only migrations)
+**Researched:** 2026-03-09
+**Confidence:** HIGH (based on direct codebase analysis, Google Slides API documentation, and verified API constraints)
 
 ## Critical Pitfalls
 
-### Pitfall 1: Workflow State Explosion From Multi-Touch HITL Parallelism
+### Pitfall 1: Google Slides API Has No Cross-Presentation Slide Copy Endpoint
 
 **What goes wrong:**
-The existing Touch 4 workflow has 3 suspend/resume points in a single linear 17-step pipeline (field review, brief approval, asset review). Expanding HITL 3-stage generation to Touches 1-3 means up to 4 concurrent workflows per deal, each with their own suspend states stored in Mastra PostgresStore. When a seller starts Touch 1 and Touch 3 concurrently on the same deal, the resume handlers can race -- both may attempt to update the same `InteractionRecord` or `Deal.driveFolderId` simultaneously. The current `getOrCreateDealFolder` in `drive-folders.ts` is idempotent for a single caller but not for concurrent callers (two workflows could both pass the "does folder exist?" check on line 28-36 before either creates it, producing duplicate Drive folders).
+The gap analysis states that "Google Slides API supports cross-presentation copy via `duplicateObject` with `objectIdHeader`" -- this is incorrect. The `duplicateObject` request only works **within a single presentation**. There is no REST API endpoint to copy a slide from Presentation A into Presentation B. The feature request for this capability (Google Issue Tracker #167977584) has been open since 2020 with no resolution. The existing `deck-customizer.ts` works only because it copies an entire presentation via Drive API and then deletes unwanted slides (copy-and-prune). Multi-source assembly -- cherry-picking slide 3 from Presentation A and slide 7 from Presentation B into a new deck -- cannot use this approach because copy-and-prune only works with one source.
 
 **Why it happens:**
-The existing system was built for one-workflow-at-a-time per deal. The new milestone allows multiple touch types to run in parallel on the same deal, but the data model and Drive folder logic assume sequential execution.
+Developers read the `duplicateObject` documentation, see the `objectsIdsHeader` parameter for remapping IDs, and assume it supports cross-presentation operations. It does not -- the source objectId must exist in the same presentation being updated.
 
 **How to avoid:**
-- Add a database-level advisory lock or `SELECT ... FOR UPDATE` on the `Deal` row around `Deal.driveFolderId` assignment so the folder is created exactly once under concurrency.
-- Ensure each workflow writes only to its own `InteractionRecord` row and never mutates shared Deal-level state without a transaction guard.
-- Design the deal overview page to poll/subscribe to multiple in-flight workflow states, not assume a single active workflow.
+Use the only viable multi-source strategy: **sequential Drive copy + merge**.
+1. Create the output presentation by copying the "primary" source (the source with the most selected slides) via `drive.files.copy`.
+2. For each additional source presentation, create a temporary copy via `drive.files.copy`.
+3. From each temp copy, get the slide objectIds you need via `presentations.get`.
+4. Use the Google Apps Script `appendSlides` equivalent pattern: copy the temp presentation's content into the target by creating blank slides and recreating elements, OR use the Drive API to copy the temp presentation, then use `presentations.batchUpdate` to move/reorder slides within the merged result.
+
+The most reliable approach for this codebase: **copy-and-prune per source, then merge presentations via the Drive API**. Specifically:
+- Copy Source A, prune to desired slides -> Temp A
+- Copy Source B, prune to desired slides -> Temp B
+- Copy Temp A as the output deck
+- For slides from Temp B: read their full page element structure via `presentations.get`, create new slides in the output, and replicate elements via `batchUpdate` requests (`createShape`, `insertText`, `updateShapeProperties`, etc.)
+
+Alternative (simpler but loses some formatting): Copy the primary source, prune. For secondary source slides, create blank slides in the output and inject text content using element maps already captured during ingestion. Accept that visual layout comes from the primary source's theme.
 
 **Warning signs:**
-- Duplicate Drive folders appearing with the same name under the parent folder.
-- `InteractionRecord.status` values flickering between states when viewed on the deal page.
-- Mastra PostgresStore showing multiple suspended runs for the same dealId with conflicting states.
+- 400 errors from `duplicateObject` with "Object not found" when referencing objectIds from another presentation
+- Planning documents or PRDs that assume `duplicateObject` works cross-presentation
+- Test cases that only test single-source assembly and claim multi-source is "the same pattern"
 
 **Phase to address:**
-Deal management foundation phase (schema + deal lifecycle) -- must define concurrency rules before any workflow integration begins.
+Multi-source slide assembly phase -- must prototype the actual cross-presentation merge strategy with a real Google Slides API integration test before building the full pipeline. This is the single highest-risk technical unknown in the milestone.
 
 ---
 
-### Pitfall 2: Chat Message Persistence Without Conversation Scoping
+### Pitfall 2: ObjectId Collisions When Merging Slides From Multiple Presentations
 
 **What goes wrong:**
-The "persistent AI chat bar across deal sub-pages" feature creates a scoping problem. Should chat context carry across touch pages? Should a seller's question on the Touch 2 page ("what slides did you pick?") have access to Touch 4 transcript data? If chat messages are stored globally per deal, the LLM context window fills with irrelevant cross-touch context. If stored per-page, navigation loses continuity and users repeat themselves.
+Google Slides assigns objectIds to every element on every slide (shapes, text boxes, images, groups, tables). These IDs are unique **within a presentation** but not **across presentations**. When recreating elements from Source B inside a presentation that started as a copy of Source A, the recreated elements may collide with existing objectIds from Source A. The `createShape` request lets you specify a custom objectId, but if that ID already exists in the target presentation, the entire `batchUpdate` fails (all-or-nothing semantics).
+
+Additionally, the existing element maps stored in `SlideElement` records contain `elementId` values from the original source presentation. After copying a slide into the output deck (even via copy-and-prune), the objectIds are preserved -- but if two source presentations happen to have elements with the same objectId (which is possible since Google does not guarantee cross-presentation uniqueness), only one survives.
 
 **Why it happens:**
-Developers build chat persistence first (store messages, show history) without defining the conversation boundary model. The existing `DeckChatMessage` pattern in the codebase is scoped to a single `DeckStructure` entity via FK -- clean and bounded. A deal-level chat has no single entity to anchor to.
+Developers treat elementIds as globally unique identifiers (like UUIDs) when they are actually scoped to a single presentation. The `SlideElement.elementId` column stores the original source presentation's objectId, and downstream code assumes this ID will be valid in the output presentation.
 
 **How to avoid:**
-- Define explicit conversation scopes: one conversation per deal-touch combination (e.g., deal X + touch_3 = one thread), plus one "general" deal-level conversation for the overview/briefing pages.
-- Each conversation gets its own system prompt that includes only relevant context (deal metadata + touch-specific interaction data), not the entire deal history.
-- Store conversations in a new `ChatConversation` + `ChatMessage` table pair, with `dealId + touchType` as the natural composite key. The `touchType` column should be nullable (null = deal-level general chat).
-- Cap context window by summarizing older messages, following the existing `chatContextJson` summarization pattern in `DeckStructure`.
+- When creating elements in the output presentation, **never reuse source objectIds**. Generate new IDs using the allowed character set (alphanumeric + underscore/hyphen/colon, 5-50 chars).
+- Maintain a mapping from `{sourcePresentationId, sourceElementId} -> outputElementId` so that modification planning can reference the correct output element.
+- After any element creation or slide copy operation, re-read the presentation via `presentations.get` to discover the actual objectIds assigned by the API. The existing codebase comment "ALWAYS re-read presentation after ANY batchUpdate (objectId drift)" in `deck-assembly.ts` already acknowledges this pattern.
+- In `SlideElement` queries, always join with `SlideEmbedding.presentationId` to disambiguate elements from different source presentations.
 
 **Warning signs:**
-- LLM responses referencing Touch 4 transcript data when the user is on the Touch 1 page.
-- Chat context growing unbounded (100+ messages with full content sent to LLM each time).
-- Users confused about whether the chat "knows" about other touches.
+- `batchUpdate` returning "Object already exists" errors
+- Element maps from the DB not matching actual elements in the output presentation
+- Text replacement operations hitting the wrong elements (replacing text in Source A's title box when targeting Source B's title box)
 
 **Phase to address:**
-Persistent AI chat phase -- must define conversation scoping model before building the chat UI component.
+Multi-source slide assembly phase AND per-slide modification planning phase -- both need the ID mapping infrastructure.
 
 ---
 
-### Pitfall 3: Deal Status Lifecycle Becoming an Implicit State Machine
+### Pitfall 3: Element Map Staleness Between Ingestion and Generation
 
 **What goes wrong:**
-The existing `InteractionRecord.status` already has 7+ possible values ("pending", "generating", "pending_review", "approved", "overridden", "edited", "pending_approval", "pending_asset_review"). The new deal pipeline needs a deal-level status (e.g., "new", "qualifying", "proposal_sent", "won", "lost") that synthesizes the states of child interactions. Without a formalized state machine, deal status becomes a derived value that different parts of the codebase compute differently -- the deals list page shows "In Progress" while the deal detail page shows "Proposal Ready" because they use different reduction logic over interactions.
+Element maps are captured during slide ingestion (via `extract-elements.ts`) and stored in `SlideElement` records. Between ingestion and generation, the source presentation may have been edited in Google Slides by a human -- elements repositioned, text changed, new elements added, or elements deleted. The stored element map no longer matches the actual slide content. When the generation pipeline uses the stale element map to plan modifications (e.g., "replace text in element `p1_title_box` with deal-specific content"), the element may not exist or may contain different text, causing silent failures or incorrect replacements.
+
+This is especially dangerous because the existing ingestion pipeline has a "smart merge" system that re-ingests changed slides based on content hash. But re-ingestion updates `SlideEmbedding` and `SlideElement` records without invalidating any in-progress `DeckStructure` references. A `DeckStructure.sections[].slideIds` array may point to `SlideEmbedding` records whose element maps were just refreshed, but the modification plan was built against the old element map.
 
 **Why it happens:**
-The current `Deal` model in `schema.prisma` has no `status` column. Status is implicitly derived from the latest `InteractionRecord.status`. Adding a deal pipeline view requires an explicit pipeline stage, but developers often bolt it on as a derived value instead of a first-class field, leading to inconsistencies across views.
+The ingestion pipeline and the generation pipeline are decoupled by design (and correctly so). But the element map is treated as a static lookup table when it is actually a snapshot that can become stale. The 5-minute staleness polling in the ingestion layer makes this worse -- it can trigger mid-generation.
 
 **How to avoid:**
-- Add an explicit `Deal.status` column with a well-defined enum: "new" | "qualifying" | "engaged" | "proposal" | "review" | "won" | "lost" | "stale".
-- Define explicit transitions (e.g., "new" -> "qualifying" only when first interaction starts; "proposal" -> "review" only when HITL-2 generates assets).
-- Workflow steps should update `Deal.status` as a side effect within the same Prisma transaction that updates `InteractionRecord.status`.
-- Never derive deal status by scanning interactions on the fly -- compute once on mutation, store as source of truth.
+- At generation time, **always re-fetch the source slide's page elements via `presentations.get`** for the specific slides being assembled. Compare against the stored element map as a sanity check, but use the live data for modification planning.
+- Lock the source presentation's slide data at the start of generation (read once, cache for the duration of the workflow run). Do not re-read mid-generation.
+- Add a `lastVerifiedAt` timestamp to `SlideElement` records and skip modification planning for elements not verified within the current workflow run.
+- Suppress auto-re-ingestion for source presentations that have active generation workflows referencing their slides.
 
 **Warning signs:**
-- Pipeline view counts not matching deals list counts.
-- Deals "stuck" in a stage because no workflow step triggered the status transition.
-- Multiple places in the codebase computing deal status with subtly different logic.
+- `replaceAllText` operations that match zero elements (the placeholder text was changed in the source)
+- Generated decks with mixed old and new content on the same slide
+- Element maps showing 5 text boxes but the live slide having 6
 
 **Phase to address:**
-Deal management foundation phase -- the status enum and transition rules must exist before the pipeline view or deal detail pages can render correctly.
+DeckStructure-to-generation bridge phase -- must define the "read live, verify against stored" pattern before per-slide modification planning.
 
 ---
 
-### Pitfall 4: Prisma Migration Drift From Batched New Models
+### Pitfall 4: DeckStructure slideIds Becoming Dangling References
 
 **What goes wrong:**
-The project has strict forward-only migration discipline (per CLAUDE.md: never `db push`, never `migrate reset`). Adding deal pipeline enhancements, chat tables, agent configuration tables, and versioning tables means 5-8 new models in `schema.prisma`. If a developer adds all models in one migration, a single failure (e.g., column type mismatch, index name collision with existing 14 models) blocks the entire migration and leaves the database in a partially-applied state that requires manual intervention to fix with `prisma migrate resolve --applied`.
+`DeckStructure.sections[].slideIds` contains arrays of `SlideEmbedding` IDs. These IDs are populated during inference from whatever slides exist in the library at inference time. Between inference and generation:
+- Slides can be archived (removed from a source presentation, marked archived by smart merge)
+- Source presentations can lose access (Google Drive permissions revoked)
+- Re-ingestion can assign new IDs if the content hash changes enough to create a new record
+- Chat refinement can add slideIds that the LLM hallucinated (non-existent IDs)
+
+When the generation pipeline resolves a section's slideIds, some may point to archived/deleted records, inaccessible presentations, or simply not exist in the database.
 
 **Why it happens:**
-With 14 existing models and complex relationships, developers batch schema changes to minimize migration files. But forward-only discipline means a failed migration cannot be rolled back -- it must be fixed forward. Large migrations have higher failure probability, and the existing schema already has a history of drift (the `0_init` baseline required manual resolution).
+The DeckStructure is inferred by an LLM that receives slide data as context. The LLM outputs slideIds from that context. But the slideIds are database primary keys, and the LLM has no constraint preventing it from outputting IDs that look plausible but do not exist. Even valid IDs at inference time can become invalid before generation time -- there is no FK constraint between `DeckStructure.structureJson` (a JSON blob) and `SlideEmbedding.id`.
 
 **How to avoid:**
-- One migration per model or logical unit (e.g., `ChatConversation` + `ChatMessage` together, but separate from `AgentConfig` + `AgentConfigVersion`).
-- Use `--create-only` to inspect SQL before applying, especially for any migration that adds indexes or foreign keys to existing tables like `Deal` or `InteractionRecord`.
-- Never add columns to existing models in the same migration as new model creation -- separate migrations for "alter existing" vs. "create new."
-- Test each migration against a local copy of the prod schema before deploying.
+- At generation time, validate every slideId against the database. For each section, filter to only slideIds that: (a) exist in `SlideEmbedding`, (b) are not archived (`archivedAt IS NULL`), and (c) belong to a presentation the service account can still access.
+- If a section has zero valid slideIds after filtering, fall back to vector similarity search against the section's name/purpose to find replacement slides at generation time.
+- After LLM inference, run a post-processing step that strips any slideIds not found in the `SlideEmbedding` table. The existing inference code should already do this but must be verified.
+- Consider storing the `presentationId` alongside each `slideId` in the DeckStructure sections so that access checks can be batched per-presentation rather than per-slide.
 
 **Warning signs:**
-- Migration files with more than ~50 lines of SQL.
-- `prisma migrate dev` failing with "relation already exists" or "column already exists" errors.
-- Having to use `prisma migrate resolve --applied` more than once per milestone.
+- Generation failing with "SlideEmbedding not found" errors
+- Sections rendering with zero slides in the skeleton HITL stage
+- DeckStructure showing slideIds that do not appear in any `SlideEmbedding` query result
 
 **Phase to address:**
-Every phase that touches schema -- but most critically the foundation phase where the bulk of new models are introduced. Each plan should specify which migration(s) it creates.
+DeckStructure-to-generation bridge phase -- slideId validation is the first thing the bridge must do before any assembly begins.
 
 ---
 
-### Pitfall 5: Agent System Prompt Versioning Without Run-Time Pinning
+### Pitfall 5: replaceAllText Cross-Contamination in Multi-Source Assembled Decks
 
 **What goes wrong:**
-The "Settings agent management UI with versioning and draft system" introduces agent configuration as data (stored in DB) rather than code (hardcoded prompts). When a seller or admin edits an agent's system prompt in the UI, all subsequent workflow runs use the new prompt. If the edit degrades output quality, there is no way to revert except by manually editing again. Critically, in-flight workflows that were started with the old prompt may produce inconsistent results if they read the system prompt at resume time (after a suspend/resume cycle) rather than at start time. The existing Touch 4 workflow has 3 suspend points -- a prompt change during suspension means steps 1-7 used prompt v1 but steps 8-17 use prompt v2.
+The existing `deck-assembly.ts` correctly uses `pageObjectIds` scoping when calling `replaceAllText` to prevent cross-slide contamination. But in a multi-source assembled deck, the same placeholder text (e.g., a company name like "Acme Corp" or a section title like "Our Approach") may appear on slides from different source presentations. If `replaceAllText` is called without `pageObjectIds` scoping (or with the wrong page scoping), it replaces text across ALL slides that contain the match, not just the intended slide.
+
+This is especially dangerous with element-map-guided modifications where the system is doing targeted text replacement. If the modification plan says "on slide 3, replace 'Industry Leader' with 'Financial Services Leader'" and the call omits `pageObjectIds`, every slide containing "Industry Leader" gets modified.
 
 **Why it happens:**
-Versioning is built for auditing ("we can see what changed") but not for operational pinning ("this workflow run uses version X forever"). The Mastra suspend/resume pattern stores workflow state in PostgresStore but does not capture external configuration like system prompts.
+The current codebase already handles this correctly for single-source decks (line 236-238 in `deck-assembly.ts` shows `pageObjectIds: [newSlideObjectId]`). But when refactoring for multi-source assembly, developers may introduce new replacement logic that forgets this scoping -- especially when switching from `replaceAllText` (global find-and-replace) to more surgical `deleteText` + `insertText` operations on specific elements.
 
 **How to avoid:**
-- Store agent configurations with immutable version records: `AgentConfig` (current pointer) + `AgentConfigVersion` (immutable snapshots with incrementing version numbers).
-- Each workflow run must capture the `agentConfigVersionId` it started with in its step context, and use that same version at every resume point -- never re-read the "current" config during a suspended workflow.
-- The UI should have a one-click "revert to version N" action, not just a history viewer.
-- Add a "draft" vs. "published" distinction so edits can be tested before going live.
+- For element-map-guided modifications, do NOT use `replaceAllText`. Instead use `deleteText` + `insertText` targeted at specific element objectIds via `objectId` in the request. This is more precise than `replaceAllText` with `pageObjectIds` and eliminates the cross-contamination vector entirely.
+- If `replaceAllText` must be used (e.g., for placeholder tags like `{{customer-name}}`), always include `pageObjectIds` scoped to the single slide being modified.
+- Add a post-generation verification step that reads the final presentation and checks that no source-presentation-specific text leaked into unrelated slides.
 
 **Warning signs:**
-- Workflow outputs changing quality without any code deployment.
-- Users confused about which version of the prompt is "active."
-- In-flight workflows producing mixed-version outputs (brief uses prompt v3 from start, asset generation uses prompt v5 from after resume).
+- Multiple slides showing the same deal-specific text when only one should have been modified
+- Source slide content (case study names, client names from examples) appearing on unrelated slides
+- Text replacement operations reporting more replacements than expected
 
 **Phase to address:**
-Agent architecture phase -- must define the versioning and pinning model before the Settings UI is built. The UI is a view over the versioning model, not the other way around.
+Per-slide modification planning phase -- the modification executor must use element-level operations, not page-level replacements.
 
 ---
 
-### Pitfall 6: Google Drive Folder/Sharing Permissions Cascading Incorrectly
+### Pitfall 6: Theme/Master Slide Conflicts in Multi-Source Decks
 
 **What goes wrong:**
-The existing `getOrCreateDealFolder` creates a folder under a parent using service account credentials. The existing `makePubliclyViewable` function sets "anyone with link" access for iframe preview. The new milestone adds "folder/sharing controls" which implies per-deal permission management. Google Drive permissions inherit from parent by default, but if the system explicitly sets permissions on a child folder (e.g., sharing with a specific reviewer), those permissions may conflict with inherited permissions. If a deal folder is made publicly viewable (current pattern) but contains a confidential proposal, that is a data leak.
+Each Google Slides presentation has its own theme (colors, fonts, master slides, layouts). When slides from Source A and Source B are merged into a single output presentation, the output inherits Source A's theme (since it was created as a copy of Source A). Slides recreated from Source B lose their original theme-dependent formatting:
+- Colors defined by theme color roles (ACCENT1, ACCENT2, etc.) resolve to Source A's theme colors, not Source B's
+- Fonts specified as "theme font" resolve to Source A's font family
+- Slide backgrounds using master slide backgrounds show Source A's master, not Source B's
+- Layout placeholders reference Source A's layouts, which may have different placeholder positions
+
+The result is slides from Source B looking visually broken -- wrong colors, wrong fonts, mispositioned elements -- even though their content is correct.
 
 **Why it happens:**
-Drive permission inheritance is invisible -- developers test with the service account (which has full access) and never notice that external users see different results. The existing system makes files publicly viewable for Google Slides iframe preview, which is a reasonable hack for demos but becomes dangerous when deal folders contain multiple sensitive artifacts.
+Developers test with source presentations that happen to use the same theme (e.g., all Lumenalta decks use the same brand template). In production, source presentations may have been created at different times with different theme versions, or may include slides imported from client presentations with entirely different themes.
 
 **How to avoid:**
-- Define a clear permission model: deal folders should be shared with specific @lumenalta.com users (the assigned seller + reviewers), not made publicly viewable.
-- Replace `makePubliclyViewable` with a `shareWithUsers(fileId, emails[])` function for production use. If iframe preview needs public access, set it only on the specific presentation file, not the containing folder.
-- Use the user-delegated OAuth credentials (already in place via `getPooledGoogleAuth`) for sharing operations so files appear in the correct user's Drive.
-- Test sharing from a non-service-account perspective (incognito browser, different Google account).
+- For the Lumenalta use case, enforce that all source presentations (templates and examples) use the same brand theme. This is already implicitly true for branded content but must be verified during ingestion.
+- During ingestion, capture the presentation's theme ID and compare it against a known "approved theme" ID. Flag presentations with non-standard themes as requiring manual review before their slides can be used in assembly.
+- When assembling slides from a non-matching theme, convert theme-dependent properties to explicit values. For example, if a text box specifies color as `themeColor: ACCENT1`, resolve it to the actual RGB value from the source theme and set it as an explicit `rgbColor` in the output. This is complex but necessary for visual fidelity.
+- Alternatively (and more practically for this milestone): only allow multi-source assembly between presentations that share the same theme. The gap analysis already notes that the content library is curated Lumenalta content, so this constraint is reasonable.
 
 **Warning signs:**
-- Files accessible to anyone with the link that should be restricted to team members.
-- Users unable to access files in "their" deal folder because the service account owns them and sharing was not set up.
-- Google Drive sharing dialogs showing unexpected "anyone with the link" entries on confidential proposals.
+- Slides looking visually different in the output deck compared to their source presentation
+- Brand colors appearing as generic blue/gray on assembled slides
+- Fonts rendering as default (Arial) instead of the brand font
 
 **Phase to address:**
-Google Drive integration phase -- must be addressed before artifacts are saved to deal folders in production.
+Multi-source slide assembly phase -- must verify theme compatibility before attempting assembly. Add a theme check to the slide selection pipeline.
 
 ---
 
-### Pitfall 7: Named Agent Architecture Becoming a God Object Registry
+### Pitfall 7: 3-Stage HITL State Explosion With Structure-Driven Generation
 
 **What goes wrong:**
-"Formalized named agent architecture with dedicated system prompts" sounds like creating distinct agent personas (e.g., "Briefing Agent", "Proposal Agent", "Chat Agent"). The pitfall is making these agents too autonomous -- each with their own LLM client, tool set, and execution loop -- when the actual workflows need them to collaborate within a single Mastra pipeline. This leads to duplicated tool registrations in `mastra/index.ts` (already 47 lines of imports), inconsistent LLM configuration, and a "registry" pattern where agents are looked up by name at runtime, introducing string-based coupling.
+The existing 3-stage HITL workflow (Skeleton -> Low-fi -> High-fi) was designed for a linear pipeline where each stage produces a single artifact type. With structure-driven generation, the stages become:
+- **Skeleton**: DeckStructure blueprint + per-section slide selections (multiple selections per section, with alternatives)
+- **Low-fi**: Assembled deck from selected slides (multi-source merge result)
+- **High-fi**: Surgically modified deck with element-level text replacements
+
+Each stage now carries significantly more state than before. The Skeleton stage alone includes the full DeckStructure, N section-to-slide mappings, M alternative candidates per section, the matching rationale, and the deal context used for matching. This state must survive the Mastra suspend/resume cycle and be readable by the frontend for display.
+
+The problem: Mastra `suspend()` serializes the suspend payload as JSON into PostgresStore. The existing Touch 4 workflow's suspend payload is ~2KB. A structure-driven skeleton with 12 sections, 4 candidates each, full element maps per candidate, and matching rationale could be 50-100KB. PostgresStore's `TEXT` column can handle this, but the frontend must parse and render this complex nested structure, and the resume handler must validate it against the current schema (which may have changed between suspend and resume if a deployment occurred).
 
 **Why it happens:**
-Developers model agents like microservices ("each agent is independent") when they should model them like roles within a workflow ("each step uses the right prompt for the job"). The Mastra framework already has the right abstraction -- `createStep` with per-step input/output schemas -- but developers add an indirection layer (agent registry) that adds complexity without value.
+Developers add fields to the suspend/resume schemas incrementally ("we also need the element map for preview") without tracking total payload size or considering the frontend rendering complexity of deeply nested structures.
 
 **How to avoid:**
-- Named agents should be configuration objects (system prompt + model config + tool access list), not runtime entities with their own execution loops.
-- Each `createStep` in a workflow references an agent config by ID to get its system prompt, but the step itself handles execution via the existing `GoogleGenAI` client pattern.
-- The agent registry is a simple DB-backed lookup table, not a service locator pattern with `getAgent("briefing").execute()` methods.
-- Avoid giving agents "memory" separate from the workflow context -- all state flows through Mastra workflow step inputs/outputs, which is the established pattern in all 5 existing workflows.
+- Store the heavy data (full element maps, alternative candidates, matching rationale) in the database as structured records, NOT in the Mastra suspend payload. The suspend payload should contain only IDs and user decisions.
+- Design the Skeleton stage suspend payload as: `{ deckStructureId: string, selections: Array<{sectionIndex: number, selectedSlideId: string}> }`. The frontend fetches the full DeckStructure and slide details via separate API calls using these IDs.
+- Define explicit Zod schemas for each stage's suspend and resume payloads. Never use `z.any()` or `z.record()` for HITL payloads -- they must be fully typed for the frontend to render forms.
+- Version the suspend/resume schemas. If a schema changes between deployments, existing suspended workflows must be migrated or force-completed rather than silently failing on resume.
 
 **Warning signs:**
-- Agents having their own `execute()` method that duplicates `createStep` logic.
-- Multiple `GoogleGenAI` client instantiations (one per agent) instead of a shared client with different prompts.
-- String-based agent lookups (`getAgent("briefing")`) scattered throughout the codebase.
-- Agent configurations storing tool lists that duplicate what is already registered in `Mastra` constructor.
+- Suspend payloads exceeding 10KB
+- Frontend rendering the HITL review screen taking >2 seconds due to large payload parsing
+- Resume failures with Zod validation errors after a deployment
+- The Skeleton review UI becoming a complex form with 12+ sections, each with slide preview carousels and alternative selectors
 
 **Phase to address:**
-Agent architecture phase -- define the agent-as-configuration pattern before implementing individual agents.
+3-stage HITL integration phase -- define the suspend/resume payload contracts for all three stages before building any UI or workflow code.
 
 ---
 
-### Pitfall 8: HITL 3-Stage Generation for Touches 1-3 Without Handling Simpler Flows
+### Pitfall 8: Context-Aware Slide Matching Over-Fitting to Sparse Library
 
 **What goes wrong:**
-Touch 4's 17-step workflow with 3 suspend/resume points makes sense because it involves transcript parsing, brief generation, approval, RAG retrieval, deck assembly, and asset review. Touches 1-3 are fundamentally simpler flows (select slides, assemble deck, save to Drive). Applying the same 3-stage HITL pattern (generate -> review -> approve) to Touch 1 (a 1-2 page pager) creates unnecessary friction -- sellers must approve a brief and review assets for a document that takes 30 seconds to scan. The workflow becomes the bottleneck instead of the enabler.
+The context-aware matching system scores candidate slides based on industry, pillar, persona, and funnel stage alignment with the deal context. With only 38 slides from 5 presentations in the current library, most sections will have 1-2 candidates at best, and many sections will have zero candidates matching all context dimensions. An over-fitted matcher (requiring industry AND pillar AND persona AND stage to match) returns zero results for most deal contexts. An under-fitted matcher (accepting any slide) returns irrelevant content.
+
+The deeper problem: the DeckStructure's slideIds are already pre-filtered during inference. If the inference LLM mapped 3 slideIds to the "Case Study" section, and the matcher then filters by deal context, the final candidate set may be empty -- the LLM already picked the best available slides, and the context filter eliminated them.
 
 **Why it happens:**
-Developers apply a uniform pattern ("every touch gets 3 HITL stages") for consistency, but the user need varies by touch complexity. Touch 1 might only need one approval gate (review final pager), while Touch 4 legitimately needs three.
+Developers build the matching logic against ideal scenarios (complete library with slides covering all industries and pillars) but deploy against the actual sparse library. The matching algorithm is tuned on test data that has good coverage, then fails silently in production by returning empty result sets.
 
 **How to avoid:**
-- Define HITL stages per touch type, not uniformly:
-  - Touch 1: 1 stage (review generated pager, approve or override)
-  - Touch 2: 1 stage (review selected slides, approve or reorder)
-  - Touch 3: 1-2 stages (optionally review capability selection, then review deck)
-  - Touch 4: 3 stages (field review, brief approval, asset review) -- existing pattern
-- Each touch workflow should have a configurable number of suspend points, not a hardcoded three.
-- The UI should adapt: Touch 1 shows a simple approve/override flow, Touch 4 shows the full multi-step stepper.
+- Implement a **cascading fallback** matcher: first try exact match on all dimensions, then progressively relax (drop persona, then drop stage, then drop pillar, then accept any industry). Return the best available slide with a confidence score indicating how well it matched.
+- Always guarantee at least one slide per required (non-optional) section. If matching returns zero, fall back to the DeckStructure's slideIds without context filtering, then to vector similarity search against the section purpose description.
+- Log match quality metrics per generation (what percentage of sections got exact matches vs. fallback matches) so the team can identify library gaps.
+- In the Skeleton HITL stage, show the match quality to the seller: "Best match (industry + pillar)" vs. "Partial match (industry only)" vs. "No match -- using closest available". Let the seller override with manual slide selection.
 
 **Warning signs:**
-- Sellers skipping approval steps on Touches 1-2 because they always click "Approve" without reading.
-- Touch 1 taking 3 clicks to complete what should take 1.
-- Workflow code for Touch 1 having empty/passthrough suspend points that exist only for "consistency."
+- Generated decks with the same 3-4 slides appearing across all deals regardless of context
+- Sections showing "No slides available" in the Skeleton review stage
+- Match scores uniformly low (< 0.3) across all sections
 
 **Phase to address:**
-HITL workflow phase -- design per-touch HITL stages before implementing any new workflows.
+Context-aware section-to-slide matching phase -- build the cascading fallback from day one, not as a later fix.
 
 ---
 
-### Pitfall 9: Deal Detail Navigation Overhaul Breaking Existing Review Flows
+### Pitfall 9: Element Type Assumptions Breaking Surgical Modifications
 
 **What goes wrong:**
-The existing app has working routes for brief review (`/deals/[dealId]/review/[briefId]`) and asset review (`/deals/[dealId]/asset-review/[interactionId]`). The new milestone introduces "Deal detail navigation overhaul with breadcrumbs and sidebar sub-pages" which restructures the deal detail into Overview, Briefing, Touch 1-4, and Assets sub-pages. If the new navigation replaces the existing routes without maintaining backward compatibility, active deals with pending approvals (which have URLs stored in notifications, emails, or bookmarks) break. The existing `Alert` components on the deal page link to these exact routes.
+The element map extraction (`extract-elements.ts`) classifies elements as "shape", "text", "image", "table", or "group". The modification planner assumes that "text" elements can be modified via `deleteText` + `insertText`, "image" elements via `replaceImage`, and "shape" elements are inert backgrounds. But Google Slides has more complex element types:
+- A "shape" with no text today may have text added by a human editor before generation, making it a modification target
+- A "group" element cannot have its children individually targeted by `batchUpdate` -- the group must be ungrouped first, or addressed via the child's full objectId path
+- A "table" element requires cell-specific addressing (`tableCellLocation: {rowIndex, columnIndex}`) for text replacement, not flat `deleteText`/`insertText`
+- An "image" element that is actually a shape with an image fill behaves differently from a standalone image element
+- `linked shapes` (shapes linked to a chart, spreadsheet, or another presentation) silently reject modifications
+
+The modification planner builds a plan assuming uniform element behavior, but element types have different API request requirements.
 
 **Why it happens:**
-Navigation refactors feel like pure UI work, but URLs are API contracts. The existing `InteractionTimeline` component, `Alert` banners, and any stored links all encode the current URL structure.
+The element map captures the type correctly, but the modification executor treats all "text" elements identically. The current `extractElementType` function (line 39-52 of `extract-elements.ts`) uses a priority-based classification that can mis-classify edge cases (e.g., a shape with text AND an image fill gets classified as "text" because text check runs before image check).
 
 **How to avoid:**
-- Keep existing `/deals/[dealId]/review/[briefId]` and `/deals/[dealId]/asset-review/[interactionId]` routes as redirects to the new structure, or keep them as-is within the new layout.
-- Design the new sub-page structure to include the review flows rather than replace them.
-- Audit all `Link` components and `router.push()` calls that reference deal routes before restructuring.
+- Build a type-specific modification executor: `TextModifier`, `TableModifier`, `ImageModifier`, each generating the correct `batchUpdate` request type for their element type.
+- For "group" elements, either skip them (plan modifications on the group's children instead) or ungroup before modifying. The element map already recursively extracts group children (line 160-162 in `extract-elements.ts`), so modification planning should target children, not the group container.
+- For "table" elements, the modification plan must specify `{rowIndex, columnIndex}` for each cell to modify. The current element map does not capture cell-level position -- it concatenates all cell text into a single `contentText` string. The element map schema needs extension for table cells.
+- Add an `isModifiable` flag to the element map that indicates whether the element type supports programmatic modification via the Slides API.
 
 **Warning signs:**
-- 404 errors on previously-working review URLs.
-- Alert banners in the deal page linking to nonexistent routes.
-- Users bookmarking deal pages and getting 404s after deployment.
+- `batchUpdate` failing with "Invalid requests[N]: Element not found or type mismatch"
+- Table content being replaced as a blob instead of cell-by-cell
+- Group elements silently ignored during modification (no error, but no changes applied)
+- Modification plans targeting background shapes that should be left alone
 
 **Phase to address:**
-Deal detail navigation phase -- audit existing routes before restructuring; implement redirects for any changed URLs.
+Per-slide modification planning phase -- the modification executor must be type-aware from the start. Extend element map extraction to capture table cell structure if table modifications are in scope.
+
+---
+
+### Pitfall 10: Concurrent Modification of Output Presentation During Generation
+
+**What goes wrong:**
+The generation pipeline executes multiple `batchUpdate` calls sequentially against the output presentation (create slides, inject text, reorder, apply customizations). If the Low-fi stage produces the assembled deck and the seller opens it in Google Slides to preview, the seller's browser establishes a WebSocket connection to the presentation. If the High-fi stage then runs `batchUpdate` to apply surgical modifications, Google Slides handles concurrent modifications via operational transforms -- but the API client does not. The API client may see stale objectIds because the presentation was modified by the seller's browser session (e.g., the seller manually moved an element, changing its transform properties).
+
+More critically: if the seller manually edits a slide between the Low-fi and High-fi stages (which is expected -- they preview and make notes), the element map-based modification plan targets elements based on the Low-fi state. The seller's edits may have changed text content, repositioned elements, or added new elements that the plan does not account for.
+
+**Why it happens:**
+The HITL workflow by design encourages human review between stages. The Low-fi stage produces a Google Slides presentation that the seller can open and inspect. The High-fi stage then modifies the same presentation. There is no mechanism to detect or handle intervening human edits.
+
+**How to avoid:**
+- Before applying High-fi modifications, re-read the presentation via `presentations.get` and compare against the expected state from the Low-fi stage. If the presentation has been modified (revision count changed, elements moved, text changed), warn the seller and offer to regenerate from Low-fi.
+- Store the `presentation.revisionId` at the end of the Low-fi stage. At the start of High-fi, check if the revisionId matches. If not, the presentation was modified externally.
+- Design the High-fi modifications to be **idempotent** -- applying them twice should produce the same result as applying once. This means using absolute values for positions/sizes, not relative adjustments.
+- Alternatively: do not modify the Low-fi presentation in place. Create a new copy for High-fi modifications, preserving the Low-fi version as a reference.
+
+**Warning signs:**
+- High-fi modifications silently overwriting seller's manual edits
+- `batchUpdate` failing with "revision mismatch" errors
+- Generated deck having a mix of AI-modified and human-modified content that looks inconsistent
+
+**Phase to address:**
+3-stage HITL integration phase -- define the Low-fi to High-fi transition contract (new copy vs. in-place modification) before building the High-fi executor.
 
 ---
 
@@ -228,111 +296,106 @@ Deal detail navigation phase -- audit existing routes before restructuring; impl
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Storing chat messages as JSON blob in InteractionRecord | No migration needed, fast to ship | Cannot query individual messages, no pagination, blob grows unbounded | Never -- chat is a first-class feature requiring proper tables |
-| Deriving deal status from interactions on every render | No new column or migration needed | N+1 queries on deals list, inconsistent status across views | Only for initial prototype within first plan; must add explicit column before pipeline view |
-| Hardcoding agent system prompts during initial development | Faster iteration without settings UI dependency | Prompts diverge between dev and prod, no version history | Acceptable during initial agent phase if migration to DB-backed config is planned in same milestone |
-| Using module-level Map for chat session state (existing pattern) | Avoids DB writes for ephemeral state | Lost on Railway server restart, fails with horizontal scaling | Acceptable for single-instance Railway deployment; document as known limitation |
-| Sharing Google Drive files via `makePubliclyViewable` (existing pattern) | Simple, works for iframe preview | All deal artifacts publicly accessible to anyone with link | Only acceptable during demo/hackathon phase; must replace with scoped sharing for production |
-| Copy-pasting Touch 4 workflow as template for Touches 1-3 | Fast to get started | 4 workflows with duplicated utility code diverging over time | Never -- extract shared steps (folder creation, Drive saving, interaction recording) into reusable step factories |
+| Single-source assembly for all touches initially | Avoids solving the hard multi-source merge problem; ships faster | Decks look uniform (all slides from one source); defeats the "visually diverse" vision | Acceptable as Phase 1 if multi-source is planned for Phase 2 within the same milestone |
+| Skipping element map verification at generation time | Faster generation; fewer API calls to Google | Stale element maps cause silent modification failures; no way to diagnose why text wasn't replaced | Never -- always verify element map freshness for any slide being modified |
+| Storing full slide element maps in Mastra suspend payload | No extra DB queries during HITL review; self-contained workflow state | Payload bloat; slow suspend/resume; schema migration breaks active workflows | Never -- store in DB, reference by ID in workflow |
+| Using `replaceAllText` instead of element-targeted `deleteText`/`insertText` | Simpler code; matches existing pattern in `deck-assembly.ts` | Cross-contamination risk; cannot handle per-element modifications; breaks with multi-source decks | Only for placeholder-based replacements (e.g., `{{customer-name}}`) scoped with `pageObjectIds`; never for content-level modifications |
+| Hardcoding theme compatibility check to "always compatible" | Avoids building theme comparison logic; all current content uses the same theme | Silently produces broken-looking decks when a non-standard theme presentation enters the library | Acceptable for MVP if all source presentations are verified to use the same brand theme; add validation before allowing new presentations as assembly sources |
+| Re-using existing `SlideAssembly` schema for structure-driven generation | No new schema; existing proposal-assembly code works | Schema lacks fields for source presentation tracking, element map references, and modification plans; forces workarounds like the `SlideWithSourceMeta` cast on line 156 of `deck-assembly.ts` | Never -- define a new `StructuredSlideAssembly` schema from the start |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Mastra suspend/resume + Deal.status | Updating `Deal.status` after workflow step completes but outside the step's Prisma transaction, causing status to be "generating" even though the step already finished | Update `Deal.status` inside the workflow step's `execute()` function, in the same `prisma.$transaction` that updates `InteractionRecord.status` |
-| Google Drive folder creation + concurrent workflows | Calling `getOrCreateDealFolder` from multiple workflows without locking -- both pass the "folder exists?" check before either creates | Use `Deal.driveFolderId` as a cached result; if null, acquire a row-level lock on the Deal row (`SELECT FOR UPDATE`) before calling Drive API, then update the column |
-| Mastra PostgresStore + workflow step schema changes | Changing workflow step schemas between deployments while suspended workflows exist in the store -- resume fails with Zod validation errors | Never change the schema of a step that has active suspended instances; add new steps instead; migrate old runs via a one-time cleanup script |
-| Google Slides iframe + Drive sharing model change | Using `makePubliclyViewable` for preview in current code, then switching to restricted sharing in the same milestone, breaking all existing previews | Decide the sharing model once at the start of the milestone; if restricted, use a server-side proxy endpoint for previews instead of direct iframe |
-| Next.js Server Actions + streaming chat | Using Server Actions for chat message send/receive, which creates a new HTTP request per action and does not support streaming responses | Use a dedicated API route with `ReadableStream` for chat responses (following the existing `/deck-structures/:touchType/chat` streaming pattern); Server Actions are fine for loading history |
-| Prisma + new FKs to existing tables | Adding `agentConfigVersionId` FK to `InteractionRecord` in a migration, but existing rows have null values and the FK is non-nullable | Always make new FK columns nullable with no default; backfill in a separate migration or application-level script |
-| Agent config versioning + existing workflow runs | Workflow reads "current" agent config on resume instead of the version it started with | Store `agentConfigVersionId` in workflow step context at start time; read from context (not DB) at resume time |
-| Deal assignment + user auth | Assuming `userId` from Supabase Auth is stable across sessions; using email as identifier instead | Use `userId` (stable UUID) for ownership/assignment; email is for display only. The existing `UserGoogleToken.userId` pattern is correct. |
+| Google Slides API `batchUpdate` | Sending all modification requests in a single `batchUpdate` call across multiple slides; one invalid request fails ALL requests (atomic semantics) | Batch per-slide: one `batchUpdate` per slide, with per-slide error handling (try/catch). The existing `deck-assembly.ts` already follows this pattern (line 154-271). |
+| Google Slides objectIds after `duplicateObject` | Assuming the duplicated slide's element objectIds are predictable or match the source | Always read `duplicateResponse.data.replies[0].duplicateObject.objectId` for the new slide ID, then `presentations.get` to discover element IDs within the new slide |
+| `DeckStructure.structureJson` + `SlideEmbedding` | Treating `slideIds` in the JSON blob as foreign keys with referential integrity | They are not FK-constrained. Validate existence at read time. Consider a junction table (`DeckStructureSlide`) for proper FK enforcement if time permits. |
+| Google Drive API `files.copy` rate limits | Copying N source presentations sequentially for multi-source assembly; 5+ copy operations can hit rate limits (user-level: 10 requests per second) | Batch with delays (100ms between copy operations); re-use temp copies across slides from the same source presentation; clean up temp copies in a `finally` block |
+| Element map `positionX`/`positionY` in EMU | Using raw EMU values for modification planning without accounting for the slide's `transform` (which includes scaleX, scaleY, shearX, shearY, translateX, translateY) | Element positions in the element map are `transform.translateX/Y`, which are absolute. But for grouped elements, positions are relative to the group's transform. Use the recursively-extracted children (already in `extract-elements.ts`) but verify that position coordinates are absolute, not group-relative. |
+| Mastra workflow suspend/resume + schema evolution | Changing the suspend schema for the Skeleton stage after some workflows are already suspended | Pin schema version in the suspend payload; detect version mismatch on resume and either migrate or force-complete with user notification |
+| Ingestion auto-re-ingestion + generation pipeline | Auto-re-ingestion running during a generation workflow; re-ingestion archives or modifies `SlideEmbedding` records that the generation pipeline is actively reading | Add a "generation lock" flag that suppresses re-ingestion for presentations whose slides are being assembled. The existing "active session protection" pattern (SHA-256 change detection, 30-min window) can be adapted. |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Loading all chat messages for LLM context on every send | Chat responses getting slower over long conversations; LLM token costs increasing linearly | Implement rolling context window (last N messages + summarized older context), following existing `chatContextJson` pattern in `DeckStructure` | After ~50 messages per conversation |
-| Deals list page querying all interactions for status derivation | Deals page load time increasing with deal count; visible spinner on every navigation | Add explicit `Deal.status` column; use indexed query instead of N+1 interaction scan | After ~100 deals with 5+ interactions each |
-| Pipeline view computing stage counts with `GROUP BY` on derived status | Slow initial load; pipeline counts flickering as interactions update asynchronously | Pre-computed pipeline stage counts via `Deal.status` column with `GROUP BY` on the indexed column | After ~500 deals |
-| Google Drive API calls per deal on deals list | Google rate limiting (429 errors); deals list takes 10+ seconds to load | Cache Drive folder metadata (`driveFolderId`, folder URL, last modified) in the Deal table; only hit Drive API during write operations | After ~20 deals (Google API rate limits are conservative) |
-| Agent config version history rendering all versions at once | Settings page loading slowly; version diff computation expensive for long histories | Paginate version history (load latest 20); compute diffs server-side; archive versions older than 90 days | After ~100 version changes per agent config |
-| Chat bar re-rendering on every deal sub-page navigation | Visible flicker as chat component unmounts and remounts; loses scroll position and typing state | Lift chat bar to the deal layout level (Next.js layout.tsx), not the individual page level; use `usePathname` to scope context without remounting | Immediately visible on first use if implemented per-page |
+| Fetching full element maps for all candidate slides during matching | Matching step takes 10+ seconds; high DB query load | Only fetch element maps for the final selected slides (after matching), not for all candidates. Matching should use slide metadata (classification, description), not element-level data. | With 50+ candidate slides per section (when library grows) |
+| Sequential `presentations.get` calls for each source presentation | Multi-source assembly taking 30+ seconds for 4-5 sources; Google API latency dominates | Batch source presentation reads with `Promise.all`; cache presentation data per source for the duration of the generation run | With 3+ source presentations in a single assembly |
+| Re-reading the output presentation after every single `batchUpdate` | 2N API calls for N slides (one write, one read per slide); generation takes minutes | Group modifications by type: all slide creations first, one read, all text replacements second, one final read. The existing "re-read after batchUpdate" discipline should be applied per-phase, not per-request. | With 15+ slides in the output deck |
+| LLM-powered modification planning for every element on every slide | One LLM call per slide (12+ slides) with full element map context; 30+ seconds of LLM inference | Use rule-based modification for standard patterns (title replacement, company name, date). Reserve LLM planning for complex content modifications (case study narratives, solution descriptions). | Immediately -- 12 LLM calls adds 30-60 seconds to generation |
+| Vector similarity search fallback for every unmatched section | Each fallback query hits pgvector for 768-dim cosine similarity across all slides | Cache embedding query results; use metadata pre-filtering before vector search (filter by touch type and slide category first, then rank by similarity) | With 200+ slides in the library |
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Storing agent system prompts with embedded API keys or secrets | Prompt versions in DB expose secrets if DB is compromised or if version history is displayed in UI; version history makes secret rotation incomplete since old versions persist | Validate that system prompts contain no patterns matching API keys, tokens, or credentials before saving; use environment variable references in prompts instead of literal values |
-| Chat messages containing customer PII without access control | Any authenticated @lumenalta.com user could potentially see another seller's deal chat history via direct URL manipulation | Enforce `dealId` ownership at the Server Action level -- verify the requesting user is assigned to the deal or is an admin before returning chat messages |
-| Agent management UI allowing prompt injection via system prompt editor | A malicious or careless edit to a system prompt could instruct the LLM to ignore safety constraints, leak internal data, or override the HITL hard stop | Add a "prompt lint" step that flags dangerous patterns (e.g., "ignore previous instructions", "output your system prompt", "skip approval") before allowing publish |
-| Google Drive sharing granting editor access instead of viewer | External parties could modify generated proposals, creating legal/contractual risk; service account-owned files default to private, but sharing defaults may vary | Default all sharing to "viewer" role; require explicit admin action for "editor" access; log all permission changes in an audit trail |
-| Deal chat history persisting after deal deletion | Orphaned chat records with customer data remain in database after deal cleanup | Use `ON DELETE CASCADE` in the FK relationship from `ChatConversation` to `Deal`; verify cascade in migration SQL |
+| Temp presentation copies not cleaned up after multi-source assembly | Orphaned Google Drive files accumulate under the service account; potential data exposure if temp copies contain sensitive content | Use a `try/finally` pattern that deletes all temp copies regardless of success/failure. Log cleanup failures for manual remediation. The existing `tryAccessSourcePresentation` in `deck-assembly.ts` (line 84-94) already follows this pattern but only for validation copies. |
+| Element maps exposing internal content in the Skeleton HITL stage | Sellers see raw element text from example presentations (client names, financial figures from case studies) in the review UI | Sanitize element map content for display: show element type and position, but redact or summarize `contentText` from example slides. Only show full content for the seller's own deal data. |
+| Source presentation access tokens stored in workflow state | If the generation workflow stores Google access tokens in the Mastra suspend payload for resumption, those tokens persist in PostgresStore beyond their expiry | Never store tokens in workflow state. Re-acquire tokens at resume time using the existing `getPooledGoogleAuth` pattern. Tokens should flow through function parameters, not serialized state. |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Chat bar obscuring deal content on narrow screens | Sellers on 13" laptops cannot see deal details and chat simultaneously; productivity drops | Use a collapsible side panel (not bottom bar) that can be toggled; persist collapse state in localStorage; default to collapsed on screens < 1280px |
-| Pipeline view showing stale status after workflow completion | Seller completes a Touch 1 flow, returns to deals list, but status still shows "Generating" because the page was server-rendered before the workflow finished | Use client-side polling (following existing `ingestionProgress` polling pattern) or `router.refresh()` on workflow completion callback to update deal status in real-time |
-| Agent version history showing raw JSON diffs | Non-technical sellers cannot understand what changed between prompt versions | Show human-readable highlighted text diff (added in green, removed in red) instead of raw JSON; include a one-line "what changed" summary |
-| Too many sub-pages in deal detail navigation | Sellers feel lost navigating between Overview, Briefing, Touch 1, Touch 2, Touch 3, Touch 4, Chat -- 7+ pages per deal with deep nesting | Group touches under a single "Engagement" tab with a touch type selector; keep top-level deal navigation to 3-4 items (Overview, Prep, Engagement, Assets) |
-| HITL approval steps without clear "what am I approving?" context | Reviewer clicks "Approve" without understanding consequences; approvals become rubber stamps that defeat the purpose of HITL | Show explicit consequence text before each approval button: "Approving this brief will start slide generation (~5 minutes)" or "Approving will save the final deck to Google Drive and share with the prospect" |
-| Chat bar losing state on sub-page navigation | User types a long message, navigates to a different deal sub-page, and their draft message disappears | Lift chat to deal-level layout; use `useRef` or localStorage to persist draft messages across navigations within the same deal |
+| Skeleton stage showing raw DeckStructure JSON | Sellers cannot interpret section names, slide IDs, and variation counts in JSON format | Render the Skeleton as a visual slide-order preview: section name cards with thumbnail previews of the selected slide for each section, drag-to-reorder, and a "swap slide" button showing alternatives |
+| No visual diff between Low-fi and High-fi stages | Seller cannot see what the AI changed during surgical modifications; approves blindly | Highlight modified elements in the High-fi preview (colored borders or annotation badges indicating "AI modified this text") |
+| Slide matching showing only the best match without alternatives | Seller cannot exercise judgment; stuck with AI's single choice per section | Show top 3 candidates per section with match score explanations; let seller swap any section's slide before assembly |
+| Context-aware matching not explaining its reasoning | Seller sees a slide selected for "Case Study" section but does not understand why this slide vs. others | Include a one-line rationale per selection: "Selected because: Financial Services industry match + Enterprise persona match (score: 0.87)" |
+| HITL revert from High-fi losing manual edits | Seller reverts from High-fi to Low-fi, expecting to keep their manual edits to the Google Slides deck, but revert regenerates from scratch | Warn before revert: "This will regenerate the deck from your Skeleton selections. Any manual edits to the Google Slides file will be lost." Preserve the current Google Slides file as a backup before regenerating. |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Deal Pipeline View:** Often missing pipeline stage transitions on edge cases -- verify that deals move from "qualifying" to "engaged" when the first touch interaction starts AND that they don't move backward when a second touch starts
-- [ ] **Persistent Chat:** Often missing conversation cleanup on deal deletion -- verify that deleting a deal cascades to delete all associated chat conversations and messages via `ON DELETE CASCADE`
-- [ ] **HITL 3-Stage Generation for Touches 1-3:** Often missing the "cancel" path -- verify that a seller can abandon a touch generation mid-workflow without leaving orphaned suspended runs in Mastra PostgresStore
-- [ ] **Google Drive Folder Sharing:** Often missing the "user already has access" check -- verify that sharing a folder with a user who already has access doesn't throw a Google API error or create duplicate permission entries
-- [ ] **Agent Versioning:** Often missing the "no published version" edge case -- verify that the system handles an agent config with only draft versions (no published version yet) without crashing workflows
-- [ ] **Agent Management UI:** Often missing optimistic UI rollback on save failure -- verify that if the API call to save a draft fails, the UI reverts to the previous state instead of showing the unsaved draft as current
-- [ ] **Deal Detail Breadcrumbs:** Often missing dynamic segment resolution -- verify that breadcrumbs show "Meridian Capital Group > Q1 Pitch > Touch 2" not "deals > cuid123 > touch_2"
-- [ ] **Chat Bar Across Pages:** Often missing message ordering guarantees -- verify that rapidly sent messages appear in send order, not arrival order, especially when streaming responses are in flight
-- [ ] **Deal Assignment:** Often missing the "unassigned deal" state -- verify that deals without a `salespersonName` are visible in the pipeline and can have workflows started
-- [ ] **Touch 1-3 HITL workflows:** Often missing interaction history continuity -- verify that starting a new Touch 1 flow on a deal that already has a completed Touch 1 creates a new InteractionRecord, not overwrites the old one
+- [ ] **Multi-source assembly:** Often missing cleanup of temp presentation copies -- verify that ALL temporary Drive files are deleted even when the assembly pipeline fails mid-execution
+- [ ] **Element-map-guided modification:** Often missing table cell support -- verify that tables with per-cell content are modified cell-by-cell (`tableCellLocation`), not as a single text blob
+- [ ] **DeckStructure bridge:** Often missing slideId validation -- verify that archived, deleted, or inaccessible slides are filtered out before presenting the Skeleton to the seller
+- [ ] **Context-aware matching:** Often missing the "no matches" fallback -- verify that every required section gets at least one slide even when context filters return empty results
+- [ ] **Skeleton HITL stage:** Often missing the "empty section" UI state -- verify that optional sections with zero available slides show a "Skip this section" option rather than an error
+- [ ] **Low-fi to High-fi transition:** Often missing revision check -- verify that the system detects external edits to the Google Slides file between stages and warns the seller
+- [ ] **Theme compatibility:** Often missing validation at ingestion time -- verify that newly ingested presentations are checked against the brand theme before their slides become assembly candidates
+- [ ] **Per-slide error handling:** Often missing partial success reporting -- verify that if 2 of 12 slides fail modification, the seller sees which slides failed and can choose to proceed with 10 successful slides
+- [ ] **Slide reordering in assembled deck:** Often missing the final read-back -- verify slide order in the output presentation matches the DeckStructure section order after all batchUpdate operations complete
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Duplicate Drive folders | LOW | Query Drive API for duplicate-named folders under parent; merge contents into the older folder; update `Deal.driveFolderId`; delete duplicate |
-| Chat context window overflow | LOW | Add summarization step to conversation; truncate messages older than threshold; re-summarize context for next LLM call |
-| Deal status inconsistency between views | MEDIUM | Write a one-time migration script that scans all deals, computes correct status from interactions, updates explicit `Deal.status` column; add constraint to prevent future drift |
-| Agent prompt version causing quality regression | LOW | Revert to previous published version via Settings UI one-click action; re-run affected workflows if needed |
-| Workflow schema change breaking suspended runs | HIGH | Write a data migration to transform suspended workflow payloads in Mastra PostgresStore to match new schema; or force-complete old runs with error status and notify users to restart |
-| Migration failure on production database | HIGH | Inspect failed migration SQL; write corrective forward-only migration; apply with `prisma migrate resolve --applied`; never reset. Test future migrations against schema clone first |
-| Existing review route URLs breaking after navigation refactor | LOW | Add Next.js redirect rules in `next.config.ts` mapping old routes to new structure; keep as permanent redirects |
-| Chat bar losing state on navigation | LOW | Move chat component to deal layout level; restore from localStorage on remount |
+| ObjectId collision in multi-source assembly | MEDIUM | Re-read the output presentation; identify colliding elements; regenerate with new IDs using the mapping table; if unrecoverable, delete output and reassemble from scratch |
+| Stale element map causing wrong text replacement | LOW | Re-read the affected slide from the source presentation; rebuild element map; re-run modification for that slide only; update stored element map |
+| DeckStructure slideIds pointing to archived slides | LOW | Re-run slideId validation; replace invalid IDs with vector similarity search results; update DeckStructure JSON; no need to re-infer |
+| Theme mismatch producing visually broken slides | HIGH | Must re-assemble the deck using only theme-compatible sources, or manually convert theme-dependent properties to explicit values across all affected slides |
+| Multi-source assembly temp copies not cleaned up | LOW | Query Drive API for files named `_temp_*` or `_assembly_*` owned by the service account; batch delete; add a scheduled cleanup job |
+| HITL suspend payload too large causing slow resume | MEDIUM | Extract heavy data into DB records; update workflow code to reference by ID; force-complete existing large-payload workflows and ask sellers to restart |
+| Cross-contamination from unscoped replaceAllText | MEDIUM | Re-read the output presentation; identify slides with incorrect text replacements; either re-run with correct scoping or manually fix via additional batchUpdate calls |
+| Modification plan failing on grouped elements | LOW | Ungroup the element via `ungroupObjects` request; re-plan modifications targeting the now-ungrouped children; re-execute |
 
 ## Pitfall-to-Phase Mapping
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Workflow state explosion from concurrent touches | Deal management foundation (schema + lifecycle) | Create two Touch workflows on the same deal simultaneously; verify no duplicate folders and no status races |
-| Chat scoping confusion | Persistent AI chat | Send a message on Touch 2 page, navigate to Touch 4 page; verify chat context is scoped correctly and does not leak cross-touch |
-| Deal status as implicit state machine | Deal management foundation (schema + lifecycle) | Run a deal through full lifecycle (new -> qualifying -> proposal -> won); verify pipeline view counts match deals list at every stage |
-| Prisma migration drift from batched models | Every phase (enforce in each plan) | Each plan specifies exact migration name(s); CI runs `prisma migrate deploy` against test DB clone before production |
-| Agent prompt versioning without run-time pinning | Agent architecture | Create version 1, publish, create version 2, publish, start a Touch 4 workflow, change prompt mid-suspension, resume; verify resumed steps use version from start |
-| Drive folder permissions cascading | Google Drive integration | Create a deal folder, share with specific user; verify non-shared user cannot access; verify shared user can view but not edit |
-| Named agents becoming god objects | Agent architecture | Verify each "agent" is a configuration record (DB row); grep for `agent.execute()` or `new Agent()` patterns -- they should not exist |
-| HITL stage count mismatch per touch type | HITL workflow design | Touch 1 has 1 approval gate; Touch 4 has 3; verify no empty passthrough suspend points |
-| Navigation refactor breaking existing routes | Deal detail navigation | Visit all existing deal routes (`/review/[briefId]`, `/asset-review/[id]`); verify they still resolve correctly after restructure |
+| No cross-presentation slide copy API | Multi-source slide assembly | Integration test: copy slide from Presentation A into Presentation B; verify content and formatting preserved |
+| ObjectId collisions | Multi-source slide assembly | Test: assemble from 3 sources; verify no "Object already exists" errors; verify element count matches expectations |
+| Element map staleness | DeckStructure-to-generation bridge | Test: modify a source slide in Google Slides, then generate; verify generation uses live data, not stale element map |
+| Dangling slideIds in DeckStructure | DeckStructure-to-generation bridge | Test: archive a slide, then generate from a DeckStructure referencing it; verify graceful fallback, not crash |
+| replaceAllText cross-contamination | Per-slide modification planning | Test: assemble a deck where 2 slides contain identical text; modify only one; verify the other is unchanged |
+| Theme conflicts in multi-source decks | Multi-source slide assembly | Test: assemble from presentations with different themes; verify visual output; add theme check to ingestion |
+| HITL state explosion | 3-stage HITL integration | Measure suspend payload size for a 12-section deck; verify < 5KB; verify frontend renders Skeleton in < 1 second |
+| Context matching over-fitting | Context-aware section-to-slide matching | Test: generate for an industry with zero exact-match slides; verify cascading fallback produces a complete deck |
+| Element type assumptions | Per-slide modification planning | Test: modify a slide containing a table, a group, and an image; verify each element type is handled correctly |
+| Concurrent modification between HITL stages | 3-stage HITL integration | Test: manually edit the Low-fi Google Slides file; trigger High-fi; verify warning or graceful handling |
 
 ## Sources
 
-- Direct codebase analysis of `/Users/marlonburnett/source/lumenalta-hackathon` (50,876 LOC across 40 phases)
-- `apps/agent/src/mastra/workflows/touch-4-workflow.ts`: 17-step pipeline with 3 suspend points (field review, brief approval, asset review)
-- `apps/agent/src/lib/drive-folders.ts`: `getOrCreateDealFolder()` idempotent pattern, `makePubliclyViewable()` public sharing
-- `apps/agent/prisma/schema.prisma`: 14 existing models including Deal (no status column), InteractionRecord (7+ status values), DeckStructure/DeckChatMessage (scoped chat pattern)
-- `apps/web/src/app/(authenticated)/deals/[dealId]/page.tsx`: current deal detail with Alert banners linking to review routes
-- `apps/web/src/app/(authenticated)/deals/page.tsx`: current deals list with `listDealsAction`
-- `apps/agent/src/mastra/index.ts`: 47 lines of imports, route registrations, existing API structure
-- `apps/agent/src/deck-intelligence/chat-refinement.ts`: existing streaming chat pattern with context summarization
-- CLAUDE.md: Prisma migration discipline (no `db push`, no reset, forward-only migrations)
-- PROJECT.md: v1.7 milestone scope, constraints, and key decisions
+- [Google Slides API Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides) -- confirms `duplicateObject` is within-presentation only
+- [Google Slides API Merge Guide](https://developers.google.com/workspace/slides/api/guides/merge) -- tag-based replacement pattern, "don't manipulate your template copy" warning
+- [Google Slides API DuplicateObjectRequest](https://developers.google.com/resources/api-libraries/documentation/slides/v1/java/latest/com/google/api/services/slides/v1/model/DuplicateObjectRequest.html) -- objectIds map must reference existing IDs in the same presentation
+- [Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584) -- Feature request for cross-presentation slide copy; open since 2020, unresolved
+- [Google Slides API Batch Requests](https://developers.google.com/slides/api/guides/batch) -- all-or-nothing semantics for batchUpdate
+- [Google Apps Script Presentation.appendSlides](https://developers.google.com/apps-script/reference/slides/presentation) -- Apps Script has cross-presentation copy but REST API does not
+- Direct codebase analysis: `deck-assembly.ts` (single-source assembly, pageObjectIds scoping), `deck-customizer.ts` (copy-and-prune strategy), `extract-elements.ts` (element map extraction with recursive group handling), `deck-structure-schema.ts` (DeckSection with slideIds), `touch-4-workflow.ts` (3-stage suspend/resume pattern)
+- `apps/agent/prisma/schema.prisma`: `SlideElement` model stores elementId from source presentation; no FK to output presentation elements
+- `CLAUDE.md`: Forward-only migration discipline constraining schema evolution approach
+- `.planning/slide-deck-generation-gap-analysis.md`: Gap analysis incorrectly states duplicateObject supports cross-presentation copy
 
 ---
-*Pitfalls research for: v1.7 Deals & HITL Pipeline milestone on Lumenalta Agentic Sales Orchestration*
-*Researched: 2026-03-08*
+*Pitfalls research for: v1.8 Structure-Driven Deck Generation milestone on Lumenalta Agentic Sales Orchestration*
+*Researched: 2026-03-09*

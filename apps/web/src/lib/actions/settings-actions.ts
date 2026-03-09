@@ -1,6 +1,7 @@
 "use server";
 
 import { env } from "@/env";
+import { getSupabaseAccessToken } from "@/lib/supabase/get-access-token";
 
 /**
  * Server actions for reading/writing UserSetting via the agent API.
@@ -11,11 +12,14 @@ async function agentFetch<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
+  const accessToken = await getSupabaseAccessToken();
+  if (!accessToken) throw new Error("Not authenticated");
+
   const response = await fetch(`${env.AGENT_SERVICE_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${env.AGENT_API_KEY}`,
+      Authorization: `Bearer ${accessToken}`,
       ...init?.headers,
     },
   });

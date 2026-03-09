@@ -1,717 +1,538 @@
-# Architecture Research
+# Architecture Research: Structure-Driven Deck Generation
 
-**Domain:** Deal management pipeline with HITL artifact generation for agentic sales platform
-**Researched:** 2026-03-08
-**Confidence:** HIGH
+**Domain:** Multi-source slide assembly with element-map-guided modifications for agentic sales platform
+**Researched:** 2026-03-09
+**Confidence:** HIGH (existing codebase fully analyzed, Google Slides API constraints verified)
 
 ## System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        apps/web (Next.js 15)                            │
-├─────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
-│  │ Deal Pipeline │  │ Deal Detail  │  │ AI Chat Bar  │  │  Settings  │  │
-│  │    Page       │  │  Sub-pages   │  │ (persistent) │  │  Agents UI │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └─────┬──────┘  │
-│         │                 │                 │                │         │
-│  ┌──────┴─────────────────┴─────────────────┴────────────────┴──────┐  │
-│  │               Server Actions + API Client Layer                  │  │
-│  └──────────────────────────┬───────────────────────────────────────┘  │
-├─────────────────────────────┼───────────────────────────────────────────┤
-│                    Bearer Token Auth                                    │
-├─────────────────────────────┼───────────────────────────────────────────┤
-│                        apps/agent (Mastra Hono)                         │
-├─────────────────────────────┼───────────────────────────────────────────┤
-│  ┌──────────────┐  ┌───────┴──────┐  ┌──────────────┐  ┌────────────┐  │
-│  │ Named Agents │  │  Workflows   │  │  Custom API  │  │    MCP     │  │
-│  │ (chat, gen)  │  │ (touch 1-4)  │  │   Routes     │  │  (AtlusAI) │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └─────┬──────┘  │
-│         │                 │                 │                │         │
-│  ┌──────┴─────────────────┴─────────────────┴────────────────┴──────┐  │
-│  │         Prisma + PostgresStore + Google APIs + LLM               │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────────────────┤
-│                        Data Layer                                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
-│  │ Supabase PG  │  │   pgvector   │  │ Google Drive │                   │
-│  │  (Prisma)    │  │ (embeddings) │  │  (artifacts) │                   │
-│  └──────────────┘  └──────────────┘  └──────────────┘                   │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        HITL Layer (web)                             │
+│  ┌────────────┐  ┌────────────┐  ┌────────────────┐               │
+│  │  Skeleton   │  │  Low-fi    │  │    High-fi     │               │
+│  │ Blueprint + │  │ Assembled  │  │  Surgical      │               │
+│  │ Selections  │  │ Multi-Src  │  │  Modifications │               │
+│  └─────┬──────┘  └─────┬──────┘  └───────┬────────┘               │
+├────────┴──────────────┴────────────────┴──────────────────────────┤
+│                     Orchestration Layer (agent)                    │
+│  ┌──────────────────────────────────────────────────────────┐     │
+│  │          Structure-Driven Generation Pipeline             │     │
+│  │  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐   │     │
+│  │  │  Blueprint   │  │ Multi-Source │  │  Modification  │   │     │
+│  │  │  Resolver    │  │  Assembler   │  │  Planner       │   │     │
+│  │  └──────┬──────┘  └──────┬───────┘  └───────┬───────┘   │     │
+│  │         │                │                   │           │     │
+│  │  ┌──────┴──────┐  ┌──────┴───────┐  ┌───────┴───────┐   │     │
+│  │  │  Section    │  │  Slide       │  │  Element-Map  │   │     │
+│  │  │  Matcher    │  │  Copier      │  │  Executor     │   │     │
+│  │  └─────────────┘  └──────────────┘  └───────────────┘   │     │
+│  └──────────────────────────────────────────────────────────┘     │
+├───────────────────────────────────────────────────────────────────┤
+│                     Intelligence Layer (existing)                  │
+│  ┌──────────────┐  ┌───────────────┐  ┌────────────────┐          │
+│  │ DeckStructure│  │ SlideEmbedding│  │  SlideElement  │          │
+│  │ (blueprint)  │  │ (vectors +    │  │  (element maps)│          │
+│  │              │  │  classification│  │                │          │
+│  └──────────────┘  └───────────────┘  └────────────────┘          │
+├───────────────────────────────────────────────────────────────────┤
+│                     Storage Layer                                  │
+│  ┌──────────────┐  ┌───────────────┐  ┌────────────────┐          │
+│  │  Supabase    │  │  Google       │  │  pgvector      │          │
+│  │  PostgreSQL  │  │  Drive/Slides │  │  HNSW Index    │          │
+│  └──────────────┘  └───────────────┘  └────────────────┘          │
+└───────────────────────────────────────────────────────────────────┘
 ```
-
-## What Exists vs What Is New
-
-### Existing (modify, do not rewrite)
-
-| Component | Location | What Changes |
-|-----------|----------|-------------|
-| `Deal` model | `prisma/schema.prisma` | Add `status`, `assignedTo`, `stage`, `priority` fields |
-| `InteractionRecord` model | `prisma/schema.prisma` | Add `artifactStage` field for 3-stage tracking |
-| Deal detail page | `deals/[dealId]/page.tsx` | Content moves to overview sub-page; file becomes redirect |
-| Deal list page | `deals/page.tsx` | Add pipeline view toggle, filters, status badges |
-| `api-client.ts` | `apps/web/src/lib/api-client.ts` | Add agent chat endpoints, agent CRUD endpoints, deal PATCH |
-| `touch-actions.ts` | `apps/web/src/lib/actions/touch-actions.ts` | Wire 3-stage generation flow per touch |
-| `deal-actions.ts` | `apps/web/src/lib/actions/deal-actions.ts` | Add updateDeal, deal filtering |
-| Touch workflows | `apps/agent/src/mastra/workflows/touch-*.ts` | Add artifact stage transitions, use named agents |
-| `mastra/index.ts` | Agent route registration | Register named agents, add chat and agent management routes |
-| `(authenticated)/layout.tsx` | Auth wrapper | No change -- chat bar lives inside deal layout, not here |
-
-### New (create from scratch)
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Named Mastra agents | `apps/agent/src/mastra/agents/` | Formalized agents with system prompts and tools |
-| Agent config models | `prisma/schema.prisma` | `AgentConfig`, `AgentConfigVersion` for versioning |
-| Deal layout with sub-nav | `deals/[dealId]/layout.tsx` | Breadcrumbs + sidebar for deal sub-pages |
-| Deal overview sub-page | `deals/[dealId]/overview/page.tsx` | Dashboard with deal stats |
-| Deal briefing sub-page | `deals/[dealId]/briefing/page.tsx` | Consolidated prep material |
-| Touch sub-pages | `deals/[dealId]/touch-[1-4]/page.tsx` | HITL 3-stage artifact generation per touch |
-| AI chat bar component | `apps/web/src/components/chat/` | Persistent sliding panel across deal sub-pages |
-| Chat server actions | `apps/web/src/lib/actions/chat-actions.ts` | Send/receive messages, thread management |
-| Agent management actions | `apps/web/src/lib/actions/agent-actions.ts` | CRUD for agent configs |
-| Settings agents page | `settings/agents/page.tsx` | Agent listing, edit, version history |
-| Pipeline view component | `apps/web/src/components/deals/pipeline-view.tsx` | Kanban-style deal board |
-| Artifact stage stepper | `apps/web/src/components/touch/artifact-stage-stepper.tsx` | 3-stage progress UI |
-| Deal context provider | `apps/web/src/components/deals/deal-context.tsx` | React context for deal data across sub-pages |
 
 ## Component Responsibilities
 
-| Component | Responsibility | Communicates With |
-|-----------|----------------|-------------------|
-| Deal Pipeline Page | List/filter deals in table or pipeline view | Server actions -> agent API |
-| Deal Detail Layout | Breadcrumb navigation, sub-page routing, chat bar host | Sub-pages, chat component |
-| AI Chat Bar | Persistent chat panel, sends messages scoped to deal context | Chat actions -> agent chat endpoint |
-| Touch Sub-pages | 3-stage artifact generation (Generate -> Review -> Save) | Touch actions -> workflows |
-| Named Agents (agent-side) | LLM interactions with specific system prompts and tools | Mastra agent.generate(), workflows |
-| Agent Management UI | View/edit agent system prompts, version drafts | Agent actions -> agent CRUD routes |
-| Google Drive Saver | Save generated artifacts to deal folder in Drive | Drive API via agent routes (existing) |
+### New Components (6 total)
 
-## Recommended New File Structure
+| Component | Responsibility | Location |
+|-----------|---------------|----------|
+| **Blueprint Resolver** | Reads DeckStructure for a touch type, resolves sections into generation plan with slot assignments | `apps/agent/src/generation/blueprint-resolver.ts` |
+| **Section Matcher** | For each DeckStructure section, selects the best candidate slideId based on deal context (industry, pillar, persona, funnel stage) using vector similarity + classification metadata | `apps/agent/src/generation/section-matcher.ts` |
+| **Multi-Source Assembler** | Creates a new presentation by copying slides from multiple source presentations using the Drive-copy-and-merge strategy | `apps/agent/src/generation/multi-source-assembler.ts` |
+| **Slide Copier** | Handles the atomic operation of copying a single slide from a source presentation into a target presentation (Drive copy + delete unwanted + merge) | `apps/agent/src/generation/slide-copier.ts` |
+| **Modification Planner** | Given a copied slide's element map, plans which elements need content changes based on deal context; produces a ModificationPlan per slide | `apps/agent/src/generation/modification-planner.ts` |
+| **Element-Map Executor** | Executes ModificationPlans via Google Slides batchUpdate: replaceAllText scoped to specific pageObjectIds, insertText for empty elements, deleteText + insertText for content swaps | `apps/agent/src/generation/element-map-executor.ts` |
+
+### Existing Components to Modify (4 total)
+
+| Component | Current State | Modification |
+|-----------|--------------|-------------|
+| **Touch workflows (1-4)** | Each workflow has its own generation step calling different assemblers | Refactor generation steps to use Blueprint Resolver as entry point; existing assemblers become fallback paths |
+| **proposal-assembly.ts** | Builds SlideAssembly JSON with hardcoded 7-section template | Replace section template with DeckStructure sections; toAssemblySlide() enriched with element map data |
+| **slide-selection.ts** | Searches AtlusAI/pgvector for candidates, LLM picks best | Section Matcher replaces this for structure-driven flows; slide-selection.ts becomes fallback for non-structure flows |
+| **deck-assembly.ts** | Single-source template duplication with placeholder injection | Multi-Source Assembler replaces this for structure-driven flows; deck-assembly.ts remains for simple template-merge Touch 1 |
+
+### Existing Components Unchanged
+
+| Component | Why Unchanged |
+|-----------|--------------|
+| `infer-deck-structure.ts` | Already produces the DeckStructure with slideIds -- the upstream data source |
+| `extract-elements.ts` | Already captures element maps during ingestion -- no changes needed |
+| `atlusai-search.ts` | Still needed for RAG search; Section Matcher adds a structure-aware layer on top |
+| `deck-customizer.ts` | `applyDeckCustomizations()` still useful for branding injection post-assembly |
+| `slide-assembly.ts` | Touch 1 template merge remains simple enough to not need structure-driven generation |
+
+## Recommended Project Structure
 
 ```
-apps/web/src/
-├── app/(authenticated)/
-│   ├── deals/
-│   │   ├── page.tsx                           # Pipeline/list view (MODIFY)
-│   │   └── [dealId]/
-│   │       ├── layout.tsx                     # NEW: Sub-nav + chat bar host
-│   │       ├── page.tsx                       # MODIFY: redirect to overview
-│   │       ├── overview/page.tsx              # NEW: Deal dashboard
-│   │       ├── briefing/page.tsx              # NEW: Prep material
-│   │       ├── touch-1/page.tsx               # NEW: Touch 1 HITL flow
-│   │       ├── touch-2/page.tsx               # NEW: Touch 2 HITL flow
-│   │       ├── touch-3/page.tsx               # NEW: Touch 3 HITL flow
-│   │       ├── touch-4/page.tsx               # NEW: Touch 4 HITL flow
-│   │       ├── review/[briefId]/page.tsx      # EXISTS
-│   │       └── asset-review/[interactionId]/  # EXISTS
-│   └── settings/
-│       ├── agents/
-│       │   ├── page.tsx                       # NEW: Agent list
-│       │   └── [agentId]/page.tsx             # NEW: Agent edit + versions
-│       ├── deck-structures/                   # EXISTS
-│       └── integrations/                      # EXISTS
-├── components/
-│   ├── chat/
-│   │   ├── chat-bar.tsx                       # NEW: Sliding panel container
-│   │   ├── chat-message-list.tsx              # NEW: Message rendering
-│   │   ├── chat-input.tsx                     # NEW: Input with send
-│   │   └── use-chat.ts                        # NEW: Hook for streaming chat
-│   ├── deals/
-│   │   ├── deal-dashboard.tsx                 # EXISTS (MODIFY for filters)
-│   │   ├── pipeline-view.tsx                  # NEW: Kanban board
-│   │   ├── deal-stage-badge.tsx               # NEW: Status visualization
-│   │   └── deal-context.tsx                   # NEW: React context provider
-│   └── touch/
-│       ├── touch-flow-card.tsx                # EXISTS
-│       └── artifact-stage-stepper.tsx         # NEW: 3-stage progress UI
-├── lib/
-│   ├── actions/
-│   │   ├── chat-actions.ts                    # NEW
-│   │   ├── agent-actions.ts                   # NEW
-│   │   ├── deal-actions.ts                    # EXISTS (MODIFY)
-│   │   └── touch-actions.ts                   # EXISTS (MODIFY)
-│   └── api-client.ts                          # EXISTS (MODIFY)
-
 apps/agent/src/
-├── mastra/
-│   ├── agents/
-│   │   ├── deal-chat-agent.ts                 # NEW: Deal context chat
-│   │   ├── brief-generation-agent.ts          # NEW: Brief generation
-│   │   ├── content-selection-agent.ts         # NEW: Slide/content selection
-│   │   ├── pager-generation-agent.ts          # NEW: Touch 1 pager content
-│   │   └── index.ts                           # NEW: Agent registry export
-│   ├── workflows/                             # EXISTS (all files MODIFY)
-│   └── index.ts                               # EXISTS (MODIFY: register agents)
-├── lib/
-│   └── agent-config.ts                        # NEW: DB config loading + cache
+├── generation/                    # NEW: Structure-driven generation pipeline
+│   ├── blueprint-resolver.ts      # DeckStructure -> GenerationBlueprint
+│   ├── section-matcher.ts         # Section + DealContext -> best slideId
+│   ├── multi-source-assembler.ts  # Multiple sources -> single presentation
+│   ├── slide-copier.ts            # Atomic cross-presentation slide copy
+│   ├── modification-planner.ts    # Element map + context -> ModificationPlan
+│   ├── element-map-executor.ts    # ModificationPlan -> Slides API batchUpdate
+│   └── types.ts                   # Shared types for the generation pipeline
+├── deck-intelligence/             # EXISTING: Unchanged
+│   ├── infer-deck-structure.ts
+│   ├── deck-structure-schema.ts
+│   └── deck-structure-key.ts
+├── lib/                           # EXISTING: Some modifications
+│   ├── deck-assembly.ts           # Kept as fallback, not primary path
+│   ├── deck-customizer.ts         # Kept for branding injection
+│   ├── slide-assembly.ts          # Kept for Touch 1 template merge
+│   ├── proposal-assembly.ts       # Modified to use DeckStructure sections
+│   ├── slide-selection.ts         # Kept as fallback for non-structure flows
+│   └── atlusai-search.ts          # Unchanged
+└── mastra/workflows/
+    ├── touch-1-workflow.ts        # Minor: add blueprint path with fallback
+    ├── touch-2-workflow.ts        # Refactor: blueprint-driven selection
+    ├── touch-3-workflow.ts        # Refactor: blueprint-driven selection
+    └── touch-4-workflow.ts        # Refactor: blueprint-driven assembly
 ```
 
 ### Structure Rationale
 
-- **Deal sub-pages under `[dealId]/`:** The current deal detail is a single 181-line page with touch cards, timeline, and alerts. v1.7 adds overview dashboard, briefing page, 4 touch flows, and persistent chat. A single page would become 1000+ lines. Break into sub-pages with a shared layout that hosts the chat bar.
-- **Named agents in `mastra/agents/`:** Currently, LLM calls are inline in workflow steps (e.g., `touch-1-workflow.ts` line 46 creates a `GoogleGenAI` client directly). Extracting to named Mastra agents enables system prompt management via Settings UI and makes each agent independently testable and configurable.
-- **Chat components isolated in `components/chat/`:** Chat is cross-cutting within the deal context -- it appears on every deal sub-page. Keep it self-contained with its own hook and components.
-- **`deal-context.tsx` provider:** Multiple sub-pages need the deal data, company info, and interaction list. Fetching in the layout and providing via context avoids redundant fetches in each sub-page.
+- **`generation/` as new directory:** Separates the new pipeline from existing `lib/` code. The existing assemblers in `lib/` remain as fallbacks, and the new pipeline can be adopted touch-by-touch without breaking existing flows.
+- **`types.ts` in generation/:** Shared interfaces (GenerationBlueprint, SectionSlot, ModificationPlan, CopyResult) avoid circular imports between the 6 new modules.
 
 ## Architectural Patterns
 
-### Pattern 1: Deal Detail Layout with Persistent Chat Bar
+### Pattern 1: Blueprint-First Generation
 
-**What:** A Next.js layout at `deals/[dealId]/layout.tsx` wraps all deal sub-pages. It fetches deal data, provides breadcrumb navigation + sidebar sub-nav, and hosts the chat bar component as a persistent sliding panel.
+**What:** Every deck generation starts by resolving a DeckStructure into a GenerationBlueprint -- an ordered list of SectionSlots, each with candidate slideIds, deal context filters, and optional/required flags.
 
-**When to use:** Any time a UI element must survive sub-page navigation within a deal context.
+**When to use:** All touches that have a DeckStructure available (which should be all touches once examples are classified).
 
-**Trade-offs:** Layout components in Next.js 15 do NOT re-render on sub-page navigation (they preserve state). The chat bar's state naturally persists because the layout component is not unmounted when navigating between /overview, /touch-1, etc. The deal data fetch in the layout runs once and is cached.
+**Trade-offs:** Adds a resolution step before generation, but eliminates hardcoded section templates and enables the same pipeline for all touches.
 
+**Example:**
 ```typescript
-// apps/web/src/app/(authenticated)/deals/[dealId]/layout.tsx
-import { notFound } from "next/navigation";
-import { getDealAction } from "@/lib/actions/deal-actions";
-import { DealContextProvider } from "@/components/deals/deal-context";
-import { DealSidebar } from "@/components/deals/deal-sidebar";
-import { ChatBar } from "@/components/chat/chat-bar";
+interface SectionSlot {
+  sectionName: string;
+  purpose: string;
+  isOptional: boolean;
+  candidateSlideIds: string[];  // From DeckStructure.sections[].slideIds
+  selectedSlideId?: string;     // Filled by Section Matcher
+  sourcePresentationId?: string; // Resolved from SlideEmbedding.templateId -> Template.presentationId
+  modificationPlan?: ModificationPlan; // Filled by Modification Planner
+}
 
-export default async function DealLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: Promise<{ dealId: string }>;
-}) {
-  const { dealId } = await params;
-  const deal = await getDealAction(dealId);
-  if (!deal) notFound();
-
-  return (
-    <DealContextProvider deal={deal}>
-      <div className="flex h-full">
-        <DealSidebar dealId={dealId} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-      <ChatBar dealId={dealId} companyName={deal.company?.name ?? ""} />
-    </DealContextProvider>
-  );
+interface GenerationBlueprint {
+  touchType: string;
+  artifactType?: string;
+  sections: SectionSlot[];
+  dealContext: DealContext;
+  sequenceRationale: string;
 }
 ```
 
-### Pattern 2: HITL 3-Stage Artifact Generation
+### Pattern 2: Drive-Copy-Merge for Multi-Source Assembly
 
-**What:** Each touch page follows a 3-stage flow: **Generate** (LLM produces content) -> **Review** (seller reviews/edits with HITL suspend) -> **Save** (approved artifact saved to Google Drive). This unifies all four touches under the same UX pattern.
+**What:** The Google Slides REST API has NO native cross-presentation slide copy. The `duplicateObject` request only works within a single presentation. This is a confirmed API limitation (Google Issue Tracker #167977584). The workaround strategy:
 
-**When to use:** All touch 1-4 sub-pages.
+1. Group selected slides by their source presentation ID
+2. Identify the primary source (most slides selected from it)
+3. Copy the primary source via `drive.files.copy()` -- this preserves all objectIds
+4. Delete unwanted slides from the copy (existing copy-and-prune pattern in `deck-customizer.ts`)
+5. For secondary sources, copy each via `drive.files.copy()`, extract wanted slides, and merge into the target
 
-**Trade-offs:** Adds an explicit review step to touches 1-3 (they currently auto-save some outputs on generation). This is intentional -- v1.7 wants seller review before anything hits Drive. Touch 4 already has 2 HITL checkpoints; the 3-stage model maps naturally: Stage 1 = transcript extraction + brief generation, Stage 2 = brief approval, Stage 3 = asset generation + Drive save.
+**When to use:** Whenever the final deck needs slides from 2+ different source presentations.
 
-**Data flow:**
+**Trade-offs:**
+- Google Apps Script `appendSlide()` provides perfect cross-presentation copy (preserves master, layout, all elements) but requires deploying an Apps Script project as an API executable -- adding infrastructure complexity
+- Manual element reconstruction via Slides API batchUpdate is lossy (images, complex layouts, animations, linked objects are lost or degraded)
+- Drive-copy-per-source creates temporary files that must be cleaned up
 
-```
-User clicks "Generate" on Touch sub-page
-    |
-    v
-Server Action -> Agent workflow starts
-    |
-    v
-Workflow Step 1: Named agent generates content
-  InteractionRecord.artifactStage = "generating"
-    |
-    v
-Workflow suspends at "review" step
-  InteractionRecord.artifactStage = "reviewing"
-    |
-    v
-UI polls workflow status, shows generated content for review
-    |
-    v
-User approves/edits -> Server Action resumes workflow
-    |
-    v
-Workflow Step 2: Save to Google Drive
-  InteractionRecord.artifactStage = "saving"
-  getOrCreateDealFolder(dealId) -- existing function
-  Google Slides/Docs API creates artifact
-  Record outputRefs on InteractionRecord
-    |
-    v
-Workflow completes
-  InteractionRecord.artifactStage = "complete"
-    |
-    v
-UI shows Drive link + completion status
-```
+**Recommended approach for v1.8:** Use the Drive-copy-and-prune strategy as the primary path. For the most common case where all or most selected slides come from one source presentation, this works perfectly with zero new infrastructure. For true multi-source cases, use a two-phase approach:
 
-**Shared schema addition:**
+Phase A (v1.8): Copy primary source, prune. For secondary source slides, copy that source too, prune to just the wanted slides, then use Slides API to read each slide's pageElements and recreate text/shape elements in the target. Accept partial fidelity for images (use placeholder or thumbnail URL). This handles 80% of cases.
 
+Phase B (future): Migrate to Apps Script `appendSlide()` via Apps Script API for perfect multi-source fidelity when visual precision becomes critical.
+
+**Example:**
 ```typescript
-// packages/schemas/constants.ts
-export const ARTIFACT_STAGES = [
-  "generating",
-  "reviewing",
-  "saving",
-  "complete",
-] as const;
-export type ArtifactStage = typeof ARTIFACT_STAGES[number];
-```
-
-### Pattern 3: Named Agents with DB-Backed System Prompts
-
-**What:** Replace inline LLM calls in workflows with formalized Mastra `Agent` instances. Each agent has a name, system prompt, and tool set. System prompts are stored in the database (`AgentConfig` model) so the Settings UI can edit them without redeploying. Code-level defaults serve as fallbacks.
-
-**When to use:** Any LLM interaction that has a distinct persona or behavioral pattern.
-
-**Trade-offs:** Adds a DB lookup on agent initialization. Mitigate with in-memory caching (cache prompt on first load, invalidate on Settings publish). The Mastra `Agent` constructor accepts `instructions` as an async function, which enables runtime prompt resolution from DB.
-
-```typescript
-// apps/agent/src/mastra/agents/deal-chat-agent.ts
-import { Agent } from "@mastra/core/agent";
-import { Memory } from "@mastra/memory";
-import { getAgentConfig } from "../../lib/agent-config";
-
-const DEFAULT_PROMPT = `You are a sales assistant for Lumenalta...`;
-
-export const dealChatAgent = new Agent({
-  id: "deal-chat",
-  name: "Deal Chat Assistant",
-  instructions: async () => {
-    const config = await getAgentConfig("deal-chat");
-    return config?.systemPrompt ?? DEFAULT_PROMPT;
-  },
-  model: "vertex-ai/gpt-oss-120b",
-  memory: new Memory({
-    options: { lastMessages: 20 },
-  }),
-  tools: {
-    // Deal context tools registered here
-  },
-});
-```
-
-**Agent registry for v1.7:**
-
-| Agent ID | Purpose | Tools Needed |
-|----------|---------|-------------|
-| `deal-chat` | Persistent deal-scoped chat assistant | Deal/company/interaction lookup, company research |
-| `brief-generator` | Generate sales briefs from transcripts | Transcript extraction, pillar mapping, ROI framing |
-| `content-selector` | Select slides/content for deck assembly | AtlusAI MCP search, pgvector similarity |
-| `pager-generator` | Generate Touch 1 pager content | Company research, brand guidelines lookup |
-| `deck-assembler` | Coordinate deck assembly from selected content | Slide assembly tools, Drive folder creation |
-
-**Registration in Mastra instance:**
-
-```typescript
-// apps/agent/src/mastra/index.ts (MODIFY)
-import { dealChatAgent, briefGeneratorAgent, ... } from "./agents";
-
-const mastra = new Mastra({
-  agents: {
-    dealChatAgent,
-    briefGeneratorAgent,
-    contentSelectorAgent,
-    pagerGeneratorAgent,
-    deckAssemblerAgent,
-  },
-  workflows: { /* existing */ },
-  storage: postgresStore, // existing PostgresStore
-});
-```
-
-### Pattern 4: Persistent Chat via Mastra Memory
-
-**What:** Use Mastra's built-in agent memory system (thread-based, with `resourceId` and `threadId`) backed by the existing PostgresStore. Each deal gets a chat thread per user. The chat bar streams responses using the agent's `generate()` method with streaming.
-
-**When to use:** The AI chat bar on deal sub-pages.
-
-**Trade-offs:** Mastra Memory handles message history automatically (configurable, default last 10 messages in context). For deal-specific context, the agent's tools query the deal's interactions, briefs, and company data on demand. Using Mastra's memory system avoids building custom chat persistence -- the PostgresStore already handles it.
-
-**Key decision: Use Mastra Memory, skip custom ChatThread/ChatMessage models.** Mastra's PostgresStore already persists threads in the `mastra` schema. Adding custom models duplicates storage and creates sync issues. If chat history display in the UI is needed, query Mastra's storage tables directly via raw SQL or the Mastra client SDK.
-
-```typescript
-// Agent-side: chat endpoint handler
-registerApiRoute(mastra, {
-  path: "/api/chat",
-  method: "POST",
-  handler: async (req) => {
-    const { dealId, userId, message } = await req.json();
-    const agent = mastra.getAgent("dealChatAgent");
-
-    const response = await agent.generate(message, {
-      memory: {
-        resource: userId,
-        thread: `deal-${dealId}`,
-      },
-      stream: true,
-    });
-
-    return new Response(response.toReadableStream(), {
-      headers: { "Content-Type": "text/event-stream" },
-    });
-  },
-});
-```
-
-```typescript
-// Web-side: streaming chat hook
-// apps/web/src/components/chat/use-chat.ts
-export function useChat(dealId: string) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
-
-  const sendMessage = async (content: string) => {
-    // Optimistic UI: add user message immediately
-    setMessages(prev => [...prev, { role: "user", content }]);
-    setIsStreaming(true);
-
-    // Stream response from agent
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({ dealId, message: content }),
-    });
-
-    // Read SSE stream, accumulate assistant response
-    const reader = response.body?.getReader();
-    // ... stream reading logic (similar to existing deck-structures/chat)
+interface MultiSourcePlan {
+  /** Source with the most selected slides becomes the base */
+  primarySource: {
+    presentationId: string;
+    keepSlideIds: string[];
+    deleteSlideIds: string[];  // All slides NOT in keepSlideIds
   };
-
-  return { messages, sendMessage, isStreaming };
+  /** Additional sources contribute individual slides */
+  secondarySources: Array<{
+    presentationId: string;
+    slideIds: string[];  // Slides to copy from this source
+  }>;
+  /** Final slide order after all sources merged */
+  finalSlideOrder: string[];
 }
 ```
 
-### Pattern 5: Agent Management with Draft/Publish Versioning
+### Pattern 3: Element-Map-Guided Surgical Modification
 
-**What:** Settings UI shows all registered agents. Each agent's system prompt can be edited in a "draft" mode. Publishing a draft creates a new version record, updates the live agent config, and invalidates the runtime cache. Old versions are preserved for rollback.
+**What:** Instead of blowing away slide content and injecting from scratch (current `replaceAllText` with `{{placeholder}}`), read the element map for a copied slide, identify which text elements need modification based on deal context, and plan targeted modifications that touch only specific elements.
 
-**When to use:** The Settings > Agents page.
+**When to use:** After slides are copied into the target presentation (Low-fi to High-fi transition in HITL).
 
-**Trade-offs:** Simple CRUD with version history. The agent runtime reads from DB via `getAgentConfig()` which caches in a `Map<string, AgentConfig>`. On publish, the Settings action calls an agent endpoint that clears the cache entry.
+**Trade-offs:**
+- Preserves all visual design, positioning, images, and styling
+- Requires element maps to be populated (backfill mechanism already handles this)
+- More API calls per slide (one modification operation per changed element vs. one replaceAllText per placeholder)
+- Element objectIds are preserved during `drive.files.copy()` but may change if slides are reconstructed via batchUpdate
 
-### Pattern 6: Pipeline View with Stage Grouping
+**Example:**
+```typescript
+interface ElementModification {
+  elementId: string;          // From SlideElement.elementId
+  elementType: string;        // "text" | "shape" (only text-bearing elements)
+  currentContent: string;     // From SlideElement.contentText
+  newContent: string;         // LLM-generated replacement grounded in deal context
+  reason: string;             // Why this element needs modification
+}
 
-**What:** The deals page supports two views: table (existing, enhanced with filters) and pipeline (new kanban-style board). Pipeline groups deals by `stage` column. Both views share the same data source.
-
-**When to use:** The deals list page.
-
-**Trade-offs:** Client-side rendering for view toggle (avoid re-fetch on toggle). Pipeline view uses CSS grid or flexbox columns for stage lanes. Drag-and-drop is out of scope for v1.7 -- stage changes happen via deal detail page.
-
-```
-┌──────────┐  ┌────────────┐  ┌──────────┐  ┌─────────────┐  ┌────────┐
-│ Prospect │  │ Qualifying │  │ Proposal │  │ Negotiation │  │ Closed │
-├──────────┤  ├────────────┤  ├──────────┤  ├─────────────┤  ├────────┤
-│ Deal A   │  │ Deal C     │  │ Deal E   │  │             │  │ Deal G │
-│ Deal B   │  │ Deal D     │  │ Deal F   │  │             │  │        │
-└──────────┘  └────────────┘  └──────────┘  └─────────────┘  └────────┘
-```
-
-## Data Model Changes
-
-All schema changes require forward-only migrations per CLAUDE.md discipline (`prisma migrate dev --name <descriptive-name>`, never `db push` or `migrate reset`).
-
-### Deal Model Additions (MODIFY existing)
-
-```prisma
-model Deal {
-  // ... existing fields ...
-  status        String   @default("active")    // "active" | "won" | "lost" | "paused"
-  stage         String   @default("prospect")  // "prospect" | "qualifying" | "proposal" | "negotiation" | "closed"
-  assignedTo    String?                         // User email
-  priority      String   @default("medium")    // "low" | "medium" | "high"
-  // ... existing relations ...
-
-  @@index([status])
-  @@index([stage])
-  @@index([assignedTo])
+interface ModificationPlan {
+  slideId: string;            // SlideEmbedding.id
+  slideObjectId: string;      // Google Slides page objectId
+  modifications: ElementModification[];
+  unmodifiedElements: string[]; // Element IDs deliberately left unchanged
 }
 ```
 
-### InteractionRecord Addition (MODIFY existing)
+### Pattern 4: Graceful Degradation Chain
 
-```prisma
-model InteractionRecord {
-  // ... existing fields ...
-  artifactStage String?  // "generating" | "reviewing" | "saving" | "complete"
-}
+**What:** Each new capability has a fallback to the existing working pattern:
+
+```
+Structure-driven + multi-source + element-map mods
+  |-- fallback --> Structure-driven + single-source + placeholder injection
+      |-- fallback --> RAG-driven + single-source + placeholder injection (current)
+          |-- fallback --> Template merge (Touch 1 current)
 ```
 
-### Agent Config Models (NEW)
+**When to use:** Always. Fallbacks activate when:
+- No DeckStructure exists for the touch type (fall to RAG-driven)
+- All selected slides come from one source (skip multi-source, use copy-and-prune)
+- Element maps missing for a slide (fall to placeholder injection)
+- Secondary source slide copy fails (use branded template with content injection as fallback)
 
-```prisma
-model AgentConfig {
-  id            String               @id @default(cuid())
-  agentId       String               @unique  // Matches Mastra agent ID
-  displayName   String
-  description   String?
-  systemPrompt  String               // Current live prompt
-  draftPrompt   String?              // In-progress edit (null = no draft)
-  toolIds       String               @default("[]") // JSON array
-  isActive      Boolean              @default(true)
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  versions      AgentConfigVersion[]
-}
-
-model AgentConfigVersion {
-  id            String      @id @default(cuid())
-  agentConfigId String
-  agentConfig   AgentConfig @relation(fields: [agentConfigId], references: [id], onDelete: Cascade)
-  version       Int
-  systemPrompt  String
-  publishedBy   String?     // User email
-  publishedAt   DateTime    @default(now())
-  changelog     String?
-
-  @@unique([agentConfigId, version])
-  @@index([agentConfigId])
-}
-```
-
-**Decision: No custom ChatThread/ChatMessage models.** Mastra Memory with PostgresStore handles chat persistence automatically. Thread ID = `deal-${dealId}`, resource ID = Supabase user ID. This avoids a parallel persistence layer and keeps chat data in Mastra's managed schema.
+**Trade-offs:** More conditional logic in the pipeline, but zero risk of breaking existing flows during incremental rollout.
 
 ## Data Flow
 
-### Chat Message Flow
+### Generation Pipeline Flow
 
 ```
-User types in Chat Bar
+[DealContext + TouchType]
     |
     v
-ChatInput -> useChat hook -> sendMessage()
+[Blueprint Resolver]
+    |-- reads DeckStructure from DB (touchType + artifactType)
+    |-- produces GenerationBlueprint with SectionSlots
     |
     v
-chatActions.ts (Server Action)
-  -> fetchWithGoogleAuth("/api/chat", { method: "POST", body: { dealId, message } })
+[Section Matcher]  (per section)
+    |-- loads SlideEmbeddings for candidateSlideIds
+    |-- scores candidates by deal context (vector similarity + metadata match)
+    |-- selects best slideId per section
+    |-- resolves sourcePresentationId via SlideEmbedding -> Template join
     |
     v
-Agent Hono route handler
-  -> dealChatAgent.generate(message, {
-       memory: { resource: userId, thread: `deal-${dealId}` },
-       stream: true,
-     })
+[HITL Skeleton Stage]
+    |-- presents: blueprint sections, selected slides, rationale
+    |-- user can: swap slide selections, reorder sections, toggle optional sections
     |
     v
-Mastra Memory loads last 20 messages from PostgresStore
+[Multi-Source Assembler]
+    |-- groups selected slides by sourcePresentationId
+    |-- determines primary source (most slides)
+    |-- executes copy-and-prune for primary source
+    |-- copies secondary source slides (element reconstruction or fallback)
+    |-- reorders slides to match blueprint sequence
+    |-- produces target presentationId with all slides in order
     |
     v
-Agent calls tools if needed (deal context, interaction history, company data)
+[HITL Low-fi Stage]
+    |-- presents: assembled Google Slides deck (slides from multiple sources, original designs)
+    |-- user can: approve, request reordering, flag slides for modification
     |
     v
-LLM streams response -> SSE back to web
+[Modification Planner]  (per flagged slide or all slides)
+    |-- loads SlideElement[] for each slide from DB
+    |-- sends element map + deal context to LLM (named agent: "modification-planner")
+    |-- LLM produces ModificationPlan: which elements to change, new content
     |
     v
-Mastra Memory auto-persists user message + assistant response to PostgresStore
+[Element-Map Executor]
+    |-- for each modification: scoped replaceAllText or deleteText+insertText
+    |-- re-reads presentation after each batchUpdate (objectId drift prevention)
     |
     v
-ChatBar renders streamed tokens via useChat hook
+[HITL High-fi Stage]
+    |-- presents: final deck with surgical modifications applied
+    |-- user can: approve, request further modifications, revert to Low-fi
+    |
+    v
+[Drive Integration]
+    |-- save to deal folder, share with org, record interaction
 ```
 
-### Deal Pipeline Data Flow
+### Key Data Joins
 
 ```
-DealsPage (server component)
-    |
-    v
-listDealsAction() -> fetchJSON("/api/deals?include=company,latestInteraction")
-    |
-    v
-Agent returns Deal[] with company + latest interaction status + stage
-    |
-    v
-Client renders:
-  Table View: Sortable list with status badges, stage tags, filters
-  Pipeline View: Kanban columns grouped by deal.stage
-  Toggle is client-side only (no re-fetch)
+DeckStructure.sections[].slideIds
+    --> SlideEmbedding.id
+        --> SlideEmbedding.templateId
+            --> Template.presentationId  (Google Slides source ID)
+        --> SlideElement[]  (element map for modification planning)
+        --> SlideEmbedding.classificationJson  (for context-aware matching)
+        --> SlideEmbedding.embedding  (for vector similarity scoring)
+        --> SlideEmbedding.slideObjectId  (Google Slides page objectId)
 ```
 
-### Agent Config Management Flow
+## HITL Stage Mapping (Existing 3-Stage Model)
+
+The existing 3-stage HITL workflow maps cleanly to the new pipeline:
+
+| Stage | Current Behavior | New Behavior |
+|-------|-----------------|-------------|
+| **Skeleton** | Slide selection rationale (Touch 2/3) or sales brief (Touch 4) | GenerationBlueprint: sections from DeckStructure, selected slides per section with thumbnails, matching rationale. User approves/modifies section composition. |
+| **Low-fi** | Draft slide order + notes (Touch 2/3) or SlideAssembly JSON (Touch 4) | Assembled multi-source deck in Google Slides. User sees actual slides from different sources with original designs. Approves or flags slides for modification. |
+| **High-fi** | Assembled Google Slides deck | Surgically modified deck. Element-map-guided content changes applied. User sees final polished output with deal-specific content. |
+
+## Critical Integration Points
+
+### 1. SlideEmbedding to Template to presentationId Resolution
+
+The Section Matcher needs to resolve a SlideEmbedding ID to its source Google Slides presentation ID. The join path is:
 
 ```
-Settings > Agents page
-    |
-    v
-listAgentsAction() -> GET /api/agents
-    |
-    v
-Shows all registered agents with current prompt preview
-
-User clicks "Edit" on an agent
-    |
-    v
-/settings/agents/[agentId] loads agent config + version history
-    |
-    v
-User edits system prompt (saved as draftPrompt on blur/save)
-    |
-    v
-User clicks "Publish"
-    |
-    v
-publishAgentAction() -> PATCH /api/agents/:agentId { action: "publish" }
-    |
-    v
-Agent handler:
-  1. Copies draftPrompt to systemPrompt
-  2. Creates AgentConfigVersion record (version = max + 1)
-  3. Clears draftPrompt to null
-  4. Invalidates runtime cache for this agentId
-    |
-    v
-Next agent.generate() call re-reads prompt from DB
+SlideEmbedding.templateId -> Template.id -> Template.presentationId
 ```
 
-## Integration Points
+This is a simple Prisma include/join. No schema changes needed -- both models and the FK exist.
 
-### Web -> Agent API Endpoints
+### 2. Element Map Availability Check
 
-| Endpoint | Method | Purpose | Status |
-|----------|--------|---------|--------|
-| `/api/deals` | GET | List deals with filters and includes | MODIFY (add query params for stage, status, assignedTo) |
-| `/api/deals/:id` | GET | Deal detail with interactions | EXISTS |
-| `/api/deals/:id` | PATCH | Update deal status/stage/assignee/priority | NEW |
-| `/api/chat` | POST | Send chat message (streaming SSE response) | NEW |
-| `/api/chat/history` | GET | Retrieve chat history for deal thread | NEW |
-| `/api/agents` | GET | List all agent configs | NEW |
-| `/api/agents/:agentId` | GET | Get agent config + version history | NEW |
-| `/api/agents/:agentId` | PATCH | Update draft, publish, toggle active | NEW |
-| `/api/agents/:agentId/versions` | GET | List version history | NEW |
-| `/api/workflows/touch-*/start` | POST | Start touch workflow | EXISTS |
-| `/api/workflows/touch-*/status` | GET | Poll workflow status | EXISTS |
-| `/api/workflows/touch-*/resume` | POST | Resume suspended workflow | EXISTS |
+Before planning modifications, check that the slide has element maps populated:
 
-### Agent -> External Services (existing, no changes)
+```typescript
+const elements = await prisma.slideElement.findMany({
+  where: { slideId: slideEmbeddingId }
+});
+if (elements.length === 0) {
+  // Fallback: use placeholder injection pattern from deck-assembly.ts
+}
+```
 
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Google Drive | `getOrCreateDealFolder()` + Slides/Docs API | Existing; used during artifact save stage |
-| Google Slides | `assembleFromTemplate()` / `proposal-assembly.ts` | Existing; no changes |
-| AtlusAI (MCP) | `callMcpTool()` via MCP singleton | Existing; wire as agent tool |
-| Vertex AI LLM | `GoogleGenAI` client | Existing; agents use same model config |
+Element maps may be missing for slides ingested before v1.5. The existing backfill detection mechanism already handles re-ingestion for slides missing element maps.
 
-### Internal Boundaries
+### 3. Cross-Presentation Slide Copy (THE HARD PART)
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| Deal sub-pages <-> Chat bar | React Context (DealContextProvider) | Chat bar reads deal context; layout provides it |
-| Touch pages <-> Workflows | Server actions -> API client -> Mastra workflow | Existing pattern; add artifactStage transitions |
-| Settings agents <-> Agent runtime | DB write -> cache invalidation endpoint | Publish action triggers cache clear |
-| Pipeline view <-> Table view | Client-side state toggle | Same data, different rendering; no re-fetch |
-| Named agents <-> Workflows | Workflow steps call `agent.generate()` | Replace inline LLM calls with agent invocations |
+**Google Slides REST API limitation (verified):** `duplicateObject` only works within a single presentation. There is NO native REST API method to copy a slide from presentation A into presentation B. This is a confirmed limitation per Google Issue Tracker #167977584.
 
-## Anti-Patterns
+**Three viable strategies, in order of fidelity:**
 
-### Anti-Pattern 1: Building Custom Chat Persistence Instead of Using Mastra Memory
+| Strategy | Fidelity | Complexity | Dependency |
+|----------|----------|------------|------------|
+| Apps Script `appendSlide()` via Apps Script API | Perfect -- copies master, layout, all elements | Medium -- requires Apps Script project deployed as API executable | Google Apps Script project + `script.run` API |
+| Drive copy + delete unwanted (copy-and-prune) | Perfect for primary source, N/A for adding slides from other sources | Low for single-source, needs workaround for multi-source | None beyond existing Drive + Slides API access |
+| Element reconstruction via batchUpdate | Low -- loses images, complex layouts, animations, linked objects | Very High -- must reconstruct every pageElement | None |
 
-**What people do:** Create ChatThread/ChatMessage Prisma models and manually manage message history, context window trimming, and thread lifecycle.
-**Why it's wrong:** Mastra Memory with PostgresStore already handles all of this. The PostgresStore is already configured and running. Duplicating storage creates sync issues and doubles the migration surface.
-**Do this instead:** Use Mastra Memory with `resource: userId, thread: deal-${dealId}`. If chat history display in the UI is needed, query Mastra's storage tables directly (they use the `mastra` schema in the same PostgreSQL instance).
+**Recommended approach for v1.8:** Use Drive copy-and-prune as the primary path, grouping selected slides by source presentation.
 
-### Anti-Pattern 2: Putting Chat Bar in the Top-Level Authenticated Layout
+For the most common case where all or most selected slides come from one source, this works perfectly (it is what `deck-customizer.ts` already does).
 
-**What people do:** Mount the chat bar at `(authenticated)/layout.tsx` so it appears everywhere.
-**Why it's wrong:** Chat is deal-scoped. It requires a `dealId` to function. Mounting at the top level means it appears on Templates, Discovery, and Settings pages where it has no context. It also re-mounts (losing conversation state) when navigating between different deals.
-**Do this instead:** Mount the chat bar in `deals/[dealId]/layout.tsx`. It persists across deal sub-pages (Next.js layouts preserve state on sub-route navigation) but unmounts when leaving the deal context. This matches the mental model: chat is about this deal.
+For true multi-source cases:
+1. Use the source with the most selected slides as the base (copy-and-prune)
+2. For each additional source slide: copy the source presentation, read the target slide's pageElements, create a new blank slide in the target presentation, and recreate text/shape elements via batchUpdate `createShape` + `insertText`. Accept partial fidelity for images (link to thumbnail URL from SlideEmbedding.thumbnailUrl)
+3. Plan migration to Apps Script `appendSlide()` as a fast follow if visual fidelity of secondary-source slides becomes a blocking issue
 
-### Anti-Pattern 3: Separate API Routes per Artifact Stage
+**Why not Apps Script first:** Adding an Apps Script project deployment adds infrastructure complexity (deploy script, manage execution permissions, handle quotas). The Drive copy-and-prune approach handles the majority case with zero new infrastructure.
 
-**What people do:** Create `/api/touch-1/generate`, `/api/touch-1/review`, `/api/touch-1/save` as separate endpoints for each stage.
-**Why it's wrong:** The 3-stage flow is a single Mastra workflow with suspend/resume points. Adding separate endpoints duplicates state management and breaks the workflow's transactional guarantees. The existing pattern already handles this correctly.
-**Do this instead:** Use the existing workflow pattern: `start` -> `poll status` -> `resume`. The `artifactStage` field on `InteractionRecord` tracks progress. The workflow steps handle transitions internally. The UI polls and renders based on the current stage.
+### 4. ObjectId Stability During Copy
 
-### Anti-Pattern 4: Storing Agent System Prompts Only in Code
+When `drive.files.copy()` copies a presentation, all page objectIds and element objectIds are preserved. This means:
+- SlideEmbedding.slideObjectId matches the copied slide's objectId
+- SlideElement.elementId matches the copied slide's element objectIds
+- Modification plans built from element maps will target the correct elements
 
-**What people do:** Hardcode system prompts in agent definition files with no database backing.
-**Why it's wrong:** v1.7 explicitly requires a Settings UI for editing agent prompts with versioning and a draft/publish cycle. Code-only prompts require a deploy to change and have no version history.
-**Do this instead:** Use DB-backed prompts (AgentConfig model) with code-level fallback constants. The Mastra Agent constructor accepts `instructions` as an async function that loads from DB. Fall back to the code constant when no DB record exists (first run / seeding).
+**Critical constraint:** After ANY `presentations.batchUpdate()` call, re-read the presentation via `presentations.get()` because objectIds can drift. This pattern is already established in `deck-assembly.ts`.
 
-### Anti-Pattern 5: Keeping Deal Detail as a Single Page
+### 5. Workflow Step Integration
 
-**What people do:** Keep adding sections to `deals/[dealId]/page.tsx` for overview, briefing, touch flows, and timeline.
-**Why it's wrong:** v1.7 adds overview dashboard, briefing page, 4 touch flows, and persistent chat bar. A single page would exceed 1000 lines and mix unrelated concerns. Navigation between sections would require scroll anchors instead of proper routing.
-**Do this instead:** Convert to a layout + sub-page structure. Move the current page content (touch cards, timeline, alerts) into the overview sub-page. The layout provides the persistent chrome (nav, breadcrumbs, chat bar).
+Each touch workflow needs a new generation step that replaces the current assembly step. The pattern:
 
-### Anti-Pattern 6: Inline LLM Calls in Workflow Steps
+```typescript
+const structureDrivenGeneration = createStep({
+  id: "structure-driven-generation",
+  inputSchema: z.object({
+    dealId: z.string(),
+    touchType: z.string(),
+    approvedBlueprint: generationBlueprintSchema,
+  }),
+  outputSchema: z.object({
+    presentationId: z.string(),
+    deckUrl: z.string(),
+    slideCount: z.number(),
+    modificationPlans: z.array(modificationPlanSchema),
+  }),
+  execute: async ({ inputData }) => {
+    // 1. Multi-Source Assembly (or single-source copy-and-prune)
+    // 2. Return assembled deck for Low-fi review
+    // 3. On High-fi trigger, execute modification plans
+  },
+});
+```
 
-**What people do:** Keep `new GoogleGenAI()` calls directly in workflow step `execute` functions (current v1.6 pattern).
-**Why it's wrong:** Cannot change system prompts via Settings UI. Cannot share prompt management or tool configurations across similar tasks. Each workflow step becomes a standalone LLM integration with no reuse.
-**Do this instead:** Create named Mastra Agent instances. Workflow steps call `agent.generate()` instead of raw LLM API calls. The agent handles system prompt loading, tool execution, and memory management.
+## New Database Requirements
+
+**No new Prisma models required.** The existing schema (DeckStructure, SlideEmbedding, SlideElement, Template) contains all data needed for the generation pipeline.
+
+The existing InteractionRecord model already tracks artifact stages and can store generation metadata in its existing JSON fields.
 
 ## Scaling Considerations
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| Current (~20 sellers) | Single Mastra instance on Railway. In-memory Map for agent config cache. No changes needed. |
-| 50-100 sellers | Consider connection pooling for PostgreSQL (revisit Supabase pooler). Add Redis for agent config cache invalidation if running multiple Railway instances. |
-| 100+ sellers | Not in scope. This is a single-team tool for ~20 sellers. |
+| ~20 sellers (current) | Sequential slide copying is fine. Single Google API client. Drive copy cleanup via fire-and-forget delete. |
+| ~100 sellers | Batch slide copying with parallel Drive API calls per source. Rate limit awareness (Slides API: 60 requests/minute per user). Consider Apps Script migration for better multi-source support. |
+| ~500+ sellers | Apps Script API required for multi-source fidelity. Queue-based generation with retry. Dedicated service account pool for Google API rate limits. |
 
-### First Bottleneck: Concurrent Chat SSE Connections
+### First Bottleneck: Google Slides API Rate Limits
 
-Each open deal page maintains an SSE connection for chat streaming. At 20 concurrent users with 1-2 deals each, this is ~20-40 persistent connections. Railway handles this without issue. No action needed for v1.7.
+At current scale (~20 sellers), each deck generation makes 5-20 API calls (copy, read, batchUpdate, delete, share). At 100+ concurrent generations, the 60 req/min user-level rate limit becomes the bottleneck. Mitigation: queue generation requests, use exponential backoff, consider multiple service accounts.
 
-### Second Bottleneck: Agent Config DB Lookups
+### Second Bottleneck: LLM Calls for Modification Planning
 
-Every `agent.generate()` call triggers a prompt lookup. At ~20 concurrent users, this is negligible. The in-memory cache with TTL (or invalidation on publish) reduces it to near-zero DB load. No action needed for v1.7.
+Each slide's modification plan requires an LLM call. A 15-slide deck = 15 LLM calls for modification planning alone. At scale, parallelize these calls and consider batching multiple slides into a single LLM call with structured output.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Reconstructing Slides Element-by-Element from Scratch
+
+**What people do:** Parse source slide's pageElements via `presentations.get()` and recreate them via `createShape`, `createImage`, `insertText` in the target presentation.
+**Why it's wrong:** Images require publicly accessible URLs (service account cannot re-serve them), linked objects break, animations are lost, text styling is partially preserved at best, tables are extremely complex to reconstruct. The Slides API GET response schema is NOT the same as the batchUpdate request schema -- they require manual conversion.
+**Do this instead:** Copy the entire source presentation via Drive API and prune unwanted slides. This preserves 100% of design fidelity for all slides from that source.
+
+### Anti-Pattern 2: Modifying Slides via Global replaceAllText
+
+**What people do:** Use `replaceAllText` without `pageObjectIds` scoping, or use it with generic placeholders that might match content in multiple elements across multiple slides.
+**Why it's wrong:** Replaces text across ALL slides or ALL matching elements, causing cross-slide contamination. The risk increases significantly with multi-source assembly where content patterns from different sources may collide.
+**Do this instead:** Always scope `replaceAllText` with `pageObjectIds: [targetSlideObjectId]`. For element-level precision, use `deleteText` targeting the specific text range within an element's objectId, then `insertText` at the same location.
+
+### Anti-Pattern 3: Assuming Element ObjectIds Are Stable Across batchUpdate
+
+**What people do:** Build a batch of modifications referencing element objectIds, send as a single batchUpdate, assume all IDs remain valid throughout.
+**Why it's wrong:** Some operations (deleteObject, duplicateObject) can cause objectId reassignment. After any structural change, the presentation must be re-read.
+**Do this instead:** For modification plans, execute modifications slide-by-slide. Text-only modifications on existing elements within a single slide can be batched safely. Re-read the presentation between slides if structural changes are involved.
+
+### Anti-Pattern 4: Using DeckStructure slideIds Directly as Google Slides objectIds
+
+**What people do:** Assume `DeckStructure.sections[].slideIds` are Google Slides page objectIds that can be used directly in batchUpdate requests.
+**Why it's wrong:** These are SlideEmbedding.id values (cuid strings), not Google Slides objectIds. They must be resolved through Prisma: `SlideEmbedding.id -> SlideEmbedding.slideObjectId` for the Google Slides objectId, and `SlideEmbedding.templateId -> Template.presentationId` for the source presentation.
+**Do this instead:** Always resolve through the Prisma join chain before making any Google API calls.
+
+### Anti-Pattern 5: Building Multi-Source Assembly Before Single-Source Works
+
+**What people do:** Jump straight to implementing cross-presentation slide merging for all cases.
+**Why it's wrong:** Multi-source assembly is the hardest part due to Google API limitations. Most real decks draw heavily from 1-2 source presentations. Building the full pipeline with fallbacks first (blueprint -> section matching -> single-source assembly -> modifications) delivers value faster and exercises the entire flow before tackling the API-limited edge case.
+**Do this instead:** Build the pipeline with single-source copy-and-prune first. Add multi-source support as an enhancement once the core pipeline is working.
 
 ## Suggested Build Order
 
-Build order follows dependency chains and maximizes incremental value at each step:
+Based on dependency analysis:
 
-### Phase 1: Deal Model Extensions + Pipeline View
-- Add `status`, `stage`, `assignedTo`, `priority` to Deal model (migration)
-- Add `artifactStage` to InteractionRecord model (migration)
-- Add shared constants (`DEAL_STAGES`, `ARTIFACT_STAGES`) to packages/schemas
-- Modify deals list page with table/pipeline view toggle
-- Add PATCH /api/deals/:id for status/stage updates
-- **Value:** Sellers can see and manage deals in a pipeline view immediately.
+### Phase 1: Foundation Types + Blueprint Resolver
+**Dependencies:** DeckStructure schema (exists), Prisma models (exist)
+**Builds:** `generation/types.ts`, `generation/blueprint-resolver.ts`
+**Why first:** Every downstream component depends on GenerationBlueprint and SectionSlot types. Blueprint Resolver is a pure data transform (DeckStructure -> GenerationBlueprint) with no external service calls.
 
-### Phase 2: Deal Detail Layout + Sub-Page Restructure
-- Create `deals/[dealId]/layout.tsx` with sidebar nav + breadcrumbs
-- Create DealContextProvider
-- Move current page.tsx content to `overview/page.tsx`
-- Create `briefing/page.tsx` placeholder
-- Create touch-1 through touch-4 sub-page placeholders
-- **Value:** Navigation framework in place. Existing functionality preserved.
+### Phase 2: Section Matcher
+**Dependencies:** Blueprint Resolver (Phase 1), SlideEmbedding + classification data (exist), pgvector (exists)
+**Builds:** `generation/section-matcher.ts`
+**Why second:** Section Matcher fills the `selectedSlideId` and `sourcePresentationId` fields in SectionSlots. This is the intelligence that replaces the existing RAG-driven slide selection for structure-driven flows.
 
-### Phase 3: Named Agent Architecture + Agent Config Models
-- Create AgentConfig + AgentConfigVersion models (migration)
-- Create named agents (deal-chat, brief-generator, content-selector, pager-generator)
-- Create `agent-config.ts` with DB loading + in-memory cache
-- Register agents in Mastra instance
-- Seed initial AgentConfig records with default prompts
-- **Value:** Agents are formalized. Ready for chat and Settings UI.
+### Phase 3: Multi-Source Assembler + Slide Copier
+**Dependencies:** Section Matcher (Phase 2), Google Drive/Slides APIs (exist), deck-customizer.ts patterns (exist)
+**Builds:** `generation/multi-source-assembler.ts`, `generation/slide-copier.ts`
+**Why third:** The assembler is the most complex new component and the most constrained by Google API limitations. Build this before modification planning because the Low-fi HITL stage (assembled deck review) is useful even without surgical modifications.
 
-### Phase 4: Persistent AI Chat Bar
-- Create chat components (chat-bar, chat-message-list, chat-input, use-chat hook)
-- Add POST /api/chat route with streaming
-- Add GET /api/chat/history route
-- Mount chat bar in deal layout
-- Wire Mastra Memory with PostgresStore
-- **Value:** High-visibility feature. Sellers can chat with AI about any deal.
+### Phase 4: Modification Planner
+**Dependencies:** SlideElement model (exists), LLM agent executor (exists)
+**Builds:** `generation/modification-planner.ts`, new named agent "modification-planner"
+**Why fourth:** Can be developed independently from the assembler once types are defined. Requires a new named agent with versioned system prompt.
 
-### Phase 5: Touch 1-4 Sub-Pages with 3-Stage HITL
-- Build touch sub-page components with artifact-stage-stepper
-- Modify touch workflows to use named agents + artifactStage transitions
-- Add suspend/resume points for review stage (touches 1-3 gain review step)
-- Integrate existing brief review and asset review flows for touch 4
-- **Value:** Full HITL artifact generation across all touches.
+### Phase 5: Element-Map Executor
+**Dependencies:** Modification Planner (Phase 4), Google Slides batchUpdate (exists)
+**Builds:** `generation/element-map-executor.ts`
+**Why fifth:** Pure execution of planned modifications. Depends on ModificationPlan schema from Phase 4.
 
-### Phase 6: Google Drive Artifact Saving
-- Extend stage 3 (save) in workflows to save to deal's Drive folder
-- Add folder sharing controls (existing `getOrCreateDealFolder` + sharing API)
-- Show Drive links in completion UI
-- **Value:** Generated artifacts are saved and shareable.
+### Phase 6: Workflow Integration + HITL Wiring
+**Dependencies:** All previous phases
+**Modifies:** Touch 1-4 workflows, proposal-assembly.ts
+**Why last:** Integrates the full pipeline into existing HITL flows. Each touch can be migrated independently with fallback to existing behavior.
 
-### Phase 7: Settings Agent Management UI
-- Create Settings > Agents page with agent list
-- Create agent detail page with prompt editor + version history
-- Add draft/publish flow with cache invalidation
-- **Value:** Non-technical users can adjust agent behavior. Can build in parallel with phases 5-6.
+### Parallel Opportunities
+
+- Phases 1-2 are sequential (Matcher depends on Blueprint types)
+- Phase 3 (Assembler) and Phase 4 (Planner) can run in parallel after Phase 2
+- Phase 5 depends on Phase 4 only
+- Phase 6 depends on Phases 3 and 5
+
+```
+Phase 1 -> Phase 2 -> Phase 3 (Assembler) ─┐
+                    -> Phase 4 (Planner) -> Phase 5 ─┤-> Phase 6
+```
+
+## Integration Points
+
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Google Slides API | REST via googleapis client, batchUpdate for modifications | 60 req/min user rate limit; always re-read after batchUpdate |
+| Google Drive API | files.copy for cross-presentation assembly, files.delete for temp cleanup | supportsAllDrives: true required; temp copies must be cleaned up in finally blocks |
+| LLM (GPT-OSS 120b) | executeNamedAgent() for modification planning, section matching | Structured output via Zod schemas; flat objects only (Gemini compat constraint) |
+| Gemini 2.5 Flash | executeRuntimeProviderNamedAgent() for element classification | Used for structured output requiring Google GenAI schema format |
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| Blueprint Resolver <-> DeckStructure DB | Direct Prisma query | Read-only; DeckStructure is pre-computed by inference engine |
+| Section Matcher <-> SlideEmbedding DB | Prisma query + raw SQL for vector similarity | Uses existing pgvector HNSW index for candidate scoring |
+| Section Matcher <-> Template DB | Prisma join to resolve presentationId | SlideEmbedding.templateId -> Template.presentationId |
+| Multi-Source Assembler <-> Slide Copier | Direct function call | Copier is a pure utility; Assembler orchestrates the sequence |
+| Modification Planner <-> LLM | executeNamedAgent() with ModificationPlan structured output schema | New named agent: "modification-planner" to be registered in AgentConfig |
+| Element-Map Executor <-> Google Slides API | REST batchUpdate | Scoped to single slide per batch; re-read between structural changes |
+| Touch Workflows <-> Generation Pipeline | Workflow step calling pipeline functions | Blueprint passed through suspend/resume for HITL approval |
 
 ## Sources
 
-- Mastra Agent API: [Using Agents | Mastra Docs](https://mastra.ai/docs/agents/overview)
-- Mastra Agent Memory: [Agent Memory | Mastra Docs](https://mastra.ai/docs/agents/agent-memory)
-- Mastra Memory Overview: [Memory Overview | Mastra Docs](https://mastra.ai/docs/memory/overview)
-- Mastra Message History: [Message History | Mastra Docs](https://mastra.ai/docs/memory/message-history)
-- Existing codebase: `apps/agent/src/mastra/index.ts`, `apps/agent/prisma/schema.prisma`, `apps/web/src/lib/api-client.ts`, `apps/web/src/app/(authenticated)/deals/[dealId]/page.tsx`
-- Project context: `.planning/PROJECT.md`
+- [Google Slides API: Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides) -- verified duplicateObject is single-presentation only
+- [Google Issue Tracker #167977584: AppendSlide to different presentation via REST API](https://issuetracker.google.com/issues/167977584) -- confirmed no REST API for cross-presentation slide copy
+- [Google Apps Script: Presentation.appendSlide()](https://developers.google.com/apps-script/reference/slides/presentation) -- verified appendSlide() copies slides between presentations with master/layout preservation
+- [Google Slides API: Element Operations](https://developers.google.com/workspace/slides/api/samples/elements) -- batchUpdate request format differs from GET response format
+- [Experiments with Google Slides API to recreate slides](https://www.bentumbleson.com/experiments-with-the-google-slides-api-to-recreate-slides/) -- confirms element reconstruction is lossy and complex
+- [Google Slides API: Create and manage presentations](https://developers.google.com/workspace/slides/api/guides/presentations) -- Drive files.copy preserves objectIds
+- Existing codebase analysis: `deck-assembly.ts`, `deck-customizer.ts`, `slide-assembly.ts`, `proposal-assembly.ts`, `slide-selection.ts`, `infer-deck-structure.ts`, `extract-elements.ts`, `deck-structure-schema.ts`, Prisma schema, Touch 2 workflow
 
 ---
-*Architecture research for: v1.7 Deals & HITL Pipeline integration with existing Next.js + Mastra + Prisma architecture*
-*Researched: 2026-03-08*
+*Architecture research for: Structure-Driven Deck Generation (v1.8)*
+*Researched: 2026-03-09*
