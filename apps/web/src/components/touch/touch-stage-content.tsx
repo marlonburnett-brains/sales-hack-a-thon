@@ -90,17 +90,125 @@ function Touch1Content({
   }
 
   if (stage === "lowfi") {
-    // Detect section-aware vs legacy content
+    // Detect structured slots vs old section-aware vs legacy content
     const sections = data?.sections as Array<{
       sectionName: string;
       sectionPurpose: string;
-      contentText: string;
-      speakerNotes: string;
+      headlines?: string[];
+      bodyParagraphs?: string[];
+      metrics?: Array<{ value: string; label: string }>;
+      bulletPoints?: string[];
+      speakerNotes?: string;
+      contentText?: string; // legacy section-aware format
     }> | undefined;
-    const isSectionAware = Array.isArray(sections) && sections.length > 0;
 
-    if (isSectionAware) {
-      // Section-aware draft: per-section cards
+    const isStructuredSlots = Array.isArray(sections) && sections.length > 0
+      && Array.isArray(sections[0]?.headlines);
+    const isOldSectionAware = !isStructuredSlots
+      && Array.isArray(sections) && sections.length > 0
+      && typeof sections[0]?.contentText === "string";
+
+    if (isStructuredSlots) {
+      // New structured slot format: per-section with headlines, metrics, body, bullets
+      const headline = (data?.headline as string) ?? "";
+      const callToAction = (data?.callToAction as string) ?? "";
+
+      return (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-slate-500" />
+              <Badge variant="secondary" className="text-xs">
+                Structured Draft
+              </Badge>
+            </div>
+            <CardTitle className="text-lg">{headline || "Draft Content"}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            {sections.map((section, i) => (
+              <div key={i} className="rounded-lg border border-slate-200 p-3 space-y-3">
+                {/* Section header */}
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-slate-800">{section.sectionName}</p>
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    {section.sectionPurpose}
+                  </Badge>
+                </div>
+
+                {/* Headlines */}
+                {section.headlines && section.headlines.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase text-slate-500">Headlines</p>
+                    <div className="space-y-1">
+                      {section.headlines.map((h, j) => (
+                        <p key={j} className="text-base font-semibold text-slate-800">{h}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Body Paragraphs */}
+                {section.bodyParagraphs && section.bodyParagraphs.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase text-slate-500">Content</p>
+                    {section.bodyParagraphs.map((bp, j) => (
+                      <p key={j} className="whitespace-pre-wrap leading-relaxed text-slate-700 mb-2">{bp}</p>
+                    ))}
+                  </div>
+                )}
+
+                {/* Metrics as value+label cards */}
+                {section.metrics && section.metrics.length > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-medium uppercase text-slate-500">Metrics</p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {section.metrics.map((m, j) => (
+                        <div key={j} className="rounded-md bg-slate-50 px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-blue-600">{m.value}</p>
+                          <p className="text-[11px] text-slate-500">{m.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bullet Points */}
+                {section.bulletPoints && section.bulletPoints.length > 0 && (
+                  <div>
+                    <p className="mb-1 text-xs font-medium uppercase text-slate-500">Key Points</p>
+                    <ul className="list-disc space-y-1 pl-4 text-slate-700">
+                      {section.bulletPoints.map((bp, j) => (
+                        <li key={j}>{bp}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Speaker Notes */}
+                {section.speakerNotes && (
+                  <div className="flex items-start gap-1.5 rounded bg-slate-50 px-2 py-1.5">
+                    <MessageSquare className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" />
+                    <p className="text-xs text-slate-500">{section.speakerNotes}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            {/* Call to action */}
+            {callToAction && (
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase text-slate-500">
+                  Call to Action
+                </p>
+                <p className="leading-relaxed text-slate-700">{callToAction}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (isOldSectionAware) {
+      // Old section-aware format: contentText per section (backward compat)
       const headline = (data?.headline as string) ?? "";
       const callToAction = (data?.callToAction as string) ?? "";
 
