@@ -155,7 +155,10 @@ Plans:
   4. Missing or empty DeckStructure returns null gracefully (enables downstream fallback routing)
 **Plans**: 1 plan
 Plans:
-- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
+- [ ] 51-01-PLAN.md — Blueprint resolver with BlueprintWithCandidates and unit tests
+
+
+
 
 ### Phase 52: Multi-Source Slide Assembler
 **Goal**: The system can take a set of slide selections (slideId + source presentationId pairs) and assemble them into a single Google Slides presentation preserving original designs
@@ -300,7 +303,7 @@ Plans:
 | 48. HITL Stage Revert Route | v1.7 | 1/1 | Complete | 2026-03-09 |
 | 49. Tech Debt Cleanup | v1.7 | 2/2 | Complete | 2026-03-09 |
 | 50. Foundation Types & Interfaces | 1/1 | Complete    | 2026-03-09 | - |
-| 51. Blueprint Resolver | v1.8 | 0/TBD | Not started | - |
+| 51. Blueprint Resolver | v1.8 | 0/1 | Planned | - |
 | 52. Multi-Source Slide Assembler | v1.8 | 0/TBD | Not started | - |
 | 53. Modification Planner | v1.8 | 0/TBD | Not started | - |
 | 54. Section Matcher | v1.8 | 0/TBD | Not started | - |
