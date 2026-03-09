@@ -28,6 +28,24 @@ vi.mock("../../deck-intelligence/deck-structure-schema", () => ({
   calculateConfidence: mockCalculateConfidence,
 }));
 
+// Mock pipeline modules to avoid env/google-auth import chains
+vi.mock("../section-matcher", () => ({
+  selectSlidesForBlueprint: vi.fn(),
+}));
+
+vi.mock("../multi-source-assembler", () => ({
+  buildMultiSourcePlan: vi.fn(),
+  assembleMultiSourceDeck: vi.fn(),
+}));
+
+vi.mock("../modification-planner", () => ({
+  planSlideModifications: vi.fn(),
+}));
+
+vi.mock("../modification-executor", () => ({
+  executeModifications: vi.fn(),
+}));
+
 // ────────────────────────────────────────────────────────────
 // Imports (after mocks)
 // ────────────────────────────────────────────────────────────
