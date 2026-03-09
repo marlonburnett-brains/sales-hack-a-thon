@@ -15,6 +15,7 @@ import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { selectSlidesForDeck } from "../../lib/slide-selection";
 import { assembleDeckFromSlides } from "../../lib/deck-customizer";
+import { loadDeckSections } from "../../lib/deck-structure-loader";
 import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { ingestGeneratedDeck } from "../../lib/ingestion-pipeline";
 import { prisma } from "../../lib/db";
@@ -199,12 +200,31 @@ const generateDraftOrder = createStep({
   execute: async ({ inputData }) => {
     const skeleton = inputData.approvedSkeleton;
 
-    // Generate notes for each slide based on capability areas
-    const slideNotes = skeleton.slideOrder.map((slideId) => ({
-      slideId,
-      notes: `Capability alignment for ${inputData.companyName} - ${inputData.capabilityAreas.join(", ")}. ${skeleton.personalizationNotes}`,
-      purpose: `Demonstrates Lumenalta capability relevant to ${inputData.industry}`,
-    }));
+    // Load DeckStructure sections to enrich slide notes
+    const deckSections = await loadDeckSections("touch_3");
+
+    // Generate notes for each slide, enriched with section info when available
+    const slideNotes = skeleton.slideOrder.map((slideId) => {
+      // Try to match slideId against DeckStructure section slideIds
+      if (deckSections) {
+        const matchedSection = deckSections.find((section) =>
+          section.slideIds.includes(slideId),
+        );
+        if (matchedSection) {
+          return {
+            slideId,
+            notes: `Section: ${matchedSection.name} — ${matchedSection.purpose}. Capability alignment for ${inputData.companyName} in ${inputData.industry}.`,
+            purpose: `${matchedSection.name}: ${matchedSection.purpose}`,
+          };
+        }
+      }
+      // Fallback: generic notes
+      return {
+        slideId,
+        notes: `Capability alignment for ${inputData.companyName} - ${inputData.capabilityAreas.join(", ")}. ${skeleton.personalizationNotes}`,
+        purpose: `Demonstrates Lumenalta capability relevant to ${inputData.industry}`,
+      };
+    });
 
     const lowfiContent = {
       slideOrder: skeleton.slideOrder,

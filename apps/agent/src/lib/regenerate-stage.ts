@@ -9,10 +9,12 @@
 import { z } from "zod";
 import {
   PagerContentLlmSchema,
+  SectionDraftLlmSchema,
   zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
 import { executeRuntimeNamedAgent as executeNamedAgent } from "./agent-executor";
 import { assertLlmContentQuality } from "./validate-llm-content";
+import { loadDeckSections, formatSectionsForPrompt } from "./deck-structure-loader";
 import { prisma } from "./db";
 
 export async function regenerateStage(
@@ -66,27 +68,58 @@ export async function regenerateStage(
     // or reconstruct from the interaction's generatedContent/inputs
     const skeletonContent = await getApprovedSkeleton(interaction);
 
-    const prompt = buildDraftPrompt(companyName, industry, context, salespersonName, skeletonContent, feedback);
+    // Check if DeckStructure sections are available for section-aware drafting
+    const deckSections = await loadDeckSections("touch_1");
 
-    const response = await executeNamedAgent<z.infer<typeof PagerContentLlmSchema>>({
-      agentId: "first-contact-pager-writer",
-      messages: [{ role: "user", content: prompt }],
-      options: {
-        structuredOutput: {
-          schema: zodToLlmJsonSchema(PagerContentLlmSchema) as Record<string, unknown>,
+    if (deckSections && deckSections.length > 0) {
+      // Section-aware regeneration
+      const sectionAwarePrompt = buildSectionAwareDraftPrompt(
+        companyName, industry, context, salespersonName, skeletonContent, deckSections, feedback,
+      );
+
+      const response = await executeNamedAgent<z.infer<typeof SectionDraftLlmSchema>>({
+        agentId: "first-contact-pager-writer",
+        messages: [{ role: "user", content: sectionAwarePrompt }],
+        options: {
+          structuredOutput: {
+            schema: zodToLlmJsonSchema(SectionDraftLlmSchema) as Record<string, unknown>,
+          },
         },
-      },
-    });
+      });
 
-    const parsed = PagerContentLlmSchema.parse(
-      response.object ?? JSON.parse(response.text ?? "{}")
-    );
-    assertLlmContentQuality(parsed);
+      const parsed = SectionDraftLlmSchema.parse(
+        response.object ?? JSON.parse(response.text ?? "{}"),
+      );
+      assertLlmContentQuality(parsed);
 
-    await prisma.interactionRecord.update({
-      where: { id: interactionId },
-      data: { stageContent: JSON.stringify(parsed) },
-    });
+      await prisma.interactionRecord.update({
+        where: { id: interactionId },
+        data: { stageContent: JSON.stringify(parsed) },
+      });
+    } else {
+      // Legacy regeneration
+      const prompt = buildDraftPrompt(companyName, industry, context, salespersonName, skeletonContent, feedback);
+
+      const response = await executeNamedAgent<z.infer<typeof PagerContentLlmSchema>>({
+        agentId: "first-contact-pager-writer",
+        messages: [{ role: "user", content: prompt }],
+        options: {
+          structuredOutput: {
+            schema: zodToLlmJsonSchema(PagerContentLlmSchema) as Record<string, unknown>,
+          },
+        },
+      });
+
+      const parsed = PagerContentLlmSchema.parse(
+        response.object ?? JSON.parse(response.text ?? "{}")
+      );
+      assertLlmContentQuality(parsed);
+
+      await prisma.interactionRecord.update({
+        where: { id: interactionId },
+        data: { stageContent: JSON.stringify(parsed) },
+      });
+    }
   } else {
     throw new Error(`Regeneration not supported for stage: ${stage}`);
   }
@@ -153,6 +186,43 @@ Now expand this outline into a complete, polished pager with:
 - A specific call to action for the next step
 
 Keep the tone professional but engaging. This is the FULL DRAFT -- complete, publication-ready text.`;
+
+  if (feedback) {
+    prompt += `\n\nUser feedback for regeneration: ${feedback}`;
+  }
+  return prompt;
+}
+
+function buildSectionAwareDraftPrompt(
+  companyName: string,
+  industry: string,
+  context: string,
+  salespersonName: string | undefined,
+  skeleton: { headline: string; valueProposition: string; keyCapabilities: string[] },
+  deckSections: import("../deck-intelligence/deck-structure-schema").DeckSection[],
+  feedback?: string,
+): string {
+  let prompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved outline and the TEMPLATE STRUCTURE below, generate section-specific content that maps to each template section.
+
+Company: ${companyName}
+Industry: ${industry}
+Additional Context: ${context}
+${salespersonName ? `Salesperson: ${salespersonName}` : ""}
+
+APPROVED OUTLINE:
+- Headline: ${skeleton.headline}
+- Value Proposition: ${skeleton.valueProposition}
+- Key Capabilities: ${skeleton.keyCapabilities.join(", ")}
+
+TEMPLATE STRUCTURE (generate content for EACH section):
+${formatSectionsForPrompt(deckSections)}
+
+For each section, generate:
+- contentText: The actual text content tailored to this section's purpose, personalized for the target company
+- speakerNotes: Brief talking points for the presenter
+
+Also provide an overall headline and call to action.
+Keep tone professional but engaging. Content must fit the section's purpose.`;
 
   if (feedback) {
     prompt += `\n\nUser feedback for regeneration: ${feedback}`;

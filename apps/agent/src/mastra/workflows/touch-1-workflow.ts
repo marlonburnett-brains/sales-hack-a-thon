@@ -18,8 +18,10 @@ import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import {
   PagerContentLlmSchema,
+  SectionDraftLlmSchema,
   zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
+import { loadDeckSections, formatSectionsForPrompt } from "../../lib/deck-structure-loader";
 import { executeRuntimeNamedAgent as executeNamedAgent } from "../../lib/agent-executor";
 import { assertLlmContentQuality } from "../../lib/validate-llm-content";
 import { assembleFromTemplate } from "../../lib/slide-assembly";
@@ -218,7 +220,70 @@ const generateDraftText = createStep({
   execute: async ({ inputData }) => {
     const skeleton = inputData.approvedSkeleton;
 
-    const prompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved content outline below, generate the FULL DRAFT TEXT for the pager.
+    // Check if DeckStructure sections are available for section-aware drafting
+    const deckSections = await loadDeckSections("touch_1");
+
+    let stageContent: Record<string, unknown>;
+    let draftContent: z.infer<typeof PagerContentLlmSchema>;
+
+    if (deckSections && deckSections.length > 0) {
+      // Section-aware path: generate per-section content mapped to template structure
+      const sectionAwarePrompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved outline and the TEMPLATE STRUCTURE below, generate section-specific content that maps to each template section.
+
+Company: ${inputData.companyName}
+Industry: ${inputData.industry}
+Additional Context: ${inputData.context}
+${inputData.salespersonName ? `Salesperson: ${inputData.salespersonName}` : ""}
+
+APPROVED OUTLINE:
+- Headline: ${skeleton.headline}
+- Value Proposition: ${skeleton.valueProposition}
+- Key Capabilities: ${skeleton.keyCapabilities.join(", ")}
+
+TEMPLATE STRUCTURE (generate content for EACH section):
+${formatSectionsForPrompt(deckSections)}
+
+For each section, generate:
+- contentText: The actual text content tailored to this section's purpose, personalized for the target company
+- speakerNotes: Brief talking points for the presenter
+
+Also provide an overall headline and call to action.
+Keep tone professional but engaging. Content must fit the section's purpose.`;
+
+      const sectionResponse = await executeNamedAgent<z.infer<typeof SectionDraftLlmSchema>>({
+        agentId: "first-contact-pager-writer",
+        messages: [{ role: "user", content: sectionAwarePrompt }],
+        options: {
+          structuredOutput: {
+            schema: zodToLlmJsonSchema(SectionDraftLlmSchema) as Record<string, unknown>,
+          },
+        },
+      });
+
+      const sectionParsed = SectionDraftLlmSchema.parse(
+        sectionResponse.object ?? JSON.parse(sectionResponse.text ?? "{}"),
+      );
+      assertLlmContentQuality(sectionParsed);
+
+      // Store section-aware content as stageContent (UI reads sections array)
+      stageContent = sectionParsed as unknown as Record<string, unknown>;
+
+      // Build backward-compatible flat draftContent from section data
+      const allContentText = sectionParsed.sections.map((s) => s.contentText).join("\n\n");
+      const capabilities = sectionParsed.sections
+        .filter((s) => s.sectionName.toLowerCase().includes("capabilit"))
+        .map((s) => s.contentText);
+      draftContent = PagerContentLlmSchema.parse({
+        companyName: sectionParsed.companyName,
+        industry: sectionParsed.industry,
+        headline: sectionParsed.headline,
+        valueProposition: allContentText.slice(0, 500),
+        keyCapabilities: capabilities.length > 0 ? capabilities : [allContentText.slice(0, 200)],
+        callToAction: sectionParsed.callToAction,
+      });
+    } else {
+      // Legacy path: flat PagerContent generation (no DeckStructure available)
+      const prompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved content outline below, generate the FULL DRAFT TEXT for the pager.
 
 Company: ${inputData.companyName}
 Industry: ${inputData.industry}
@@ -238,25 +303,29 @@ Now expand this outline into a complete, polished pager with:
 
 Keep the tone professional but engaging. This is the FULL DRAFT -- complete, publication-ready text.`;
 
-    const response = await executeNamedAgent<z.infer<typeof PagerContentLlmSchema>>({
-      agentId: "first-contact-pager-writer",
-      messages: [{ role: "user", content: prompt }],
-      options: {
-        structuredOutput: {
-          schema: zodToLlmJsonSchema(PagerContentLlmSchema) as Record<string, unknown>,
+      const response = await executeNamedAgent<z.infer<typeof PagerContentLlmSchema>>({
+        agentId: "first-contact-pager-writer",
+        messages: [{ role: "user", content: prompt }],
+        options: {
+          structuredOutput: {
+            schema: zodToLlmJsonSchema(PagerContentLlmSchema) as Record<string, unknown>,
+          },
         },
-      },
-    });
+      });
 
-    const parsed = PagerContentLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
-    assertLlmContentQuality(parsed);
+      const parsed = PagerContentLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
+      assertLlmContentQuality(parsed);
+
+      stageContent = parsed as unknown as Record<string, unknown>;
+      draftContent = parsed;
+    }
 
     // Update hitlStage to lowfi
     await prisma.interactionRecord.update({
       where: { id: inputData.interactionId },
       data: {
         hitlStage: "lowfi",
-        stageContent: JSON.stringify(parsed),
+        stageContent: JSON.stringify(stageContent),
       },
     });
 
@@ -267,7 +336,7 @@ Keep the tone professional but engaging. This is the FULL DRAFT -- complete, pub
       context: inputData.context,
       salespersonName: inputData.salespersonName,
       interactionId: inputData.interactionId,
-      draftContent: parsed,
+      draftContent,
       agentVersions: inputData.agentVersions,
     };
   },
