@@ -125,7 +125,7 @@
 - [x] **Phase 51: Blueprint Resolver** - DeckStructure consumption producing GenerationBlueprint with candidate slides per section (completed 2026-03-09)
 - [x] **Phase 52: Multi-Source Slide Assembler** - Cherry-pick slides from multiple source presentations into one deck via copy-and-prune (completed 2026-03-09)
 - [x] **Phase 53: Modification Planner** - LLM-driven per-slide modification planning using element maps and deal context (completed 2026-03-09)
-- [ ] **Phase 54: Section Matcher** - Context-aware slide selection scoring candidates by industry, pillar, persona, funnel stage
+- [x] **Phase 54: Section Matcher** - Context-aware slide selection scoring candidates by industry, pillar, persona, funnel stage (completed 2026-03-09)
 - [x] **Phase 55: Modification Executor** - Execute planned modifications via scoped Google Slides API batchUpdate (completed 2026-03-09)
 - [ ] **Phase 56: HITL Integration** - Wire 3-stage HITL (Skeleton/Low-fi/High-fi) to the generation pipeline data flow
 - [ ] **Phase 57: Touch Routing & Fallback** - Route all 4 touches through structure-driven pipeline with graceful legacy fallback
@@ -197,7 +197,7 @@ Plans:
   5. Slides already used in prior touches for the same deal are excluded from selection (cross-touch exclusion)
 **Plans**: 1 plan
 Plans:
-- [ ] 54-01-PLAN.md — Section matcher with metadata scoring and vector tiebreaker
+- [x] 54-01-PLAN.md — Section matcher with metadata scoring and vector tiebreaker
 
 ### Phase 55: Modification Executor
 **Goal**: Planned modifications are executed surgically on assembled slides via Google Slides API without cross-slide contamination
@@ -303,7 +303,7 @@ Plans:
 | 51. Blueprint Resolver | 1/1 | Complete    | 2026-03-09 | - |
 | 52. Multi-Source Slide Assembler | 2/2 | Complete   | 2026-03-09 | - |
 | 53. Modification Planner | 1/1 | Complete    | 2026-03-09 | - |
-| 54. Section Matcher | v1.8 | 0/TBD | Not started | - |
+| 54. Section Matcher | 1/1 | Complete   | 2026-03-09 | - |
 | 55. Modification Executor | 1/1 | Complete   | 2026-03-09 | - |
 | 56. HITL Integration | v1.8 | 0/TBD | Not started | - |
 | 57. Touch Routing & Fallback | v1.8 | 0/TBD | Not started | - |
