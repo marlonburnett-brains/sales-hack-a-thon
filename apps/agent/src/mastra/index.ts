@@ -562,7 +562,7 @@ class SupabaseJwtAuth extends MastraAuthProvider<JwtPayload> {
   async authenticateToken(token: string): Promise<JwtPayload | null> {
     // Strip Bearer prefix if present (Mastra may or may not strip it)
     const rawToken = token.startsWith("Bearer ") ? token.slice(7) : token;
-    return verifySupabaseJwt(rawToken);
+    return verifySupabaseJwt(rawToken, env.SUPABASE_URL);
   }
 
   async authorizeUser(): Promise<boolean> {

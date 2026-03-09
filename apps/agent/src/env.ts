@@ -55,9 +55,9 @@ export const env = createEnv({
     // Port for the Mastra HTTP server (default 4111)
     MASTRA_PORT: z.string().default('4111'),
 
-    // Supabase JWT secret for verifying user tokens from the web app
-    // Found in: Supabase Dashboard -> Settings -> API -> JWT Secret
-    SUPABASE_JWT_SECRET: z.string().min(32, "SUPABASE_JWT_SECRET required for JWT verification"),
+    // Supabase project URL for JWKS-based JWT verification
+    // The agent fetches public keys from {SUPABASE_URL}/auth/v1/.well-known/jwks.json
+    SUPABASE_URL: z.string().url("SUPABASE_URL required for JWT verification"),
 
     // Web app origin URL for CORS restriction (default: http://localhost:3000)
     WEB_APP_URL: z.string().url().default('http://localhost:3000'),

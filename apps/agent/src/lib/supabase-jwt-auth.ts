@@ -1,12 +1,12 @@
-import { createHmac } from "node:crypto";
-import { env } from "../env";
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 
 // ────────────────────────────────────────────────────────────
-// Supabase JWT verification using HS256 (Node crypto)
+// Supabase JWT verification using JWKS (asymmetric)
 //
-// Supabase JWTs are signed with HMAC-SHA256 by default.
-// This module verifies the signature, checks expiration,
-// and extracts user identity from the JWT claims.
+// Fetches the public signing keys from Supabase's JWKS endpoint
+// and verifies tokens with the correct algorithm automatically.
+// Supports both ECC P-256 (ES256) and legacy HS256 keys.
+// The JWKS is cached internally by jose with automatic refresh.
 // ────────────────────────────────────────────────────────────
 
 export interface JwtPayload {
@@ -19,47 +19,47 @@ export interface JwtPayload {
   iss?: string;
 }
 
+let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+function getJWKS(supabaseUrl: string) {
+  if (!jwks) {
+    const jwksUrl = new URL("/auth/v1/.well-known/jwks.json", supabaseUrl);
+    jwks = createRemoteJWKSet(jwksUrl);
+  }
+  return jwks;
+}
+
 /**
- * Verify a Supabase JWT from the Authorization header value.
+ * Verify a Supabase JWT using the project's JWKS endpoint.
  *
  * @param token - The raw JWT string (without "Bearer " prefix)
+ * @param supabaseUrl - The Supabase project URL (e.g. https://xxx.supabase.co)
  * @returns Decoded payload if valid, null if invalid/expired/malformed.
  *          Never throws.
  */
-export function verifySupabaseJwt(token: string | undefined): JwtPayload | null {
+export async function verifySupabaseJwt(
+  token: string | undefined,
+  supabaseUrl: string,
+): Promise<JwtPayload | null> {
   if (!token) return null;
 
   try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
+    const { payload } = await jwtVerify(token, getJWKS(supabaseUrl), {
+      // Supabase sets issuer to: https://<ref>.supabase.co/auth/v1
+      issuer: `${supabaseUrl}/auth/v1`,
+    });
 
-    const [headerB64, payloadB64, signatureB64] = parts;
+    if (!payload.sub) return null;
 
-    // Verify HS256 signature
-    const expectedSignature = createHmac("sha256", env.SUPABASE_JWT_SECRET)
-      .update(`${headerB64}.${payloadB64}`)
-      .digest("base64url");
-
-    if (expectedSignature !== signatureB64) {
-      return null;
-    }
-
-    // Decode payload
-    const payloadJson = Buffer.from(payloadB64, "base64url").toString("utf-8");
-    const payload = JSON.parse(payloadJson) as JwtPayload;
-
-    // Check expiration
-    const nowSeconds = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < nowSeconds) {
-      return null;
-    }
-
-    // Require sub claim (user ID)
-    if (!payload.sub) {
-      return null;
-    }
-
-    return payload;
+    return {
+      sub: payload.sub,
+      email: payload.email as string | undefined,
+      role: payload.role as string | undefined,
+      exp: payload.exp ?? 0,
+      iat: payload.iat,
+      aud: payload.aud as string | undefined,
+      iss: payload.iss,
+    };
   } catch {
     return null;
   }
