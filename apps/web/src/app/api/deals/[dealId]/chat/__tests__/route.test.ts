@@ -203,4 +203,55 @@ describe("deal chat proxy route", () => {
     expect(text).toContain('"refineBeforeSave"');
     expect(text).toContain('"draftText":"speaker 1 ??? joining late"');
   });
+
+  it("forwards uploaded transcript payloads through the existing JSON proxy route", async () => {
+    const { POST } = await import("@/app/api/deals/[dealId]/chat/route");
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValueOnce(createStreamResponse("Direct answer: Uploaded transcript received"));
+
+    const request = new NextRequest("http://localhost/api/deals/deal-1/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: "Please review this uploaded transcript",
+        transcriptUpload: {
+          fileName: "briefing-call.txt",
+          mimeType: "text/plain",
+          text: "speaker 1: we need timing proof points",
+        },
+        routeContext: {
+          section: "briefing",
+          touchType: null,
+          pathname: "/deals/deal-1/briefing",
+          pageLabel: "Briefing",
+        },
+      }),
+    });
+
+    await POST(request, {
+      params: Promise.resolve({ dealId: "deal-1" }),
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://test-agent:4111/deals/deal-1/chat",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          dealId: "deal-1",
+          message: "Please review this uploaded transcript",
+          transcriptUpload: {
+            fileName: "briefing-call.txt",
+            mimeType: "text/plain",
+            text: "speaker 1: we need timing proof points",
+          },
+          routeContext: {
+            section: "briefing",
+            touchType: null,
+            pathname: "/deals/deal-1/briefing",
+            pageLabel: "Briefing",
+          },
+        }),
+      }),
+    );
+  });
 });

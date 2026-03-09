@@ -161,6 +161,33 @@ describe("runDealChatTurn", () => {
     );
   });
 
+  it("treats uploaded transcripts as transcript-save input with the same confirmation and refine guidance", async () => {
+    const { runDealChatTurn } = await import("../assistant");
+
+    const result = await runDealChatTurn({
+      dealId: "deal-1",
+      message: "Please save the attached transcript.",
+      routeContext: briefingRoute,
+      transcriptUpload: {
+        fileName: "briefing-call.txt",
+        mimeType: "text/plain",
+        text: "... joining late ... ??? can you hear me ... [inaudible] ...",
+      },
+    });
+
+    expect(result.meta.binding?.source.sourceType).toBe("transcript");
+    expect(result.meta.binding?.source.rawText).toContain("joining late");
+    expect(result.meta.refineBeforeSave).toMatchObject({
+      required: true,
+      suggestedPrompt: expect.stringContaining("clean up"),
+    });
+    expect(result.meta.suggestions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "save_transcript" }),
+      ]),
+    );
+  });
+
   it("routes prompt-bearing turns through the named deal-chat assistant runtime", async () => {
     const { runDealChatTurn } = await import("../assistant");
 

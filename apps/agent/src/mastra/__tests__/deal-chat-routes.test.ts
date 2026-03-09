@@ -343,6 +343,45 @@ describe("deal chat route contract", () => {
     expect(text).toContain('"promptVersion"');
   });
 
+  it("forwards uploaded transcript payloads to the orchestrator without changing the stream contract", async () => {
+    const route = getRoute("/deals/:dealId/chat", "POST");
+
+    const response = await route.handler(
+      createContext({
+        params: { dealId: "deal-1" },
+        body: {
+          message: "Please review this upload",
+          transcriptUpload: {
+            fileName: "briefing-call.txt",
+            mimeType: "text/plain",
+            text: "speaker one: we need proof points",
+          },
+          routeContext: {
+            section: "briefing",
+            touchType: null,
+            pathname: "/deals/deal-1/briefing",
+            pageLabel: "Briefing",
+          },
+        },
+      }),
+    );
+
+    const text = await response.text();
+
+    expect(mockRunDealChatTurn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dealId: "deal-1",
+        message: "Please review this upload",
+        transcriptUpload: {
+          fileName: "briefing-call.txt",
+          mimeType: "text/plain",
+          text: "speaker one: we need proof points",
+        },
+      }),
+    );
+    expect(text).toContain("---DEAL_CHAT_META---");
+  });
+
   it("accepts binding confirmation payloads and returns saved source metadata", async () => {
     const route = getRoute("/deals/:dealId/chat/bindings", "POST");
 
