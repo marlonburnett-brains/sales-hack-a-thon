@@ -53,6 +53,7 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 15 | Replace AGENT_API_KEY with Supabase JWT auth between web and agent | 2026-03-09 | d3b7e6b | [15-replace-agent-api-key-with-supabase-jwt-](./quick/15-replace-agent-api-key-with-supabase-jwt-/) |
 | 14 | Add web research tool (Tavily) to deal chat assistant | 2026-03-09 | b3729b9 | [14-add-web-research-tool-to-deal-chat-assis](./quick/14-add-web-research-tool-to-deal-chat-assis/) |
 | 13 | Implement UI for visualizing and deleting deck structure memories | 2026-03-08 | c35085a | [13-implement-ui-for-visualizing-and-deletin](./quick/13-implement-ui-for-visualizing-and-deletin/) |
 
@@ -60,7 +61,6 @@ None.
 
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
-- Auth header workaround: Bearer instead of X-API-Key due to Mastra limitation (documented in AUTH-CONTRACT.md)
 - Multi-source assembly visual fidelity: Hybrid approach (primary copy-and-prune + secondary content injection) untested with real presentations -- needs spike in Phase 52
 
 ## Session Continuity
