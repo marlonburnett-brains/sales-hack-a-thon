@@ -23,6 +23,7 @@ export type AgentId =
   | "buyer-faq-strategist"
   | "deal-chat-assistant"
   | "knowledge-result-extractor"
+  | "modification-planner"
   | "deck-structure-analyst"
   | "deck-structure-refinement-assistant"
   | "slide-metadata-classifier"
@@ -198,6 +199,18 @@ export const AGENT_CATALOG: AgentCatalogEntry[] = [
     sourceSites: ["apps/agent/src/lib/atlusai-search.ts"],
     sourceNotes:
       "Owns the adaptive extraction prompt that normalizes knowledge-base results.",
+  },
+  {
+    agentId: "modification-planner",
+    name: "Modification Planner",
+    responsibility:
+      "Plan surgical text modifications for assembled slides based on element maps and deal context.",
+    family: "deck-intelligence",
+    isShared: true,
+    touchTypes: ["touch_1", "touch_2", "touch_3", "touch_4"],
+    sourceSites: ["apps/agent/src/generation/modification-planner.ts"],
+    sourceNotes:
+      "Owns the element-map analysis prompt that produces ModificationPlan structured output via executeRuntimeProviderNamedAgent.",
   },
   {
     agentId: "deck-structure-analyst",
