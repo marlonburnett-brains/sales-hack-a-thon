@@ -552,6 +552,7 @@ if (env.NODE_ENV === "development") {
   publicPaths.push(/^\/api\/openapi/);
 }
 
+// AUTH-CONTRACT: Web sends "Authorization: Bearer" not "X-API-Key". Works via Mastra internals. See .planning/AUTH-CONTRACT.md
 const auth = new SimpleAuth({
   headers: ["X-API-Key"],
   tokens: {

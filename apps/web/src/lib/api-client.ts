@@ -29,6 +29,7 @@ async function fetchAgent(path: string, init?: RequestInit): Promise<Response> {
       ...init,
       headers: {
         "Content-Type": "application/json",
+        // AUTH-CONTRACT: Sends Bearer but agent expects X-API-Key. Works via Mastra internals. See .planning/AUTH-CONTRACT.md
         Authorization: `Bearer ${env.AGENT_API_KEY}`,
         ...init?.headers,
       },
