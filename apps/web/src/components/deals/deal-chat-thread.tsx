@@ -1,8 +1,23 @@
 "use client";
 
-import type { DealChatBinding, DealChatMeta, DealChatRouteContext, DealChatSuggestion } from "@lumenalta/schemas";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, CornerDownRight, Loader2, MessageSquareText, Send, Sparkles } from "lucide-react";
+import type {
+  DealChatBinding,
+  DealChatMeta,
+  DealChatRouteContext,
+  DealChatSuggestion,
+  DealChatTranscriptUpload,
+} from "@lumenalta/schemas";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import {
+  CheckCircle2,
+  CornerDownRight,
+  Loader2,
+  MessageSquareText,
+  Paperclip,
+  Send,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +41,7 @@ type BindingActionMessageId = {
 };
 
 const DEAL_CHAT_META_DELIMITER = "\n---DEAL_CHAT_META---\n";
+const SUPPORTED_TRANSCRIPT_EXTENSIONS = [".txt", ".md", ".srt", ".vtt"];
 
 function timestamp() {
   return new Date().toISOString();
@@ -51,6 +67,19 @@ function sectionTone(section: DealChatRouteContext["section"]) {
   return "bg-slate-100 text-slate-700 border-slate-200";
 }
 
+function isSupportedTranscriptFile(file: File) {
+  const lowerName = file.name.toLowerCase();
+
+  return (
+    file.type.startsWith("text/") ||
+    SUPPORTED_TRANSCRIPT_EXTENSIONS.some((extension) => lowerName.endsWith(extension))
+  );
+}
+
+function normalizeTranscriptText(text: string) {
+  return text.replace(/\r\n/g, "\n").trim();
+}
+
 export function DealChatThread({ dealId, routeContext, initialMessages, greeting, suggestions }: DealChatThreadProps) {
   const [messages, setMessages] = useState<DealChatMessageData[]>([]);
   const [input, setInput] = useState("");
@@ -59,8 +88,10 @@ export function DealChatThread({ dealId, routeContext, initialMessages, greeting
   const [activeCorrectionId, setActiveCorrectionId] = useState<string | null>(null);
   const [bindingInFlight, setBindingInFlight] = useState<BindingActionMessageId | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [transcriptUpload, setTranscriptUpload] = useState<DealChatTranscriptUpload | null>(null);
   const initializedRef = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initializedRef.current || initialMessages.length === 0) {
@@ -139,12 +170,18 @@ export function DealChatThread({ dealId, routeContext, initialMessages, greeting
 
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed || isSending) return;
+    if ((!trimmed && !transcriptUpload) || isSending) return;
+
+    const userContent = transcriptUpload
+      ? trimmed
+        ? `Uploaded transcript: ${transcriptUpload.fileName}\n${trimmed}`
+        : `Uploaded transcript: ${transcriptUpload.fileName}`
+      : trimmed;
 
     const userMessage: DealChatMessageData = {
       id: `user-${Date.now()}`,
       role: "user",
-      content: trimmed,
+      content: userContent,
       meta: null,
       createdAt: timestamp(),
     };
@@ -161,6 +198,7 @@ export function DealChatThread({ dealId, routeContext, initialMessages, greeting
         body: JSON.stringify({
           dealId,
           message: trimmed,
+          transcriptUpload,
           routeContext,
         }),
       });
@@ -206,6 +244,10 @@ export function DealChatThread({ dealId, routeContext, initialMessages, greeting
         ...current,
         [assistantMessage.id]: defaultDraft(meta),
       }));
+      setTranscriptUpload(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       setStreamingText("");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send message");
@@ -213,7 +255,44 @@ export function DealChatThread({ dealId, routeContext, initialMessages, greeting
     } finally {
       setIsSending(false);
     }
-  }, [dealId, input, isSending, routeContext]);
+  }, [dealId, input, isSending, routeContext, transcriptUpload]);
+
+  const clearTranscriptUpload = useCallback(() => {
+    setTranscriptUpload(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
+  const handleTranscriptUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!isSupportedTranscriptFile(file)) {
+      clearTranscriptUpload();
+      toast.error("Upload a supported transcript file (.txt, .md, .srt, .vtt, or text/*).");
+      return;
+    }
+
+    try {
+      const text = normalizeTranscriptText(await file.text());
+
+      if (!text) {
+        throw new Error("The selected transcript file is empty.");
+      }
+
+      setTranscriptUpload({
+        fileName: file.name,
+        mimeType: file.type || "text/plain",
+        text,
+      });
+    } catch {
+      clearTranscriptUpload();
+      toast.error("The selected transcript could not be read. Try another text transcript file.");
+    }
+  }, [clearTranscriptUpload]);
 
   const visibleSuggestions = useMemo(
     () => suggestions.slice(0, 3),
@@ -410,30 +489,72 @@ export function DealChatThread({ dealId, routeContext, initialMessages, greeting
       </div>
 
       <div className="border-t border-slate-200 px-4 py-4">
-        <div className="flex items-end gap-3">
-          <Textarea
-            rows={2}
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void handleSend();
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="sr-only"
+              aria-label="Upload transcript"
+              onChange={(event) => void handleTranscriptUpload(event)}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-2"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isSending}
+            >
+              <Paperclip className="h-4 w-4" />
+              {transcriptUpload ? "Replace transcript" : "Upload transcript"}
+            </Button>
+
+            {transcriptUpload ? (
+              <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                <span>{transcriptUpload.fileName}</span>
+                <button
+                  type="button"
+                  aria-label="Remove transcript"
+                  className="rounded-full p-0.5 text-emerald-700 transition hover:bg-emerald-100"
+                  onClick={clearTranscriptUpload}
+                  disabled={isSending}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex items-end gap-3">
+            <Textarea
+              rows={2}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleSend();
+                }
+              }}
+              placeholder={
+                transcriptUpload
+                  ? `Add optional instructions for ${transcriptUpload.fileName}...`
+                  : `Ask from ${routeContext.pageLabel.toLowerCase()} context...`
               }
-            }}
-            placeholder={`Ask from ${routeContext.pageLabel.toLowerCase()} context...`}
-            aria-label="Chat message input"
-            className="min-h-20 resize-none"
-            disabled={isSending}
-          />
-          <Button
-            className="h-10 w-10 shrink-0 p-0"
-            onClick={() => void handleSend()}
-            disabled={isSending || !input.trim()}
-            aria-label="Send message"
-          >
-            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
+              aria-label="Chat message input"
+              className="min-h-20 resize-none"
+              disabled={isSending}
+            />
+            <Button
+              className="h-10 w-10 shrink-0 p-0"
+              onClick={() => void handleSend()}
+              disabled={isSending || (!input.trim() && !transcriptUpload)}
+              aria-label="Send message"
+            >
+              {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
