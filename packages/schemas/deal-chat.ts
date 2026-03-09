@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { TOUCH_TYPES } from "./constants";
+import { TOUCH_TYPES } from "./constants.ts";
 
 export const dealChatSectionSchema = z.enum(["overview", "briefing", "touch"]);
 

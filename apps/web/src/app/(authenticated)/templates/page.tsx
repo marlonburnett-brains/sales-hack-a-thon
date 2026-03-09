@@ -8,8 +8,8 @@ export default async function TemplatesPage() {
 
   try {
     templates = await listTemplatesAction();
-  } catch {
-    // Agent service may be unavailable during development
+  } catch (err) {
+    console.error("[templates-page] Failed to fetch templates:", err);
   }
 
   return <TemplatesPageClient initialTemplates={templates} />;

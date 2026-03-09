@@ -41,8 +41,8 @@ export default async function DealsPage({
       listDealsFilteredAction({ status, assignee, userId: user?.id }),
       listKnownUsersAction(),
     ]);
-  } catch {
-    // Agent service may be unavailable during development
+  } catch (err) {
+    console.error("[deals-page] Failed to fetch deals:", err);
   }
 
   const isFiltered = status !== "all" || assignee !== "all";

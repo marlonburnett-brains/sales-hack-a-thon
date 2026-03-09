@@ -14,6 +14,7 @@ import { extractGoogleAuth } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { detectAndQueueBackfill } from "../ingestion/backfill-descriptions";
+import { seedPublishedAgentCatalog } from "../lib/agent-catalog-defaults";
 import { autoClassifyTemplates, autoIngestNewTemplates } from "../ingestion/auto-classify-templates";
 import { encryptToken } from "../lib/token-encryption";
 import {
@@ -558,6 +559,13 @@ const auth = new SimpleAuth({
   },
   public: publicPaths,
 });
+
+// Ensure all named agents from the catalog have DB config rows (idempotent)
+void seedPublishedAgentCatalog(prisma)
+  .then(() => console.log("[startup] Agent catalog seed check complete"))
+  .catch((err) =>
+    console.error("[startup] Failed to seed agent catalog:", err)
+  );
 
 // Clear stale ingestion states on startup (crash recovery)
 void clearStaleIngestions().catch((err) =>

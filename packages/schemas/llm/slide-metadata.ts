@@ -19,7 +19,7 @@ import {
   SLIDE_CATEGORIES,
   BUYER_PERSONAS,
   TOUCH_TYPES,
-} from "../constants";
+} from "../constants.ts";
 
 export const SlideMetadataSchema = z.object({
   industries: z.array(z.enum(INDUSTRIES)),
