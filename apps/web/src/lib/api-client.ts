@@ -29,7 +29,7 @@ async function fetchAgent(path: string, init?: RequestInit): Promise<Response> {
       ...init,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${env.AGENT_API_KEY}`,
+        "X-API-Key": env.AGENT_API_KEY,
         ...init?.headers,
       },
     });

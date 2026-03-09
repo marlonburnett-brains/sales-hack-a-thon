@@ -15,6 +15,13 @@ vi.mock("@/env", () => ({
   },
 }));
 
+vi.mock("@/lib/supabase/google-token", () => ({
+  getGoogleAccessToken: vi.fn().mockResolvedValue({
+    accessToken: "google-token",
+    userId: "user-1",
+  }),
+}));
+
 // Capture fetch calls
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -22,6 +29,7 @@ global.fetch = mockFetch;
 describe("PREV-05: Slide api-client functions call correct endpoints", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve([]),
