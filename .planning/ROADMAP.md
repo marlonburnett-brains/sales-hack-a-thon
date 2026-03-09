@@ -123,7 +123,7 @@ Tier 4 (after 46):                           47 ──┘
 
 ### Gap Closure (Audit-Driven)
 
-- [ ] **Phase 48: HITL Stage Revert Route** - Register missing revert-stage agent route, implement revert logic, wire E2E flow
+- [x] **Phase 48: HITL Stage Revert Route** - Register missing revert-stage agent route, implement revert logic, wire E2E flow (completed 2026-03-09)
 - [ ] **Phase 49: Tech Debt Cleanup** - Clear placeholders, fix env-coupled test, document auth contract, remove dead code
 
 ## Phase Details
@@ -330,5 +330,5 @@ Plans:
 | 45. Persistent AI Chat Bar | 7/7 | Complete    | 2026-03-09 | - |
 | 46. Touch Pages & HITL Workflow | 3/3 | Complete    | 2026-03-08 | - |
 | 47. Drive Artifact Integration | 3/3 | Complete    | 2026-03-08 | - |
-| 48. HITL Stage Revert Route | 0/0 | Planned | - | - |
+| 48. HITL Stage Revert Route | 1/1 | Complete   | 2026-03-09 | - |
 | 49. Tech Debt Cleanup | 0/0 | Planned | - | - |
