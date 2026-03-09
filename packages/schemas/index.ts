@@ -42,6 +42,7 @@ export {
   dealChatSectionSchema,
   dealChatSendRequestSchema,
   dealChatSuggestionSchema,
+  dealChatTranscriptUploadSchema,
   dealChatTouchTypeSchema,
   dealContextSourceSchema,
   type DealChatAnswer,
@@ -55,6 +56,7 @@ export {
   type DealChatSection,
   type DealChatSendRequest,
   type DealChatSuggestion,
+  type DealChatTranscriptUpload,
   type DealChatTouchType,
   type DealContextSource,
 } from "./deal-chat";

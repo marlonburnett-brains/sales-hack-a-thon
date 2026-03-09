@@ -94,7 +94,7 @@ export async function POST(
 
   if (!body.success) {
     return NextResponse.json(
-      { error: "dealId, message, and routeContext are required" },
+      { error: "dealId, routeContext, and either message or transcriptUpload are required" },
       { status: 400 },
     );
   }

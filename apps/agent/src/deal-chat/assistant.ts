@@ -5,6 +5,7 @@ import type {
   DealChatRefineBeforeSave,
   DealChatRouteContext,
   DealChatSuggestion,
+  DealChatTranscriptUpload,
   DealContextSource,
 } from "@lumenalta/schemas";
 
@@ -21,6 +22,7 @@ type RunDealChatTurnParams = {
   dealId: string;
   message: string;
   routeContext: DealChatRouteContext;
+  transcriptUpload?: DealChatTranscriptUpload | null;
 };
 
 type RunDealChatTurnResult = {
@@ -65,6 +67,27 @@ function looksLikeSaveIntent(message: string): boolean {
       message,
     )
   );
+}
+
+function getTurnInputText(params: RunDealChatTurnParams): string {
+  return params.transcriptUpload?.text.trim() || params.message.trim();
+}
+
+function buildRuntimeSellerMessage(params: RunDealChatTurnParams): string {
+  if (!params.transcriptUpload) {
+    return params.message;
+  }
+
+  const lines = [`Uploaded transcript: ${params.transcriptUpload.fileName}`];
+  const instruction = params.message.trim();
+
+  if (instruction) {
+    lines.push(`Seller instructions: ${instruction}`);
+  }
+
+  lines.push(`Transcript content:\n${params.transcriptUpload.text.trim()}`);
+
+  return lines.join("\n\n");
 }
 
 function buildPromptVersionMeta(promptVersion: {
@@ -164,6 +187,7 @@ function buildPendingBinding(binding: DealChatBinding): DealChatBinding {
 export async function runDealChatTurn(
   params: RunDealChatTurnParams,
 ): Promise<RunDealChatTurnResult> {
+  const turnInputText = getTurnInputText(params);
   const context = await loadDealChatContext({
     dealId: params.dealId,
     routeContext: params.routeContext,
@@ -175,7 +199,7 @@ export async function runDealChatTurn(
       {
         role: "user",
         content: JSON.stringify({
-          sellerMessage: params.message,
+          sellerMessage: buildRuntimeSellerMessage(params),
           deal: context.deal,
           routeContext: context.routeContext,
           promptSummary: context.promptSummary,
@@ -196,7 +220,7 @@ export async function runDealChatTurn(
   const suggestions = buildDealChatSuggestions(params.routeContext);
   const promptVersion = buildPromptVersionMeta(runtime.promptVersion);
   const knowledgeQuery = looksLikeKnowledgeQuery(params.message);
-  const saveIntent = !knowledgeQuery && looksLikeSaveIntent(params.message);
+  const saveIntent = Boolean(params.transcriptUpload) || (!knowledgeQuery && looksLikeSaveIntent(turnInputText));
 
   let directAnswer = streamedText || `I grounded this answer in ${context.deal.company.name}'s deal context.`;
   let supportingBullets: string[] = [];
@@ -240,10 +264,10 @@ export async function runDealChatTurn(
   } else if (saveIntent) {
     const source: DealContextSource = {
       id: null,
-      sourceType: inferSourceType(params.message),
+      sourceType: params.transcriptUpload ? "transcript" : inferSourceType(turnInputText),
       touchType: null,
       title: null,
-      rawText: params.message.trim(),
+      rawText: turnInputText,
       refinedText: null,
       routeContext: params.routeContext,
     };

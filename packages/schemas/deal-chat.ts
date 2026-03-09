@@ -45,6 +45,12 @@ export const dealChatRefineBeforeSaveSchema = z.object({
   draftText: z.string().nullable(),
 });
 
+export const dealChatTranscriptUploadSchema = z.object({
+  fileName: z.string().min(1),
+  mimeType: z.string().min(1),
+  text: z.string().min(1),
+});
+
 export const dealChatConfirmationChipSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -89,10 +95,19 @@ export const dealChatMetaSchema = z.object({
 
 export const dealChatSendRequestSchema = z.object({
   dealId: z.string(),
-  message: z.string().min(1),
+  message: z.string().default(""),
+  transcriptUpload: dealChatTranscriptUploadSchema.nullable().optional(),
   routeContext: dealChatRouteContextSchema,
   pendingBinding: dealChatBindingSchema.nullable().optional(),
   pendingRefineBeforeSave: dealChatRefineBeforeSaveSchema.nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (value.message.trim().length === 0 && !value.transcriptUpload) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["message"],
+      message: "Either message or transcriptUpload is required",
+    });
+  }
 });
 
 export type DealChatSection = z.infer<typeof dealChatSectionSchema>;
@@ -102,6 +117,7 @@ export type DealChatSuggestion = z.infer<typeof dealChatSuggestionSchema>;
 export type DealContextSource = z.infer<typeof dealContextSourceSchema>;
 export type DealChatBinding = z.infer<typeof dealChatBindingSchema>;
 export type DealChatRefineBeforeSave = z.infer<typeof dealChatRefineBeforeSaveSchema>;
+export type DealChatTranscriptUpload = z.infer<typeof dealChatTranscriptUploadSchema>;
 export type DealChatConfirmationChip = z.infer<typeof dealChatConfirmationChipSchema>;
 export type DealChatKnowledgeMatchCard = z.infer<
   typeof dealChatKnowledgeMatchCardSchema

@@ -775,11 +775,16 @@ export const mastra = new Mastra({
             ...body,
             dealId,
           });
+          const userTurnContent = parsed.transcriptUpload
+            ? parsed.message.trim()
+              ? `Uploaded transcript: ${parsed.transcriptUpload.fileName}\n${parsed.message.trim()}`
+              : `Uploaded transcript: ${parsed.transcriptUpload.fileName}`
+            : parsed.message.trim();
 
           await appendDealChatMessage({
             dealId,
             role: "user",
-            content: parsed.message.trim(),
+            content: userTurnContent,
             routeContext: parsed.routeContext,
           });
 
@@ -787,6 +792,7 @@ export const mastra = new Mastra({
             dealId,
             message: parsed.message.trim(),
             routeContext: parsed.routeContext,
+            transcriptUpload: parsed.transcriptUpload ?? null,
           });
 
           await appendDealChatMessage({
