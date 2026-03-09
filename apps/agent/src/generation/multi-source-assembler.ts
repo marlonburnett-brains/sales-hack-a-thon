@@ -162,6 +162,7 @@ export async function assembleMultiSourceDeck(
           fileId: secondarySource.presentationId,
           requestBody: {
             name: `_temp_secondary_${secondarySource.templateId}_${index + 1}`,
+            parents: [params.targetFolderId],
           },
           supportsAllDrives: true,
         });

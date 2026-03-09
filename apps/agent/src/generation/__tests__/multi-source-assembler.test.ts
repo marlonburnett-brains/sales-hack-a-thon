@@ -465,6 +465,7 @@ describe("assembleMultiSourceDeck", () => {
       fileId: "pres-b",
       requestBody: {
         name: "_temp_secondary_tpl-b_1",
+        parents: ["folder-1"],
       },
       supportsAllDrives: true,
     });
