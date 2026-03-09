@@ -80,8 +80,32 @@ function makeTextShapeElement(
     objectId,
     shape: {
       shapeType,
+      shapeProperties: {
+        shapeBackgroundFill: {
+          solidFill: {
+            color: { rgbColor: { red: 1, green: 0, blue: 0 } },
+          },
+        },
+      },
       text: {
-        textElements: [{ textRun: { content: text } }],
+        textElements: [
+          {
+            textRun: {
+              content: text,
+              style: { bold: true },
+            },
+            startIndex: 0,
+            endIndex: text.length,
+          },
+          {
+            paragraphMarker: {
+              style: { alignment: "CENTER" },
+              bullet: { listId: "bullet-1" },
+            },
+            startIndex: 0,
+            endIndex: text.length,
+          }
+        ],
       },
     },
     size: makeSize(),
@@ -182,6 +206,13 @@ function makePresentation(
     data: {
       slides: slideIds.map((slideId) => ({
         objectId: slideId,
+        pageProperties: {
+          pageBackgroundFill: {
+            solidFill: {
+              color: { rgbColor: { red: 1, green: 1, blue: 1 } },
+            },
+          },
+        },
         pageElements: (slideElementsById[slideId] ?? []).map((element, index) =>
           typeof element === "string"
             ? makeTextShapeElement(`${slideId}-shape-${index + 1}`, element, index)
@@ -484,6 +515,19 @@ describe("assembleMultiSourceDeck", () => {
       requestBody: {
         requests: [
           { createSlide: { objectId: "generated-s4", insertionIndex: 2 } },
+          {
+            updatePageProperties: {
+              objectId: "generated-s4",
+              pageProperties: {
+                pageBackgroundFill: {
+                  solidFill: {
+                    color: { rgbColor: { red: 1, green: 1, blue: 1 } },
+                  },
+                },
+              },
+              fields: "pageBackgroundFill",
+            },
+          },
           {
             createImage: {
               objectId: "generated-s4-ima-s4-image-1-1-42a31bacc0b7",

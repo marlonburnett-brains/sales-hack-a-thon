@@ -281,15 +281,30 @@ function buildSecondarySlideRequests(
     counters: {},
   };
 
-  return [
+  const requests: slides_v1.Schema$Request[] = [
     {
       createSlide: {
         objectId: targetSlideId,
         insertionIndex,
       },
     },
-    ...buildPageElementRequests(slide.pageElements ?? [], context),
   ];
+
+  if (slide.pageProperties?.pageBackgroundFill) {
+    requests.push({
+      updatePageProperties: {
+        objectId: targetSlideId,
+        pageProperties: {
+          pageBackgroundFill: slide.pageProperties.pageBackgroundFill,
+        },
+        fields: "pageBackgroundFill",
+      },
+    });
+  }
+
+  requests.push(...buildPageElementRequests(slide.pageElements ?? [], context));
+
+  return requests;
 }
 
 function buildPageElementRequests(
@@ -327,6 +342,98 @@ function buildPageElementRequests(
   return requests;
 }
 
+function buildTextRequests(
+  objectId: string,
+  textElements: slides_v1.Schema$TextElement[] | null | undefined,
+  cellLocation?: slides_v1.Schema$TableCellLocation,
+): slides_v1.Schema$Request[] {
+  if (!textElements || textElements.length === 0) {
+    return [];
+  }
+
+  const requests: slides_v1.Schema$Request[] = [];
+  let currentIndex = 0;
+
+  for (const textElement of textElements) {
+    if (textElement.textRun?.content) {
+      const content = textElement.textRun.content;
+      const request: slides_v1.Schema$Request = {
+        insertText: {
+          objectId,
+          insertionIndex: currentIndex,
+          text: content,
+        },
+      };
+      if (cellLocation) {
+        request.insertText!.cellLocation = cellLocation;
+      }
+      requests.push(request);
+      currentIndex += content.length;
+    }
+  }
+
+  for (const textElement of textElements) {
+    const startIndex = textElement.startIndex ?? 0;
+    const endIndex = textElement.endIndex ?? 0;
+
+    if (startIndex >= endIndex) continue;
+
+    if (textElement.textRun?.style) {
+      const request: slides_v1.Schema$Request = {
+        updateTextStyle: {
+          objectId,
+          style: textElement.textRun.style,
+          textRange: {
+            type: "FIXED_RANGE",
+            startIndex,
+            endIndex,
+          },
+          fields: "*",
+        },
+      };
+      if (cellLocation) request.updateTextStyle!.cellLocation = cellLocation;
+      requests.push(request);
+    }
+
+    if (textElement.paragraphMarker) {
+      if (textElement.paragraphMarker.style) {
+        const request: slides_v1.Schema$Request = {
+          updateParagraphStyle: {
+            objectId,
+            style: textElement.paragraphMarker.style,
+            textRange: {
+              type: "FIXED_RANGE",
+              startIndex,
+              endIndex,
+            },
+            fields: "*",
+          },
+        };
+        if (cellLocation) request.updateParagraphStyle!.cellLocation = cellLocation;
+        requests.push(request);
+      }
+
+      if (textElement.paragraphMarker.bullet) {
+        const request: slides_v1.Schema$Request = {
+          createParagraphBullets: {
+            objectId,
+            textRange: {
+              type: "FIXED_RANGE",
+              startIndex,
+              endIndex,
+            },
+            bulletPreset: "BULLET_DISC_CIRCLE_SQUARE",
+          },
+        };
+        if (cellLocation) request.createParagraphBullets!.cellLocation = cellLocation;
+        requests.push(request);
+      }
+    }
+  }
+
+  return requests;
+}
+
 function buildImageRequests(
   element: slides_v1.Schema$PageElement,
   context: RebuildContext,
@@ -341,10 +448,11 @@ function buildImageRequests(
     return buildUnsupportedElementRequests(element, context, "image", "missing geometry");
   }
 
-  return [
+  const imageId = makeElementObjectId(context, element, "image");
+  const requests: slides_v1.Schema$Request[] = [
     {
       createImage: {
-        objectId: makeElementObjectId(context, element, "image"),
+        objectId: imageId,
         url: imageUrl,
         elementProperties: {
           pageObjectId: context.targetSlideId,
@@ -353,6 +461,18 @@ function buildImageRequests(
       },
     },
   ];
+
+  if (element.image?.imageProperties) {
+    requests.push({
+      updateImageProperties: {
+        objectId: imageId,
+        imageProperties: element.image.imageProperties,
+        fields: "*",
+      },
+    });
+  }
+
+  return requests;
 }
 
 function buildShapeRequests(
@@ -366,7 +486,6 @@ function buildShapeRequests(
 
   const shapeId = makeElementObjectId(context, element, "shape");
   const shapeType = element.shape?.shapeType ?? "TEXT_BOX";
-  const text = extractTextContent(element.shape?.text?.textElements);
   const requests: slides_v1.Schema$Request[] = [
     {
       createShape: {
@@ -380,15 +499,17 @@ function buildShapeRequests(
     },
   ];
 
-  if (text) {
+  if (element.shape?.shapeProperties) {
     requests.push({
-      insertText: {
+      updateShapeProperties: {
         objectId: shapeId,
-        insertionIndex: 0,
-        text,
+        shapeProperties: element.shape.shapeProperties,
+        fields: "*",
       },
     });
   }
+
+  requests.push(...buildTextRequests(shapeId, element.shape?.text?.textElements));
 
   return requests;
 }
@@ -435,26 +556,80 @@ function buildTableRequests(
     },
   ];
 
-  tableRows.forEach((row, rowIndex) => {
-    (row.tableCells ?? []).forEach((cell, columnIndex) => {
-      const text = extractTextContent(cell.text?.textElements);
-      if (!text) {
-        return;
-      }
-
-      requests.push({
-        insertText: {
-          objectId: tableId,
-          cellLocation: {
-            rowIndex,
-            columnIndex,
+  if (element.table?.tableColumns) {
+    element.table.tableColumns.forEach((column, columnIndex) => {
+      if (column.columnWidth) {
+        requests.push({
+          updateTableColumnProperties: {
+            objectId: tableId,
+            columnIndices: [columnIndex],
+            tableColumnProperties: { columnWidth: column.columnWidth },
+            fields: "columnWidth",
           },
-          insertionIndex: 0,
-          text,
+        });
+      }
+    });
+  }
+
+  tableRows.forEach((row, rowIndex) => {
+    if (row.rowHeight) {
+      requests.push({
+        updateTableRowProperties: {
+          objectId: tableId,
+          rowIndices: [rowIndex],
+          tableRowProperties: { minRowHeight: row.rowHeight },
+          fields: "minRowHeight",
         },
       });
+    }
+
+    (row.tableCells ?? []).forEach((cell, columnIndex) => {
+      const cellLocation = { rowIndex, columnIndex };
+
+      if (cell.tableCellProperties) {
+        requests.push({
+          updateTableCellProperties: {
+            objectId: tableId,
+            tableRange: {
+              location: cellLocation,
+              rowSpan: 1,
+              columnSpan: 1,
+            },
+            tableCellProperties: cell.tableCellProperties,
+            fields: "*",
+          },
+        });
+        
+        // Also map border properties if present in tableCellProperties (Google Slides usually represents border separately but some SDKs overlay them)
+        // If we want updateTableBorderProperties, we can issue a dummy request or skip it if the property doesn't exist directly on cell
+      }
+
+      requests.push(...buildTextRequests(tableId, cell.text?.textElements, cellLocation));
     });
   });
+
+  // Adding table border properties if horizontalBorderRows / verticalBorderRows exists
+  if (element.table?.horizontalBorderRows) {
+    element.table.horizontalBorderRows.forEach((borderRow, rIndex) => {
+      (borderRow.tableBorderCells ?? []).forEach((borderCell, cIndex) => {
+        if (borderCell.tableBorderProperties) {
+          requests.push({
+            updateTableBorderProperties: {
+              objectId: tableId,
+              borderPosition: "BOTTOM", // Approximation
+              tableRange: {
+                location: { rowIndex: rIndex, columnIndex: cIndex },
+                rowSpan: 1,
+                columnSpan: 1,
+              },
+              tableBorderProperties: borderCell.tableBorderProperties,
+              fields: "*",
+            },
+          });
+        }
+      });
+    });
+  }
 
   return requests;
 }
