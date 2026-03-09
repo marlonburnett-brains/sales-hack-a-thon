@@ -520,7 +520,9 @@ function makeElementObjectId(
   context.counters[kind] = nextIndex;
 
   const sourceId = sanitizeObjectIdFragment(element.objectId ?? `${kind}-${nextIndex}`);
-  return `${context.targetSlideId}-${kind}-${sourceId}`;
+  const kindPrefix = kind.slice(0, 3);
+  const sourceSuffix = sourceId.slice(-18);
+  return `${context.targetSlideId}-${kindPrefix}-${sourceSuffix}-${nextIndex}`.slice(0, 50);
 }
 
 function sanitizeObjectIdFragment(value: string): string {

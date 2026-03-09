@@ -484,7 +484,7 @@ describe("assembleMultiSourceDeck", () => {
           { createSlide: { objectId: "generated-s4", insertionIndex: 2 } },
           {
             createImage: {
-              objectId: "generated-s4-image-s4-image-1",
+              objectId: "generated-s4-ima-s4-image-1-1",
               url: "https://example.com/image.png",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -495,7 +495,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             createShape: {
-              objectId: "generated-s4-shape-s4-shape-1",
+              objectId: "generated-s4-sha-s4-shape-1-1",
               shapeType: "RECTANGLE",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -506,7 +506,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             createTable: {
-              objectId: "generated-s4-table-s4-table-1",
+              objectId: "generated-s4-tab-s4-table-1-1",
               rows: 2,
               columns: 2,
               elementProperties: {
@@ -518,7 +518,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-table-s4-table-1",
+              objectId: "generated-s4-tab-s4-table-1-1",
               cellLocation: {
                 rowIndex: 0,
                 columnIndex: 0,
@@ -529,7 +529,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-table-s4-table-1",
+              objectId: "generated-s4-tab-s4-table-1-1",
               cellLocation: {
                 rowIndex: 0,
                 columnIndex: 1,
@@ -540,7 +540,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-table-s4-table-1",
+              objectId: "generated-s4-tab-s4-table-1-1",
               cellLocation: {
                 rowIndex: 1,
                 columnIndex: 0,
@@ -551,7 +551,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-table-s4-table-1",
+              objectId: "generated-s4-tab-s4-table-1-1",
               cellLocation: {
                 rowIndex: 1,
                 columnIndex: 1,
@@ -562,7 +562,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             createShape: {
-              objectId: "generated-s4-shape-s4-group-child-shape",
+              objectId: "generated-s4-sha--group-child-shape-2",
               shapeType: "ROUND_RECTANGLE",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -573,14 +573,14 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-shape-s4-group-child-shape",
+              objectId: "generated-s4-sha--group-child-shape-2",
               insertionIndex: 0,
               text: "Grouped text",
             },
           },
           {
             createImage: {
-              objectId: "generated-s4-image-s4-group-child-image",
+              objectId: "generated-s4-ima--group-child-image-2",
               url: "https://example.com/group.png",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -591,7 +591,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             createShape: {
-              objectId: "generated-s4-placeholder-s4-video-1",
+              objectId: "generated-s4-pla-s4-video-1-1",
               shapeType: "TEXT_BOX",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -602,7 +602,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-placeholder-s4-video-1",
+              objectId: "generated-s4-pla-s4-video-1-1",
               insertionIndex: 0,
               text: "Unsupported element: video\nSource slide: s4\nElement: s4-video-1",
             },
