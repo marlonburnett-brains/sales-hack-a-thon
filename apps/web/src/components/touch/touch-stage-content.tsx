@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, FileText, List } from "lucide-react";
+import { ExternalLink, FileText, List, MessageSquare } from "lucide-react";
 import { DeckPreview } from "./deck-preview";
 import { Touch4ArtifactTabs } from "./touch-4-artifact-tabs";
 import type { HitlStage } from "./hitl-stage-stepper";
@@ -90,7 +90,68 @@ function Touch1Content({
   }
 
   if (stage === "lowfi") {
-    // PagerContent fields: headline, valueProposition, keyCapabilities, callToAction
+    // Detect section-aware vs legacy content
+    const sections = data?.sections as Array<{
+      sectionName: string;
+      sectionPurpose: string;
+      contentText: string;
+      speakerNotes: string;
+    }> | undefined;
+    const isSectionAware = Array.isArray(sections) && sections.length > 0;
+
+    if (isSectionAware) {
+      // Section-aware draft: per-section cards
+      const headline = (data?.headline as string) ?? "";
+      const callToAction = (data?.callToAction as string) ?? "";
+
+      return (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-slate-500" />
+              <Badge variant="secondary" className="text-xs">
+                Section-Aware Draft
+              </Badge>
+            </div>
+            <CardTitle className="text-lg">{headline || "Draft Content"}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {sections.map((section, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-slate-200 p-3 space-y-2"
+              >
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-slate-800">{section.sectionName}</p>
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    {section.sectionPurpose}
+                  </Badge>
+                </div>
+                <p className="whitespace-pre-wrap leading-relaxed text-slate-700">
+                  {section.contentText}
+                </p>
+                {section.speakerNotes && (
+                  <div className="flex items-start gap-1.5 rounded bg-slate-50 px-2 py-1.5">
+                    <MessageSquare className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" />
+                    <p className="text-xs text-slate-500">{section.speakerNotes}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            {callToAction && (
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase text-slate-500">
+                  Call to Action
+                </p>
+                <p className="leading-relaxed text-slate-700">{callToAction}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // Legacy: PagerContent fields: headline, valueProposition, keyCapabilities, callToAction
     const headline = (data?.headline as string) ?? "";
     const valueProp = (data?.valueProposition as string) ?? "";
     const capabilities = (data?.keyCapabilities as string[]) ?? [];
@@ -217,7 +278,23 @@ function Touch23Content({
         title: string;
         notes?: string;
       }>) ?? [];
+    // Also check slideNotes array (workflow stores notes in this shape)
+    const slideNotes =
+      (data?.slideNotes as Array<{
+        slideId: string;
+        notes: string;
+        purpose: string;
+      }>) ?? [];
     const draftText = (data?.draftText as string) ?? "";
+
+    // Merge slideNotes into slideOrder if slideOrder has no notes
+    const enrichedSlides = slideOrder.length > 0
+      ? slideOrder
+      : slideNotes.map((sn) => ({
+          slideId: sn.slideId,
+          title: sn.purpose,
+          notes: sn.notes,
+        }));
 
     return (
       <Card>
@@ -231,23 +308,47 @@ function Touch23Content({
           <CardTitle className="text-lg">Slide Order</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {slideOrder.length > 0 ? (
+          {enrichedSlides.length > 0 ? (
             <ol className="space-y-2">
-              {slideOrder.map((slide, i) => (
-                <li
-                  key={slide.slideId ?? i}
-                  className="rounded-lg border border-slate-200 px-3 py-2"
-                >
-                  <p className="font-medium text-slate-800">
-                    {i + 1}. {slide.title}
-                  </p>
-                  {slide.notes && (
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {slide.notes}
-                    </p>
-                  )}
-                </li>
-              ))}
+              {enrichedSlides.map((slide, i) => {
+                // Detect section-enriched notes (start with "Section:")
+                const notes = slide.notes ?? "";
+                const isSectionNote = notes.startsWith("Section:");
+
+                return (
+                  <li
+                    key={slide.slideId ?? i}
+                    className="rounded-lg border border-slate-200 px-3 py-2"
+                  >
+                    {isSectionNote ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-slate-800">
+                            {i + 1}. {slide.title}
+                          </p>
+                          <Badge variant="outline" className="text-[10px] font-normal">
+                            {notes.split(" — ")[0]?.replace("Section: ", "") ?? ""}
+                          </Badge>
+                        </div>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {notes.split(" — ").slice(1).join(" — ")}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium text-slate-800">
+                          {i + 1}. {slide.title}
+                        </p>
+                        {notes && (
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {notes}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </li>
+                );
+              })}
             </ol>
           ) : draftText ? (
             <p className="whitespace-pre-wrap leading-relaxed text-slate-700">
