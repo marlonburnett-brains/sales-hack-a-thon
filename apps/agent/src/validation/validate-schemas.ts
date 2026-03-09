@@ -190,7 +190,7 @@ Focus on uncovering technical requirements, architecture preferences, and decisi
 
 async function main(): Promise<void> {
   console.log("=== LLM Round-Trip Schema Validation ===\n");
-  console.log(`Model: openai/gpt-oss-120b-maas`);
+  console.log(`Model: google/gemini-3.1-flash-lite-preview`);
   console.log(`Schemas to validate: ${tests.length}\n`);
 
   let failures = 0;

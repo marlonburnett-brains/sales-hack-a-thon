@@ -3745,7 +3745,7 @@ When you suggest changes, output the COMPLETE updated prompt between delimiters 
           const ai = createChatProviderClient();
 
           const stream = await ai.models.generateContentStream({
-            model: "gemini-2.0-flash",
+            model: "gemini-3.1-flash-lite-preview",
             contents: [
               { role: "user", parts: [{ text: data.message }] },
             ],

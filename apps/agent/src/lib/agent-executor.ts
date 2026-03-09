@@ -178,7 +178,7 @@ export async function executeRuntimeProviderNamedAgent<TOutput = undefined>(
   const config = toProviderResponseOptions(params);
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
+    model: "gemini-3.1-flash-lite-preview",
     contents: toProviderContents(params, resolved.compiledPrompt),
     ...(config ? { config } : {}),
   });
@@ -208,7 +208,7 @@ export async function streamRuntimeProviderNamedAgent<TOutput = undefined>(
   const config = toProviderResponseOptions(params);
 
   const stream = await ai.models.generateContentStream({
-    model: "gemini-2.0-flash",
+    model: "gemini-3.1-flash-lite-preview",
     contents: toProviderContents(params, resolved.compiledPrompt),
     ...(config ? { config } : {}),
   });
