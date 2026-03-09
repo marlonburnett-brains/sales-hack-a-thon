@@ -1,11 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockAssembleDeckFromSlides } = vi.hoisted(() => ({
+const {
+  mockAssembleDeckFromSlides,
+  mockGetDriveClient,
+  mockGetSlidesClient,
+  mockShareWithOrg,
+} = vi.hoisted(() => ({
   mockAssembleDeckFromSlides: vi.fn(),
+  mockGetDriveClient: vi.fn(),
+  mockGetSlidesClient: vi.fn(),
+  mockShareWithOrg: vi.fn(),
 }));
 
 vi.mock("../../lib/deck-customizer", () => ({
   assembleDeckFromSlides: mockAssembleDeckFromSlides,
+}));
+
+vi.mock("../../lib/google-auth", () => ({
+  getDriveClient: mockGetDriveClient,
+  getSlidesClient: mockGetSlidesClient,
+}));
+
+vi.mock("../../lib/drive-folders", () => ({
+  shareWithOrg: mockShareWithOrg,
 }));
 
 import type { SlideSelectionEntry, SlideSelectionPlan } from "@lumenalta/schemas";
@@ -31,6 +48,72 @@ function makeEntry(
 
 function makePlan(selections: SlideSelectionEntry[]): SlideSelectionPlan {
   return { selections };
+}
+
+function makePresentation(slideIds: string[], slideTextById: Record<string, string[]> = {}) {
+  return {
+    data: {
+      slides: slideIds.map((slideId) => ({
+        objectId: slideId,
+        pageElements: (slideTextById[slideId] ?? []).map((text, index) => ({
+          objectId: `${slideId}-shape-${index + 1}`,
+          shape: {
+            text: {
+              textElements: [{ textRun: { content: text } }],
+            },
+          },
+          size: {
+            height: { magnitude: 100, unit: "PT" },
+            width: { magnitude: 200, unit: "PT" },
+          },
+          transform: {
+            scaleX: 1,
+            scaleY: 1,
+            translateX: 10 + index,
+            translateY: 20 + index,
+            unit: "PT",
+          },
+        })),
+      })),
+    },
+  };
+}
+
+function makeDriveClient(overrides?: {
+  copy?: ReturnType<typeof vi.fn>;
+  delete?: ReturnType<typeof vi.fn>;
+}) {
+  return {
+    files: {
+      copy:
+        overrides?.copy ??
+        vi
+          .fn()
+          .mockResolvedValueOnce({ data: { id: "primary-copy" } })
+          .mockResolvedValueOnce({ data: { id: "secondary-copy-1" } })
+          .mockResolvedValueOnce({ data: { id: "secondary-copy-2" } }),
+      delete: overrides?.delete ?? vi.fn().mockResolvedValue({}),
+    },
+  };
+}
+
+function makeSlidesClient(overrides?: {
+  get?: ReturnType<typeof vi.fn>;
+  batchUpdate?: ReturnType<typeof vi.fn>;
+}) {
+  return {
+    presentations: {
+      get:
+        overrides?.get ??
+        vi
+          .fn()
+          .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
+          .mockResolvedValueOnce(makePresentation(["s4", "sx"], { s4: ["Secondary intro"] }))
+          .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
+          .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"])),
+      batchUpdate: overrides?.batchUpdate ?? vi.fn().mockResolvedValue({}),
+    },
+  };
 }
 
 describe("groupSlidesBySource", () => {
@@ -164,6 +247,7 @@ describe("buildMultiSourcePlan", () => {
 describe("assembleMultiSourceDeck", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockShareWithOrg.mockResolvedValue(undefined);
   });
 
   it("delegates single-source plans to assembleDeckFromSlides", async () => {
@@ -200,27 +284,115 @@ describe("assembleMultiSourceDeck", () => {
     });
   });
 
-  it("throws a not implemented error for multi-source plans until plan 02", async () => {
+  it("copies the primary source, injects secondary slides, reorders the deck, and shares the assembled presentation", async () => {
+    const driveClient = makeDriveClient();
+    const slidesClient = makeSlidesClient();
+    mockGetDriveClient.mockReturnValue(driveClient);
+    mockGetSlidesClient.mockReturnValue(slidesClient);
+
     const plan = buildMultiSourcePlan(
       makePlan([
-        makeEntry("s1", "pres-a", "tpl-a"),
-        makeEntry("s2", "pres-a", "tpl-a"),
-        makeEntry("s3", "pres-b", "tpl-b"),
+        makeEntry("p1", "pres-a", "tpl-a"),
+        makeEntry("s4", "pres-b", "tpl-b"),
+        makeEntry("p2", "pres-a", "tpl-a"),
       ]),
       new Map([
-        ["pres-a", ["s1", "s2"]],
-        ["pres-b", ["s3"]],
+        ["pres-a", ["p1", "p2", "p3"]],
+        ["pres-b", ["s4", "sx"]],
       ]),
     );
 
-    await expect(
-      assembleMultiSourceDeck({
-        plan,
-        targetFolderId: "folder-1",
-        deckName: "My Deck",
-      }),
-    ).rejects.toThrow("Not implemented");
+    const result = await assembleMultiSourceDeck({
+      plan,
+      targetFolderId: "folder-1",
+      deckName: "My Deck",
+      ownerEmail: "owner@lumenalta.com",
+    });
 
     expect(mockAssembleDeckFromSlides).not.toHaveBeenCalled();
+    expect(driveClient.files.copy).toHaveBeenNthCalledWith(1, {
+      fileId: "pres-a",
+      requestBody: {
+        name: "My Deck",
+        parents: ["folder-1"],
+      },
+      supportsAllDrives: true,
+    });
+    expect(driveClient.files.copy).toHaveBeenNthCalledWith(2, {
+      fileId: "pres-b",
+      requestBody: {
+        name: "_temp_secondary_tpl-b_1",
+      },
+      supportsAllDrives: true,
+    });
+
+    expect(slidesClient.presentations.batchUpdate).toHaveBeenNthCalledWith(1, {
+      presentationId: "primary-copy",
+      requestBody: {
+        requests: [{ deleteObject: { objectId: "p3" } }],
+      },
+    });
+
+    expect(slidesClient.presentations.batchUpdate).toHaveBeenNthCalledWith(2, {
+      presentationId: "primary-copy",
+      requestBody: {
+        requests: [
+          { createSlide: { objectId: "generated-s4", insertionIndex: 2 } },
+          {
+            createShape: {
+              objectId: "generated-s4-shape-1",
+              shapeType: "TEXT_BOX",
+              elementProperties: {
+                pageObjectId: "generated-s4",
+                size: {
+                  height: { magnitude: 100, unit: "PT" },
+                  width: { magnitude: 200, unit: "PT" },
+                },
+                transform: {
+                  scaleX: 1,
+                  scaleY: 1,
+                  translateX: 10,
+                  translateY: 20,
+                  unit: "PT",
+                },
+              },
+            },
+          },
+          {
+            insertText: {
+              objectId: "generated-s4-shape-1",
+              insertionIndex: 0,
+              text: "Secondary intro",
+            },
+          },
+        ],
+      },
+    });
+
+    expect(slidesClient.presentations.batchUpdate).toHaveBeenNthCalledWith(3, {
+      presentationId: "primary-copy",
+      requestBody: {
+        requests: [
+          { updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 } },
+          {
+            updateSlidesPosition: { slideObjectIds: ["generated-s4"], insertionIndex: 1 },
+          },
+          { updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 2 } },
+        ],
+      },
+    });
+
+    expect(driveClient.files.delete).toHaveBeenCalledWith({
+      fileId: "secondary-copy-1",
+      supportsAllDrives: true,
+    });
+    expect(mockShareWithOrg).toHaveBeenCalledWith({
+      fileId: "primary-copy",
+      ownerEmail: "owner@lumenalta.com",
+    });
+    expect(result).toEqual({
+      presentationId: "primary-copy",
+      driveUrl: "https://docs.google.com/presentation/d/primary-copy/edit",
+    });
   });
 });
