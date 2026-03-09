@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: completed
-stopped_at: Completed 45-03-PLAN.md
-last_updated: "2026-03-08T23:46:59.402Z"
-last_activity: 2026-03-08 - Completed 45-03 (persistent deal chat dock, side-panel UI, and shared layout wiring)
+stopped_at: Completed 45-06-PLAN.md
+last_updated: "2026-03-09T00:14:15.941Z"
+last_activity: 2026-03-09 - Completed 45-06 (persistent chat transcript upload gap closure)
 progress:
   total_phases: 7
   completed_phases: 7
-  total_plans: 41
-  completed_plans: 41
+  total_plans: 26
+  completed_plans: 26
   percent: 100
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 Phase: 47 of 47 (Drive Artifact Integration)
 Plan: Complete
 Status: Completed
-Last activity: 2026-03-08 - Completed 45-03 (persistent deal chat dock, side-panel UI, and shared layout wiring)
+Last activity: 2026-03-09 - Completed 45-06 (persistent chat transcript upload gap closure)
 
 Progress: [██████████] 100%
 
@@ -90,6 +90,9 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 45]: Mounted the persistent deal assistant once in the shared deal layout and derived live route context client-side with Next navigation hooks.
 - [Phase 45]: Kept the deal assistant dock-first with an optional side-panel mode so route-aware suggestions stay visible without taking over the page.
 - [Phase 45]: Rendered DEAL_CHAT_META inline and kept confirmed binding turns visible so sellers can save, correct, or refine within one thread.
+- [Phase 45]: Kept transcript uploads on the existing /api/deals/[dealId]/chat JSON route by sending browser-read text instead of adding a multipart upload endpoint.
+- [Phase 45]: Allowed upload-only sends in the shared deal-chat contract so sellers can attach a transcript without typed instructions and still reach the confirmation-first save flow.
+- [Phase 45]: Rendered upload state inline in the persistent composer with replace/remove controls so the dock-first layout stays compact across deal pages.
 
 ### Pending Todos
 
@@ -119,6 +122,7 @@ None.
 | Phase 45 P02 | 10 min | 2 tasks | 8 files |
 | Phase 45 P05 | 7 min | 2 tasks | 7 files |
 | Phase 45 P03 | 9m 50s | 2 tasks | 7 files |
+| Phase 45 P06 | 6 min | 2 tasks | 10 files |
 
 ### Blockers/Concerns
 
@@ -129,6 +133,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T23:46:59.399Z
-Stopped at: Completed 45-03-PLAN.md
+Last session: 2026-03-09T00:14:15.937Z
+Stopped at: Completed 45-06-PLAN.md
 Next action: No remaining roadmap plans -- v1.7 is complete.
