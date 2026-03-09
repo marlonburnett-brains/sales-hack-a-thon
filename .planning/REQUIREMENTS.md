@@ -40,7 +40,7 @@ Consume DeckStructure as the generation blueprint for all touches.
 | FR-2.3 | Include `SlideEmbedding.templateId -> Template.presentationId` resolution for source presentation mapping | P1 |
 | FR-2.4 | Produce a `GenerationBlueprint` with populated `SectionSlot.candidateSlideIds` | P1 |
 | FR-2.5 | Handle missing/empty DeckStructure gracefully by returning null (triggers fallback to legacy path) | P1 |
-| FR-2.6 | Support all 7 logical DeckStructure keys (touch_1, touch_2, touch_3, pre_call, touch_4×proposal, touch_4×talk_track, touch_4×faq) | P1 |
+| FR-2.6 | Support all 7 logical DeckStructure keys (touch_1, touch_2, touch_3, pre_call, touch_4 x proposal, touch_4 x talk_track, touch_4 x faq) | P1 |
 
 ### FR-3: Context-Aware Section-to-Slide Matching
 
@@ -93,7 +93,7 @@ Execute planned modifications via Google Slides API.
 | FR-6.1 | Execute modifications per slide via `presentations.batchUpdate` with element-scoped text operations | P1 |
 | FR-6.2 | Scope all text operations to specific `pageObjectIds` to prevent cross-slide contamination | P1 |
 | FR-6.3 | Re-read presentation after each slide's modifications to handle objectId drift | P1 |
-| FR-6.4 | Handle modification failures gracefully — skip failed elements, log warnings, continue with remaining slides | P1 |
+| FR-6.4 | Handle modification failures gracefully -- skip failed elements, log warnings, continue with remaining slides | P1 |
 
 ### FR-7: HITL Integration
 
@@ -107,7 +107,7 @@ Map 3-stage HITL workflow to the new generation pipeline.
 | FR-7.4 | **Low-fi stage:** Allow seller to approve or request changes (triggers re-assembly or section-level adjustments) | P1 |
 | FR-7.5 | **High-fi stage:** Present modification plan summary (which elements change, what the new content will be) | P1 |
 | FR-7.6 | **High-fi stage:** Execute approved modifications and present final deck URL | P1 |
-| FR-7.7 | Reuse existing Mastra suspend/resume pattern — only data payloads change, not the HITL mechanism | P1 |
+| FR-7.7 | Reuse existing Mastra suspend/resume pattern -- only data payloads change, not the HITL mechanism | P1 |
 
 ### FR-8: Touch-Type Routing
 
@@ -115,10 +115,10 @@ Route all touches through structure-driven pipeline with fallback.
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| FR-8.1 | Touch 1 (pager): Route through blueprint → single-source assembly → modifications when DeckStructure exists | P1 |
-| FR-8.2 | Touch 2 (intro deck): Route through blueprint → multi-source assembly → modifications when DeckStructure exists | P1 |
-| FR-8.3 | Touch 3 (capability deck): Route through blueprint → multi-source assembly → modifications when DeckStructure exists | P1 |
-| FR-8.4 | Touch 4 (proposal/talk track/FAQ): Route through blueprint → multi-source assembly → modifications when DeckStructure exists | P1 |
+| FR-8.1 | Touch 1 (pager): Route through blueprint -> single-source assembly -> modifications when DeckStructure exists | P1 |
+| FR-8.2 | Touch 2 (intro deck): Route through blueprint -> multi-source assembly -> modifications when DeckStructure exists | P1 |
+| FR-8.3 | Touch 3 (capability deck): Route through blueprint -> multi-source assembly -> modifications when DeckStructure exists | P1 |
+| FR-8.4 | Touch 4 (proposal/talk track/FAQ): Route through blueprint -> multi-source assembly -> modifications when DeckStructure exists | P1 |
 | FR-8.5 | Fall back to legacy generation path (slide-assembly.ts for T1, deck-customizer.ts for T2-3, deck-assembly.ts for T4) when no DeckStructure exists | P1 |
 | FR-8.6 | Gate auto-generation on DeckStructure confidence: green (6+ examples) auto-generates; yellow/red shows warning and offers manual section selection | P2 |
 
@@ -131,7 +131,7 @@ Graceful degradation when structure-driven generation cannot proceed.
 | FR-9.1 | When no good candidate slide exists for a section (all scores below threshold), fall back to branded-template content injection for that section | P2 |
 | FR-9.2 | When element maps are missing, fall back to placeholder injection pattern | P1 |
 | FR-9.3 | When source presentation is inaccessible (Drive permissions), skip that slide and log warning | P1 |
-| FR-9.4 | Preserve all existing generation paths as fallbacks — no existing generation code is deleted | P1 |
+| FR-9.4 | Preserve all existing generation paths as fallbacks -- no existing generation code is deleted | P1 |
 
 ---
 
@@ -139,13 +139,13 @@ Graceful degradation when structure-driven generation cannot proceed.
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| NFR-1 | No new npm dependencies — all capabilities from existing googleapis, Prisma, Mastra, Gemini | P1 |
-| NFR-2 | No new Prisma models — use existing DeckStructure, SlideEmbedding, SlideElement, Template | P1 |
+| NFR-1 | No new npm dependencies -- all capabilities from existing googleapis, Prisma, Mastra, Gemini | P1 |
+| NFR-2 | No new Prisma models -- use existing DeckStructure, SlideEmbedding, SlideElement, Template | P1 |
 | NFR-3 | Google Slides API calls stay within 60 req/min user-level rate limit for typical 12-slide deck | P1 |
 | NFR-4 | All schema changes via `prisma migrate dev --name <name>` (never db push or reset) | P1 |
 | NFR-5 | LLM schemas must be flat objects with no optionals/unions (Gemini structured output compatibility) | P1 |
 | NFR-6 | Temporary Drive copies cleaned up in `finally` blocks | P1 |
-| NFR-7 | Element-map modifications scoped to `pageObjectIds` — no global replaceAllText | P1 |
+| NFR-7 | Element-map modifications scoped to `pageObjectIds` -- no global replaceAllText | P1 |
 | NFR-8 | Re-read presentation after any `batchUpdate` to handle objectId drift | P1 |
 
 ---
@@ -167,21 +167,91 @@ Graceful degradation when structure-driven generation cannot proceed.
 
 ```
 FR-1 (Types) ──────────────────────────────────────────────────────┐
-  │                                                                 │
-  ├──> FR-2 (Blueprint Resolver) ──> FR-3 (Section Matcher) ──┐    │
-  │                                                             │    │
-  │    FR-5 (Mod Planner) ──> FR-6 (Mod Executor)         ──┐ │    │
-  │         [parallel with FR-4]                              │ │    │
-  │                                                           │ │    │
-  ├──> FR-4 (Multi-Source Assembly)                       ──┤ ├──> FR-7 (HITL)
-  │         [parallel with FR-5+6]                          │ │    │
-  │                                                         │ │    │
-  └─────────────────────────────────────────────────────────┴─┴──> FR-8 (Routing)
-                                                                    │
+  |                                                                 |
+  +---> FR-2 (Blueprint Resolver) ---> FR-3 (Section Matcher) --+  |
+  |                                                              |  |
+  |    FR-5 (Mod Planner) ---> FR-6 (Mod Executor)          --+ |  |
+  |         [parallel with FR-4]                               | |  |
+  |                                                            | |  |
+  +---> FR-4 (Multi-Source Assembly)                       ---+ +-> FR-7 (HITL)
+  |         [parallel with FR-5+6]                           | |    |
+  |                                                          | |    |
+  +----------------------------------------------------------+-+--> FR-8 (Routing)
+                                                                    |
                                                               FR-9 (Fallback)
 ```
 
-**Parallel tracks after FR-1 + FR-2 + FR-3:**
-- Track A: FR-4 (Multi-Source Assembly)
-- Track B: FR-5 (Modification Planner) → FR-6 (Modification Executor)
-- Both converge at FR-7 (HITL) + FR-8 (Routing)
+**Parallel tracks after FR-1:**
+- Track A: FR-2 (Blueprint Resolver) -> FR-3 (Section Matcher)
+- Track B: FR-4 (Multi-Source Assembly)
+- Track C: FR-5 (Modification Planner) -> FR-6 (Modification Executor)
+- All converge at FR-7 (HITL) + FR-8 (Routing) + FR-9 (Fallback)
+
+---
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FR-1.1 | Phase 50 | Pending |
+| FR-1.2 | Phase 50 | Pending |
+| FR-1.3 | Phase 50 | Pending |
+| FR-1.4 | Phase 50 | Pending |
+| FR-1.5 | Phase 50 | Pending |
+| FR-1.6 | Phase 50 | Pending |
+| FR-2.1 | Phase 51 | Pending |
+| FR-2.2 | Phase 51 | Pending |
+| FR-2.3 | Phase 51 | Pending |
+| FR-2.4 | Phase 51 | Pending |
+| FR-2.5 | Phase 51 | Pending |
+| FR-2.6 | Phase 51 | Pending |
+| FR-3.1 | Phase 54 | Pending |
+| FR-3.2 | Phase 54 | Pending |
+| FR-3.3 | Phase 54 | Pending |
+| FR-3.4 | Phase 54 | Pending |
+| FR-3.5 | Phase 54 | Pending |
+| FR-3.6 | Phase 54 | Pending |
+| FR-4.1 | Phase 52 | Pending |
+| FR-4.2 | Phase 52 | Pending |
+| FR-4.3 | Phase 52 | Pending |
+| FR-4.4 | Phase 52 | Pending |
+| FR-4.5 | Phase 52 | Pending |
+| FR-4.6 | Phase 52 | Pending |
+| FR-4.7 | Phase 52 | Pending |
+| FR-4.8 | Phase 52 | Pending |
+| FR-4.9 | Phase 52 | Pending |
+| FR-5.1 | Phase 53 | Pending |
+| FR-5.2 | Phase 53 | Pending |
+| FR-5.3 | Phase 53 | Pending |
+| FR-5.4 | Phase 53 | Pending |
+| FR-5.5 | Phase 53 | Pending |
+| FR-5.6 | Phase 53 | Pending |
+| FR-6.1 | Phase 55 | Pending |
+| FR-6.2 | Phase 55 | Pending |
+| FR-6.3 | Phase 55 | Pending |
+| FR-6.4 | Phase 55 | Pending |
+| FR-7.1 | Phase 56 | Pending |
+| FR-7.2 | Phase 56 | Pending |
+| FR-7.3 | Phase 56 | Pending |
+| FR-7.4 | Phase 56 | Pending |
+| FR-7.5 | Phase 56 | Pending |
+| FR-7.6 | Phase 56 | Pending |
+| FR-7.7 | Phase 56 | Pending |
+| FR-8.1 | Phase 57 | Pending |
+| FR-8.2 | Phase 57 | Pending |
+| FR-8.3 | Phase 57 | Pending |
+| FR-8.4 | Phase 57 | Pending |
+| FR-8.5 | Phase 57 | Pending |
+| FR-8.6 | Phase 57 | Pending |
+| FR-9.1 | Phase 57 | Pending |
+| FR-9.2 | Phase 57 | Pending |
+| FR-9.3 | Phase 57 | Pending |
+| FR-9.4 | Phase 57 | Pending |
+| NFR-1 | Phase 57 | Pending |
+| NFR-2 | Phase 57 | Pending |
+| NFR-3 | Phase 52 | Pending |
+| NFR-4 | Phase 57 | Pending |
+| NFR-5 | Phase 50 | Pending |
+| NFR-6 | Phase 52 | Pending |
+| NFR-7 | Phase 55 | Pending |
+| NFR-8 | Phase 55 | Pending |
