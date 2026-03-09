@@ -149,7 +149,13 @@ export function TemplateClassificationControls({
             return (
               <label
                 key={touch.value}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-slate-200 px-2.5 py-2 text-xs text-slate-700"
+                className={`flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-xs font-medium transition-colors ${
+                  checked
+                    ? isExample
+                      ? "border-purple-300 bg-purple-50 text-purple-700"
+                      : "border-blue-300 bg-blue-50 text-blue-700"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                }`}
               >
                 <input
                   type={isExample ? "radio" : "checkbox"}

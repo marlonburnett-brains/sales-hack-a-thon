@@ -278,7 +278,7 @@ export function TemplateCard({
             {template.name}
           </h3>
           <Dialog open={classifyOpen} onOpenChange={setClassifyOpen}>
-            <DialogContent className="sm:max-w-xs" onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}>
+            <DialogContent className="sm:max-w-xs" onClick={(e) => { e.stopPropagation(); }}>
               <DialogHeader>
                 <DialogTitle className="text-sm">Classify Presentation</DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
