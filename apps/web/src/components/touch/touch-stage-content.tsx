@@ -11,11 +11,7 @@ interface TouchStageContentProps {
   touchType: string;
   stage: HitlStage;
   content: unknown;
-  displayMode: "inline" | "inline-diff" | "side-by-side";
 }
-
-// TODO: "inline-diff" and "side-by-side" modes render the same as "inline" for now.
-// They will be enhanced when the chat refinement integration lands.
 
 export function TouchStageContent({
   touchType,

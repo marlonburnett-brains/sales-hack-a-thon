@@ -14,7 +14,6 @@ import {
   TouchContextProvider,
   type TouchContext,
 } from "@/components/touch/touch-context-provider";
-import { useTouchPreferences } from "@/lib/hooks/use-touch-preferences";
 import type { HitlStage } from "@/components/touch/hitl-stage-stepper";
 import { HITL_STAGES } from "@/components/touch/hitl-stage-stepper";
 import {
@@ -188,8 +187,6 @@ export function TouchPageClient({
   interactions,
 }: TouchPageClientProps) {
   const router = useRouter();
-  const { displayMode } = useTouchPreferences();
-
   // Active interaction is the most recent one (interactions are sorted desc)
   const activeInteraction = interactions[0] ?? null;
 
@@ -472,7 +469,6 @@ export function TouchPageClient({
               touchType={touchType}
               stage="highfi"
               content={stageContent}
-              displayMode={displayMode}
             />
 
             {/* Generate Another button */}
@@ -512,7 +508,6 @@ export function TouchPageClient({
             touchType={touchType}
             stage={currentStage}
             content={stageContent}
-            displayMode={displayMode}
           />
         ) : (
           <GenerationProgress message="Loading stage content..." />
