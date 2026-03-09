@@ -211,14 +211,14 @@ FR-1 (Types) ──────────────────────�
 | FR-3.4 | Phase 54 | Pending |
 | FR-3.5 | Phase 54 | Pending |
 | FR-3.6 | Phase 54 | Pending |
-| FR-4.1 | Phase 52 | Pending |
-| FR-4.2 | Phase 52 | Pending |
+| FR-4.1 | Phase 52 | Complete |
+| FR-4.2 | Phase 52 | Complete |
 | FR-4.3 | Phase 52 | Pending |
 | FR-4.4 | Phase 52 | Pending |
 | FR-4.5 | Phase 52 | Pending |
 | FR-4.6 | Phase 52 | Pending |
 | FR-4.7 | Phase 52 | Pending |
-| FR-4.8 | Phase 52 | Pending |
+| FR-4.8 | Phase 52 | Complete |
 | FR-4.9 | Phase 52 | Pending |
 | FR-5.1 | Phase 53 | Complete |
 | FR-5.2 | Phase 53 | Complete |
