@@ -156,10 +156,6 @@ Plans:
 **Plans**: 1 plan
 Plans:
 - [ ] 51-01-PLAN.md — Blueprint resolver with BlueprintWithCandidates and unit tests
-
-
-
-
 ### Phase 52: Multi-Source Slide Assembler
 **Goal**: The system can take a set of slide selections (slideId + source presentationId pairs) and assemble them into a single Google Slides presentation preserving original designs
 **Depends on**: Phase 50
@@ -186,7 +182,7 @@ Plans:
   5. When element maps are missing for a slide, the planner falls back to placeholder injection
 **Plans**: 1 plan
 Plans:
-- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
+- [ ] 53-01-PLAN.md — Register modification-planner agent and create planSlideModifications function
 
 ### Phase 54: Section Matcher
 **Goal**: For each section in a GenerationBlueprint, the system selects the best candidate slide based on deal context (industry, pillar, persona, funnel stage)
@@ -305,7 +301,7 @@ Plans:
 | 50. Foundation Types & Interfaces | 1/1 | Complete    | 2026-03-09 | - |
 | 51. Blueprint Resolver | v1.8 | 0/1 | Planned | - |
 | 52. Multi-Source Slide Assembler | v1.8 | 0/TBD | Not started | - |
-| 53. Modification Planner | v1.8 | 0/TBD | Not started | - |
+| 53. Modification Planner | v1.8 | 0/1 | Planned | - |
 | 54. Section Matcher | v1.8 | 0/TBD | Not started | - |
 | 55. Modification Executor | v1.8 | 0/TBD | Not started | - |
 | 56. HITL Integration | v1.8 | 0/TBD | Not started | - |
