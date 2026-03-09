@@ -52,6 +52,11 @@ export interface BlueprintWithCandidates {
   candidates: Map<string, ResolvedCandidate>;
 }
 
+interface ResolvedTemplateRow {
+  id: string;
+  presentationId: string;
+}
+
 // ────────────────────────────────────────────────────────────
 // Main Function
 // ────────────────────────────────────────────────────────────
@@ -113,11 +118,15 @@ export async function resolveBlueprint(
     },
   });
 
-  const slideMap = new Map(slides.map((s) => [s.id, s]));
+  const slideMap = new Map(
+    slides.map((slide: (typeof slides)[number]) => [slide.id, slide]),
+  );
 
   // 6. Batch query Templates for presentationId resolution (NO FK relation)
-  const uniqueTemplateIds = [...new Set(slides.map((s) => s.templateId))];
-  const templates =
+  const uniqueTemplateIds = [
+    ...new Set(slides.map((slide: (typeof slides)[number]) => slide.templateId)),
+  ];
+  const templates: ResolvedTemplateRow[] =
     uniqueTemplateIds.length > 0
       ? await prisma.template.findMany({
           where: { id: { in: uniqueTemplateIds } },
@@ -125,7 +134,9 @@ export async function resolveBlueprint(
         })
       : [];
 
-  const templateMap = new Map(templates.map((t) => [t.id, t]));
+  const templateMap = new Map<string, ResolvedTemplateRow>(
+    templates.map((template) => [template.id, template]),
+  );
 
   // 7. Build candidates Map<slideId, ResolvedCandidate>
   const candidates = new Map<string, ResolvedCandidate>();

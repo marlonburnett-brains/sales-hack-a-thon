@@ -31,7 +31,7 @@ function makeDealContext(overrides: Partial<DealContext> = {}): DealContext {
   return {
     dealId: "deal-1",
     companyName: "Acme Bank",
-    industry: "Financial Services",
+    industry: "Financial Services & Insurance",
     pillars: ["AI, ML & LLM", "Data & Analytics"],
     persona: "CTO",
     funnelStage: "Intro Conversation",
@@ -42,12 +42,12 @@ function makeDealContext(overrides: Partial<DealContext> = {}): DealContext {
 
 function makeMetadata(overrides: Partial<SlideMetadata> = {}): SlideMetadata {
   return {
-    industries: ["Financial Services"],
+    industries: ["Financial Services & Insurance"],
     subsectors: [],
     solutionPillars: ["AI, ML & LLM"],
     funnelStages: ["Intro Conversation"],
-    contentType: "Capability",
-    slideCategory: "Content",
+    contentType: "example",
+    slideCategory: "capability_description",
     buyerPersonas: ["CTO"],
     touchType: ["touch_2"],
     ...overrides,
@@ -128,7 +128,7 @@ describe("selectSlidesForBlueprint", () => {
     });
     const weak = makeCandidate("slide-weak", {
       metadata: makeMetadata({
-        industries: ["Healthcare"],
+        industries: ["Health Care"],
         solutionPillars: [],
         buyerPersonas: [],
         funnelStages: [],
@@ -236,7 +236,7 @@ describe("selectSlidesForBlueprint", () => {
     expect(result.plan.selections[1]?.slideId).toBe("slide-a");
     expect(mockGenerateEmbedding).toHaveBeenCalledTimes(1);
     expect(mockGenerateEmbedding).toHaveBeenCalledWith(
-      "Financial Services | AI, ML & LLM | Data & Analytics | CTO | Intro Conversation | Acme Bank",
+      "Financial Services & Insurance | AI, ML & LLM | Data & Analytics | CTO | Intro Conversation | Acme Bank",
     );
     expect(mockQueryRaw).toHaveBeenCalledTimes(2);
   });
@@ -244,7 +244,7 @@ describe("selectSlidesForBlueprint", () => {
   it("falls back to highest confidence when all metadata scores are zero and first candidate on tied confidence", async () => {
     const low = makeCandidate("slide-low", {
       metadata: makeMetadata({
-        industries: ["Healthcare"],
+        industries: ["Health Care"],
         solutionPillars: [],
         buyerPersonas: [],
         funnelStages: [],
@@ -253,7 +253,7 @@ describe("selectSlidesForBlueprint", () => {
     });
     const high = makeCandidate("slide-high", {
       metadata: makeMetadata({
-        industries: ["Healthcare"],
+        industries: ["Health Care"],
         solutionPillars: [],
         buyerPersonas: [],
         funnelStages: [],
@@ -268,7 +268,7 @@ describe("selectSlidesForBlueprint", () => {
 
     const first = makeCandidate("slide-first", {
       metadata: makeMetadata({
-        industries: ["Healthcare"],
+        industries: ["Health Care"],
         solutionPillars: [],
         buyerPersonas: [],
         funnelStages: [],
@@ -277,7 +277,7 @@ describe("selectSlidesForBlueprint", () => {
     });
     const second = makeCandidate("slide-second", {
       metadata: makeMetadata({
-        industries: ["Healthcare"],
+        industries: ["Health Care"],
         solutionPillars: [],
         buyerPersonas: [],
         funnelStages: [],

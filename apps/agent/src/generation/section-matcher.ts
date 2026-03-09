@@ -248,7 +248,12 @@ async function fetchVectorSimilarities(
       AND archived = false
   `;
 
-  return new Map(rows.map((row) => [row.id, Number(row.similarity)]));
+  return new Map(
+    rows.map((row: { id: string; similarity: number }) => [
+      row.id,
+      Number(row.similarity),
+    ]),
+  );
 }
 
 function formatNumber(value: number): string {
