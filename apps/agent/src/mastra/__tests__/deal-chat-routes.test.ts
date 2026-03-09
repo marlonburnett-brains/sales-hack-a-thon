@@ -53,7 +53,7 @@ vi.mock("../../env", () => ({
     DATABASE_URL: "postgres://example",
     MASTRA_PORT: "4111",
     WEB_APP_URL: "http://localhost:3000",
-    AGENT_API_KEY: "test-key",
+    SUPABASE_JWT_SECRET: "test-jwt-secret-that-is-at-least-32-characters",
     NODE_ENV: "test",
     GOOGLE_CLOUD_PROJECT: "test-project",
     GOOGLE_CLOUD_LOCATION: "us-central1",

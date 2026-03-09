@@ -120,9 +120,8 @@ describe("deal chat proxy route", () => {
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
           "X-Google-Access-Token": "google-token",
-          "X-User-Id": "user-1",
         }),
       }),
     );
@@ -143,9 +142,8 @@ describe("deal chat proxy route", () => {
           },
         }),
         headers: expect.objectContaining({
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
           "X-Google-Access-Token": "google-token",
-          "X-User-Id": "user-1",
         }),
       }),
     );

@@ -156,9 +156,8 @@ describe("deal chat api client and actions", () => {
       "http://test-agent:4111/deals/deal-1/chat?section=briefing&pathname=%2Fdeals%2Fdeal-1%2Fbriefing&pageLabel=Briefing",
       expect.objectContaining({
         headers: expect.objectContaining({
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
           "X-Google-Access-Token": "google-token",
-          "X-User-Id": "user-1",
         }),
       }),
     );
@@ -174,9 +173,8 @@ describe("deal chat api client and actions", () => {
           routeContext,
         }),
         headers: expect.objectContaining({
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
           "X-Google-Access-Token": "google-token",
-          "X-User-Id": "user-1",
         }),
       }),
     );
@@ -187,9 +185,8 @@ describe("deal chat api client and actions", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
           "X-Google-Access-Token": "google-token",
-          "X-User-Id": "user-1",
         }),
       }),
     );

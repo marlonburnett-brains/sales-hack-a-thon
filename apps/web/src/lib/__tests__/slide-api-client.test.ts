@@ -60,7 +60,7 @@ describe("PREV-05: Slide api-client functions call correct endpoints", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
         }),
       })
     );
@@ -89,7 +89,7 @@ describe("PREV-05: Slide api-client functions call correct endpoints", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
         }),
       })
     );

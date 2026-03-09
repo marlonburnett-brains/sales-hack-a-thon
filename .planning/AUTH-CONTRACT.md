@@ -1,19 +1,23 @@
 ## Auth Header Contract (Web <-> Agent)
 
-### Current Behavior
-- **Web app** (`apps/web/src/lib/api-client.ts`): Sends `Authorization: Bearer <AGENT_API_KEY>`
-- **Agent service** (`apps/agent/src/mastra/index.ts`): Configures `SimpleAuth` with `headers: ["X-API-Key"]`
-- **CORS config**: Allows both `Authorization` and `X-API-Key` headers
-- **Runtime**: Works because Mastra internally maps Bearer tokens to SimpleAuth validation
+### Current Behavior (Quick Task 15)
+- **Web app**: Sends `Authorization: Bearer <supabase_access_token>` (the user's Supabase session JWT)
+- **Agent service**: Custom `SupabaseJwtAuth` provider verifies the JWT using `SUPABASE_JWT_SECRET` (HS256)
+- **User identity**: Extracted from JWT `sub` claim (verified, not spoofable)
+- **Google auth**: `X-Google-Access-Token` header still used for Google API calls (separate concern)
 
-### Risk
-Fragile to Mastra version upgrades. If Mastra stops accepting Bearer as X-API-Key fallback, all web-to-agent calls will fail with 401.
+### Previous Behavior (Removed)
+- Static `AGENT_API_KEY` shared secret between web and agent
+- `X-User-Id` header for user identity (spoofable)
+- `SimpleAuth` with `X-API-Key` header config
 
-### Recommended Future Fix
-Align on one header. Either:
-1. Change web `fetchAgent()` to send `X-API-Key: <key>` header (preferred -- matches SimpleAuth config)
-2. Change agent SimpleAuth to `headers: ["Authorization"]`
+### Security Improvements
+1. No more static shared secret (AGENT_API_KEY eliminated)
+2. User identity verified cryptographically via JWT signature
+3. X-User-Id header no longer sent from web app
+4. Each request tied to authenticated user session
 
 ### Decision Log
 - Phase 45: Discovered Mastra auth issue, chose Bearer workaround (see STATE.md)
 - Phase 45-07: Gap closure attempted X-API-Key alignment but reverted due to Mastra internals
+- Quick Task 15: Replaced static API key with Supabase JWT verification (permanent fix)

@@ -53,7 +53,7 @@ describe("UI-api-client: Action Required API client helpers", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
         }),
       })
     );
@@ -74,7 +74,7 @@ describe("UI-api-client: Action Required API client helpers", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
         }),
       })
     );
@@ -101,7 +101,7 @@ describe("UI-api-client: Action Required API client helpers", () => {
         method: "PATCH",
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
         }),
       })
     );

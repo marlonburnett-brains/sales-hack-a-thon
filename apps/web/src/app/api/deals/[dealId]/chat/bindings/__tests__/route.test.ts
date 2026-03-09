@@ -85,9 +85,8 @@ describe("deal chat binding proxy route", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          Authorization: "Bearer test-key",
+          Authorization: "Bearer test-supabase-jwt",
           "X-Google-Access-Token": "google-token",
-          "X-User-Id": "user-1",
         }),
       }),
     );

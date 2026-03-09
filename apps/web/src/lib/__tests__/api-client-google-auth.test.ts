@@ -46,7 +46,7 @@ beforeEach(() => {
 // ────────────────────────────────────────────────────────────
 
 describe("fetchWithGoogleAuth", () => {
-  it("sends both X-Google-Access-Token and X-User-Id when both are available", async () => {
+  it("sends X-Google-Access-Token when available (userId derived from JWT)", async () => {
     mockGetGoogleAccessToken.mockResolvedValue({
       accessToken: "google-tok-abc",
       userId: "user-123",
@@ -58,13 +58,12 @@ describe("fetchWithGoogleAuth", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, init] = mockFetch.mock.calls[0];
     expect(url).toBe("http://localhost:4111/templates");
-    expect(init.headers).toMatchObject({
-      "X-Google-Access-Token": "google-tok-abc",
-      "X-User-Id": "user-123",
-    });
+    expect(init.headers["X-Google-Access-Token"]).toBe("google-tok-abc");
+    // X-User-Id no longer sent -- agent derives userId from JWT sub claim
+    expect(init.headers["X-User-Id"]).toBeUndefined();
   });
 
-  it("sends only X-User-Id when accessToken is null (for agent-side refresh)", async () => {
+  it("sends no Google headers when accessToken is null (agent uses JWT for userId)", async () => {
     mockGetGoogleAccessToken.mockResolvedValue({
       accessToken: null,
       userId: "user-456",
@@ -76,7 +75,8 @@ describe("fetchWithGoogleAuth", () => {
     });
 
     const [, init] = mockFetch.mock.calls[0];
-    expect(init.headers["X-User-Id"]).toBe("user-456");
+    // No X-User-Id sent -- agent derives from JWT
+    expect(init.headers["X-User-Id"]).toBeUndefined();
     expect(init.headers["X-Google-Access-Token"]).toBeUndefined();
   });
 

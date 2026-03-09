@@ -19,7 +19,7 @@ vi.mock("../../env", () => ({
     GOOGLE_CLOUD_PROJECT: "test-project",
     GOOGLE_CLOUD_LOCATION: "us-central1",
     VERTEX_SERVICE_ACCOUNT_KEY: "{}",
-    AGENT_API_KEY: "test-key-that-is-at-least-32-characters-long",
+    SUPABASE_JWT_SECRET: "test-jwt-secret-that-is-at-least-32-characters",
     GOOGLE_CLIENT_ID: "test-client-id",
     GOOGLE_CLIENT_SECRET: "test-client-secret",
     NODE_ENV: "test",
