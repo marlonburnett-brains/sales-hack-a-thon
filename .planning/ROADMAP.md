@@ -166,12 +166,13 @@ Plans:
   3. Single-source case skips multi-source logic and uses standard copy-and-prune efficiently
   4. All temporary Drive copies are cleaned up in finally blocks regardless of success or failure
   5. Output presentation is saved to the deal's Google Drive folder and shared with org
-**Plans**: 4 plans
+**Plans**: 5 plans
 Plans:
 - [x] 52-01-PLAN.md — Core helpers (groupSlidesBySource, buildMultiSourcePlan) and single-source fast path (TDD)
 - [x] 52-02-PLAN.md — Multi-source assembly engine with secondary injection, cleanup, share, and error handling
 - [x] 52-03-PLAN.md — Element-by-element reconstruction for secondary slides (FAILED FIDELITY)
-- [ ] 52-04-PLAN.md — Exhaustive high-fidelity element reconstructor (GAP CLOSURE)
+- [x] 52-04-PLAN.md — Exhaustive high-fidelity element reconstructor (GAP CLOSURE)
+- [ ] 52-05-PLAN.md — Test coverage for comprehensive style mapping (GAP CLOSURE)
 
 ### Phase 53: Modification Planner
 **Goal**: The system can examine a slide's element map and deal context to produce a surgical modification plan specifying which text elements to change and what the new content should be
