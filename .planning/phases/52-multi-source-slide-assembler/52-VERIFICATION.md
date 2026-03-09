@@ -1,105 +1,116 @@
 ---
 phase: 52-multi-source-slide-assembler
-verified: 2026-03-09T05:08:01Z
+verified: 2026-03-09T13:48:54Z
 status: gaps_found
-score: 10/11 must-haves verified
+score: 11/13 must-haves verified
+re_verification:
+  previous_status: gaps_found
+  previous_score: 10/11
+  gaps_closed:
+    - "Automated regression coverage proves the assembler no longer uses a text-only secondary-slide rebuild path."
+  gaps_remaining:
+    - "Live Google Slides verification confirms the rebuilt secondary slides visually match their source slides closely enough to approve."
+  regressions: []
 gaps:
-  - truth: "Given slides from 2+ source presentations, the assembler produces a single output presentation with slides from all sources preserving original designs in the specified order"
+  - truth: "Secondary-source slides in assembled decks preserve design-bearing content beyond text boxes, including images, tables, and non-text shapes, in the intended order."
     status: failed
-    reason: "Live fidelity check failed. Element-by-element reconstruction (via createShape/createImage) loses critical design fidelity (text styling, alignments, fills, borders, backgrounds), causing severe visual distortion and overlapping text. Unsupported elements (like lines) still require placeholders. The reconstruction approach is structurally insufficient for high-fidelity cloning."
+    reason: "Live fidelity check failed. Element-by-element reconstruction deployed in 52-03 loses critical design fidelity (text styling, alignments, fills, borders, backgrounds) causing severe visual distortion and overlapping text."
     artifacts:
       - path: "apps/agent/src/generation/multi-source-assembler.ts"
         issue: "Secondary slides are rebuilt element-by-element which fails to capture theme styling, text formatting, backgrounds, and full layout structure, resulting in unacceptable visual distortion."
     missing:
-      - "Replace the element-by-element reconstruction approach with a true high-fidelity cloning mechanism (e.g., using proper page cloning or API-native slide copying if available across presentations)."
+      - "Replace the element-by-element reconstruction approach with a true high-fidelity cloning mechanism."
       - "Ensure secondary slide theme, backgrounds, and element-level styling are fully preserved."
+human_verification:
+  - test: "Live Google Slides fidelity check (after gap closure)"
+    expected: "Secondary slides in the final deck visually match the originals perfectly, preserving text styling, backgrounds, lines, and theme."
+    why_human: "Real Slides rendering and design fidelity cannot be proven from unit mocks alone."
 ---
 
 # Phase 52: Multi-Source Slide Assembler Verification Report
 
 **Phase Goal:** Build the multi-source slide assembler so selected slides from multiple template presentations can be composed into a single finished deck.
-**Verified:** 2026-03-09T05:08:01Z
+**Verified:** 2026-03-09T13:48:54Z
 **Status:** gaps_found
-**Re-verification:** No — initial verification
+**Re-verification:** Yes — after gap closure
 
 ## Goal Achievement
-
-Plan frontmatter defined 10 must-haves across 52-01 and 52-02. One additional goal-critical truth was derived from `.planning/ROADMAP.md` because the phase goal/success criteria require multi-source output that preserves original designs, not just text content.
 
 ### Observable Truths
 
 | # | Truth | Status | Evidence |
 | --- | --- | --- | --- |
-| 1 | Selected slides are correctly grouped by source presentationId | ✓ VERIFIED | `groupSlidesBySource()` groups by `sourcePresentationId` in `apps/agent/src/generation/multi-source-assembler.ts:33-45`; covered by tests at `.../__tests__/multi-source-assembler.test.ts:120-160`. |
-| 2 | The source with the most slides is identified as primary | ✓ VERIFIED | `identifyPrimarySource()` picks the largest group with insertion-order tie-break in `multi-source-assembler.ts:47-63`; verified via `buildMultiSourcePlan` tests at `...test.ts:202-227`. |
-| 3 | Single-source selections skip multi-source logic and delegate to `assembleDeckFromSlides` | ✓ VERIFIED | Early return at `multi-source-assembler.ts:107-115`; delegation test at `...test.ts:256-288`. |
-| 4 | `buildMultiSourcePlan` produces valid `MultiSourcePlan` output | ✓ VERIFIED | Plan construction in `multi-source-assembler.ts:65-101`; tests cover keep/delete ids, secondary sources, and final order at `...test.ts:168-245`. |
-| 5 | Primary source slides are copied via `drive.files.copy` and pruned of unneeded slides | ✓ VERIFIED | Primary copy at `multi-source-assembler.ts:122-129`; prune flow at `141-157`; call assertions at `...test.ts:316-337`. |
-| 6 | Secondary source slides are copied, extracted, and injected into the target presentation | ✓ VERIFIED | Secondary copy/injection flow at `multi-source-assembler.ts:159-235`; tested at `...test.ts:324-373`. |
-| 7 | All slides are reordered to match `finalSlideOrder` after assembly | ✓ VERIFIED | Reorder logic at `multi-source-assembler.ts:244-266`; tested at `...test.ts:375-385`. |
-| 8 | All temporary Drive copies are deleted in finally blocks regardless of success or failure | ✓ VERIFIED | Cleanup loop in `multi-source-assembler.ts:277-289`; tested at `...test.ts:548-607`. |
-| 9 | Assembled presentation is shared with org and saved to the deal's Drive folder | ✓ VERIFIED | Parent folder passed in primary `drive.files.copy` request at `multi-source-assembler.ts:124-127`; `shareWithOrg()` call at `268-271`; verified by tests at `...test.ts:316-323` and `392-395`. |
-| 10 | Rate limit stays within 60 writes/min for a typical 12-slide deck from 3 sources | ✓ VERIFIED | Code batches primary deletes and final reorder into single `batchUpdate` calls (`143-154`, `252-265`). Typical write count remains well below 60/min even with per-secondary-slide batch updates. |
-| 11 | Given slides from 2+ source presentations, the assembler produces a single output presentation preserving original designs | ✗ FAILED | Live fidelity check failed: element-by-element reconstruction loses critical design fidelity (text styling, alignments, fills, borders, backgrounds) causing severe visual distortion and overlapping text. |
+| 1 | Selected slides are correctly grouped by source presentationId | ✓ VERIFIED | `groupSlidesBySource()` logic; tested at `.../__tests__/multi-source-assembler.test.ts`. |
+| 2 | The source with the most slides is identified as primary | ✓ VERIFIED | `identifyPrimarySource()` logic; verified via tests. |
+| 3 | Single-source selections skip multi-source logic and delegate to `assembleDeckFromSlides` | ✓ VERIFIED | Early return present and tested. |
+| 4 | `buildMultiSourcePlan` produces valid `MultiSourcePlan` output | ✓ VERIFIED | Tested for keep/delete ids, secondary sources, and final order. |
+| 5 | Primary source slides are copied via `drive.files.copy` and pruned of unneeded slides | ✓ VERIFIED | Primary copy and delete logic present; tested. |
+| 6 | Secondary source slides are copied, extracted, and injected into the target presentation | ✓ VERIFIED | Copy/extract/inject logic present; tested. |
+| 7 | All slides are reordered to match `finalSlideOrder` after assembly | ✓ VERIFIED | `updateSlidesPosition` logic present; tested. |
+| 8 | All temporary Drive copies are deleted in finally blocks regardless of success or failure | ✓ VERIFIED | `finally` block cleans up `tempFileIds`; tested. |
+| 9 | Assembled presentation is shared with org and saved to the deal's Drive folder | ✓ VERIFIED | `parents` field and `shareWithOrg` call present; tested. |
+| 10 | Rate limit stays within 60 writes/min for a typical 12-slide deck from 3 sources | ✓ VERIFIED | Batched delete and reorder requests keep write count low. |
+| 11 | Secondary-source slides in assembled decks preserve design-bearing content beyond text boxes, including images, tables, and non-text shapes, in the intended order. | ✗ FAILED | While `multi-source-assembler.ts` uses `createImage`, `createTable`, `createShape`, the output loses text styling, backgrounds, and full structure causing severe visual distortion. |
+| 12 | Automated regression coverage proves the assembler no longer uses a text-only secondary-slide rebuild path. | ✓ VERIFIED | `multi-source-assembler.test.ts` asserts `createImage`, `createTable`, `createShape` calls explicitly. |
+| 13 | Live Google Slides verification confirms the rebuilt secondary slides visually match their source slides closely enough to approve, or records the exact unsupported element that still blocks approval. | ✗ FAILED | Live fidelity check confirmed element-by-element reconstruction is structurally insufficient. Missing/distorted element types, overlapping text, missing backgrounds, and lost styling. |
 
-**Score:** 10/11 truths verified
+**Score:** 11/13 truths verified
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 | --- | --- | --- | --- |
-| `apps/agent/src/generation/multi-source-assembler.ts` | Core helpers and full multi-source assembler | ✓ VERIFIED | Exists (314 lines), exports required functions, wired to schemas/types/google-auth/drive-folders/deck-customizer, and passes targeted tests. Goal gap remains in secondary-slide fidelity. |
-| `apps/agent/src/generation/__tests__/multi-source-assembler.test.ts` | Unit coverage for planning, assembly, cleanup, sharing, and reordering | ✓ VERIFIED | Exists (609 lines) and covers grouping, primary selection, single-source delegation, multi-source copy/prune/injection, cleanup, and failure handling. |
+| `apps/agent/src/generation/multi-source-assembler.ts` | Fidelity-preserving secondary-slide reconstruction for supported page element types plus explicit warnings for unsupported ones. | ✗ STUB | Exists and is wired, but functionally acts as a stub for FR-4.4 because element-by-element reconstruction is structurally insufficient for high-fidelity cloning. |
+| `apps/agent/src/generation/__tests__/multi-source-assembler.test.ts` | Regression coverage for images, tables, non-text shapes, grouped children, and unsupported-element warnings in the secondary-slide path. | ✓ VERIFIED | Exists, substantive, and wired. |
+| `.planning/phases/52-multi-source-slide-assembler/52-VERIFICATION.md` | Final pass/fail record for the secondary-slide fidelity gap after automated and live verification. | ✓ VERIFIED | Generated with `gaps_found`. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 | --- | --- | --- | --- | --- |
-| `multi-source-assembler.ts` | `@lumenalta/schemas` | `SlideSelectionPlan`, `SlideSelectionEntry` import | ✓ WIRED | Import present at line 10. |
-| `multi-source-assembler.ts` | `apps/agent/src/generation/types.ts` | `MultiSourcePlan`, `SecondarySource` import | ✓ WIRED | Import present at line 18. |
-| `multi-source-assembler.ts` | `apps/agent/src/lib/google-auth.ts` | `getDriveClient`, `getSlidesClient` | ✓ WIRED | Import at line 17; used at `117-118`. |
-| `multi-source-assembler.ts` | `apps/agent/src/lib/drive-folders.ts` | `shareWithOrg` | ✓ WIRED | Import at line 16; used at `268-271`. |
-| `multi-source-assembler.ts` | `apps/agent/src/lib/deck-customizer.ts` | single-source delegation via `assembleDeckFromSlides` | ✓ WIRED | Import at `12-15`; used at `107-115`. |
+| `multi-source-assembler.ts` | `multi-source-assembler.test.ts` | `createImage\|createTable\|createShape\|unsupported element` | ✓ WIRED | Assertions exist in tests checking for these request types. |
+| `multi-source-assembler.ts` | `52-VERIFICATION.md` | `gaps_found\|unsupported element` | ✓ WIRED | Verification explicitly logs gaps found due to structurally insufficient element-by-element reconstruction. |
+| `multi-source-assembler.ts` | `@lumenalta/schemas` | `SlideSelectionPlan`, `SlideSelectionEntry` import | ✓ WIRED | Imported. |
+| `multi-source-assembler.ts` | `apps/agent/src/generation/types.ts` | `MultiSourcePlan`, `SecondarySource` import | ✓ WIRED | Imported. |
+| `multi-source-assembler.ts` | `apps/agent/src/lib/google-auth.ts` | `getDriveClient`, `getSlidesClient` | ✓ WIRED | Imported and used. |
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| FR-4.1 | 52-01 | Group selected slides by source `presentationId` | ✓ SATISFIED | `groupSlidesBySource()` in `multi-source-assembler.ts:33-45`; tests `120-160`. |
-| FR-4.2 | 52-01 | Identify primary source (most slides selected) and use as base via `drive.files.copy()` | ✓ SATISFIED | Primary selection in `47-63`; base copy in `122-129`; tests cover selection and primary copy call. |
-| FR-4.3 | 52-02 | Delete unneeded slides from the base copy | ✓ SATISFIED | Delete requests built from copied primary deck in `141-157`; tested at `332-337`. |
-| FR-4.4 | 52-02 | Copy/extract/merge secondary source slides into target | ✗ BLOCKED | Secondary slides are not copied with design fidelity; element-by-element reconstruction loses text styling, backgrounds, and full structure. |
-| FR-4.5 | 52-02 | Reorder all slides via `updateSlidesPosition` | ✓ SATISFIED | `updateSlidesPosition` requests in `252-265`; tested at `375-385`. |
-| FR-4.6 | 52-02 | Clean up all temporary copies in `finally` blocks | ✓ SATISFIED | `finally` cleanup loop at `277-289`; cleanup-failure behavior tested at `548-607`. |
-| FR-4.7 | 52-02 | Share assembled presentation with org | ✓ SATISFIED | `shareWithOrg()` at `268-271`; tested at `392-395`. |
-| FR-4.8 | 52-01 | Handle single-source case efficiently | ✓ SATISFIED | Early delegation path at `107-115`; tested at `256-288`. |
-| FR-4.9 | 52-02 | Save assembled presentation to deal's Google Drive folder | ✓ SATISFIED | Primary copy request sets `parents: [targetFolderId]` at `124-127`; test asserts folder parent at `316-323`. |
-| NFR-3 | 52-02 | Stay within 60 req/min Slides rate limit for typical deck | ✓ SATISFIED | Static call-shape review shows batched primary delete/reorder plus per-secondary-slide writes remain comfortably below 60 writes for the stated 12-slide / 3-source case. |
-| NFR-6 | 52-02 | Temporary Drive copies cleaned up in `finally` blocks | ✓ SATISFIED | Explicit `finally` cleanup in `277-289`; tested with cleanup-failure resilience at `548-607`. |
-
-All requirement IDs declared in PLAN frontmatter are accounted for in `REQUIREMENTS.md`. No orphaned Phase 52 requirement IDs were found.
+| FR-4.1 | 52-01 | Group selected slides by source `presentationId` | ✓ SATISFIED | `groupSlidesBySource()` |
+| FR-4.2 | 52-01 | Identify primary source (most slides selected) and use as base via `drive.files.copy()` | ✓ SATISFIED | Primary selection and copy requests |
+| FR-4.3 | 52-02 | Delete unneeded slides from the base copy | ✓ SATISFIED | `deleteObject` requests batched |
+| FR-4.4 | 52-02, 52-03 | Copy/extract/merge secondary source slides into target | ✗ BLOCKED | Secondary slides are NOT copied with design fidelity; element-by-element reconstruction drops styling, themes, and backgrounds. |
+| FR-4.5 | 52-02 | Reorder all slides via `updateSlidesPosition` | ✓ SATISFIED | `updateSlidesPosition` batched requests |
+| FR-4.6 | 52-02 | Clean up all temporary copies in `finally` blocks | ✓ SATISFIED | `finally` block iterates over `tempFileIds` |
+| FR-4.7 | 52-02 | Share assembled presentation with org | ✓ SATISFIED | `shareWithOrg()` is called |
+| FR-4.8 | 52-01 | Handle single-source case efficiently | ✓ SATISFIED | Early exit calling `assembleDeckFromSlides` |
+| FR-4.9 | 52-02 | Save assembled presentation to deal's Google Drive folder | ✓ SATISFIED | primary copy sets `parents: [params.targetFolderId]` |
+| NFR-3 | 52-02 | Stay within 60 req/min Slides rate limit for typical deck | ✓ SATISFIED | Reorders and deletes are batched |
+| NFR-6 | 52-02 | Temporary Drive copies cleaned up in `finally` blocks | ✓ SATISFIED | `finally` blocks clean up Drive copies |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 | --- | --- | --- | --- | --- |
-| `apps/agent/src/generation/multi-source-assembler.ts` | 194-228, 293-314 | Element-by-element reconstruction fails fidelity | 🛑 Blocker | Element-by-element reconstruction loses styling, backgrounds, and theme alignment leading to overlapping text and missing design properties. |
+| `apps/agent/src/generation/multi-source-assembler.ts` | 316-621 | Element-by-element reconstruction fails fidelity | 🛑 Blocker | Reconstructing slides shape-by-shape via Slide API requests loses text styling, fills, borders, themes, and backgrounds, resulting in severely overlapping text and structural distortion. |
 
 ### Human Verification Required
 
 1. **Live Google Slides fidelity check (after gap closure)**
 
 **Test:** Assemble a deck using secondary slides that contain images, brand shapes, charts, tables, and complex layouts.
-**Expected:** Secondary slides in the final deck visually match the originals, not just their text content.
+**Expected:** Secondary slides in the final deck visually match the originals perfectly, preserving text styling, backgrounds, lines, and theme.
 **Why human:** Real Slides rendering and design fidelity cannot be proven from unit mocks alone.
 
 ### Gaps Summary
 
-Phase 52 delivers the planning helpers, single-source fast path, primary copy-and-prune flow, secondary copy/injection orchestration, reorder, sharing, and temp cleanup. Targeted Vitest coverage passes.
+Phase 52 attempted to close the secondary-slide fidelity gap in 52-03 by replacing text-only placeholders with an element-by-element reconstruction path (`createImage`, `createTable`, `createShape`). However, live verification showed this approach is structurally insufficient for high-fidelity cloning. Critical design fidelity (text styling, alignments, fills, borders, theme matching, and slide backgrounds) is completely lost, causing severe visual distortion and overlapping text. Unsupported elements (like lines and charts) still require placeholders. 
 
-However, the phase goal is not fully achieved. The multi-source path does **not** preserve original designs for secondary slides: while an attempt was made to reconstruct slides element-by-element (images, shapes, tables), live verification revealed that this approach is structurally insufficient. Critical design fidelity (text styling, alignments, fills, borders, and backgrounds) is lost, causing severe visual distortion and overlapping text. Unsupported elements like lines still require placeholders. A true high-fidelity cloning approach is required for FR-4.4 and the phase goal to be met.
+To achieve the phase goal, the element-by-element reconstruction must be replaced with a true high-fidelity mechanism (such as page cloning or native slide copy APIs) that preserves the original visual design of secondary slides.
 
 ---
 
-_Verified: 2026-03-09T05:08:01Z_
+_Verified: 2026-03-09T13:48:54Z_
 _Verifier: Claude (gsd-verifier)_
