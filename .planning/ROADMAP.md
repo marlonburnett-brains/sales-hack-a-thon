@@ -255,7 +255,9 @@ Plans:
   2. Reverting sets hitlStage to target stage and clears downstream stageContent
   3. UI revert button triggers revertStageAction → api-client → agent route → DB update without 404
   4. User can go back from lowfi to skeleton, or from highfi to lowfi/skeleton, and regenerate
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 48-01-PLAN.md — Register revert-stage agent route, validate stage ordering, clear stageContent
 
 ### Phase 49: Tech Debt Cleanup
 **Goal**: Clear accumulated tech debt from Phases 42-46 identified by milestone audit
@@ -267,7 +269,9 @@ Plans:
   3. touch-stage-content.tsx: inline-diff/side-by-side TODO resolved (implement or remove dead mode branches)
   4. touch-page-shell.tsx: Right panel placeholder wired to Phase 45 chat bar or removed
   5. Auth header contract documented: web and agent agree on Bearer vs X-API-Key
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 48-01-PLAN.md — Register revert-stage agent route, validate stage ordering, clear stageContent
 
 ## Progress
 
