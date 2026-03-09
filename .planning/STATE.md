@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: completed
-stopped_at: Completed 45-06-PLAN.md
-last_updated: "2026-03-09T00:14:15.941Z"
-last_activity: 2026-03-09 - Completed 45-06 (persistent chat transcript upload gap closure)
+stopped_at: Completed 45-07-PLAN.md
+last_updated: "2026-03-09T00:36:26.410Z"
+last_activity: 2026-03-09 - Completed 45-07 (deal chat auth contract gap closure)
 progress:
   total_phases: 7
   completed_phases: 7
-  total_plans: 26
-  completed_plans: 26
+  total_plans: 27
+  completed_plans: 27
   percent: 100
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 Phase: 47 of 47 (Drive Artifact Integration)
 Plan: Complete
 Status: Completed
-Last activity: 2026-03-09 - Completed 45-06 (persistent chat transcript upload gap closure)
+Last activity: 2026-03-09 - Completed 45-07 (deal chat auth contract gap closure)
 
 Progress: [██████████] 100%
 
@@ -93,6 +93,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 45]: Kept transcript uploads on the existing /api/deals/[dealId]/chat JSON route by sending browser-read text instead of adding a multipart upload endpoint.
 - [Phase 45]: Allowed upload-only sends in the shared deal-chat contract so sellers can attach a transcript without typed instructions and still reach the confirmation-first save flow.
 - [Phase 45]: Rendered upload state inline in the persistent composer with replace/remove controls so the dock-first layout stays compact across deal pages.
+- [Phase 45]: Switched the deal-chat web bridge and shared server-side agent client to X-API-Key only so protected Mastra routes match the declared SimpleAuth contract end to end.
+- [Phase 45]: Kept the fix in shared fetchAgent coverage instead of a deal-chat-only override so future server-side agent calls cannot silently drift back to bearer auth.
 
 ### Pending Todos
 
@@ -123,6 +125,7 @@ None.
 | Phase 45 P05 | 7 min | 2 tasks | 7 files |
 | Phase 45 P03 | 9m 50s | 2 tasks | 7 files |
 | Phase 45 P06 | 6 min | 2 tasks | 10 files |
+| Phase 45 P07 | 2 min | 2 tasks | 8 files |
 
 ### Blockers/Concerns
 
@@ -133,6 +136,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T00:14:15.937Z
-Stopped at: Completed 45-06-PLAN.md
+Last session: 2026-03-09T00:36:26.407Z
+Stopped at: Completed 45-07-PLAN.md
 Next action: No remaining roadmap plans -- v1.7 is complete.

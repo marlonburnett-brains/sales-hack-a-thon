@@ -117,7 +117,7 @@ Tier 4 (after 46):                           47 ──┘
 - [x] **Phase 42: Deal Detail Layout** - Sub-page routing with breadcrumbs, sidebar, overview dashboard, and briefing page (completed 2026-03-08)
 - [x] **Phase 43: Named Agent Architecture** - Formalized agents with DB-backed versioned system prompts (completed 2026-03-08)
 - [x] **Phase 44: Agent Management UI** - Settings page for viewing, editing, versioning, and publishing agent prompts (completed 2026-03-08)
-- [x] **Phase 45: Persistent AI Chat Bar** - Deal-scoped chat with context, transcripts, and knowledge base queries (completed 2026-03-08)
+- [x] **Phase 45: Persistent AI Chat Bar** - Deal-scoped chat with context, transcripts, and knowledge base queries (completed 2026-03-09)
 - [x] **Phase 46: Touch Pages & HITL Workflow** - Per-touch artifact generation with 3-stage HITL and chat refinement (completed 2026-03-08)
 - [x] **Phase 47: Drive Artifact Integration** - Folder selection, sharing controls, and org-default permissions for generated artifacts (completed 2026-03-08)
 
@@ -200,13 +200,15 @@ Plans:
   2. User can add context, notes, or paste call transcripts via chat and bind them to a specific touch step
   3. User can ask questions about the deal's data and history and receive relevant answers
   4. User can query similar cases and use cases from the knowledge base and get results via chat
-**Plans**: 5 plans
+**Plans**: 7 plans
 Plans:
 - [ ] 45-01-PLAN.md — Deal chat contracts and governed named-agent identity
 - [ ] 45-04-PLAN.md — Prisma storage, thread persistence helpers, and confirmation-aware binding heuristics
 - [ ] 45-02-PLAN.md — Deal chat orchestrator, agent route registration, and direct route coverage
 - [ ] 45-05-PLAN.md — Typed web proxy, api-client helpers, and deal-chat server actions
 - [ ] 45-03-PLAN.md — Persistent dock/side-panel UI, route-aware suggestions, and layout wiring
+- [x] 45-06-PLAN.md — Transcript upload gap closure on the existing shared deal-chat route family
+- [x] 45-07-PLAN.md — X-API-Key auth-contract gap closure for the web chat bridge and server-side api-client
 
 ### Phase 46: Touch Pages & HITL Workflow
 **Goal**: Users can generate artifacts for each touch through a 3-stage human-in-the-loop workflow with AI chat refinement
@@ -292,6 +294,6 @@ Plans:
 | 42. Deal Detail Layout | 3/3 | Complete    | 2026-03-08 | - |
 | 43. Named Agent Architecture | 5/5 | Complete    | 2026-03-08 | - |
 | 44. Agent Management UI | 3/3 | Complete    | 2026-03-08 | - |
-| 45. Persistent AI Chat Bar | 6/6 | Complete   | 2026-03-09 | - |
+| 45. Persistent AI Chat Bar | 7/7 | Complete   | 2026-03-09 | - |
 | 46. Touch Pages & HITL Workflow | 3/3 | Complete    | 2026-03-08 | - |
 | 47. Drive Artifact Integration | 3/3 | Complete    | 2026-03-08 | - |
