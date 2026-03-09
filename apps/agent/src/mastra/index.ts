@@ -8,6 +8,7 @@ import { touch2Workflow } from "./workflows/touch-2-workflow";
 import { touch3Workflow } from "./workflows/touch-3-workflow";
 import { touch4Workflow } from "./workflows/touch-4-workflow";
 import { preCallWorkflow } from "./workflows/pre-call-workflow";
+import { structureDrivenWorkflow } from "../generation/structure-driven-workflow";
 import { getOrCreateDealFolder, shareWithOrg } from "../lib/drive-folders";
 import { getDriveClient, getSlidesClient, getPooledGoogleAuth } from "../lib/google-auth";
 import { getAccessTokenForUser } from "../lib/token-cache";
@@ -603,6 +604,7 @@ export const mastra = new Mastra({
     "touch-3-workflow": touch3Workflow,
     "touch-4-workflow": touch4Workflow,
     "pre-call-workflow": preCallWorkflow,
+    "structure-driven-workflow": structureDrivenWorkflow,
   },
   server: {
     host: '0.0.0.0',
