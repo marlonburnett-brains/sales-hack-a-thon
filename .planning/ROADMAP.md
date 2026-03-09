@@ -269,9 +269,10 @@ Plans:
   3. touch-stage-content.tsx: inline-diff/side-by-side TODO resolved (implement or remove dead mode branches)
   4. touch-page-shell.tsx: Right panel placeholder wired to Phase 45 chat bar or removed
   5. Auth header contract documented: web and agent agree on Bearer vs X-API-Key
-**Plans**: 1 plan
+**Plans**: 2 plans
 Plans:
-- [ ] 48-01-PLAN.md — Register revert-stage agent route, validate stage ordering, clear stageContent
+- [ ] 49-01-PLAN.md — Fix env-coupled test, document auth header contract
+- [ ] 49-02-PLAN.md — Remove orphaned BriefingChatPanel, dead display modes, empty split-panel placeholder
 
 ## Progress
 
@@ -331,4 +332,4 @@ Plans:
 | 46. Touch Pages & HITL Workflow | 3/3 | Complete    | 2026-03-08 | - |
 | 47. Drive Artifact Integration | 3/3 | Complete    | 2026-03-08 | - |
 | 48. HITL Stage Revert Route | 1/1 | Complete    | 2026-03-09 | - |
-| 49. Tech Debt Cleanup | 0/0 | Planned | - | - |
+| 49. Tech Debt Cleanup | 0/2 | Planned | - | - |
