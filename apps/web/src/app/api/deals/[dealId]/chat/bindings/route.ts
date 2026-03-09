@@ -38,15 +38,11 @@ async function buildProxyHeaders(request: NextRequest): Promise<HeadersInit> {
   return headers;
 }
 
-async function resolveParams(params: Promise<RouteParams> | RouteParams): Promise<RouteParams> {
-  return await params;
-}
-
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<RouteParams> | RouteParams },
+  context: { params: Promise<RouteParams> },
 ) {
-  const { dealId } = await resolveParams(context.params);
+  const { dealId } = await context.params;
   const body = dealChatBindingRequestSchema.safeParse(await request.json());
 
   if (!body.success) {
