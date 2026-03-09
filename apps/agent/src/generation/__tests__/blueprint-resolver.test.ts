@@ -80,6 +80,7 @@ function makeSlideEmbedding(id: string, templateId: string) {
     templateId,
     classificationJson: JSON.stringify({ category: "title" }),
     thumbnailUrl: `https://thumb.example.com/${id}`,
+    confidence: 0.75,
     slideIndex: 0,
     slideObjectId: `obj-${id}`,
   };
@@ -392,6 +393,7 @@ describe("resolveBlueprint", () => {
         templateId: "tpl-1",
         classificationJson: '{"category":"title"}',
         thumbnailUrl: "https://thumb.example.com/slide-1",
+        confidence: 0.81,
         slideIndex: 0,
         slideObjectId: "obj-slide-1",
       },
@@ -409,6 +411,7 @@ describe("resolveBlueprint", () => {
       presentationId: "pres-1",
       classificationJson: '{"category":"title"}',
       thumbnailUrl: "https://thumb.example.com/slide-1",
+      confidence: 0.81,
     } satisfies ResolvedCandidate);
   });
 });

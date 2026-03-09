@@ -40,6 +40,7 @@ export interface ResolvedCandidate {
   presentationId: string;
   classificationJson: string | null;
   thumbnailUrl: string | null;
+  confidence: number | null;
 }
 
 /**
@@ -106,6 +107,7 @@ export async function resolveBlueprint(
       templateId: true,
       classificationJson: true,
       thumbnailUrl: true,
+      confidence: true,
       slideIndex: true,
       slideObjectId: true,
     },
@@ -135,6 +137,7 @@ export async function resolveBlueprint(
       presentationId: template?.presentationId ?? "",
       classificationJson: slide.classificationJson,
       thumbnailUrl: slide.thumbnailUrl,
+      confidence: slide.confidence,
     });
   }
 
