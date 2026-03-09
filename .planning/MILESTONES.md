@@ -1,5 +1,28 @@
 # Milestones
 
+## v1.7 Deals & HITL Pipeline (Shipped: 2026-03-09)
+
+**Phases:** 9 (41-49) | **Plans:** 30 | **Commits:** 114 | **Files changed:** 145 | **LOC:** ~61,245 TypeScript/TSX/Prisma (total)
+**Timeline:** 2 days (2026-03-08 -> 2026-03-09)
+**Git range:** `b9f8707..90186e0`
+
+**Key accomplishments:**
+- Deal pipeline page with status lifecycle (Open/Won/Lost/Abandoned), card/table view toggle, owner+collaborator assignment, and assignee filtering
+- Deal detail navigation with breadcrumbs, left sidebar (Overview, Briefing, Touch 1-4), overview dashboard with metrics and activity timeline, and consolidated briefing page
+- Named agent architecture with DB-backed versioned system prompts, version-safe cache, and execution seam covering all 20+ prompt-bearing workflows
+- Agent management UI in Settings with direct text and AI chat editing, draft/publish workflow, version history timeline with diff, and one-click rollback
+- Persistent AI chat bar across all deal sub-pages with deal context grounding, transcript upload with confirmation-first binding, and knowledge base queries via Tavily web search
+- 3-stage HITL workflow (Skeleton → Low-fi → High-fi) for all 4 touches with stage indicators, guided start, AI chat refinement per stage, and stage revert
+- Google Drive artifact integration with folder selection via Google Picker, org-wide sharing defaults, service account access, and archive-on-regeneration
+
+**Tech debt (accepted):**
+- Auth contract uses `Authorization: Bearer` instead of `X-API-Key` due to Mastra framework limitation (documented in `.planning/AUTH-CONTRACT.md`)
+- `useTouchContext()` hook exported but unused — chat bar derives context from URL segments (latent extension point)
+
+**Archives:** [v1.7-ROADMAP.md](milestones/v1.7-ROADMAP.md) | [v1.7-REQUIREMENTS.md](milestones/v1.7-REQUIREMENTS.md) | [v1.7-MILESTONE-AUDIT.md](milestones/v1.7-MILESTONE-AUDIT.md)
+
+---
+
 ## v1.6 Touch 4 Artifact Intelligence (Shipped: 2026-03-08)
 
 **Phases:** 6 (35-40) | **Plans:** 20 | **Commits:** 110 | **Files changed:** 116 | **LOC:** ~50,876 TypeScript/TSX/Prisma (total)

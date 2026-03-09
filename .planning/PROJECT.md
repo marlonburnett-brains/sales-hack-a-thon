@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system runs end-to-end: transcript paste → structured extraction → brief generation → HITL approval → RAG retrieval → Google Slides deck + talk track + buyer FAQ → final asset review. A pre-call briefing flow arms sellers with company research and discovery questions before any meeting. Templates can be registered from Google Slides, AI-ingested with vector embeddings, multi-axis classification, rich AI descriptions, and structured element maps, then previewed with human rating and tag correction, and searched by similarity. Content is classified as Template or Example with touch type binding, enabling AI-inferred deck structures per touch type with confidence scoring and conversational chat refinement. A Settings page provides deck structure visualization and integration status. All outputs are saved to shared Lumenalta Drive. Google API access uses user-delegated OAuth credentials (with service account fallback), providing org-wide file access through authenticated users' permissions. AtlusAI content is accessed via Mastra MCP client with pooled token auth, 3-tier access detection, and a discovery UI for browsing/searching/ingesting content via semantic search. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
+A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system now operates as a full deal-management platform: sellers manage deals through a pipeline view with status lifecycle, navigate deal details via breadcrumbs and sidebar sub-pages (Overview, Briefing, Touch 1-4), and generate artifacts through a 3-stage HITL workflow (Skeleton → Low-fi → High-fi) with AI chat refinement at each stage. A persistent AI chat bar across all deal pages enables context capture, transcript upload with binding, deal data queries, and knowledge base search. All LLM interactions route through named agents with DB-backed versioned system prompts, manageable via a Settings UI with draft/publish workflow and version history rollback. Generated artifacts save to user-selected Google Drive folders with org-wide sharing defaults. Templates can be registered from Google Slides, AI-ingested with vector embeddings, multi-axis classification, rich AI descriptions, and structured element maps, then previewed with human rating and tag correction, and searched by similarity. Content is classified as Template or Example with touch type binding, enabling AI-inferred deck structures per touch type with confidence scoring and conversational chat refinement. AtlusAI content is accessed via Mastra MCP client with pooled token auth, 3-tier access detection, and a discovery UI for browsing/searching/ingesting content via semantic search. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
 
 ## Core Value
 
@@ -10,13 +10,14 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ## Current State
 
-Shipped `v1.6 Touch 4 Artifact Intelligence` on 2026-03-08. Touch 4 Examples now carry Proposal / Talk Track / FAQ artifact typing end to end, Settings renders separate artifact-qualified deck structures with scoped chat refinement, the live production verification trail is closed, and the `agent` workspace is back to a clean no-emit TypeScript baseline.
+Shipped `v1.7 Deals & HITL Pipeline` on 2026-03-09. The app is now a full deal-management platform with pipeline views (card/table toggle, status lifecycle, assignment filtering), deal detail navigation (breadcrumbs, sidebar, overview dashboard, briefing page), persistent AI chat across all deal pages, 3-stage HITL artifact generation for all 4 touches with stage revert, Google Drive integration with folder selection and org sharing, named agent architecture with 20+ DB-backed versioned agents, and agent management UI with draft/publish and version rollback.
 
 ## Next Milestone Goals
 
 - Define the next milestone scope and fresh requirements in a new `.planning/REQUIREMENTS.md`
-- Reduce the remaining Touch 4 settings double-fetch behavior on artifact tab changes
 - Expand content-library coverage once Drive access blockers are cleared
+- Address pipeline analytics and cross-touch intelligence (v2 requirements)
+- Consider Mastra auth fix to replace Bearer workaround with proper X-API-Key
 
 ## Requirements
 
@@ -156,22 +157,18 @@ Shipped `v1.6 Touch 4 Artifact Intelligence` on 2026-03-08. Touch 4 Examples now
 - ✓ Shared web and agent artifact contracts now use the canonical `ArtifactType` surface -- v1.6
 - ✓ `pnpm --filter agent exec tsc --noEmit` passes at milestone closeout -- v1.6
 
+**Deals & HITL Pipeline** -- v1.7
+- ✓ Deal pipeline with status lifecycle, card/table view, assignment, and filtering -- v1.7
+- ✓ Deal detail navigation with breadcrumbs, sidebar, overview dashboard, and briefing page -- v1.7
+- ✓ Persistent AI chat bar with deal context, transcript upload, and knowledge base queries -- v1.7
+- ✓ 3-stage HITL workflow (Skeleton → Low-fi → High-fi) for all 4 touches with stage revert -- v1.7
+- ✓ Google Drive artifact integration with folder selection, org sharing, and archive-on-regen -- v1.7
+- ✓ Named agent architecture with DB-backed versioned system prompts -- v1.7
+- ✓ Agent management UI with draft/publish, version history, and rollback -- v1.7
+
 ### Active
 
-## Current Milestone: v1.7 Deals & HITL Pipeline
-
-**Goal:** Transform the app from a content-generation tool into a full deal-management platform with pipeline views, deal detail navigation, AI chat assistance, and human-in-the-loop artifact generation across all four touches.
-
-**Target features:**
-- Deals page with view toggle, status lifecycle, assignment system, and filtering
-- Deal detail navigation overhaul with breadcrumbs and sidebar sub-pages
-- Deal overview dashboard page
-- Deal briefing page consolidating prep material
-- Persistent AI chat bar across deal sub-pages
-- Touch 1–4 pages with HITL 3-stage artifact generation
-- Google Drive integration for artifact saving with folder/sharing controls
-- Formalized named agent architecture with dedicated system prompts
-- Settings agent management UI with versioning and draft system
+(No active requirements — define next milestone with `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -191,7 +188,7 @@ Shipped `v1.6 Touch 4 Artifact Intelligence` on 2026-03-08. Touch 4 Examples now
 
 ## Context
 
-**Current state:** v1.6 shipped. ~50,876 LOC TypeScript/TSX/Prisma. 40 phases, 93 plans across 7 milestones over 6 days (2026-03-03 -> 2026-03-08). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
+**Current state:** v1.7 shipped. ~61,245 LOC TypeScript/TSX/Prisma. 49 phases, 123 plans across 8 milestones over 7 days (2026-03-03 -> 2026-03-09). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
 
 **Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification fallback), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI via Mastra MCP client (RAG + knowledge base + semantic search), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications), @mastra/mcp (MCP SSE transport).
 
@@ -273,6 +270,14 @@ Shipped `v1.6 Touch 4 Artifact Intelligence` on 2026-03-08. Touch 4 Examples now
 | Existing route family plus validated `artifactType` | Avoid endpoint sprawl while adding artifact-qualified deck structure operations | ✓ Good — fixed deployed route parity without creating a second API family |
 | Production-locked live verification for Touch 4 settings chat | Milestone DoD required browser and backend proof on the same artifact-qualified flow | ✓ Good — closed `DECK-05` with durable post-fix evidence |
 | Finish v1.6 on a green agent typecheck baseline | Artifact work should land on a clean compile target, not a broken repo baseline | ✓ Good — `pnpm --filter agent exec tsc --noEmit` passes at closeout |
+| Maximum parallelization with 4-tier dependency map | v1.7 phases 41+43 concurrent, 42+44 concurrent, 45+46 concurrent, then 47 | ✓ Good — 9 phases completed in 2 days |
+| Named agent architecture with DB-backed versioned prompts | All LLM calls route through governed agents with immutable version pinning | ✓ Good — 20+ agents migrated, execution seam + cache working |
+| Forward-only SQL migrations for new models | Prisma migrate dev blocked by shared-db drift; manual SQL + resolve --applied | ✓ Good — consistent with CLAUDE.md discipline |
+| Persistent deal chat with dock-first layout | Chat survives navigation; optional side-panel mode | ✓ Good — compact UX across all deal pages |
+| Authorization: Bearer workaround for Mastra auth | Mastra framework doesn't support X-API-Key header correctly | ⚠️ Revisit — temporary workaround documented in AUTH-CONTRACT.md |
+| 3-stage HITL workflow with stage revert | Skeleton → Low-fi → High-fi with ability to go back and regenerate | ✓ Good — revert route registered and wired E2E |
+| Google Picker for Drive folder selection | Native Google UI for folder browsing vs custom file tree | ✓ Good — familiar UX, handles permissions natively |
+| Archive-on-regeneration as non-blocking | try/catch around archive to avoid failing workflows on archive errors | ✓ Good — resilient workflow execution |
 
 ---
-*Last updated: 2026-03-08 after v1.7 milestone start*
+*Last updated: 2026-03-09 after v1.7 milestone completion*

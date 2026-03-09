@@ -2,6 +2,56 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.7 — Deals & HITL Pipeline
+
+**Shipped:** 2026-03-09
+**Phases:** 9 | **Plans:** 30 | **Commits:** 114
+
+### What Was Built
+- Deal pipeline page with status lifecycle, card/table view toggle, owner+collaborator assignment, and assignee filtering
+- Deal detail navigation with breadcrumbs, sidebar sub-pages, overview dashboard, and consolidated briefing page
+- Named agent architecture with 20+ DB-backed versioned system prompts, version-safe cache, and execution seam
+- Agent management UI in Settings with direct text and AI chat editing, draft/publish workflow, and version history rollback
+- Persistent AI chat bar across all deal sub-pages with deal context, transcript upload binding, and knowledge base queries
+- 3-stage HITL workflow (Skeleton → Low-fi → High-fi) for all 4 touches with stage revert and AI chat refinement
+- Google Drive integration with folder selection via Google Picker, org-wide sharing defaults, and archive-on-regeneration
+- Audit-driven gap closure: HITL stage revert route registration and tech debt cleanup (dead code removal, env-isolated test, auth docs)
+
+### What Worked
+- **4-tier parallelization:** 9 phases completed in 2 days by running independent phases concurrently (41+43, 42+44, 45+46, then 47)
+- **Audit-driven gap closure loop:** Pre-completion audit identified revert route gap and 8 tech debt items; Phases 48-49 closed them efficiently before archival
+- **Forward-only migration discipline:** Manual SQL + resolve --applied used consistently for Deal, AgentConfig, HITL, DealChatThread, and UserSetting models without ever resetting
+- **Named agent execution seam:** Single executeNamedAgent helper enabled all 20+ workflows to be migrated without changing caller interfaces
+- **Dock-first persistent chat:** Mounting chat once in deal layout and deriving route context client-side avoided re-mount on navigation
+- **Confirmation-first binding:** Transcript uploads require explicit user confirmation before binding to a touch step — prevents accidental data attachment
+
+### What Was Inefficient
+- **SUMMARY frontmatter still empty:** 8th milestone with `requirements_completed` and `one_liner` not populated — same recurring tooling gap
+- **Bearer auth workaround:** Mastra framework limitation forced `Authorization: Bearer` instead of `X-API-Key` — documented but not fixed at source
+- **Plan checkbox drift:** ROADMAP.md plan checkboxes didn't update as plans completed — only phase-level checkboxes were maintained
+- **Nyquist validation missing:** 8 of 9 phases have no VALIDATION.md files — validation discipline continues to slip
+
+### Patterns Established
+- **Named agent architecture:** AgentConfig (stable identity) + AgentConfigVersion (immutable prompts) with publishedVersion pointer and version-safe cache
+- **Deal-scoped chat with dock-first layout:** Persistent across navigation, optional side-panel mode, route-aware suggestions
+- **3-stage HITL with stage revert:** Skeleton → Low-fi → High-fi workflow with ability to go back to any prior stage
+- **Google Picker for folder selection:** Native Google UI handles permissions and folder browsing without custom file tree
+- **Archive-on-regeneration:** Non-blocking try/catch around Drive archive operations to avoid failing workflows
+
+### Key Lessons
+1. **Deal management transforms the app's identity:** Moving from content-generation to deal-management fundamentally changed navigation, data model, and user workflows.
+2. **Named agents are a governance feature, not just organization:** DB-backed versioned prompts with draft/publish workflow give non-technical users control over AI behavior.
+3. **Persistent chat needs careful lifecycle management:** Mounting once in layout and deriving context from URL is simpler than re-mounting per page.
+4. **HITL stage revert is essential, not optional:** Users expect to go back to earlier stages — discovered during audit as a gap, should have been in original requirements.
+5. **Forward-only migration discipline scales:** 7 milestones, 49 phases, never reset the database — the pattern works even as schema complexity grows.
+
+### Cost Observations
+- Model mix: ~60% sonnet (executors, verifiers), ~25% haiku (researchers, explorers), ~15% opus (orchestration, audit)
+- Sessions: ~8 sessions across 2 days
+- Notable: Largest milestone by plan count (30) but completed in same 2-day timeline as smaller milestones thanks to parallelization
+
+---
+
 ## Milestone: v1.6 — Touch 4 Artifact Intelligence
 
 **Shipped:** 2026-03-08
@@ -352,6 +402,7 @@
 | v1.4 | ~60 | 5 | AtlusAI MCP integration — token pool, semantic search, discovery UI |
 | v1.5 | 49 | 3 | UX polish, slide intelligence v2, content classification, deck intelligence |
 | v1.6 | 110 | 6 | Touch 4 artifact intelligence, live proof closure, contract hardening, and agent baseline cleanup |
+| v1.7 | 114 | 9 | Deal management platform, named agents, persistent chat, 3-stage HITL, Drive integration |
 
 ### Cumulative Quality
 
@@ -364,16 +415,17 @@
 | v1.4 | 5 | 5 | 0 (35 requirements, partial Nyquist — meta-phases exempt) |
 | v1.5 | 3 | 1 | 2 (phases 32, 33 — UI-heavy, human verification) |
 | v1.6 | 6 | 6 | 0 (all in-scope verifications passed after audit rerun) |
+| v1.7 | 9 | 9 | 0 (38/38 requirements, all E2E flows verified) |
 
 ### Cumulative Stats
 
-| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | v1.6 | Total |
-|--------|------|------|------|------|------|------|------|-------|
-| Phases | 13 | 4 | 4 | 5 | 5 | 3 | 6 | 40 |
-| Plans | 27 | 6 | 10 | 10 | 12 | 8 | 20 | 93 |
-| Commits | 169 | 55 | 37 | 17 | ~60 | 49 | 110 | ~497 |
-| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~40,833 | ~50,876 | ~50,876 |
-| Days | 2 | 1 | 2 | 1 | 2 | 1 | 2 | 6 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | v1.6 | v1.7 | Total |
+|--------|------|------|------|------|------|------|------|------|-------|
+| Phases | 13 | 4 | 4 | 5 | 5 | 3 | 6 | 9 | 49 |
+| Plans | 27 | 6 | 10 | 10 | 12 | 8 | 20 | 30 | 123 |
+| Commits | 169 | 55 | 37 | 17 | ~60 | 49 | 110 | 114 | ~611 |
+| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~40,833 | ~50,876 | ~61,245 | ~61,245 |
+| Days | 2 | 1 | 2 | 1 | 2 | 1 | 2 | 2 | 7 |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -395,3 +447,7 @@
 16. Streaming delimiter protocol is simpler than SSE for chat — text + ---DELIMITER--- + JSON is easy to parse, no infrastructure needed (v1.5)
 17. Audit reruns belong in milestone closeout when gap-closure phases land late — stale audit status can lag the real workspace state (v1.6)
 18. Artifact-qualified features need proof across schema, transport, UI, and production evidence — UI-only or backend-only verification is not enough (v1.6)
+19. Named agents are governance, not just organization — DB-backed versioned prompts with draft/publish give non-technical users AI behavior control (v1.7)
+20. Forward-only migration discipline scales to 49 phases without reset — the pattern works even as schema complexity grows significantly (v1.7)
+21. HITL stage revert should be a first-class requirement, not discovered during audit — users always expect to go back (v1.7)
+22. 4-tier parallelization enables 30 plans in 2 days — running independent phases concurrently is the key velocity multiplier (v1.7)
