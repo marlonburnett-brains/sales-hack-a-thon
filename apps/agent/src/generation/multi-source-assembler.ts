@@ -24,10 +24,10 @@ export interface AssembleMultiSourceParams {
   ownerEmail?: string;
 }
 
-interface TextElementSnapshot {
-  text: string;
-  size?: slides_v1.Schema$Size;
-  transform?: slides_v1.Schema$AffineTransform;
+interface RebuildContext {
+  targetSlideId: string;
+  sourceSlideId: string;
+  counters: Record<string, number>;
 }
 
 export function groupSlidesBySource(
@@ -194,38 +194,11 @@ export async function assembleMultiSourceDeck(
           const targetSlideId = `generated-${slideId}`;
           slideIdMap.set(slideId, targetSlideId);
 
-          const requests: slides_v1.Schema$Request[] = [
-            {
-              createSlide: {
-                objectId: targetSlideId,
-                insertionIndex: (primaryPresentation.data.slides ?? []).length,
-              },
-            },
-          ];
-
-          const textElements = extractTextElements(sourceSlide);
-
-          for (const [textIndex, textElement] of textElements.entries()) {
-            const textBoxId = `${targetSlideId}-shape-${textIndex + 1}`;
-            requests.push({
-              createShape: {
-                objectId: textBoxId,
-                shapeType: "TEXT_BOX",
-                elementProperties: {
-                  pageObjectId: targetSlideId,
-                  size: textElement.size,
-                  transform: textElement.transform,
-                },
-              },
-            });
-            requests.push({
-              insertText: {
-                objectId: textBoxId,
-                insertionIndex: 0,
-                text: textElement.text,
-              },
-            });
-          }
+          const requests = buildSecondarySlideRequests(
+            sourceSlide,
+            targetSlideId,
+            (primaryPresentation.data.slides ?? []).length,
+          );
 
           await slides.presentations.batchUpdate({
             presentationId,
@@ -290,25 +263,290 @@ export async function assembleMultiSourceDeck(
   }
 }
 
-function extractTextElements(slide: slides_v1.Schema$Page): TextElementSnapshot[] {
-  const textElements: TextElementSnapshot[] = [];
+function buildSecondarySlideRequests(
+  slide: slides_v1.Schema$Page,
+  targetSlideId: string,
+  insertionIndex: number,
+): slides_v1.Schema$Request[] {
+  const context: RebuildContext = {
+    targetSlideId,
+    sourceSlideId: slide.objectId ?? "unknown-slide",
+    counters: {},
+  };
 
-  for (const element of slide.pageElements ?? []) {
-    const text = (element.shape?.text?.textElements ?? [])
-      .map((textElement) => textElement.textRun?.content ?? "")
-      .join("")
-      .trim();
+  return [
+    {
+      createSlide: {
+        objectId: targetSlideId,
+        insertionIndex,
+      },
+    },
+    ...buildPageElementRequests(slide.pageElements ?? [], context),
+  ];
+}
 
-    if (!text) {
+function buildPageElementRequests(
+  pageElements: slides_v1.Schema$PageElement[],
+  context: RebuildContext,
+): slides_v1.Schema$Request[] {
+  const requests: slides_v1.Schema$Request[] = [];
+
+  for (const element of pageElements) {
+    if (element.elementGroup?.children?.length) {
+      requests.push(...buildPageElementRequests(element.elementGroup.children, context));
       continue;
     }
 
-    textElements.push({
-      text,
-      size: element.size,
-      transform: element.transform,
+    if (element.image) {
+      requests.push(...buildImageRequests(element, context));
+      continue;
+    }
+
+    if (element.table) {
+      requests.push(...buildTableRequests(element, context));
+      continue;
+    }
+
+    if (element.shape) {
+      requests.push(...buildShapeRequests(element, context));
+      continue;
+    }
+
+    requests.push(
+      ...buildUnsupportedElementRequests(element, context, detectUnsupportedElementType(element)),
+    );
+  }
+
+  return requests;
+}
+
+function buildImageRequests(
+  element: slides_v1.Schema$PageElement,
+  context: RebuildContext,
+): slides_v1.Schema$Request[] {
+  const imageUrl = element.image?.sourceUrl ?? element.image?.contentUrl;
+  if (!imageUrl) {
+    return buildUnsupportedElementRequests(element, context, "image", "missing source url");
+  }
+
+  if (!element.size || !element.transform) {
+    return buildUnsupportedElementRequests(element, context, "image", "missing geometry");
+  }
+
+  return [
+    {
+      createImage: {
+        objectId: makeElementObjectId(context, element, "image"),
+        url: imageUrl,
+        elementProperties: {
+          pageObjectId: context.targetSlideId,
+          size: element.size,
+          transform: element.transform,
+        },
+      },
+    },
+  ];
+}
+
+function buildShapeRequests(
+  element: slides_v1.Schema$PageElement,
+  context: RebuildContext,
+): slides_v1.Schema$Request[] {
+  if (!element.size || !element.transform) {
+    return buildUnsupportedElementRequests(element, context, "shape", "missing geometry");
+  }
+
+  const shapeId = makeElementObjectId(context, element, "shape");
+  const shapeType = element.shape?.shapeType ?? "TEXT_BOX";
+  const text = extractTextContent(element.shape?.text?.textElements);
+  const requests: slides_v1.Schema$Request[] = [
+    {
+      createShape: {
+        objectId: shapeId,
+        shapeType,
+        elementProperties: {
+          pageObjectId: context.targetSlideId,
+          size: element.size,
+          transform: element.transform,
+        },
+      },
+    },
+  ];
+
+  if (text) {
+    requests.push({
+      insertText: {
+        objectId: shapeId,
+        insertionIndex: 0,
+        text,
+      },
     });
   }
 
-  return textElements;
+  return requests;
+}
+
+function buildTableRequests(
+  element: slides_v1.Schema$PageElement,
+  context: RebuildContext,
+): slides_v1.Schema$Request[] {
+  if (!element.size || !element.transform) {
+    return buildUnsupportedElementRequests(element, context, "table", "missing geometry");
+  }
+
+  const tableRows = element.table?.tableRows ?? [];
+  const rowCount = element.table?.rows ?? tableRows.length;
+  const columnCount =
+    element.table?.columns ??
+    tableRows.reduce(
+      (maxColumns, row) => Math.max(maxColumns, row.tableCells?.length ?? 0),
+      0,
+    );
+
+  if (!rowCount || !columnCount) {
+    return buildUnsupportedElementRequests(
+      element,
+      context,
+      "table",
+      "missing row or column metadata",
+    );
+  }
+
+  const tableId = makeElementObjectId(context, element, "table");
+  const requests: slides_v1.Schema$Request[] = [
+    {
+      createTable: {
+        objectId: tableId,
+        rows: rowCount,
+        columns: columnCount,
+        elementProperties: {
+          pageObjectId: context.targetSlideId,
+          size: element.size,
+          transform: element.transform,
+        },
+      },
+    },
+  ];
+
+  tableRows.forEach((row, rowIndex) => {
+    (row.tableCells ?? []).forEach((cell, columnIndex) => {
+      const text = extractTextContent(cell.text?.textElements);
+      if (!text) {
+        return;
+      }
+
+      requests.push({
+        insertText: {
+          objectId: tableId,
+          cellLocation: {
+            rowIndex,
+            columnIndex,
+          },
+          insertionIndex: 0,
+          text,
+        },
+      });
+    });
+  });
+
+  return requests;
+}
+
+function buildUnsupportedElementRequests(
+  element: slides_v1.Schema$PageElement,
+  context: RebuildContext,
+  elementType: string,
+  reason?: string,
+): slides_v1.Schema$Request[] {
+  const elementId = element.objectId ?? `unknown-${elementType}`;
+  const detail = reason ? `${elementType} (${reason})` : elementType;
+
+  console.warn(
+    `[multi-source-assembler] Unsupported element ${elementId} (${detail}) on source slide ${context.sourceSlideId}`,
+  );
+
+  return buildPlaceholderRequests(
+    context,
+    element,
+    `Unsupported element: ${elementType}\nSource slide: ${context.sourceSlideId}\nElement: ${elementId}`,
+  );
+}
+
+function buildPlaceholderRequests(
+  context: RebuildContext,
+  element: slides_v1.Schema$PageElement,
+  text: string,
+): slides_v1.Schema$Request[] {
+  const placeholderId = makeElementObjectId(context, element, "placeholder");
+
+  return [
+    {
+      createShape: {
+        objectId: placeholderId,
+        shapeType: "TEXT_BOX",
+        elementProperties: {
+          pageObjectId: context.targetSlideId,
+          size: element.size ?? defaultPlaceholderSize(),
+          transform: element.transform ?? defaultPlaceholderTransform(),
+        },
+      },
+    },
+    {
+      insertText: {
+        objectId: placeholderId,
+        insertionIndex: 0,
+        text,
+      },
+    },
+  ];
+}
+
+function extractTextContent(
+  textElements: slides_v1.Schema$TextElement[] | null | undefined,
+): string {
+  return (textElements ?? [])
+    .map((textElement) => textElement.textRun?.content ?? "")
+    .join("")
+    .trim();
+}
+
+function makeElementObjectId(
+  context: RebuildContext,
+  element: slides_v1.Schema$PageElement,
+  kind: string,
+): string {
+  const nextIndex = (context.counters[kind] ?? 0) + 1;
+  context.counters[kind] = nextIndex;
+
+  const sourceId = sanitizeObjectIdFragment(element.objectId ?? `${kind}-${nextIndex}`);
+  return `${context.targetSlideId}-${kind}-${sourceId}`;
+}
+
+function sanitizeObjectIdFragment(value: string): string {
+  return value.replace(/[^A-Za-z0-9_-]/g, "-");
+}
+
+function defaultPlaceholderSize(): slides_v1.Schema$Size {
+  return {
+    height: { magnitude: 80, unit: "PT" },
+    width: { magnitude: 260, unit: "PT" },
+  };
+}
+
+function defaultPlaceholderTransform(): slides_v1.Schema$AffineTransform {
+  return {
+    scaleX: 1,
+    scaleY: 1,
+    translateX: 24,
+    translateY: 24,
+    unit: "PT",
+  };
+}
+
+function detectUnsupportedElementType(element: slides_v1.Schema$PageElement): string {
+  if (element.sheetsChart) return "sheetsChart";
+  if (element.video) return "video";
+  if (element.wordArt) return "wordArt";
+  if (element.line) return "line";
+  return "unknown";
 }
