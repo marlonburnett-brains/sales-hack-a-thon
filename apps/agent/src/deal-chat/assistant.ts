@@ -17,6 +17,7 @@ import {
   inferDealContextBinding,
 } from "./bindings";
 import { loadDealChatContext } from "./context";
+import { isWebResearchAvailable, searchWeb } from "./web-research";
 
 type RunDealChatTurnParams = {
   dealId: string;
@@ -66,6 +67,12 @@ function looksLikeSaveIntent(message: string): boolean {
     /(save|note|notes|transcript|meeting|call recap|paste|pasted|inaudible|can you hear me|joining late|\?\?\?)/i.test(
       message,
     )
+  );
+}
+
+function looksLikeWebResearchQuery(message: string): boolean {
+  return /(research|look up|lookup|find out about|tell me about|what does .+ do|who is|company info|client info|background on|web search|search the web|google)/i.test(
+    message,
   );
 }
 
@@ -121,7 +128,7 @@ async function collectStreamText(stream: AsyncIterable<{ text?: string }>): Prom
 export function buildDealChatSuggestions(routeContext: DealChatRouteContext): DealChatSuggestion[] {
   const pageLabel = routeContext.pageLabel;
 
-  return [
+  const suggestions: DealChatSuggestion[] = [
     {
       id: `${routeContext.section}-history`,
       label: `What changed on ${pageLabel}?`,
@@ -141,6 +148,17 @@ export function buildDealChatSuggestions(routeContext: DealChatRouteContext): De
       kind: "save_note",
     },
   ];
+
+  if (isWebResearchAvailable()) {
+    suggestions.push({
+      id: `${routeContext.section}-web-research`,
+      label: "Research this client",
+      prompt: "Research this client on the web",
+      kind: "question",
+    });
+  }
+
+  return suggestions;
 }
 
 function formatDealChatText(meta: DealChatMeta): string {
@@ -261,6 +279,33 @@ export async function runDealChatTurn(
             "Ask for another search scoped to a specific touch if you want tighter examples.",
           ]
         : ["Try adding the solution pillar or current touch to narrow the search."];
+  } else if (isWebResearchAvailable() && looksLikeWebResearchQuery(params.message)) {
+    const webResults = await searchWeb({
+      query: params.message,
+      companyName: context.deal.company.name,
+      industry: context.deal.company.industry,
+      maxResults: 5,
+    });
+
+    knowledgeMatches = webResults.results.slice(0, 3).map((result, index) => ({
+      id: `web-${index}`,
+      title: result.title,
+      whyFit: truncate(result.content, 120),
+      summary: truncate(result.content, 160),
+      sourceLabel: "Web research",
+      touchType: null,
+    }));
+
+    directAnswer = webResults.answer
+      ? webResults.answer
+      : `I found ${knowledgeMatches.length} web results about ${context.deal.company.name}.`;
+    supportingBullets = webResults.results
+      .slice(0, 3)
+      .map((r) => `${r.title}: ${truncate(r.content, 100)}`);
+    nextSteps = [
+      "Ask me to save any of these findings as deal notes.",
+      "Refine the search with a more specific question about the client.",
+    ];
   } else if (saveIntent) {
     const source: DealContextSource = {
       id: null,
