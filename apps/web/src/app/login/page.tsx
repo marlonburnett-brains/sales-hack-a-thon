@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Briefcase } from "lucide-react";
+import { AtlusDeckLogo } from "@/components/atlusdeck-logo";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -68,9 +68,9 @@ function LoginContent() {
         {/* Branding */}
         <div className="flex flex-col items-center gap-2">
           <div className="flex items-center gap-2">
-            <Briefcase className="h-8 w-8 text-blue-600" />
+            <AtlusDeckLogo className="h-8 w-8" />
             <span className="text-2xl font-semibold text-slate-900">
-              Lumenalta Sales
+              AtlusDeck
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -124,9 +124,9 @@ export default function LoginPage() {
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-white">
           <div className="flex flex-col items-center gap-2">
-            <Briefcase className="h-8 w-8 text-blue-600" />
+            <AtlusDeckLogo className="h-8 w-8" />
             <span className="text-2xl font-semibold text-slate-900">
-              Lumenalta Sales
+              AtlusDeck
             </span>
           </div>
         </div>

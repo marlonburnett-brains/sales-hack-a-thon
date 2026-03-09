@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Lumenalta Sales Orchestration",
+  title: "AtlusDeck",
   description: "Agentic sales orchestration platform",
 };
 

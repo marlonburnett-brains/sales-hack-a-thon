@@ -15,6 +15,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
+import { AtlusDeckLogo } from "@/components/atlusdeck-logo";
 import { UserNav } from "@/components/user-nav";
 
 interface SidebarProps {
@@ -68,10 +69,10 @@ export function Sidebar({ user, children }: SidebarProps) {
     <div className="flex h-full flex-col">
       {/* Logo area */}
       <div className="flex h-14 items-center gap-2 border-b border-slate-200 px-3">
-        <Briefcase className="h-5 w-5 shrink-0 text-blue-600" />
+        <AtlusDeckLogo className="h-5 w-5 shrink-0" />
         {!collapsed && (
           <span className="truncate font-semibold text-slate-900">
-            Lumenalta Sales
+            AtlusDeck
           </span>
         )}
       </div>
