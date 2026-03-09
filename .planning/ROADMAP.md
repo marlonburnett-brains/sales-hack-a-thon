@@ -9,7 +9,7 @@
 - v1.4 **AtlusAI Authentication & Discovery** -- Phases 27-31 (shipped 2026-03-07) -- [Archive](milestones/v1.4-ROADMAP.md)
 - v1.5 **Review Polish & Deck Intelligence** -- Phases 32-34 (shipped 2026-03-07) -- [Archive](milestones/v1.5-ROADMAP.md)
 - v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (shipped 2026-03-08) -- [Archive](milestones/v1.6-ROADMAP.md)
-- **v1.7 Deals & HITL Pipeline** -- Phases 41-47 (in progress)
+- **v1.7 Deals & HITL Pipeline** -- Phases 41-49 (in progress)
 
 ## Phases
 
@@ -120,6 +120,11 @@ Tier 4 (after 46):                           47 ──┘
 - [x] **Phase 45: Persistent AI Chat Bar** - Deal-scoped chat with context, transcripts, and knowledge base queries (completed 2026-03-09)
 - [x] **Phase 46: Touch Pages & HITL Workflow** - Per-touch artifact generation with 3-stage HITL and chat refinement (completed 2026-03-08)
 - [x] **Phase 47: Drive Artifact Integration** - Folder selection, sharing controls, and org-default permissions for generated artifacts (completed 2026-03-08)
+
+### Gap Closure (Audit-Driven)
+
+- [ ] **Phase 48: HITL Stage Revert Route** - Register missing revert-stage agent route, implement revert logic, wire E2E flow
+- [ ] **Phase 49: Tech Debt Cleanup** - Clear placeholders, fix env-coupled test, document auth contract, remove dead code
 
 ## Phase Details
 
@@ -240,6 +245,30 @@ Plans:
 - [ ] 47-02-PLAN.md — Drive settings page with Google Picker folder selector and access token API
 - [ ] 47-03-PLAN.md — Workflow migration to user-rooted folders, shareWithOrg, archive-on-regen, and Drive status UI
 
+### Phase 48: HITL Stage Revert Route
+**Goal**: Users can navigate back to earlier HITL stages during artifact generation, completing the stage revert flow
+**Depends on**: Phase 46 (touch pages with HITL workflow)
+**Requirements**: TOUCH-06
+**Gap Closure:** Closes integration gap TOUCH-REVERT-ROUTE + flow gap "Touch HITL Stage Revert" from v1.7 audit
+**Success Criteria** (what must be TRUE):
+  1. POST /interactions/:id/revert-stage route is registered and functional on the agent
+  2. Reverting sets hitlStage to target stage and clears downstream stageContent
+  3. UI revert button triggers revertStageAction → api-client → agent route → DB update without 404
+  4. User can go back from lowfi to skeleton, or from highfi to lowfi/skeleton, and regenerate
+**Plans**: TBD
+
+### Phase 49: Tech Debt Cleanup
+**Goal**: Clear accumulated tech debt from Phases 42-46 identified by milestone audit
+**Depends on**: Phase 48 (revert route should be in place first)
+**Gap Closure:** Closes 8 tech debt items from v1.7 audit
+**Success Criteria** (what must be TRUE):
+  1. briefing-chat-panel.tsx: "Chat coming soon" toast replaced with functional chat or removed; placeholder suggestion buttons either wired or removed
+  2. agent-registry.test.ts: Env-coupled import path fixed so test passes in isolated environments
+  3. touch-stage-content.tsx: inline-diff/side-by-side TODO resolved (implement or remove dead mode branches)
+  4. touch-page-shell.tsx: Right panel placeholder wired to Phase 45 chat bar or removed
+  5. Auth header contract documented: web and agent agree on Bearer vs X-API-Key
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order (with parallelization):**
@@ -297,3 +326,5 @@ Plans:
 | 45. Persistent AI Chat Bar | 7/7 | Complete    | 2026-03-09 | - |
 | 46. Touch Pages & HITL Workflow | 3/3 | Complete    | 2026-03-08 | - |
 | 47. Drive Artifact Integration | 3/3 | Complete    | 2026-03-08 | - |
+| 48. HITL Stage Revert Route | 0/0 | Planned | - | - |
+| 49. Tech Debt Cleanup | 0/0 | Planned | - | - |
