@@ -1,3 +1,4 @@
+import type { slides_v1 } from "googleapis";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -50,30 +51,140 @@ function makePlan(selections: SlideSelectionEntry[]): SlideSelectionPlan {
   return { selections };
 }
 
-function makePresentation(slideIds: string[], slideTextById: Record<string, string[]> = {}) {
+function makeSize(): slides_v1.Schema$Size {
+  return {
+    height: { magnitude: 100, unit: "PT" },
+    width: { magnitude: 200, unit: "PT" },
+  };
+}
+
+function makeTransform(offset = 0): slides_v1.Schema$AffineTransform {
+  return {
+    scaleX: 1,
+    scaleY: 1,
+    translateX: 10 + offset,
+    translateY: 20 + offset,
+    unit: "PT",
+  };
+}
+
+function makeTextShapeElement(
+  objectId: string,
+  text: string,
+  index = 0,
+  shapeType = "TEXT_BOX",
+): slides_v1.Schema$PageElement {
+  return {
+    objectId,
+    shape: {
+      shapeType,
+      text: {
+        textElements: [{ textRun: { content: text } }],
+      },
+    },
+    size: makeSize(),
+    transform: makeTransform(index),
+  };
+}
+
+function makeImageElement(
+  objectId: string,
+  sourceUrl: string,
+  index = 0,
+): slides_v1.Schema$PageElement {
+  return {
+    objectId,
+    image: {
+      sourceUrl,
+    },
+    size: makeSize(),
+    transform: makeTransform(index),
+  };
+}
+
+function makeShapeElement(
+  objectId: string,
+  shapeType: string,
+  index = 0,
+  text?: string,
+): slides_v1.Schema$PageElement {
+  return {
+    objectId,
+    shape: {
+      shapeType,
+      text: text
+        ? {
+            textElements: [{ textRun: { content: text } }],
+          }
+        : undefined,
+    },
+    size: makeSize(),
+    transform: makeTransform(index),
+  };
+}
+
+function makeTableElement(
+  objectId: string,
+  rows: string[][],
+  index = 0,
+): slides_v1.Schema$PageElement {
+  return {
+    objectId,
+    table: {
+      rows: rows.length,
+      columns: rows[0]?.length ?? 0,
+      tableRows: rows.map((row) => ({
+        tableCells: row.map((text) => ({
+          text: text
+            ? {
+                textElements: [{ textRun: { content: text } }],
+              }
+            : undefined,
+        })),
+      })),
+    },
+    size: makeSize(),
+    transform: makeTransform(index),
+  };
+}
+
+function makeGroupElement(
+  objectId: string,
+  children: slides_v1.Schema$PageElement[],
+): slides_v1.Schema$PageElement {
+  return {
+    objectId,
+    elementGroup: {
+      children,
+    },
+  };
+}
+
+function makeUnsupportedVideoElement(
+  objectId: string,
+  index = 0,
+): slides_v1.Schema$PageElement {
+  return {
+    objectId,
+    video: {},
+    size: makeSize(),
+    transform: makeTransform(index),
+  };
+}
+
+function makePresentation(
+  slideIds: string[],
+  slideElementsById: Record<string, Array<string | slides_v1.Schema$PageElement>> = {},
+) {
   return {
     data: {
       slides: slideIds.map((slideId) => ({
         objectId: slideId,
-        pageElements: (slideTextById[slideId] ?? []).map((text, index) => ({
-          objectId: `${slideId}-shape-${index + 1}`,
-          shape: {
-            text: {
-              textElements: [{ textRun: { content: text } }],
-            },
-          },
-          size: {
-            height: { magnitude: 100, unit: "PT" },
-            width: { magnitude: 200, unit: "PT" },
-          },
-          transform: {
-            scaleX: 1,
-            scaleY: 1,
-            translateX: 10 + index,
-            translateY: 20 + index,
-            unit: "PT",
-          },
-        })),
+        pageElements: (slideElementsById[slideId] ?? []).map((element, index) =>
+          typeof element === "string"
+            ? makeTextShapeElement(`${slideId}-shape-${index + 1}`, element, index)
+            : element,
+        ),
       })),
     },
   };
@@ -287,9 +398,38 @@ describe("assembleMultiSourceDeck", () => {
     });
   });
 
-  it("copies the primary source, injects secondary slides, reorders the deck, and shares the assembled presentation", async () => {
+  it("copies the primary source, rebuilds supported secondary elements, surfaces unsupported ones, reorders the deck, and shares the assembled presentation", async () => {
+    const warnSpy = vi.mocked(console.warn);
     const driveClient = makeDriveClient();
-    const slidesClient = makeSlidesClient();
+    const slidesClient = makeSlidesClient({
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce(
+          makePresentation(["s4", "sx"], {
+            s4: [
+              makeImageElement("s4-image-1", "https://example.com/image.png", 0),
+              makeShapeElement("s4-shape-1", "RECTANGLE", 1),
+              makeTableElement(
+                "s4-table-1",
+                [
+                  ["Revenue", "Growth"],
+                  ["$10M", "20%"],
+                ],
+                2,
+              ),
+              makeGroupElement("s4-group-1", [
+                makeShapeElement("s4-group-child-shape", "ROUND_RECTANGLE", 3, "Grouped text"),
+                makeImageElement("s4-group-child-image", "https://example.com/group.png", 4),
+              ]),
+              makeUnsupportedVideoElement("s4-video-1", 5),
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"])),
+    });
     mockGetDriveClient.mockReturnValue(driveClient);
     mockGetSlidesClient.mockReturnValue(slidesClient);
 
@@ -342,30 +482,128 @@ describe("assembleMultiSourceDeck", () => {
         requests: [
           { createSlide: { objectId: "generated-s4", insertionIndex: 2 } },
           {
-            createShape: {
-              objectId: "generated-s4-shape-1",
-              shapeType: "TEXT_BOX",
+            createImage: {
+              objectId: "generated-s4-image-s4-image-1",
+              url: "https://example.com/image.png",
               elementProperties: {
                 pageObjectId: "generated-s4",
-                size: {
-                  height: { magnitude: 100, unit: "PT" },
-                  width: { magnitude: 200, unit: "PT" },
-                },
-                transform: {
-                  scaleX: 1,
-                  scaleY: 1,
-                  translateX: 10,
-                  translateY: 20,
-                  unit: "PT",
-                },
+                size: makeSize(),
+                transform: makeTransform(0),
+              },
+            },
+          },
+          {
+            createShape: {
+              objectId: "generated-s4-shape-s4-shape-1",
+              shapeType: "RECTANGLE",
+              elementProperties: {
+                pageObjectId: "generated-s4",
+                size: makeSize(),
+                transform: makeTransform(1),
+              },
+            },
+          },
+          {
+            createTable: {
+              objectId: "generated-s4-table-s4-table-1",
+              rows: 2,
+              columns: 2,
+              elementProperties: {
+                pageObjectId: "generated-s4",
+                size: makeSize(),
+                transform: makeTransform(2),
               },
             },
           },
           {
             insertText: {
-              objectId: "generated-s4-shape-1",
+              objectId: "generated-s4-table-s4-table-1",
+              cellLocation: {
+                rowIndex: 0,
+                columnIndex: 0,
+              },
               insertionIndex: 0,
-              text: "Secondary intro",
+              text: "Revenue",
+            },
+          },
+          {
+            insertText: {
+              objectId: "generated-s4-table-s4-table-1",
+              cellLocation: {
+                rowIndex: 0,
+                columnIndex: 1,
+              },
+              insertionIndex: 0,
+              text: "Growth",
+            },
+          },
+          {
+            insertText: {
+              objectId: "generated-s4-table-s4-table-1",
+              cellLocation: {
+                rowIndex: 1,
+                columnIndex: 0,
+              },
+              insertionIndex: 0,
+              text: "$10M",
+            },
+          },
+          {
+            insertText: {
+              objectId: "generated-s4-table-s4-table-1",
+              cellLocation: {
+                rowIndex: 1,
+                columnIndex: 1,
+              },
+              insertionIndex: 0,
+              text: "20%",
+            },
+          },
+          {
+            createShape: {
+              objectId: "generated-s4-shape-s4-group-child-shape",
+              shapeType: "ROUND_RECTANGLE",
+              elementProperties: {
+                pageObjectId: "generated-s4",
+                size: makeSize(),
+                transform: makeTransform(3),
+              },
+            },
+          },
+          {
+            insertText: {
+              objectId: "generated-s4-shape-s4-group-child-shape",
+              insertionIndex: 0,
+              text: "Grouped text",
+            },
+          },
+          {
+            createImage: {
+              objectId: "generated-s4-image-s4-group-child-image",
+              url: "https://example.com/group.png",
+              elementProperties: {
+                pageObjectId: "generated-s4",
+                size: makeSize(),
+                transform: makeTransform(4),
+              },
+            },
+          },
+          {
+            createShape: {
+              objectId: "generated-s4-placeholder-s4-video-1",
+              shapeType: "TEXT_BOX",
+              elementProperties: {
+                pageObjectId: "generated-s4",
+                size: makeSize(),
+                transform: makeTransform(5),
+              },
+            },
+          },
+          {
+            insertText: {
+              objectId: "generated-s4-placeholder-s4-video-1",
+              insertionIndex: 0,
+              text: "Unsupported element: video\nSource slide: s4\nElement: s4-video-1",
             },
           },
         ],
@@ -389,6 +627,9 @@ describe("assembleMultiSourceDeck", () => {
       fileId: "secondary-copy-1",
       supportsAllDrives: true,
     });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Unsupported element s4-video-1 (video) on source slide s4"),
+    );
     expect(mockShareWithOrg).toHaveBeenCalledWith({
       fileId: "primary-copy",
       ownerEmail: "owner@lumenalta.com",
