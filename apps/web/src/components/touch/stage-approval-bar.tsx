@@ -1,7 +1,14 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
 import type { HitlStage } from "./hitl-stage-stepper";
 
 interface StageApprovalBarProps {
@@ -9,6 +16,8 @@ interface StageApprovalBarProps {
   onApprove: () => void;
   isApproving?: boolean;
   isFinalStage?: boolean;
+  onRegenerate?: (feedback?: string) => void;
+  isRegenerating?: boolean;
 }
 
 export function StageApprovalBar({
@@ -16,26 +25,99 @@ export function StageApprovalBar({
   onApprove,
   isApproving = false,
   isFinalStage = false,
+  onRegenerate,
+  isRegenerating = false,
 }: StageApprovalBarProps) {
   const buttonLabel = isFinalStage ? "Mark as Ready" : "Approve & Continue";
+  const [feedbackText, setFeedbackText] = useState("");
+  const [popoverOpen, setPopoverOpen] = useState(false);
+
+  const handleSkip = () => {
+    setPopoverOpen(false);
+    setFeedbackText("");
+    onRegenerate?.();
+  };
+
+  const handleSubmitFeedback = () => {
+    setPopoverOpen(false);
+    const text = feedbackText.trim();
+    setFeedbackText("");
+    onRegenerate?.(text || undefined);
+  };
 
   return (
     <div className="sticky bottom-0 z-10 flex items-center justify-between border-t bg-white/95 px-4 py-3 backdrop-blur-sm">
       <p className="text-xs text-slate-500">Refine via chat before approving</p>
-      <Button
-        onClick={onApprove}
-        disabled={isApproving}
-        className="min-h-[44px] min-w-[120px] cursor-pointer"
-      >
-        {isApproving ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Processing...
-          </>
-        ) : (
-          buttonLabel
+      <div className="flex items-center gap-2">
+        {onRegenerate && (
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={isRegenerating || isApproving}
+                className="min-h-[44px] cursor-pointer gap-2"
+              >
+                {isRegenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Re-generating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    Re-generate
+                  </>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end">
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-slate-700">
+                  Add feedback (optional)
+                </label>
+                <Textarea
+                  placeholder="e.g. Make the headline more aggressive, focus on cost savings..."
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSkip}
+                    className="cursor-pointer"
+                  >
+                    Skip
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSubmitFeedback}
+                    className="cursor-pointer"
+                  >
+                    Re-generate
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
-      </Button>
+        <Button
+          onClick={onApprove}
+          disabled={isApproving || isRegenerating}
+          className="min-h-[44px] min-w-[120px] cursor-pointer"
+        >
+          {isApproving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            buttonLabel
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

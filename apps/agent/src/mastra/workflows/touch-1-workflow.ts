@@ -20,7 +20,7 @@ import {
   PagerContentLlmSchema,
   zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
-import { executeNamedAgent } from "../../lib/agent-executor";
+import { executeRuntimeNamedAgent as executeNamedAgent } from "../../lib/agent-executor";
 import { assembleFromTemplate } from "../../lib/slide-assembly";
 import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { ingestDocument } from "../../lib/atlusai-client";
@@ -62,6 +62,7 @@ const generateContent = createStep({
     industry: z.string(),
     context: z.string(),
     salespersonName: z.string().optional(),
+    runId: z.string().optional(),
   }),
   outputSchema: z.object({
     ...touch1BaseFields,
@@ -81,6 +82,7 @@ const generateContent = createStep({
           industry: inputData.industry,
           context: inputData.context,
           salespersonName: inputData.salespersonName,
+          runId: inputData.runId,
         }),
       },
     });
@@ -617,6 +619,7 @@ export const touch1Workflow = createWorkflow({
     industry: z.string(),
     context: z.string(),
     salespersonName: z.string().optional(),
+    runId: z.string().optional(),
   }),
   outputSchema: z.object({
     interactionId: z.string(),

@@ -39,7 +39,7 @@ import {
   zodToLlmJsonSchema,
   SOLUTION_PILLARS,
 } from "@lumenalta/schemas";
-import { executeNamedAgent } from "../../lib/agent-executor";
+import { executeRuntimeNamedAgent as executeNamedAgent } from "../../lib/agent-executor";
 import { searchForProposal } from "../../lib/atlusai-search";
 import {
   filterByMetadata,
@@ -84,6 +84,7 @@ const parseTranscript = createStep({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    runId: z.string().optional(),
   }),
   outputSchema: z.object({
     dealId: z.string(),
@@ -108,6 +109,7 @@ const parseTranscript = createStep({
           companyName: inputData.companyName,
           industry: inputData.industry,
           subsector: inputData.subsector,
+          runId: inputData.runId,
         }),
       },
     });
@@ -1735,6 +1737,7 @@ export const touch4Workflow = createWorkflow({
     subsector: z.string(),
     transcript: z.string(),
     additionalNotes: z.string().optional(),
+    runId: z.string().optional(),
   }),
   outputSchema: z.object({
     interactionId: z.string(),

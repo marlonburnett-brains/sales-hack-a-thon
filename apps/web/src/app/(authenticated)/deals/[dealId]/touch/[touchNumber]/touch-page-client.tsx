@@ -18,13 +18,9 @@ import type { HitlStage } from "@/components/touch/hitl-stage-stepper";
 import { HITL_STAGES } from "@/components/touch/hitl-stage-stepper";
 import {
   generateTouch1PagerAction,
-  checkTouch1StatusAction,
   generateTouch2DeckAction,
-  checkTouch2StatusAction,
   generateTouch3DeckAction,
-  checkTouch3StatusAction,
   generateTouch4BriefAction,
-  checkTouch4StatusAction,
   transitionStageAction,
   revertStageAction,
 } from "@/lib/actions/touch-actions";
@@ -286,6 +282,11 @@ export function TouchPageClient({
         industry
       );
 
+      if (!result.runId) {
+        setIsGenerating(false);
+        toast.error("Generation started but no run ID was returned. Please try again.");
+        return;
+      }
       setGenerationMessage("Generating content...");
       startPolling(result.runId);
     } catch (err) {
@@ -489,6 +490,34 @@ export function TouchPageClient({
     );
   }
 
+  // Stale/failed interaction: hitlStage and stageContent are both null,
+  // meaning the workflow failed during generation before completing the first step.
+  // Show the guided start so the user can retry instead of an infinite spinner.
+  if (!currentStage && !stageContent) {
+    return (
+      <TouchContextProvider value={touchContext}>
+        <div className="space-y-4">
+          <h1 className="text-xl font-bold text-slate-900">
+            Touch {touchNumber}: {touchName}
+          </h1>
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            A previous generation did not complete. You can start a new generation below.
+          </div>
+          <TouchGuidedStart
+            touchNumber={touchNumber}
+            touchType={touchType}
+            dealId={dealId}
+            companyName={companyName}
+            industry={industry}
+            onGenerate={handleGenerate}
+            isGenerating={isGenerating}
+          />
+          {interactions.length > 1 && historySection}
+        </div>
+      </TouchContextProvider>
+    );
+  }
+
   // Active stage
   return (
     <TouchContextProvider value={touchContext}>
@@ -521,19 +550,26 @@ export function TouchPageClient({
 // Utility functions
 // ────────────────────────────────────────────────────────────
 
+/**
+ * Returns a status-checker that uses a client-side fetch (Route Handler)
+ * instead of a server action. This prevents polling requests from blocking
+ * the Next.js server-action queue, which would otherwise stall client-side
+ * navigation while generation polling is active.
+ */
 function getStatusChecker(touchType: string) {
-  switch (touchType) {
-    case "touch_1":
-      return checkTouch1StatusAction;
-    case "touch_2":
-      return checkTouch2StatusAction;
-    case "touch_3":
-      return checkTouch3StatusAction;
-    case "touch_4":
-      return checkTouch4StatusAction;
-    default:
-      return checkTouch1StatusAction;
-  }
+  return async (runId: string) => {
+    const params = new URLSearchParams({ runId, touchType });
+    const res = await fetch(`/api/workflows/status?${params}`);
+    if (!res.ok) {
+      throw new Error(`Status check failed: ${res.status}`);
+    }
+    return res.json() as Promise<{
+      runId: string;
+      status: string;
+      steps?: Record<string, { status: string; output?: unknown; payload?: unknown }>;
+      result?: unknown;
+    }>;
+  };
 }
 
 async function startGeneration(

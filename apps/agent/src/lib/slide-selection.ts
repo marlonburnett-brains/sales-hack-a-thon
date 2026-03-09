@@ -25,7 +25,7 @@ import type {
   IntroDeckSelection,
   CapabilityDeckSelection,
 } from "@lumenalta/schemas";
-import { executeNamedAgent } from "./agent-executor";
+import { executeRuntimeNamedAgent as executeNamedAgent } from "./agent-executor";
 import { searchSlides, searchByCapability } from "./atlusai-search";
 import type { SlideSearchResult } from "./atlusai-search";
 

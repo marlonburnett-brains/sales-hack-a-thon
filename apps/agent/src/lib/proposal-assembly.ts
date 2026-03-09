@@ -21,7 +21,7 @@ import type {
   SlideAssembly,
   ProposalCopy,
 } from "@lumenalta/schemas";
-import { executeNamedAgent } from "./agent-executor";
+import { executeRuntimeNamedAgent as executeNamedAgent } from "./agent-executor";
 import type { SlideSearchResult } from "./atlusai-search";
 
 // ────────────────────────────────────────────────────────────

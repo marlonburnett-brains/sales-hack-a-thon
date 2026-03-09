@@ -32,6 +32,7 @@ const inputSchema = z.object({
   capabilityAreas: z.array(z.string()),
   context: z.string().optional(),
   priorTouchOutputs: z.array(z.string()).optional(),
+  runId: z.string().optional(),
 });
 
 const skeletonContentSchema = z.object({
@@ -86,6 +87,7 @@ const selectSlides = createStep({
           industry: inputData.industry,
           capabilityAreas: inputData.capabilityAreas,
           context: inputData.context,
+          runId: inputData.runId,
         }),
       },
     });

@@ -23,7 +23,7 @@ import {
   zodToLlmJsonSchema,
   SOLUTION_PILLARS,
 } from "@lumenalta/schemas";
-import { executeNamedAgent } from "../../lib/agent-executor";
+import { executeRuntimeNamedAgent as executeNamedAgent } from "../../lib/agent-executor";
 import { searchSlides } from "../../lib/atlusai-search";
 import { createGoogleDoc } from "../../lib/doc-builder";
 import type { DocSection } from "../../lib/doc-builder";

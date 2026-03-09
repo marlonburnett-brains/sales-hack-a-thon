@@ -1,0 +1,499 @@
+{
+  "presentationId": "primary-copy",
+  "requestBody": {
+    "requests": [
+      {
+        "createSlide": {
+          "objectId": "generated-s4",
+          "insertionIndex": 2
+        }
+      },
+      {
+        "updatePageProperties": {
+          "objectId": "generated-s4",
+          "pageProperties": {
+            "pageBackgroundFill": {
+              "solidFill": {
+                "color": {
+                  "rgbColor": {
+                    "red": 1,
+                    "green": 1,
+                    "blue": 1
+                  }
+                }
+              }
+            }
+          },
+          "fields": "pageBackgroundFill"
+        }
+      },
+      {
+        "createImage": {
+          "objectId": "generated-s4-ima-s4-image-1-1-42a31bacc0b7",
+          "url": "https://example.com/image.png",
+          "elementProperties": {
+            "pageObjectId": "generated-s4",
+            "size": {
+              "height": {
+                "magnitude": 100,
+                "unit": "PT"
+              },
+              "width": {
+                "magnitude": 200,
+                "unit": "PT"
+              }
+            },
+            "transform": {
+              "scaleX": 1,
+              "scaleY": 1,
+              "shearX": 0,
+              "shearY": 0,
+              "translateX": 10,
+              "translateY": 20,
+              "unit": "PT"
+            }
+          }
+        }
+      },
+      {
+        "createShape": {
+          "objectId": "generated-s4-sha-s4-shape-1-1-92c42adeca25",
+          "shapeType": "RECTANGLE",
+          "elementProperties": {
+            "pageObjectId": "generated-s4",
+            "size": {
+              "height": {
+                "magnitude": 100,
+                "unit": "PT"
+              },
+              "width": {
+                "magnitude": 200,
+                "unit": "PT"
+              }
+            },
+            "transform": {
+              "scaleX": 1,
+              "scaleY": 1,
+              "shearX": 0,
+              "shearY": 0,
+              "translateX": 11,
+              "translateY": 21,
+              "unit": "PT"
+            }
+          }
+        }
+      },
+      {
+        "updateShapeProperties": {
+          "objectId": "generated-s4-sha-s4-shape-1-1-92c42adeca25",
+          "shapeProperties": {
+            "shapeBackgroundFill": {
+              "solidFill": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0,
+                    "green": 1,
+                    "blue": 0
+                  }
+                }
+              }
+            }
+          },
+          "fields": "*"
+        }
+      },
+      {
+        "createTable": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "rows": 2,
+          "columns": 2,
+          "elementProperties": {
+            "pageObjectId": "generated-s4",
+            "size": {
+              "height": {
+                "magnitude": 100,
+                "unit": "PT"
+              },
+              "width": {
+                "magnitude": 200,
+                "unit": "PT"
+              }
+            },
+            "transform": {
+              "scaleX": 1,
+              "scaleY": 1,
+              "shearX": 0,
+              "shearY": 0,
+              "translateX": 12,
+              "translateY": 22,
+              "unit": "PT"
+            }
+          }
+        }
+      },
+      {
+        "updateTableColumnProperties": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "columnIndices": [
+            0
+          ],
+          "tableColumnProperties": {
+            "columnWidth": {
+              "magnitude": 100,
+              "unit": "PT"
+            }
+          },
+          "fields": "columnWidth"
+        }
+      },
+      {
+        "updateTableColumnProperties": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "columnIndices": [
+            1
+          ],
+          "tableColumnProperties": {
+            "columnWidth": {
+              "magnitude": 100,
+              "unit": "PT"
+            }
+          },
+          "fields": "columnWidth"
+        }
+      },
+      {
+        "insertText": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "insertionIndex": 0,
+          "text": "Revenue",
+          "cellLocation": {
+            "rowIndex": 0,
+            "columnIndex": 0
+          }
+        }
+      },
+      {
+        "updateParagraphStyle": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "style": {
+            "alignment": "RIGHT"
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 7
+          },
+          "fields": "*",
+          "cellLocation": {
+            "rowIndex": 0,
+            "columnIndex": 0
+          }
+        }
+      },
+      {
+        "updateTextStyle": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "style": {
+            "italic": true
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 7
+          },
+          "fields": "*",
+          "cellLocation": {
+            "rowIndex": 0,
+            "columnIndex": 0
+          }
+        }
+      },
+      {
+        "insertText": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "insertionIndex": 0,
+          "text": "Growth",
+          "cellLocation": {
+            "rowIndex": 0,
+            "columnIndex": 1
+          }
+        }
+      },
+      {
+        "updateParagraphStyle": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "style": {
+            "alignment": "RIGHT"
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 6
+          },
+          "fields": "*",
+          "cellLocation": {
+            "rowIndex": 0,
+            "columnIndex": 1
+          }
+        }
+      },
+      {
+        "updateTextStyle": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "style": {
+            "italic": true
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 6
+          },
+          "fields": "*",
+          "cellLocation": {
+            "rowIndex": 0,
+            "columnIndex": 1
+          }
+        }
+      },
+      {
+        "insertText": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "insertionIndex": 0,
+          "text": "$10M",
+          "cellLocation": {
+            "rowIndex": 1,
+            "columnIndex": 0
+          }
+        }
+      },
+      {
+        "updateParagraphStyle": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "style": {
+            "alignment": "RIGHT"
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 4
+          },
+          "fields": "*",
+          "cellLocation": {
+            "rowIndex": 1,
+            "columnIndex": 0
+          }
+        }
+      },
+      {
+        "updateTextStyle": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "style": {
+            "italic": true
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 4
+          },
+          "fields": "*",
+          "cellLocation": {
+            "rowIndex": 1,
+            "columnIndex": 0
+          }
+        }
+      },
+      {
+        "insertText": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "insertionIndex": 0,
+          "text": "20%",
+          "cellLocation": {
+            "rowIndex": 1,
+            "columnIndex": 1
+          }
+        }
+      },
+      {
+        "updateParagraphStyle": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "style": {
+            "alignment": "RIGHT"
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 3
+          },
+          "fields": "*",
+          "cellLocation": {
+            "rowIndex": 1,
+            "columnIndex": 1
+          }
+        }
+      },
+      {
+        "updateTextStyle": {
+          "objectId": "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+          "style": {
+            "italic": true
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 3
+          },
+          "fields": "*",
+          "cellLocation": {
+            "rowIndex": 1,
+            "columnIndex": 1
+          }
+        }
+      },
+      {
+        "createShape": {
+          "objectId": "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
+          "shapeType": "ROUND_RECTANGLE",
+          "elementProperties": {
+            "pageObjectId": "generated-s4",
+            "size": {
+              "height": {
+                "magnitude": 100,
+                "unit": "PT"
+              },
+              "width": {
+                "magnitude": 200,
+                "unit": "PT"
+              }
+            },
+            "transform": {
+              "scaleX": 1,
+              "scaleY": 1,
+              "shearX": 0,
+              "shearY": 0,
+              "translateX": 13,
+              "translateY": 23,
+              "unit": "PT"
+            }
+          }
+        }
+      },
+      {
+        "updateShapeProperties": {
+          "objectId": "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
+          "shapeProperties": {
+            "shapeBackgroundFill": {
+              "solidFill": {
+                "color": {
+                  "rgbColor": {
+                    "red": 0,
+                    "green": 1,
+                    "blue": 0
+                  }
+                }
+              }
+            }
+          },
+          "fields": "*"
+        }
+      },
+      {
+        "insertText": {
+          "objectId": "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
+          "insertionIndex": 0,
+          "text": "Grouped text"
+        }
+      },
+      {
+        "updateTextStyle": {
+          "objectId": "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
+          "style": {
+            "bold": true
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 12
+          },
+          "fields": "*"
+        }
+      },
+      {
+        "updateParagraphStyle": {
+          "objectId": "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
+          "style": {
+            "alignment": "LEFT"
+          },
+          "textRange": {
+            "type": "FIXED_RANGE",
+            "startIndex": 0,
+            "endIndex": 12
+          },
+          "fields": "*"
+        }
+      },
+      {
+        "createImage": {
+          "objectId": "generated-s4-ima-s4-group-c-2-d7dcb427e603",
+          "url": "https://example.com/group.png",
+          "elementProperties": {
+            "pageObjectId": "generated-s4",
+            "size": {
+              "height": {
+                "magnitude": 100,
+                "unit": "PT"
+              },
+              "width": {
+                "magnitude": 200,
+                "unit": "PT"
+              }
+            },
+            "transform": {
+              "scaleX": 1,
+              "scaleY": 1,
+              "shearX": 0,
+              "shearY": 0,
+              "translateX": 14,
+              "translateY": 24,
+              "unit": "PT"
+            }
+          }
+        }
+      },
+      {
+        "createShape": {
+          "objectId": "generated-s4-pla-s4-video-1-1-6aec0cd78457",
+          "shapeType": "TEXT_BOX",
+          "elementProperties": {
+            "pageObjectId": "generated-s4",
+            "size": {
+              "height": {
+                "magnitude": 100,
+                "unit": "PT"
+              },
+              "width": {
+                "magnitude": 200,
+                "unit": "PT"
+              }
+            },
+            "transform": {
+              "scaleX": 1,
+              "scaleY": 1,
+              "shearX": 0,
+              "shearY": 0,
+              "translateX": 15,
+              "translateY": 25,
+              "unit": "PT"
+            }
+          }
+        }
+      },
+      {
+        "insertText": {
+          "objectId": "generated-s4-pla-s4-video-1-1-6aec0cd78457",
+          "insertionIndex": 0,
+          "text": "Unsupported element: video\nSource slide: s4\nElement: s4-video-1"
+        }
+      }
+    ]
+  }
+}

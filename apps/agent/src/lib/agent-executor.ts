@@ -143,6 +143,19 @@ function toProviderContents(
 function toProviderResponseOptions(
   params: ExecuteNamedAgentParams,
 ): ProviderResponseOptions | undefined {
+  // Check structuredOutput first (used by workflow steps)
+  const structuredOutput = params.options?.structuredOutput as
+    | { schema?: Record<string, unknown> }
+    | undefined;
+
+  if (structuredOutput?.schema) {
+    return {
+      responseMimeType: "application/json",
+      responseSchema: structuredOutput.schema,
+    };
+  }
+
+  // Fall back to responseFormat (used by direct callers)
   const responseFormat = params.options?.responseFormat as
     | { type?: string; schema?: Record<string, unknown> }
     | undefined;

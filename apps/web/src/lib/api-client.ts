@@ -410,18 +410,21 @@ export async function startTouch1Workflow(
     salespersonName?: string;
   }
 ): Promise<WorkflowStartResult> {
-  return fetchWithGoogleAuth<WorkflowStartResult>(
-    "/api/workflows/touch-1-workflow/start",
+  const runId = crypto.randomUUID();
+  const result = await fetchWithGoogleAuth<WorkflowStartResult>(
+    `/api/workflows/touch-1-workflow/start-async?runId=${runId}`,
     {
       method: "POST",
       body: JSON.stringify({
         inputData: {
           dealId,
+          runId,
           ...formData,
         },
       }),
     }
   );
+  return { ...result, runId };
 }
 
 export async function resumeTouch1Workflow(
@@ -469,18 +472,21 @@ export async function startTouch2Workflow(
     priorTouchOutputs?: string[];
   }
 ): Promise<WorkflowStartResult> {
-  return fetchWithGoogleAuth<WorkflowStartResult>(
-    "/api/workflows/touch-2-workflow/start",
+  const runId = crypto.randomUUID();
+  const result = await fetchWithGoogleAuth<WorkflowStartResult>(
+    `/api/workflows/touch-2-workflow/start-async?runId=${runId}`,
     {
       method: "POST",
       body: JSON.stringify({
         inputData: {
           dealId,
+          runId,
           ...formData,
         },
       }),
     }
   );
+  return { ...result, runId };
 }
 
 export async function resumeTouch2Workflow(
@@ -525,18 +531,21 @@ export async function startTouch3Workflow(
     priorTouchOutputs?: string[];
   }
 ): Promise<WorkflowStartResult> {
-  return fetchWithGoogleAuth<WorkflowStartResult>(
-    "/api/workflows/touch-3-workflow/start",
+  const runId = crypto.randomUUID();
+  const result = await fetchWithGoogleAuth<WorkflowStartResult>(
+    `/api/workflows/touch-3-workflow/start-async?runId=${runId}`,
     {
       method: "POST",
       body: JSON.stringify({
         inputData: {
           dealId,
+          runId,
           ...formData,
         },
       }),
     }
   );
+  return { ...result, runId };
 }
 
 export async function resumeTouch3Workflow(
@@ -581,18 +590,21 @@ export async function startTouch4Workflow(
     additionalNotes?: string;
   }
 ): Promise<WorkflowStartResult> {
-  return fetchWithGoogleAuth<WorkflowStartResult>(
-    "/api/workflows/touch-4-workflow/start",
+  const runId = crypto.randomUUID();
+  const result = await fetchWithGoogleAuth<WorkflowStartResult>(
+    `/api/workflows/touch-4-workflow/start-async?runId=${runId}`,
     {
       method: "POST",
       body: JSON.stringify({
         inputData: {
           dealId,
+          runId,
           ...formData,
         },
       }),
     }
   );
+  return { ...result, runId };
 }
 
 export async function getTouch4WorkflowStatus(
@@ -807,13 +819,15 @@ export async function startPreCallWorkflow(
     meetingContext: string;
   }
 ): Promise<WorkflowStartResult> {
-  return fetchWithGoogleAuth<WorkflowStartResult>(
-    "/api/workflows/pre-call-workflow/start",
+  const runId = crypto.randomUUID();
+  const result = await fetchWithGoogleAuth<WorkflowStartResult>(
+    `/api/workflows/pre-call-workflow/start-async?runId=${runId}`,
     {
       method: "POST",
       body: JSON.stringify({ inputData: { dealId, ...formData } }),
     }
   );
+  return { ...result, runId };
 }
 
 export async function getPreCallWorkflowStatus(

@@ -53,9 +53,13 @@ export function PersistentDealChat({ dealId }: { dealId: string }) {
   const [greeting, setGreeting] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<DealChatSuggestion[]>([]);
 
+  // Stabilize segments into a primitive key so useMemo doesn't recompute
+  // on every render (useSelectedLayoutSegments returns a new array each time).
+  const segmentsKey = segments.join("/");
   const routeContext = useMemo(
     () => buildRouteContext(pathname, segments),
-    [pathname, segments],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- segments is derived from segmentsKey
+    [pathname, segmentsKey],
   );
 
   useEffect(() => {

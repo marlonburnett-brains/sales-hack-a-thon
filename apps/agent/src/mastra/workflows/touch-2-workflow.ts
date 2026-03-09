@@ -35,6 +35,7 @@ const inputSchema = z.object({
   customerLogoUrl: z.string().optional(),
   context: z.string().optional(),
   priorTouchOutputs: z.array(z.string()).optional(),
+  runId: z.string().optional(),
 });
 
 const skeletonContentSchema = z.object({
@@ -93,6 +94,7 @@ const selectSlides = createStep({
           salespersonName: inputData.salespersonName,
           customerName: inputData.customerName,
           context: inputData.context,
+          runId: inputData.runId,
         }),
       },
     });
