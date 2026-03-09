@@ -140,7 +140,9 @@
   1. `generation/types.ts` exports GenerationBlueprint, SectionSlot, SlideSelectionPlan, MultiSourcePlan, ModificationPlan, and DealContext types
   2. All LLM-facing schemas are flat objects with no optionals or unions (Gemini structured output compatible)
   3. Types compile cleanly and are importable from any `generation/` module without circular dependency errors
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
 
 ### Phase 51: Blueprint Resolver
 **Goal**: The system can read a DeckStructure and produce an ordered GenerationBlueprint with candidate slides resolved to full SlideEmbedding records
@@ -151,7 +153,9 @@
   2. Each SectionSlot contains candidateSlideIds resolved to SlideEmbedding records with classification metadata and source presentationId (via Template join)
   3. All 7 logical DeckStructure keys are supported (touch_1, touch_2, touch_3, pre_call, touch_4 x proposal/talk_track/faq)
   4. Missing or empty DeckStructure returns null gracefully (enables downstream fallback routing)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
 
 ### Phase 52: Multi-Source Slide Assembler
 **Goal**: The system can take a set of slide selections (slideId + source presentationId pairs) and assemble them into a single Google Slides presentation preserving original designs
@@ -163,7 +167,9 @@
   3. Single-source case skips multi-source logic and uses standard copy-and-prune efficiently
   4. All temporary Drive copies are cleaned up in finally blocks regardless of success or failure
   5. Output presentation is saved to the deal's Google Drive folder and shared with org
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
 
 ### Phase 53: Modification Planner
 **Goal**: The system can examine a slide's element map and deal context to produce a surgical modification plan specifying which text elements to change and what the new content should be
@@ -175,7 +181,9 @@
   3. The planner distinguishes deal-specific content (company names, industry references) from structural content (methodology, capabilities) and only modifies deal-specific content
   4. A "modification-planner" named agent is registered in AgentConfig with a versioned system prompt
   5. When element maps are missing for a slide, the planner falls back to placeholder injection
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
 
 ### Phase 54: Section Matcher
 **Goal**: For each section in a GenerationBlueprint, the system selects the best candidate slide based on deal context (industry, pillar, persona, funnel stage)
@@ -187,7 +195,9 @@
   3. Each section's selected slideId resolves to a source presentationId via SlideEmbedding.templateId -> Template.presentationId
   4. When deal context is sparse, the matcher falls back to the highest-confidence candidate rather than failing
   5. Slides already used in prior touches for the same deal are excluded from selection (cross-touch exclusion)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
 
 ### Phase 55: Modification Executor
 **Goal**: Planned modifications are executed surgically on assembled slides via Google Slides API without cross-slide contamination
@@ -198,7 +208,9 @@
   2. The presentation is re-read after each slide's modifications to handle objectId drift
   3. Failed element modifications are skipped with warnings logged, and remaining slides continue processing
   4. No global replaceAllText is used -- all text operations are element-targeted (deleteText + insertText)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
 
 ### Phase 56: HITL Integration
 **Goal**: Sellers review and approve generation output at three stages: blueprint composition, assembled deck, and modification plan
@@ -209,7 +221,9 @@
   2. Low-fi stage presents the assembled multi-source Google Slides deck URL for review, and the seller can approve or request changes
   3. High-fi stage presents the modification plan summary showing which elements change, executes approved modifications, and presents the final deck URL
   4. All HITL stages use the existing Mastra suspend/resume pattern -- only data payloads change, not the mechanism
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
 
 ### Phase 57: Touch Routing & Fallback
 **Goal**: All 4 touch types route through the structure-driven pipeline when a DeckStructure exists, with graceful fallback to legacy paths when it does not
@@ -222,7 +236,9 @@
   4. When no DeckStructure exists, each touch falls back to its legacy generation path (slide-assembly.ts, deck-customizer.ts, deck-assembly.ts respectively)
   5. No existing generation code is deleted -- all legacy paths are preserved as fallbacks
   6. DeckStructure confidence gating: green (6+ examples) auto-generates; yellow/red shows warning and offers manual selection
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
 
 ## Progress
 
@@ -283,7 +299,7 @@
 | 47. Drive Artifact Integration | v1.7 | 3/3 | Complete | 2026-03-08 |
 | 48. HITL Stage Revert Route | v1.7 | 1/1 | Complete | 2026-03-09 |
 | 49. Tech Debt Cleanup | v1.7 | 2/2 | Complete | 2026-03-09 |
-| 50. Foundation Types & Interfaces | v1.8 | 0/TBD | Not started | - |
+| 50. Foundation Types & Interfaces | v1.8 | 0/1 | Planning | - |
 | 51. Blueprint Resolver | v1.8 | 0/TBD | Not started | - |
 | 52. Multi-Source Slide Assembler | v1.8 | 0/TBD | Not started | - |
 | 53. Modification Planner | v1.8 | 0/TBD | Not started | - |
