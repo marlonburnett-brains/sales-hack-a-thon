@@ -76,12 +76,13 @@ describe("deal chat binding proxy route", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          Authorization: "Bearer test-key",
+          "X-API-Key": "test-key",
           "X-Google-Access-Token": "google-token",
           "X-User-Id": "user-1",
         }),
       }),
     );
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Authorization");
     expect(JSON.parse(mockFetch.mock.calls[0][1].body as string)).toEqual({
       action: "correct",
       touchType: "touch_2",
