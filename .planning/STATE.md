@@ -5,7 +5,7 @@ milestone_name: Structure-Driven Deck Generation
 status: completed
 stopped_at: Completed 52-05-PLAN.md
 last_updated: "2026-03-09T14:53:18.054Z"
-last_activity: "2026-03-09 - Completed quick task 21: Redesign draft generation to be content-type aware"
+last_activity: "2026-03-09 - Completed quick task 22: Switch LLM from gpt-oss-120b to Gemini 3.1 Flash Lite"
 progress:
   total_phases: 8
   completed_phases: 8
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 57 of 57 (Touch Routing & Fallback)
 Plan: 01 of 01 (complete)
 Status: Phase 57 complete -- v1.8 milestone complete
-Last activity: 2026-03-09 - Completed quick task 21: Redesign draft generation to be content-type aware
+Last activity: 2026-03-09 - Completed quick task 22: Switch LLM from gpt-oss-120b to Gemini 3.1 Flash Lite
 
 Progress: [██████████] 100%
 
@@ -83,6 +83,7 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 22 | Switch LLM from gpt-oss-120b to Gemini 3.1 Flash Lite | 2026-03-09 | 49f1ab3 | [22-switch-llm-from-gpt-oss-120b-to-gemini-3](./quick/22-switch-llm-from-gpt-oss-120b-to-gemini-3/) |
 | 21 | Redesign draft generation to be content-type aware | 2026-03-09 | dc44384 | [21-redesign-draft-generation-to-be-content-](./quick/21-redesign-draft-generation-to-be-content-/) |
 | 20 | Enrich deck structure loader with element samples | 2026-03-09 | 7cd5cab | [20-enrich-deck-structure-loader-to-include-](./quick/20-enrich-deck-structure-loader-to-include-/) |
 | 19 | Make all touch workflow draft generation template-aware | 2026-03-09 | 9419e20 | [19-make-all-touch-workflow-draft-generation](./quick/19-make-all-touch-workflow-draft-generation/) |
@@ -111,6 +112,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T23:27:20Z
-Stopped at: Completed quick task 21
+Last session: 2026-03-09T23:44:42Z
+Stopped at: Completed quick task 22
 Next action: v1.8 milestone complete
