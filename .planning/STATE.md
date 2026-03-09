@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
-status: completed
-stopped_at: Completed 48-01-PLAN.md
-last_updated: "2026-03-09T02:39:21.950Z"
-last_activity: "2026-03-09 - Completed quick task 14: Add web research tool to Deal chat assistant"
+status: executing
+stopped_at: Completed 49-01-PLAN.md
+last_updated: "2026-03-09T02:52:00.228Z"
+last_activity: "2026-03-09 - Completed 49-01: Fix env-coupled test + auth contract docs"
 progress:
   total_phases: 9
-  completed_phases: 8
-  total_plans: 28
-  completed_plans: 28
-  percent: 100
+  completed_phases: 9
+  total_plans: 30
+  completed_plans: 30
+  percent: 98
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 
 ## Current Position
 
-Phase: 47 of 47 (Drive Artifact Integration)
-Plan: Complete
-Status: Completed
-Last activity: 2026-03-09 - Completed quick task 14: Add web research tool to Deal chat assistant
+Phase: 49 of 49 (Tech Debt Cleanup)
+Plan: 1 of 2
+Status: In Progress
+Last activity: 2026-03-09 - Completed 49-01: Fix env-coupled test + auth contract docs
 
-Progress: [██████████] 100%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
@@ -95,6 +95,7 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 45]: Rendered upload state inline in the persistent composer with replace/remove controls so the dock-first layout stays compact across deal pages.
 - [Phase 45]: Live validation uncovered a Mastra auth issue, so the deal-chat web bridge and shared server-side agent client currently stay on `Authorization: Bearer ...` as a temporary workaround instead of `X-API-Key`.
 - [Phase 45]: Kept the auth behavior shared in `fetchAgent()` and the route proxies so the temporary bearer workaround stays consistent across bootstrap, streaming, and binding flows until Mastra is fixed.
+- [Phase 49]: Used vi.mock for env module to prevent eager t3-env validation during dynamic import in agent-registry test
 
 ### Pending Todos
 
@@ -128,6 +129,7 @@ None.
 | Phase 45 P06 | 6 min | 2 tasks | 10 files |
 | Phase 45 P07 | 2 min | 2 tasks | 8 files |
 | Phase 48 P01 | 1min | 2 tasks | 1 files |
+| Phase 49 P01 | 2min | 2 tasks | 4 files |
 
 ### Blockers/Concerns
 
@@ -138,6 +140,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T02:37:31.640Z
-Stopped at: Completed 48-01-PLAN.md
+Last session: 2026-03-09T02:52:00.224Z
+Stopped at: Completed 49-01-PLAN.md
 Next action: No remaining roadmap plans -- v1.7 is complete.
