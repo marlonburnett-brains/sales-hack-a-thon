@@ -193,12 +193,12 @@ FR-1 (Types) ──────────────────────�
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FR-1.1 | Phase 50 | Pending |
-| FR-1.2 | Phase 50 | Pending |
-| FR-1.3 | Phase 50 | Pending |
-| FR-1.4 | Phase 50 | Pending |
-| FR-1.5 | Phase 50 | Pending |
-| FR-1.6 | Phase 50 | Pending |
+| FR-1.1 | Phase 50 | Complete |
+| FR-1.2 | Phase 50 | Complete |
+| FR-1.3 | Phase 50 | Complete |
+| FR-1.4 | Phase 50 | Complete |
+| FR-1.5 | Phase 50 | Complete |
+| FR-1.6 | Phase 50 | Complete |
 | FR-2.1 | Phase 51 | Pending |
 | FR-2.2 | Phase 51 | Pending |
 | FR-2.3 | Phase 51 | Pending |
@@ -251,7 +251,7 @@ FR-1 (Types) ──────────────────────�
 | NFR-2 | Phase 57 | Pending |
 | NFR-3 | Phase 52 | Pending |
 | NFR-4 | Phase 57 | Pending |
-| NFR-5 | Phase 50 | Pending |
+| NFR-5 | Phase 50 | Complete |
 | NFR-6 | Phase 52 | Pending |
 | NFR-7 | Phase 55 | Pending |
 | NFR-8 | Phase 55 | Pending |
