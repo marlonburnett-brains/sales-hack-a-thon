@@ -123,7 +123,7 @@
 
 - [x] **Phase 50: Foundation Types & Interfaces** - Shared TypeScript types and Zod schemas for the generation pipeline (completed 2026-03-09)
 - [x] **Phase 51: Blueprint Resolver** - DeckStructure consumption producing GenerationBlueprint with candidate slides per section (completed 2026-03-09)
-- [ ] **Phase 52: Multi-Source Slide Assembler** - Cherry-pick slides from multiple source presentations into one deck via copy-and-prune
+- [x] **Phase 52: Multi-Source Slide Assembler** - Cherry-pick slides from multiple source presentations into one deck via copy-and-prune (completed 2026-03-09)
 - [x] **Phase 53: Modification Planner** - LLM-driven per-slide modification planning using element maps and deal context (completed 2026-03-09)
 - [ ] **Phase 54: Section Matcher** - Context-aware slide selection scoring candidates by industry, pillar, persona, funnel stage
 - [x] **Phase 55: Modification Executor** - Execute planned modifications via scoped Google Slides API batchUpdate (completed 2026-03-09)
@@ -168,8 +168,8 @@ Plans:
   5. Output presentation is saved to the deal's Google Drive folder and shared with org
 **Plans**: 2 plans
 Plans:
-- [ ] 52-01-PLAN.md — Core helpers (groupSlidesBySource, buildMultiSourcePlan) and single-source fast path (TDD)
-- [ ] 52-02-PLAN.md — Multi-source assembly engine with secondary injection, cleanup, share, and error handling
+- [x] 52-01-PLAN.md — Core helpers (groupSlidesBySource, buildMultiSourcePlan) and single-source fast path (TDD)
+- [x] 52-02-PLAN.md — Multi-source assembly engine with secondary injection, cleanup, share, and error handling
 
 ### Phase 53: Modification Planner
 **Goal**: The system can examine a slide's element map and deal context to produce a surgical modification plan specifying which text elements to change and what the new content should be
@@ -301,7 +301,7 @@ Plans:
 | 49. Tech Debt Cleanup | v1.7 | 2/2 | Complete | 2026-03-09 |
 | 50. Foundation Types & Interfaces | 1/1 | Complete    | 2026-03-09 | - |
 | 51. Blueprint Resolver | 1/1 | Complete    | 2026-03-09 | - |
-| 52. Multi-Source Slide Assembler | 1/2 | In Progress|  | - |
+| 52. Multi-Source Slide Assembler | 2/2 | Complete   | 2026-03-09 | - |
 | 53. Modification Planner | 1/1 | Complete    | 2026-03-09 | - |
 | 54. Section Matcher | v1.8 | 0/TBD | Not started | - |
 | 55. Modification Executor | 1/1 | Complete   | 2026-03-09 | - |

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Structure-Driven Deck Generation
-status: executing
-stopped_at: Completed 55-01-PLAN.md
-last_updated: "2026-03-09T05:01:55.380Z"
-last_activity: 2026-03-09 -- Phase 55 Plan 01 executed (modification executor with sequential slide re-reads and skip-safe batch updates)
+status: in_progress
+stopped_at: Completed 52-02-PLAN.md
+last_updated: "2026-03-09T05:04:30.373Z"
+last_activity: 2026-03-09 -- Phase 52 Plan 02 executed (multi-source assembly engine with secondary injection, cleanup, and graceful degradation)
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 91
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Phase 52 - Multi-Source Slide Assembler
+**Current focus:** Phase 54 - Section Matcher
 
 ## Current Position
 
-Phase: 52 of 57 (Multi-Source Slide Assembler)
-Plan: 01 of 02 (complete)
-Status: Phase 52 in progress
-Last activity: 2026-03-09 -- Phase 55 Plan 01 executed (modification executor with sequential slide re-reads and skip-safe batch updates)
+Phase: 54 of 57 (Section Matcher)
+Plan: 01 of 01 (next)
+Status: Phase 54 ready to execute
+Last activity: 2026-03-09 -- Phase 52 Plan 02 executed (multi-source assembly engine with secondary injection, cleanup, and graceful degradation)
 
 Progress: [█████████░] 91%
 
@@ -56,8 +56,12 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 52]: Primary source ties are broken by Map insertion order — Keeps buildMultiSourcePlan deterministic for equal-size source groups
 - [Phase 52]: Single-source plans delegate to assembleDeckFromSlides — Reuses the proven copy-and-prune path instead of duplicating assembly logic
 - [Phase 52]: Multi-source execution remains stubbed until Plan 02 — Separates pure planning helpers from Google API orchestration work
+- [Phase 52]: Secondary slides are recreated as generated target slides with original->generated objectId mapping — Enables final ordering across preserved primary slides and injected secondary content
+- [Phase 52]: Missing secondary slides, failed secondary copies, and cleanup failures are warning-only paths — Keeps deck assembly usable even when one source degrades
 - [Phase 55]: Execute slide text updates with element-scoped deleteText and insertText pairs. — Element-level operations prevent cross-slide contamination and align directly with ModificationPlan element IDs.
 - [Phase 55]: Process modification plans sequentially and isolate per-slide failures as skipped results. — Sequential re-reads guard against objectId drift, while skip-on-failure preserves partial success for later slides.
+- [Phase 52]: Secondary slides are recreated as generated target slides with original-to-generated objectId mapping — This preserves primary slide ids while letting finalSlideOrder mix copied primary slides with injected secondary content safely.
+- [Phase 52]: Missing secondary slides, failed secondary copies, and cleanup failures are warning-only paths — Partial but usable deck output is preferable to aborting the whole assembly when one secondary source degrades.
 
 ### Pending Todos
 
@@ -73,6 +77,7 @@ None.
 | Phase 50 P01 | 5min | 2 tasks | 4 files |
 | Phase 52-multi-source-slide-assembler P01 | 3 min | 1 tasks | 3 files |
 | Phase 55 P01 | 3 min | 2 tasks | 3 files |
+| Phase 52 P02 | 6 min | 2 tasks | 3 files |
 
 ### Blockers/Concerns
 
@@ -82,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T05:01:19.543Z
-Stopped at: Completed 55-01-PLAN.md
-Next action: Execute 52-02-PLAN.md
+Last session: 2026-03-09T05:01:55.380Z
+Stopped at: Completed 52-02-PLAN.md
+Next action: Execute 54-01-PLAN.md
