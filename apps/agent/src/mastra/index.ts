@@ -665,8 +665,8 @@ export const mastra = new Mastra({
             where.status = statusParam;
           }
 
-          // Filter by assignee
-          if (assigneeParam) {
+          // Filter by assignee (skip when "all" or absent)
+          if (assigneeParam && assigneeParam !== "all") {
             const targetUserId = assigneeParam === "me" ? userIdParam : assigneeParam;
             if (targetUserId) {
               where.OR = [

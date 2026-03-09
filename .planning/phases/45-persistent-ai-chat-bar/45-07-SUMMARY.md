@@ -2,37 +2,39 @@
 phase: 45-persistent-ai-chat-bar
 plan: 07
 subsystem: api
-tags: [deal-chat, auth, x-api-key, mastra, vitest]
+tags: [deal-chat, auth, bearer, mastra, vitest]
 requires:
   - phase: 45-05
     provides: "Typed web proxy and shared server-side deal-chat client seam"
   - phase: 45-06
     provides: "Transcript upload flow on the shared deal-chat route family"
 provides:
-  - "Deal-chat route proxies authenticate with X-API-Key for bootstrap, streaming, and binding saves"
-  - "Shared server-side agent client uses X-API-Key across deal-chat helpers and covered shared fetch paths"
-  - "Regression suites fail if Authorization returns on the touched deal-chat bridge"
+  - "Deal-chat route proxies currently authenticate with Authorization bearer tokens for bootstrap, streaming, and binding saves due to a Mastra auth issue"
+  - "Shared server-side agent client currently uses Authorization bearer tokens across deal-chat helpers and covered shared fetch paths"
+  - "Regression suites now lock in the temporary bearer contract while preserving passthrough Google and user headers"
 affects: [phase-45-verification, deal-chat-bridge, agent-service-auth]
 tech-stack:
   added: []
-  patterns: ["Protected web-to-agent requests use X-API-Key to match Mastra SimpleAuth", "Deal-chat proxy and server-side client tests assert passthrough Google and user headers while rejecting Authorization"]
+  patterns: ["Protected web-to-agent requests currently use Authorization bearer tokens until the Mastra auth issue is resolved", "Deal-chat proxy and server-side client tests assert passthrough Google and user headers while rejecting X-API-Key drift"]
 key-files:
   created: [.planning/phases/45-persistent-ai-chat-bar/45-07-SUMMARY.md]
   modified: [apps/web/src/app/api/deals/[dealId]/chat/route.ts, apps/web/src/app/api/deals/[dealId]/chat/bindings/route.ts, apps/web/src/app/api/deals/[dealId]/chat/__tests__/route.test.ts, apps/web/src/app/api/deals/[dealId]/chat/bindings/__tests__/route.test.ts, apps/web/src/lib/api-client.ts, apps/web/src/lib/__tests__/api-client.deal-chat.test.ts, apps/web/src/lib/__tests__/api-client-actions.test.ts, apps/web/src/lib/__tests__/slide-api-client.test.ts]
 key-decisions:
-  - "Switched the deal-chat web bridge and shared server-side agent client to X-API-Key only so protected Mastra routes match the declared SimpleAuth contract end to end."
-  - "Kept the fix in shared fetchAgent coverage instead of a deal-chat-only override so future server-side agent calls cannot silently drift back to bearer auth."
+  - "Mastra currently requires Authorization bearer auth in practice for the deal-chat bridge, so the temporary runtime contract remains bearer even though the earlier gap-closure attempt targeted X-API-Key."
+  - "Kept the auth seam shared in fetchAgent so the temporary bearer workaround stays consistent anywhere the web app calls the protected agent runtime."
 patterns-established:
-  - "Protected agent fetch helpers should assert X-API-Key and explicitly reject Authorization in focused regression tests."
+  - "Protected agent fetch helpers should currently assert Authorization bearer auth and explicitly reject X-API-Key drift until the Mastra issue is resolved."
   - "Shared helper tests that touch Google-auth flows should mock token retrieval before importing api-client utilities."
 requirements-completed: [CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05]
 duration: 2 min
 completed: 2026-03-09
 ---
 
-# Phase 45 Plan 07: X-API-Key Chat Bridge Summary
+# Phase 45 Plan 07: Deal Chat Auth Bridge Summary
 
-**Deal-chat bootstrap, streaming turns, and binding confirmations now use the protected agent runtime's X-API-Key contract across both route proxies and shared server-side helpers.**
+**Deal-chat bootstrap, streaming turns, and binding confirmations currently use `Authorization: Bearer ...` across both route proxies and shared server-side helpers because of an unresolved Mastra auth issue.**
+
+Temporary note: the earlier `X-API-Key` gap-closure implementation was rolled back after live validation showed Mastra still requires bearer auth for this path right now.
 
 ## Performance
 
@@ -43,9 +45,9 @@ completed: 2026-03-09
 - **Files modified:** 8
 
 ## Accomplishments
-- Switched the deal-chat proxy routes to send `X-API-Key` while preserving `X-Google-Access-Token` and `X-User-Id` passthrough headers.
-- Updated the shared `fetchAgent()` seam so deal-chat bootstrap, streamed sends, and binding confirmations follow the same SimpleAuth contract server-side.
-- Hardened focused regressions so touched route and api-client paths fail if `Authorization` bearer auth comes back.
+- Confirmed the deal-chat proxy routes are back on `Authorization: Bearer ...` while preserving `X-Google-Access-Token` and `X-User-Id` passthrough headers.
+- Confirmed the shared `fetchAgent()` seam uses the same bearer contract for deal-chat bootstrap, streamed sends, and binding confirmations.
+- Updated focused regressions so touched route and api-client paths fail if `X-API-Key` is reintroduced before the Mastra issue is resolved.
 
 ## Task Commits
 
@@ -59,18 +61,18 @@ Each task was committed atomically:
 **Plan metadata:** pending
 
 ## Files Created/Modified
-- `apps/web/src/app/api/deals/[dealId]/chat/route.ts` - sends `X-API-Key` on bootstrap and streamed chat proxy requests.
-- `apps/web/src/app/api/deals/[dealId]/chat/bindings/route.ts` - sends `X-API-Key` on binding confirmation and correction saves.
-- `apps/web/src/app/api/deals/[dealId]/chat/__tests__/route.test.ts` - locks proxy auth headers to `X-API-Key` and rejects `Authorization`.
+- `apps/web/src/app/api/deals/[dealId]/chat/route.ts` - sends bearer auth on bootstrap and streamed chat proxy requests.
+- `apps/web/src/app/api/deals/[dealId]/chat/bindings/route.ts` - sends bearer auth on binding confirmation and correction saves.
+- `apps/web/src/app/api/deals/[dealId]/chat/__tests__/route.test.ts` - locks proxy auth headers to bearer auth and rejects `X-API-Key` drift.
 - `apps/web/src/app/api/deals/[dealId]/chat/bindings/__tests__/route.test.ts` - covers binding proxy auth header regression.
-- `apps/web/src/lib/api-client.ts` - switches shared protected agent fetches to `X-API-Key`.
+- `apps/web/src/lib/api-client.ts` - keeps shared protected agent fetches on bearer auth for the current Mastra workaround.
 - `apps/web/src/lib/__tests__/api-client.deal-chat.test.ts` - covers server-side deal-chat bootstrap, send, and binding auth headers.
-- `apps/web/src/lib/__tests__/api-client-actions.test.ts` - aligns shared helper auth assertions with `X-API-Key`.
-- `apps/web/src/lib/__tests__/slide-api-client.test.ts` - aligns shared helper auth assertions and stabilizes Google-auth setup for shared helper coverage.
+- `apps/web/src/lib/__tests__/api-client-actions.test.ts` - aligns shared helper auth assertions with bearer auth.
+- `apps/web/src/lib/__tests__/slide-api-client.test.ts` - aligns shared helper auth assertions with bearer auth and keeps the Google-auth setup stable.
 
 ## Decisions Made
-- Used `X-API-Key` exclusively for the touched deal-chat bridge because the protected Mastra runtime explicitly declares `headers: ["X-API-Key"]` and does not accept bearer auth.
-- Applied the auth change in shared `fetchAgent()` rather than adding a special-case deal-chat override so the common server-only seam stays consistent anywhere it reaches the protected agent runtime.
+- Kept `Authorization: Bearer ...` for the touched deal-chat bridge because live behavior currently depends on that workaround despite the earlier Mastra header-contract assumption.
+- Kept the auth behavior in shared `fetchAgent()` rather than adding a deal-chat-only exception so the workaround stays consistent anywhere the web app reaches the protected agent runtime.
 
 ## Deviations from Plan
 
@@ -91,6 +93,7 @@ Each task was committed atomically:
 
 ## Issues Encountered
 - The configured `$HOME/.claude/get-shit-done/bin/gsd-tools.cjs` path was missing in this environment, so plan metadata updates used the repo-local `./.claude/get-shit-done/bin/gsd-tools.cjs` helper instead.
+- Mastra currently rejects or mishandles the attempted `X-API-Key` path for this flow, so the temporary bearer workaround remains the validated runtime contract.
 
 ## User Setup Required
 

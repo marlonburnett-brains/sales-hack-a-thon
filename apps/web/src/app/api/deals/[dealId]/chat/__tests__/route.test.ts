@@ -111,13 +111,13 @@ describe("deal chat proxy route", () => {
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({
-          "X-API-Key": "test-key",
+          Authorization: "Bearer test-key",
           "X-Google-Access-Token": "google-token",
           "X-User-Id": "user-1",
         }),
       }),
     );
-    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Authorization");
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("X-API-Key");
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
       "http://test-agent:4111/deals/deal-1/chat",
@@ -134,13 +134,13 @@ describe("deal chat proxy route", () => {
           },
         }),
         headers: expect.objectContaining({
-          "X-API-Key": "test-key",
+          Authorization: "Bearer test-key",
           "X-Google-Access-Token": "google-token",
           "X-User-Id": "user-1",
         }),
       }),
     );
-    expect(mockFetch.mock.calls[1]?.[1]?.headers).not.toHaveProperty("Authorization");
+    expect(mockFetch.mock.calls[1]?.[1]?.headers).not.toHaveProperty("X-API-Key");
     expect(response.status).toBe(200);
   });
 

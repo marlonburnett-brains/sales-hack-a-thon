@@ -57,11 +57,11 @@ describe("PREV-05: Slide api-client functions call correct endpoints", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          "X-API-Key": "test-key",
+          Authorization: "Bearer test-key",
         }),
       })
     );
-    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Authorization");
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("X-API-Key");
     expect(result).toEqual([
       { id: "s1", slideIndex: 0, reviewStatus: "unreviewed" },
     ]);
@@ -86,11 +86,11 @@ describe("PREV-05: Slide api-client functions call correct endpoints", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          "X-API-Key": "test-key",
+          Authorization: "Bearer test-key",
         }),
       })
     );
-    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Authorization");
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("X-API-Key");
     expect(result.thumbnails).toHaveLength(1);
     expect(result.thumbnails[0].thumbnailUrl).toBe("http://thumb.png");
   });

@@ -29,7 +29,7 @@ async function fetchAgent(path: string, init?: RequestInit): Promise<Response> {
       ...init,
       headers: {
         "Content-Type": "application/json",
-        "X-API-Key": env.AGENT_API_KEY,
+        Authorization: `Bearer ${env.AGENT_API_KEY}`,
         ...init?.headers,
       },
     });
@@ -185,7 +185,7 @@ export async function listDealsFiltered(params: {
 }): Promise<Deal[]> {
   const qs = new URLSearchParams();
   if (params.status) qs.set("status", params.status);
-  if (params.assignee) qs.set("assignee", params.assignee);
+  if (params.assignee && params.assignee !== "all") qs.set("assignee", params.assignee);
   if (params.userId) qs.set("userId", params.userId);
   return fetchJSON<Deal[]>(`/deals?${qs}`);
 }

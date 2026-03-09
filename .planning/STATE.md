@@ -93,8 +93,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 45]: Kept transcript uploads on the existing /api/deals/[dealId]/chat JSON route by sending browser-read text instead of adding a multipart upload endpoint.
 - [Phase 45]: Allowed upload-only sends in the shared deal-chat contract so sellers can attach a transcript without typed instructions and still reach the confirmation-first save flow.
 - [Phase 45]: Rendered upload state inline in the persistent composer with replace/remove controls so the dock-first layout stays compact across deal pages.
-- [Phase 45]: Switched the deal-chat web bridge and shared server-side agent client to X-API-Key only so protected Mastra routes match the declared SimpleAuth contract end to end.
-- [Phase 45]: Kept the fix in shared fetchAgent coverage instead of a deal-chat-only override so future server-side agent calls cannot silently drift back to bearer auth.
+- [Phase 45]: Live validation uncovered a Mastra auth issue, so the deal-chat web bridge and shared server-side agent client currently stay on `Authorization: Bearer ...` as a temporary workaround instead of `X-API-Key`.
+- [Phase 45]: Kept the auth behavior shared in `fetchAgent()` and the route proxies so the temporary bearer workaround stays consistent across bootstrap, streaming, and binding flows until Mastra is fixed.
 
 ### Pending Todos
 

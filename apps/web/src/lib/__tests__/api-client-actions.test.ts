@@ -50,11 +50,11 @@ describe("UI-api-client: Action Required API client helpers", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          "X-API-Key": "test-key",
+          Authorization: "Bearer test-key",
         }),
       })
     );
-    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Authorization");
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("X-API-Key");
     expect(result).toEqual(mockActions);
   });
 
@@ -71,11 +71,11 @@ describe("UI-api-client: Action Required API client helpers", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          "X-API-Key": "test-key",
+          Authorization: "Bearer test-key",
         }),
       })
     );
-    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Authorization");
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("X-API-Key");
     expect(count).toBe(7);
   });
 
@@ -98,11 +98,11 @@ describe("UI-api-client: Action Required API client helpers", () => {
         method: "PATCH",
         headers: expect.objectContaining({
           "Content-Type": "application/json",
-          "X-API-Key": "test-key",
+          Authorization: "Bearer test-key",
         }),
       })
     );
-    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Authorization");
+    expect(mockFetch.mock.calls[0]?.[1]?.headers).not.toHaveProperty("X-API-Key");
     expect(result).toEqual(resolved);
   });
 

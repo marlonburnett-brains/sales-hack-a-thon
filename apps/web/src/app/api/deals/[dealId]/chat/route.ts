@@ -13,7 +13,7 @@ type RouteParams = {
 function buildProxyHeaders(request: NextRequest): HeadersInit {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-API-Key": env.AGENT_API_KEY,
+    Authorization: `Bearer ${env.AGENT_API_KEY}`,
   };
 
   const googleAccessToken = request.headers.get("X-Google-Access-Token");
