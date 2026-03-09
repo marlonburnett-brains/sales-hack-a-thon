@@ -81,6 +81,7 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 17 | Add Collapse text to sidebar button and inline user info | 2026-03-09 | 6d71df7 | [17-add-collapse-text-to-sidebar-collapse-bu](./quick/17-add-collapse-text-to-sidebar-collapse-bu/) |
 | 16 | Rename system to AtlusDeck and update logo | 2026-03-09 | a65ef86 | [16-rename-system-to-atlusdeck-and-update-lo](./quick/16-rename-system-to-atlusdeck-and-update-lo/) |
 | 15 | Replace AGENT_API_KEY with Supabase JWT auth between web and agent | 2026-03-09 | d3b7e6b | [15-replace-agent-api-key-with-supabase-jwt-](./quick/15-replace-agent-api-key-with-supabase-jwt-/) |
 | 14 | Add web research tool (Tavily) to deal chat assistant | 2026-03-09 | b3729b9 | [14-add-web-research-tool-to-deal-chat-assis](./quick/14-add-web-research-tool-to-deal-chat-assis/) |
