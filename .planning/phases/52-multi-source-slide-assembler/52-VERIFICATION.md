@@ -6,13 +6,13 @@ score: 10/11 must-haves verified
 gaps:
   - truth: "Given slides from 2+ source presentations, the assembler produces a single output presentation with slides from all sources preserving original designs in the specified order"
     status: failed
-    reason: "Secondary-source assembly recreates text boxes only. It does not preserve or reconstruct non-text elements, so multi-source output cannot be verified as preserving original slide designs."
+    reason: "Live fidelity check failed. Element-by-element reconstruction (via createShape/createImage) loses critical design fidelity (text styling, alignments, fills, borders, backgrounds), causing severe visual distortion and overlapping text. Unsupported elements (like lines) still require placeholders. The reconstruction approach is structurally insufficient for high-fidelity cloning."
     artifacts:
       - path: "apps/agent/src/generation/multi-source-assembler.ts"
-        issue: "Secondary slides are rebuilt from extractTextElements() and createSlide/createShape/insertText requests only; images, charts, tables, non-text shapes, and other design-bearing elements are not copied."
+        issue: "Secondary slides are rebuilt element-by-element which fails to capture theme styling, text formatting, backgrounds, and full layout structure, resulting in unacceptable visual distortion."
     missing:
-      - "Preserve or reconstruct non-text secondary-slide elements and layout, not just text boxes"
-      - "Add automated coverage proving secondary-slide fidelity for design-bearing elements"
+      - "Replace the element-by-element reconstruction approach with a true high-fidelity cloning mechanism (e.g., using proper page cloning or API-native slide copying if available across presentations)."
+      - "Ensure secondary slide theme, backgrounds, and element-level styling are fully preserved."
 ---
 
 # Phase 52: Multi-Source Slide Assembler Verification Report
@@ -40,7 +40,7 @@ Plan frontmatter defined 10 must-haves across 52-01 and 52-02. One additional go
 | 8 | All temporary Drive copies are deleted in finally blocks regardless of success or failure | ✓ VERIFIED | Cleanup loop in `multi-source-assembler.ts:277-289`; tested at `...test.ts:548-607`. |
 | 9 | Assembled presentation is shared with org and saved to the deal's Drive folder | ✓ VERIFIED | Parent folder passed in primary `drive.files.copy` request at `multi-source-assembler.ts:124-127`; `shareWithOrg()` call at `268-271`; verified by tests at `...test.ts:316-323` and `392-395`. |
 | 10 | Rate limit stays within 60 writes/min for a typical 12-slide deck from 3 sources | ✓ VERIFIED | Code batches primary deletes and final reorder into single `batchUpdate` calls (`143-154`, `252-265`). Typical write count remains well below 60/min even with per-secondary-slide batch updates. |
-| 11 | Given slides from 2+ source presentations, the assembler produces a single output presentation preserving original designs | ✗ FAILED | Secondary-slide reconstruction only reads `slide.pageElements[].shape.text.textElements` and emits `createSlide` + `createShape(TEXT_BOX)` + `insertText` requests in `multi-source-assembler.ts:194-228,293-314`; no handling for images, charts, tables, backgrounds, or non-text shapes. |
+| 11 | Given slides from 2+ source presentations, the assembler produces a single output presentation preserving original designs | ✗ FAILED | Live fidelity check failed: element-by-element reconstruction loses critical design fidelity (text styling, alignments, fills, borders, backgrounds) causing severe visual distortion and overlapping text. |
 
 **Score:** 10/11 truths verified
 
@@ -68,7 +68,7 @@ Plan frontmatter defined 10 must-haves across 52-01 and 52-02. One additional go
 | FR-4.1 | 52-01 | Group selected slides by source `presentationId` | ✓ SATISFIED | `groupSlidesBySource()` in `multi-source-assembler.ts:33-45`; tests `120-160`. |
 | FR-4.2 | 52-01 | Identify primary source (most slides selected) and use as base via `drive.files.copy()` | ✓ SATISFIED | Primary selection in `47-63`; base copy in `122-129`; tests cover selection and primary copy call. |
 | FR-4.3 | 52-02 | Delete unneeded slides from the base copy | ✓ SATISFIED | Delete requests built from copied primary deck in `141-157`; tested at `332-337`. |
-| FR-4.4 | 52-02 | Copy/extract/merge secondary source slides into target | ✗ BLOCKED | Secondary slides are not copied with design fidelity; implementation only reconstructs text boxes from shape text (`194-228`, `293-314`). |
+| FR-4.4 | 52-02 | Copy/extract/merge secondary source slides into target | ✗ BLOCKED | Secondary slides are not copied with design fidelity; element-by-element reconstruction loses text styling, backgrounds, and full structure. |
 | FR-4.5 | 52-02 | Reorder all slides via `updateSlidesPosition` | ✓ SATISFIED | `updateSlidesPosition` requests in `252-265`; tested at `375-385`. |
 | FR-4.6 | 52-02 | Clean up all temporary copies in `finally` blocks | ✓ SATISFIED | `finally` cleanup loop at `277-289`; cleanup-failure behavior tested at `548-607`. |
 | FR-4.7 | 52-02 | Share assembled presentation with org | ✓ SATISFIED | `shareWithOrg()` at `268-271`; tested at `392-395`. |
@@ -83,7 +83,7 @@ All requirement IDs declared in PLAN frontmatter are accounted for in `REQUIREME
 
 | File | Line | Pattern | Severity | Impact |
 | --- | --- | --- | --- | --- |
-| `apps/agent/src/generation/multi-source-assembler.ts` | 194-228, 293-314 | Text-only secondary slide reconstruction | 🛑 Blocker | Multi-source output cannot be verified as preserving original slide designs because only text boxes are recreated. |
+| `apps/agent/src/generation/multi-source-assembler.ts` | 194-228, 293-314 | Element-by-element reconstruction fails fidelity | 🛑 Blocker | Element-by-element reconstruction loses styling, backgrounds, and theme alignment leading to overlapping text and missing design properties. |
 
 ### Human Verification Required
 
@@ -97,7 +97,7 @@ All requirement IDs declared in PLAN frontmatter are accounted for in `REQUIREME
 
 Phase 52 delivers the planning helpers, single-source fast path, primary copy-and-prune flow, secondary copy/injection orchestration, reorder, sharing, and temp cleanup. Targeted Vitest coverage passes.
 
-However, the phase goal is not fully achieved. The multi-source path does **not** preserve original designs for secondary slides: it extracts text from shape text runs and recreates text boxes, but it does not recreate images, charts, tables, backgrounds, non-text shapes, or full slide layout/theme fidelity. That leaves FR-4.4 and the phase goal unmet for real multi-source finished decks.
+However, the phase goal is not fully achieved. The multi-source path does **not** preserve original designs for secondary slides: while an attempt was made to reconstruct slides element-by-element (images, shapes, tables), live verification revealed that this approach is structurally insufficient. Critical design fidelity (text styling, alignments, fills, borders, and backgrounds) is lost, causing severe visual distortion and overlapping text. Unsupported elements like lines still require placeholders. A true high-fidelity cloning approach is required for FR-4.4 and the phase goal to be met.
 
 ---
 
