@@ -166,9 +166,10 @@ Plans:
   3. Single-source case skips multi-source logic and uses standard copy-and-prune efficiently
   4. All temporary Drive copies are cleaned up in finally blocks regardless of success or failure
   5. Output presentation is saved to the deal's Google Drive folder and shared with org
-**Plans**: 1 plan
+**Plans**: 2 plans
 Plans:
-- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
+- [ ] 52-01-PLAN.md — Core helpers (groupSlidesBySource, buildMultiSourcePlan) and single-source fast path (TDD)
+- [ ] 52-02-PLAN.md — Multi-source assembly engine with secondary injection, cleanup, share, and error handling
 
 ### Phase 53: Modification Planner
 **Goal**: The system can examine a slide's element map and deal context to produce a surgical modification plan specifying which text elements to change and what the new content should be
@@ -300,7 +301,7 @@ Plans:
 | 49. Tech Debt Cleanup | v1.7 | 2/2 | Complete | 2026-03-09 |
 | 50. Foundation Types & Interfaces | 1/1 | Complete    | 2026-03-09 | - |
 | 51. Blueprint Resolver | 1/1 | Complete   | 2026-03-09 | - |
-| 52. Multi-Source Slide Assembler | v1.8 | 0/TBD | Not started | - |
+| 52. Multi-Source Slide Assembler | v1.8 | 0/2 | Planned | - |
 | 53. Modification Planner | v1.8 | 0/1 | Planned | - |
 | 54. Section Matcher | v1.8 | 0/TBD | Not started | - |
 | 55. Modification Executor | v1.8 | 0/TBD | Not started | - |
