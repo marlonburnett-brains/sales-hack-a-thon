@@ -1521,6 +1521,59 @@ export const mastra = new Mastra({
         },
       }),
 
+      // POST /interactions/:id/revert-stage -- Revert HITL stage to an earlier stage
+      registerApiRoute("/interactions/:id/revert-stage", {
+        method: "POST",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const body = await c.req.json();
+            const data = z
+              .object({
+                targetStage: z.enum(["skeleton", "lowfi", "highfi"]),
+              })
+              .parse(body);
+
+            const STAGE_ORDER: Record<string, number> = {
+              skeleton: 0,
+              lowfi: 1,
+              highfi: 2,
+              ready: 3,
+            };
+
+            const interaction =
+              await prisma.interactionRecord.findUniqueOrThrow({
+                where: { id },
+                select: { hitlStage: true },
+              });
+
+            const currentIndex =
+              STAGE_ORDER[interaction.hitlStage ?? "skeleton"] ?? 0;
+            const targetIndex = STAGE_ORDER[data.targetStage] ?? 0;
+
+            if (targetIndex >= currentIndex) {
+              return c.json(
+                { error: "Can only revert to an earlier stage" },
+                400
+              );
+            }
+
+            await prisma.interactionRecord.update({
+              where: { id },
+              data: { hitlStage: data.targetStage, stageContent: null },
+            });
+
+            return c.json({ success: true });
+          } catch (err) {
+            console.error("[revert-stage] Error:", err);
+            return c.json(
+              { error: "Stage revert failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
       // ────────────────────────────────────────────────────────────
       // Template CRUD + Drive Access (Phase 19 -- TMPL-05/06/07)
       // ────────────────────────────────────────────────────────────
