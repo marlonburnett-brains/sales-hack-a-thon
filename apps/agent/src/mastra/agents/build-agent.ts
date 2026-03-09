@@ -6,13 +6,14 @@ import { getPublishedAgentConfig } from "../../lib/agent-config";
 import { env } from "../../env";
 
 // Mastra splits on the first "/" — provider becomes "vertex", and the model name
-// sent in the request body becomes "openai/gpt-oss-120b-maas", which is the
-// <publisher>/<model> format that Vertex AI Model Garden requires.
-const MODEL_ID = "vertex/openai/gpt-oss-120b-maas";
+// sent in the request body becomes "google/gemini-3.1-flash-lite-preview".
+// The Vertex AI OpenAI-compatible endpoint serves both Model Garden and native
+// Gemini models.
+const MODEL_ID = "vertex/google/gemini-3.1-flash-lite-preview";
 
 /**
- * Vertex AI Model Garden OpenAI-compatible endpoint URL.
- * Uses the same pattern as the classify-metadata ingestion path.
+ * Vertex AI OpenAI-compatible endpoint URL.
+ * Serves both Model Garden and native Gemini models.
  */
 const VERTEX_OPENAI_BASE_URL = `https://${env.GOOGLE_CLOUD_LOCATION}-aiplatform.googleapis.com/v1/projects/${env.GOOGLE_CLOUD_PROJECT}/locations/${env.GOOGLE_CLOUD_LOCATION}/endpoints/openapi`;
 
