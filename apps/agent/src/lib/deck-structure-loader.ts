@@ -129,6 +129,209 @@ export async function loadDeckSectionsWithElements(
   }
 }
 
+// ────────────────────────────────────────────────────────────
+// Slot analysis variants (all elements, richer data for slot counting)
+// ────────────────────────────────────────────────────────────
+
+/** Data shape for slot-analysis elements (includes fontSize + positionY). */
+export interface SlotAnalysisElement {
+  contentText: string;
+  elementType: string;
+  isBold: boolean;
+  fontSize: number | null;
+  positionY: number;
+}
+
+/** Return type for loadDeckSectionsForSlotAnalysis. */
+export interface SlotAnalysisData {
+  sections: DeckSection[];
+  elementsBySlideId: Map<string, SlotAnalysisElement[]>;
+}
+
+/**
+ * Load DeckStructure sections AND ALL text elements per slide
+ * (no take limit) with fontSize and positionY for slot counting.
+ */
+export async function loadDeckSectionsForSlotAnalysis(
+  touchType: string,
+  artifactType?: ArtifactType | null,
+): Promise<SlotAnalysisData | null> {
+  try {
+    const sections = await loadDeckSections(touchType, artifactType);
+    if (!sections || sections.length === 0) {
+      return null;
+    }
+
+    const allSlideIds = sections.flatMap((s) => s.slideIds);
+    if (allSlideIds.length === 0) {
+      return { sections, elementsBySlideId: new Map() };
+    }
+
+    const slides = await prisma.slideEmbedding.findMany({
+      where: { id: { in: allSlideIds } },
+      select: {
+        id: true,
+        elements: {
+          where: { contentText: { not: "" } },
+          orderBy: { positionY: "asc" },
+          select: {
+            contentText: true,
+            elementType: true,
+            isBold: true,
+            fontSize: true,
+            positionY: true,
+          },
+        },
+      },
+    });
+
+    const elementsBySlideId = new Map<string, SlotAnalysisElement[]>();
+    for (const slide of slides) {
+      if (slide.elements.length > 0) {
+        elementsBySlideId.set(slide.id, slide.elements);
+      }
+    }
+
+    return { sections, elementsBySlideId };
+  } catch (err) {
+    console.warn("[deck-structure-loader] Failed to load deck sections for slot analysis:", err);
+    return null;
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Slot derivation
+// ────────────────────────────────────────────────────────────
+
+/** Per-section slot counts derived from template element analysis. */
+export interface SectionSlotCounts {
+  sectionName: string;
+  sectionPurpose: string;
+  headlineCount: number;
+  bodyParagraphCount: number;
+  metricCount: number;
+  bulletPointCount: number;
+}
+
+const METRIC_VALUE_RE = /^[\d.,]+[%xXkKmMbB$+\-~]*$/;
+const DOLLAR_AMOUNT_RE = /^\$[\d.,]+[kKmMbB]*$/;
+
+/**
+ * Classify template elements into content slot types and return
+ * per-section counts. Used to instruct the LLM on how many of each
+ * content type to generate per section.
+ */
+export function deriveSectionSlotCounts(
+  sections: DeckSection[],
+  elementsBySlideId: Map<string, SlotAnalysisElement[]>,
+): SectionSlotCounts[] {
+  return sections.map((section) => {
+    // Collect elements from ALL slides in this section
+    const slideCount = section.slideIds.length || 1;
+    let totalHeadlines = 0;
+    let totalBody = 0;
+    let totalMetrics = 0;
+    let totalBullets = 0;
+
+    for (const slideId of section.slideIds) {
+      const elements = elementsBySlideId.get(slideId);
+      if (!elements) continue;
+
+      // Deduplicate by contentText within this slide
+      const seen = new Set<string>();
+      for (const el of elements) {
+        const text = el.contentText.trim();
+        if (!text || seen.has(text)) continue;
+        seen.add(text);
+
+        // Classification priority: metric > headline > body > bullet
+        if (METRIC_VALUE_RE.test(text) || DOLLAR_AMOUNT_RE.test(text)) {
+          totalMetrics++;
+        } else if (
+          (el.fontSize != null && el.fontSize >= 18) ||
+          (el.isBold && text.length < 80)
+        ) {
+          totalHeadlines++;
+        } else if (text.length > 100) {
+          totalBody++;
+        } else {
+          totalBullets++;
+        }
+      }
+    }
+
+    return {
+      sectionName: section.name,
+      sectionPurpose: section.purpose,
+      headlineCount: Math.ceil(totalHeadlines / slideCount),
+      bodyParagraphCount: Math.ceil(totalBody / slideCount),
+      metricCount: Math.ceil(totalMetrics / slideCount),
+      bulletPointCount: Math.ceil(totalBullets / slideCount),
+    };
+  });
+}
+
+// ────────────────────────────────────────────────────────────
+// Slot-aware prompt formatter
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Format DeckStructure sections with slot counts and example content
+ * into a human-readable string for LLM prompts.
+ */
+export function formatSectionsWithSlotsForPrompt(
+  slotCounts: SectionSlotCounts[],
+  sections: DeckSection[],
+  elementsBySlideId: Map<string, SlotAnalysisElement[]>,
+): string {
+  return sections
+    .map((section) => {
+      const slots = slotCounts.find((sc) => sc.sectionName === section.name);
+
+      let block = `## Section ${section.order}: ${section.name}\nPurpose: ${section.purpose}\nRequired: ${section.isOptional ? "no" : "yes"}`;
+
+      if (slots) {
+        block += `\nContent slots needed:`;
+        block += `\n- Headlines: ${slots.headlineCount} (large/bold text items)`;
+        block += `\n- Body paragraphs: ${slots.bodyParagraphCount} (narrative text blocks)`;
+        block += `\n- Metrics: ${slots.metricCount} (value + label pairs, e.g., "80%" / "Reduction in QA effort")`;
+        block += `\n- Bullet points: ${slots.bulletPointCount} (capability/feature items)`;
+      }
+
+      // Add example content (same pattern as formatSectionsWithElementsForPrompt)
+      const allElements: SlotAnalysisElement[] = [];
+      for (const slideId of section.slideIds) {
+        const elements = elementsBySlideId.get(slideId);
+        if (elements) {
+          allElements.push(...elements);
+        }
+      }
+
+      if (allElements.length > 0) {
+        const seen = new Set<string>();
+        const unique: SlotAnalysisElement[] = [];
+        for (const el of allElements) {
+          if (!seen.has(el.contentText)) {
+            seen.add(el.contentText);
+            unique.push(el);
+          }
+        }
+
+        const samples = unique.slice(0, 5).map((el) => {
+          const text =
+            el.contentText.slice(0, 150) +
+            (el.contentText.length > 150 ? "..." : "");
+          return `- ${text}`;
+        });
+
+        block += `\nExample content from this section:\n${samples.join("\n")}`;
+      }
+
+      return block;
+    })
+    .join("\n\n");
+}
+
 /**
  * Format DeckStructure sections with representative element text samples
  * into a human-readable string for LLM prompts.

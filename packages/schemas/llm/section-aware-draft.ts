@@ -1,38 +1,60 @@
 /**
- * SectionDraftLlmSchema -- Section-aware Draft Content
+ * ContentSlotDraftSchema -- Content-type-aware Draft Schema
  *
  * Template-aware draft schema that maps LLM output to DeckStructure
- * sections. Each section entry corresponds to a DeckSection from the
- * inferred deck structure, allowing content to be generated per-slot
- * instead of as flat global fields.
+ * sections with structured content slots (headlines, bodyParagraphs,
+ * metrics, bulletPoints, speakerNotes) per section.
+ *
+ * Replaces the old SectionDraftLlmSchema which used a single contentText
+ * blob per section. Structured slots bridge the gap between draft content
+ * and element-level modification.
  *
  * LLM-safe: flat object, no transforms, no optionals, no unions.
  */
 
 import { z } from "zod";
 
-export const SectionDraftEntrySchema = z.object({
+export const SectionContentSlotSchema = z.object({
   sectionName: z.string().meta({
     description:
-      "Name of the template section this content is for (maps to DeckSection.name).",
+      "Name of the template section (maps to DeckSection.name).",
   }),
   sectionPurpose: z.string().meta({
-    description:
-      "Why this section exists in the deck (maps to DeckSection.purpose).",
+    description: "Why this section exists in the deck.",
   }),
-  contentText: z.string().meta({
+  headlines: z.array(z.string()).meta({
     description:
-      "The LLM-generated content tailored for this section, personalized for the target company.",
+      "Large/bold text items: titles, section headers, callout phrases.",
+  }),
+  bodyParagraphs: z.array(z.string()).meta({
+    description:
+      "Narrative text blocks: case study descriptions, value propositions, company overviews.",
+  }),
+  metrics: z
+    .array(
+      z.object({
+        value: z.string().meta({
+          description:
+            "The metric number, e.g. '80%', '$1.5B', '3-5x'.",
+        }),
+        label: z.string().meta({
+          description:
+            "What the metric measures, e.g. 'Reduction in QA effort'.",
+        }),
+      }),
+    )
+    .meta({
+      description: "Quantitative proof points as value+label pairs.",
+    }),
+  bulletPoints: z.array(z.string()).meta({
+    description: "Capability items, feature bullets, list entries.",
   }),
   speakerNotes: z.string().meta({
-    description:
-      "Brief talking points for the presenter when presenting this section.",
+    description: "Brief talking points for the presenter.",
   }),
 });
 
-export type SectionDraftEntry = z.infer<typeof SectionDraftEntrySchema>;
-
-export const SectionDraftLlmSchema = z.object({
+export const ContentSlotDraftSchema = z.object({
   companyName: z.string().meta({
     description: "Name of the target company.",
   }),
@@ -40,17 +62,24 @@ export const SectionDraftLlmSchema = z.object({
     description: "Primary industry of the target company.",
   }),
   headline: z.string().meta({
-    description:
-      "Overall deck headline tailored to the company's situation.",
+    description: "Overall deck headline tailored to the company.",
   }),
-  sections: z.array(SectionDraftEntrySchema).meta({
+  sections: z.array(SectionContentSlotSchema).meta({
     description:
-      "One entry per template section with content tailored to that section's purpose.",
+      "One entry per template section with structured content slots.",
   }),
   callToAction: z.string().meta({
+    description: "Specific call to action for the next step.",
+  }),
+  contactName: z.string().meta({
     description:
-      "Specific call to action for the next step (e.g., schedule intro call).",
+      "Contact person name if available. Leave empty string if not available.",
+  }),
+  contactRole: z.string().meta({
+    description:
+      "Contact person role if available. Leave empty string if not available.",
   }),
 });
 
-export type SectionDraft = z.infer<typeof SectionDraftLlmSchema>;
+export type SectionContentSlot = z.infer<typeof SectionContentSlotSchema>;
+export type ContentSlotDraft = z.infer<typeof ContentSlotDraftSchema>;

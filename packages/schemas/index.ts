@@ -77,10 +77,10 @@ export {
 export { ROIFramingLlmSchema, type ROIFraming } from "./llm/roi-framing.ts";
 export { PagerContentLlmSchema, type PagerContent } from "./llm/pager-content.ts";
 export {
-  SectionDraftLlmSchema,
-  SectionDraftEntrySchema,
-  type SectionDraft,
-  type SectionDraftEntry,
+  ContentSlotDraftSchema,
+  SectionContentSlotSchema,
+  type ContentSlotDraft,
+  type SectionContentSlot,
 } from "./llm/section-aware-draft.ts";
 export {
   IntroDeckSelectionLlmSchema,
