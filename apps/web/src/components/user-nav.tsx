@@ -5,7 +5,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -20,35 +19,37 @@ interface UserNavProps {
     email: string;
     avatarUrl: string;
   };
+  collapsed?: boolean;
 }
 
-export function UserNav({ user }: UserNavProps) {
+export function UserNav({ user, collapsed }: UserNavProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="relative h-8 w-8 rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          className={`flex items-center gap-3 rounded-md px-1 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${collapsed ? "" : "w-full hover:bg-slate-50"}`}
           aria-label="User menu"
         >
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatarUrl} alt={user.name} />
-            <AvatarFallback>
-              {user.name ? user.name.charAt(0).toUpperCase() : "U"}
-            </AvatarFallback>
-          </Avatar>
-          <GoogleTokenBadge />
+          <div className="relative shrink-0">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={user.avatarUrl} alt={user.name} />
+              <AvatarFallback>
+                {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+              </AvatarFallback>
+            </Avatar>
+            <GoogleTokenBadge />
+          </div>
+          {!collapsed && (
+            <div className="min-w-0 flex-1 text-left">
+              <p className="truncate text-sm font-medium text-slate-900">
+                {user.name}
+              </p>
+              <p className="truncate text-xs text-slate-500">{user.email}</p>
+            </div>
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer"
           onClick={async () => {
