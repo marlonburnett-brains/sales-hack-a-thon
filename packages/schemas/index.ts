@@ -118,6 +118,15 @@ export {
   type BuyerFaq,
 } from "./llm/buyer-faq.ts";
 
+// Generation pipeline types
+export {
+  type GenerationBlueprint,
+  type SectionSlot,
+  type SlideSelectionPlan,
+  type SlideSelectionEntry,
+  type DealContext,
+} from "./generation/types.ts";
+
 // App schemas (internal, may use transforms/optionals)
 export {
   InteractionRecordSchema,
