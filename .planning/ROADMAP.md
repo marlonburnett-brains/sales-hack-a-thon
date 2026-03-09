@@ -197,7 +197,7 @@ Plans:
   5. Slides already used in prior touches for the same deal are excluded from selection (cross-touch exclusion)
 **Plans**: 1 plan
 Plans:
-- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
+- [ ] 54-01-PLAN.md — Section matcher with metadata scoring and vector tiebreaker
 
 ### Phase 55: Modification Executor
 **Goal**: Planned modifications are executed surgically on assembled slides via Google Slides API without cross-slide contamination
@@ -210,7 +210,7 @@ Plans:
   4. No global replaceAllText is used -- all text operations are element-targeted (deleteText + insertText)
 **Plans**: 1 plan
 Plans:
-- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
+- [ ] 55-01-PLAN.md — Modification executor with TDD tests and executeModifications function
 
 ### Phase 56: HITL Integration
 **Goal**: Sellers review and approve generation output at three stages: blueprint composition, assembled deck, and modification plan
@@ -223,7 +223,7 @@ Plans:
   4. All HITL stages use the existing Mastra suspend/resume pattern -- only data payloads change, not the mechanism
 **Plans**: 1 plan
 Plans:
-- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
+- [ ] 56-01-PLAN.md — Wire 3-stage HITL to generation pipeline data flow
 
 ### Phase 57: Touch Routing & Fallback
 **Goal**: All 4 touch types route through the structure-driven pipeline when a DeckStructure exists, with graceful fallback to legacy paths when it does not
@@ -238,7 +238,7 @@ Plans:
   6. DeckStructure confidence gating: green (6+ examples) auto-generates; yellow/red shows warning and offers manual selection
 **Plans**: 1 plan
 Plans:
-- [ ] 50-01-PLAN.md — Shared generation types, agent-only types, and ModificationPlan LLM schema
+- [ ] 57-01-PLAN.md — Touch routing with structure-driven pipeline and legacy fallback
 
 ## Progress
 
