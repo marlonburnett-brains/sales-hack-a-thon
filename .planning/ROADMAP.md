@@ -122,7 +122,7 @@
 - Wave 4: Phase 56 + Phase 57 (parallel -- integration, depend on all prior)
 
 - [x] **Phase 50: Foundation Types & Interfaces** - Shared TypeScript types and Zod schemas for the generation pipeline (completed 2026-03-09)
-- [ ] **Phase 51: Blueprint Resolver** - DeckStructure consumption producing GenerationBlueprint with candidate slides per section
+- [x] **Phase 51: Blueprint Resolver** - DeckStructure consumption producing GenerationBlueprint with candidate slides per section (completed 2026-03-09)
 - [ ] **Phase 52: Multi-Source Slide Assembler** - Cherry-pick slides from multiple source presentations into one deck via copy-and-prune
 - [ ] **Phase 53: Modification Planner** - LLM-driven per-slide modification planning using element maps and deal context
 - [ ] **Phase 54: Section Matcher** - Context-aware slide selection scoring candidates by industry, pillar, persona, funnel stage
@@ -299,7 +299,7 @@ Plans:
 | 48. HITL Stage Revert Route | v1.7 | 1/1 | Complete | 2026-03-09 |
 | 49. Tech Debt Cleanup | v1.7 | 2/2 | Complete | 2026-03-09 |
 | 50. Foundation Types & Interfaces | 1/1 | Complete    | 2026-03-09 | - |
-| 51. Blueprint Resolver | v1.8 | 0/1 | Planned | - |
+| 51. Blueprint Resolver | 1/1 | Complete   | 2026-03-09 | - |
 | 52. Multi-Source Slide Assembler | v1.8 | 0/TBD | Not started | - |
 | 53. Modification Planner | v1.8 | 0/1 | Planned | - |
 | 54. Section Matcher | v1.8 | 0/TBD | Not started | - |
