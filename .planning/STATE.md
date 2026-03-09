@@ -104,6 +104,7 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 14 | Add web research tool (Tavily) to deal chat assistant | 2026-03-09 | b3729b9 | [14-add-web-research-tool-to-deal-chat-assis](./quick/14-add-web-research-tool-to-deal-chat-assis/) |
 | 13 | Implement UI for visualizing and deleting deck structure memories | 2026-03-08 | c35085a | [13-implement-ui-for-visualizing-and-deletin](./quick/13-implement-ui-for-visualizing-and-deletin/) |
 | Phase 43 P01 | 6 min | 2 tasks | 8 files |
 | Phase 43 P02 | 4 min | 2 tasks | 8 files |
