@@ -122,9 +122,7 @@ function getNamedAgentPromptResolver(
 
 function createProviderClient() {
   return new GoogleGenAI({
-    vertexai: true,
-    project: env.GOOGLE_CLOUD_PROJECT,
-    location: env.GOOGLE_CLOUD_LOCATION,
+    apiKey: env.GOOGLE_AI_STUDIO_API_KEY,
   });
 }
 

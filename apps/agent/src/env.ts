@@ -79,6 +79,9 @@ export const env = createEnv({
     // Tavily web search API key (optional — web research disabled if unset)
     TAVILY_API_KEY: z.string().min(1).optional(),
 
+    // Google AI Studio API key for Gemini model inference (non-Vertex path)
+    GOOGLE_AI_STUDIO_API_KEY: z.string().min(1),
+
     // MCP integration controls
     // Kill switch for MCP search (set to 'false' to disable)
     ATLUS_USE_MCP: z.string().default('true'),
