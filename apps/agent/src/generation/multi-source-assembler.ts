@@ -157,78 +157,87 @@ export async function assembleMultiSourceDeck(
     }
 
     for (const [index, secondarySource] of params.plan.secondarySources.entries()) {
-      const secondaryCopy = await drive.files.copy({
-        fileId: secondarySource.presentationId,
-        requestBody: {
-          name: `_temp_secondary_${secondarySource.templateId}_${index + 1}`,
-        },
-        supportsAllDrives: true,
-      });
-
-      const tempPresentationId = secondaryCopy.data.id;
-      if (!tempPresentationId) {
-        throw new Error(
-          `Secondary presentation copy did not return an id for ${secondarySource.presentationId}`,
-        );
-      }
-
-      tempFileIds.push(tempPresentationId);
-
-      const secondaryPresentation = await slides.presentations.get({
-        presentationId: tempPresentationId,
-      });
-
-      for (const slideId of secondarySource.slideIds) {
-        const sourceSlide = (secondaryPresentation.data.slides ?? []).find(
-          (slide) => slide.objectId === slideId,
-        );
-
-        if (!sourceSlide) {
-          throw new Error(`Missing secondary slide ${slideId} in ${secondarySource.presentationId}`);
-        }
-
-        const targetSlideId = `generated-${slideId}`;
-        slideIdMap.set(slideId, targetSlideId);
-
-        const requests: slides_v1.Schema$Request[] = [
-          {
-            createSlide: {
-              objectId: targetSlideId,
-              insertionIndex: (primaryPresentation.data.slides ?? []).length,
-            },
+      try {
+        const secondaryCopy = await drive.files.copy({
+          fileId: secondarySource.presentationId,
+          requestBody: {
+            name: `_temp_secondary_${secondarySource.templateId}_${index + 1}`,
           },
-        ];
-
-        const textElements = extractTextElements(sourceSlide);
-
-        for (const [textIndex, textElement] of textElements.entries()) {
-          const textBoxId = `${targetSlideId}-shape-${textIndex + 1}`;
-          requests.push({
-            createShape: {
-              objectId: textBoxId,
-              shapeType: "TEXT_BOX",
-              elementProperties: {
-                pageObjectId: targetSlideId,
-                size: textElement.size,
-                transform: textElement.transform,
-              },
-            },
-          });
-          requests.push({
-            insertText: {
-              objectId: textBoxId,
-              insertionIndex: 0,
-              text: textElement.text,
-            },
-          });
-        }
-
-        await slides.presentations.batchUpdate({
-          presentationId,
-          requestBody: { requests },
+          supportsAllDrives: true,
         });
 
-        primaryPresentation = await slides.presentations.get({ presentationId });
+        const tempPresentationId = secondaryCopy.data.id;
+        if (!tempPresentationId) {
+          throw new Error(
+            `Secondary presentation copy did not return an id for ${secondarySource.presentationId}`,
+          );
+        }
+
+        tempFileIds.push(tempPresentationId);
+
+        const secondaryPresentation = await slides.presentations.get({
+          presentationId: tempPresentationId,
+        });
+
+        for (const slideId of secondarySource.slideIds) {
+          const sourceSlide = (secondaryPresentation.data.slides ?? []).find(
+            (slide) => slide.objectId === slideId,
+          );
+
+          if (!sourceSlide) {
+            console.warn(
+              `[multi-source-assembler] Missing secondary slide ${slideId} in ${secondarySource.presentationId}, skipping`,
+            );
+            continue;
+          }
+
+          const targetSlideId = `generated-${slideId}`;
+          slideIdMap.set(slideId, targetSlideId);
+
+          const requests: slides_v1.Schema$Request[] = [
+            {
+              createSlide: {
+                objectId: targetSlideId,
+                insertionIndex: (primaryPresentation.data.slides ?? []).length,
+              },
+            },
+          ];
+
+          const textElements = extractTextElements(sourceSlide);
+
+          for (const [textIndex, textElement] of textElements.entries()) {
+            const textBoxId = `${targetSlideId}-shape-${textIndex + 1}`;
+            requests.push({
+              createShape: {
+                objectId: textBoxId,
+                shapeType: "TEXT_BOX",
+                elementProperties: {
+                  pageObjectId: targetSlideId,
+                  size: textElement.size,
+                  transform: textElement.transform,
+                },
+              },
+            });
+            requests.push({
+              insertText: {
+                objectId: textBoxId,
+                insertionIndex: 0,
+                text: textElement.text,
+              },
+            });
+          }
+
+          await slides.presentations.batchUpdate({
+            presentationId,
+            requestBody: { requests },
+          });
+
+          primaryPresentation = await slides.presentations.get({ presentationId });
+        }
+      } catch (error) {
+        console.error(
+          `[multi-source-assembler] Failed to copy secondary presentation ${secondarySource.presentationId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
 

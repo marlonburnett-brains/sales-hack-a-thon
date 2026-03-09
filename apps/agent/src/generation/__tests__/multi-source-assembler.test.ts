@@ -249,6 +249,8 @@ describe("assembleMultiSourceDeck", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockShareWithOrg.mockResolvedValue(undefined);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   it("delegates single-source plans to assembleDeckFromSlides", async () => {
@@ -395,5 +397,213 @@ describe("assembleMultiSourceDeck", () => {
       presentationId: "primary-copy",
       driveUrl: "https://docs.google.com/presentation/d/primary-copy/edit",
     });
+  });
+
+  it("skips primary delete batchUpdate when there are no primary slides to prune", async () => {
+    const driveClient = makeDriveClient();
+    const slidesClient = makeSlidesClient({
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"])),
+    });
+    mockGetDriveClient.mockReturnValue(driveClient);
+    mockGetSlidesClient.mockReturnValue(slidesClient);
+
+    const result = await assembleMultiSourceDeck({
+      plan: {
+        primarySource: {
+          templateId: "tpl-a",
+          presentationId: "pres-a",
+          keepSlideIds: ["p1", "p2"],
+          deleteSlideIds: [],
+        },
+        secondarySources: [
+          {
+            templateId: "tpl-b",
+            presentationId: "pres-b",
+            slideIds: [],
+          },
+        ],
+        finalSlideOrder: ["p1", "p2"],
+      },
+      targetFolderId: "folder-1",
+      deckName: "No Prune Deck",
+    });
+
+    expect(slidesClient.presentations.batchUpdate).toHaveBeenCalledOnce();
+    expect(slidesClient.presentations.batchUpdate).toHaveBeenCalledWith({
+      presentationId: "primary-copy",
+      requestBody: {
+        requests: [
+          { updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 } },
+          { updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 1 } },
+        ],
+      },
+    });
+    expect(result.presentationId).toBe("primary-copy");
+  });
+
+  it("warns and skips missing secondary slides while continuing assembly", async () => {
+    const warnSpy = vi.mocked(console.warn);
+    const driveClient = makeDriveClient();
+    const slidesClient = makeSlidesClient({
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce(makePresentation(["sx"], { sx: ["Other"] }))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"])),
+    });
+    mockGetDriveClient.mockReturnValue(driveClient);
+    mockGetSlidesClient.mockReturnValue(slidesClient);
+
+    const result = await assembleMultiSourceDeck({
+      plan: buildMultiSourcePlan(
+        makePlan([
+          makeEntry("p1", "pres-a", "tpl-a"),
+          makeEntry("s5", "pres-b", "tpl-b"),
+          makeEntry("p2", "pres-a", "tpl-a"),
+        ]),
+        new Map([
+          ["pres-a", ["p1", "p2", "p3"]],
+          ["pres-b", ["s5", "sx"]],
+        ]),
+      ),
+      targetFolderId: "folder-1",
+      deckName: "Missing Slide Deck",
+    });
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Missing secondary slide s5 in pres-b, skipping"),
+    );
+    expect(slidesClient.presentations.batchUpdate).toHaveBeenNthCalledWith(2, {
+      presentationId: "primary-copy",
+      requestBody: {
+        requests: [
+          { updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 } },
+          { updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 1 } },
+        ],
+      },
+    });
+    expect(result.presentationId).toBe("primary-copy");
+  });
+
+  it("continues assembling when a secondary copy fails", async () => {
+    const errorSpy = vi.mocked(console.error);
+    const copy = vi
+      .fn()
+      .mockResolvedValueOnce({ data: { id: "primary-copy" } })
+      .mockResolvedValueOnce({ data: { id: "secondary-copy-1" } })
+      .mockRejectedValueOnce(new Error("copy failed"));
+    const driveClient = makeDriveClient({ copy });
+    const slidesClient = makeSlidesClient({
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce(makePresentation(["s4"], { s4: ["Secondary intro"] }))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"])),
+    });
+    mockGetDriveClient.mockReturnValue(driveClient);
+    mockGetSlidesClient.mockReturnValue(slidesClient);
+
+    const result = await assembleMultiSourceDeck({
+      plan: {
+        primarySource: {
+          templateId: "tpl-a",
+          presentationId: "pres-a",
+          keepSlideIds: ["p1", "p2"],
+          deleteSlideIds: ["p3"],
+        },
+        secondarySources: [
+          {
+            templateId: "tpl-b",
+            presentationId: "pres-b",
+            slideIds: ["s4"],
+          },
+          {
+            templateId: "tpl-c",
+            presentationId: "pres-c",
+            slideIds: ["s6"],
+          },
+        ],
+        finalSlideOrder: ["p1", "s4", "p2", "s6"],
+      },
+      targetFolderId: "folder-1",
+      deckName: "Partial Deck",
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to copy secondary presentation pres-c"),
+    );
+    expect(driveClient.files.delete).toHaveBeenCalledTimes(1);
+    expect(result.presentationId).toBe("primary-copy");
+  });
+
+  it("logs cleanup failures without throwing and continues deleting remaining temp copies", async () => {
+    const warnSpy = vi.mocked(console.warn);
+    const deleteMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("delete failed"))
+      .mockResolvedValueOnce({});
+    const driveClient = makeDriveClient({ delete: deleteMock });
+    const slidesClient = makeSlidesClient({
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce(makePresentation(["s4"], { s4: ["Secondary intro"] }))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
+        .mockResolvedValueOnce(makePresentation(["s6"], { s6: ["Secondary close"] }))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4", "generated-s6"]))
+        .mockResolvedValueOnce(
+          makePresentation(["p1", "p2", "generated-s4", "generated-s6"]),
+        ),
+    });
+    const copy = vi
+      .fn()
+      .mockResolvedValueOnce({ data: { id: "primary-copy" } })
+      .mockResolvedValueOnce({ data: { id: "secondary-copy-1" } })
+      .mockResolvedValueOnce({ data: { id: "secondary-copy-2" } });
+    driveClient.files.copy = copy;
+    mockGetDriveClient.mockReturnValue(driveClient);
+    mockGetSlidesClient.mockReturnValue(slidesClient);
+
+    const result = await assembleMultiSourceDeck({
+      plan: {
+        primarySource: {
+          templateId: "tpl-a",
+          presentationId: "pres-a",
+          keepSlideIds: ["p1", "p2"],
+          deleteSlideIds: ["p3"],
+        },
+        secondarySources: [
+          {
+            templateId: "tpl-b",
+            presentationId: "pres-b",
+            slideIds: ["s4"],
+          },
+          {
+            templateId: "tpl-c",
+            presentationId: "pres-c",
+            slideIds: ["s6"],
+          },
+        ],
+        finalSlideOrder: ["p1", "s4", "p2", "s6"],
+      },
+      targetFolderId: "folder-1",
+      deckName: "Cleanup Deck",
+    });
+
+    expect(deleteMock).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to clean up temp file secondary-copy-1"),
+    );
+    expect(result.presentationId).toBe("primary-copy");
   });
 });
