@@ -1,0 +1,2 @@
+- 2026-03-09: `apps/agent` full `vitest` suite has unrelated pre-existing failures in token-cache, atlus-auth, google-auth, deal-chat routes/assistant, deck-structure routes, workflow-agent-versioning, and agent-catalog tests.
+- 2026-03-09: `apps/agent` full TypeScript compile has unrelated pre-existing errors across deal-chat, deck-intelligence, blueprint-resolver, agent-executor, mastra workflows/routes, and packages/schemas import-path settings.
