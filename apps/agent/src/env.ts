@@ -75,6 +75,9 @@ export const env = createEnv({
     // GCS bucket for cached slide thumbnails (optional — thumbnails served live if unset)
     GCS_THUMBNAIL_BUCKET: z.string().optional(),
 
+    // Tavily web search API key (optional — web research disabled if unset)
+    TAVILY_API_KEY: z.string().min(1).optional(),
+
     // MCP integration controls
     // Kill switch for MCP search (set to 'false' to disable)
     ATLUS_USE_MCP: z.string().default('true'),
