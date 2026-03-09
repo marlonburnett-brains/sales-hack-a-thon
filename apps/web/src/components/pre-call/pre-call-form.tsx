@@ -138,7 +138,6 @@ export function PreCallForm({
         meetingContext,
       });
 
-      if (!result.runId) throw new Error("No runId returned from workflow");
       const completed = await pollStatus(result.runId);
 
       // Extract briefing data from workflow result

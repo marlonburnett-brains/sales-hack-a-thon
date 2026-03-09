@@ -383,7 +383,7 @@ export async function confirmDealChatBinding(
 // ────────────────────────────────────────────────────────────
 
 export interface WorkflowStartResult {
-  runId?: string;
+  runId: string;
   status?: string;
   [key: string]: unknown;
 }
