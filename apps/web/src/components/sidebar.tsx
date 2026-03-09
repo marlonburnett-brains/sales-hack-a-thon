@@ -132,15 +132,19 @@ export function Sidebar({ user, children }: SidebarProps) {
         <button
           onClick={toggleCollapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="mb-3 hidden cursor-pointer rounded-md p-2 text-slate-600 transition-colors duration-150 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 md:flex"
+          title={collapsed ? "Expand" : undefined}
+          className="mb-2 hidden cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm text-slate-600 transition-colors duration-150 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 md:flex"
         >
           {collapsed ? (
-            <PanelLeft className="h-4 w-4" />
+            <PanelLeft className="h-4 w-4 shrink-0" />
           ) : (
-            <PanelLeftClose className="h-4 w-4" />
+            <>
+              <PanelLeftClose className="h-4 w-4 shrink-0" />
+              <span>Collapse</span>
+            </>
           )}
         </button>
-        <UserNav user={user} />
+        <UserNav user={user} collapsed={collapsed} />
       </div>
     </div>
   );

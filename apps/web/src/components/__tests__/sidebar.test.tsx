@@ -17,9 +17,17 @@ vi.mock("next/link", () => ({
   },
 }));
 
+vi.mock("@/components/atlusdeck-logo", () => ({
+  AtlusDeckLogo: (props: Record<string, unknown>) =>
+    React.createElement("svg", { "data-testid": "atlusdeck-logo", ...props }),
+}));
+
 vi.mock("@/components/user-nav", () => ({
-  UserNav: ({ user }: { user: { name: string } }) => (
-    <div data-testid="user-nav">{user.name}</div>
+  UserNav: ({ user, collapsed }: { user: { name: string; email: string }; collapsed?: boolean }) => (
+    <div data-testid="user-nav">
+      {user.name}
+      {!collapsed && <span data-testid="user-info">{user.name} {user.email}</span>}
+    </div>
   ),
 }));
 
