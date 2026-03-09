@@ -42,7 +42,6 @@ export async function extractGoogleAuth(
   if (userId) {
     const resolved = await getAccessTokenForUser(userId);
     if (resolved) {
-      console.log(`[request-auth] Resolved access token for userId=${userId} via refresh`);
       return { accessToken: resolved, userId };
     }
     console.warn(`[request-auth] No access token resolved for userId=${userId} — falling back to SA`);
@@ -56,11 +55,20 @@ export async function extractGoogleAuth(
 /**
  * Extract the verified user ID from the JWT in the Authorization header.
  * Use this to pass to extractGoogleAuth as the verifiedUserId parameter.
+ *
+ * @param c - Request context with headers
+ * @param supabaseUrl - Supabase project URL for JWKS verification
+ *
+ * NOTE: This is async because JWT verification requires JWKS fetching.
+ * All callers must await the result.
  */
-export function getVerifiedUserId(c: RequestContext): string | undefined {
+export async function getVerifiedUserId(
+  c: RequestContext,
+  supabaseUrl: string,
+): Promise<string | undefined> {
   const authHeader = c.req.header("Authorization");
   if (!authHeader?.startsWith("Bearer ")) return undefined;
   const token = authHeader.slice(7);
-  const payload = verifySupabaseJwt(token);
+  const payload = await verifySupabaseJwt(token, supabaseUrl);
   return payload?.sub;
 }

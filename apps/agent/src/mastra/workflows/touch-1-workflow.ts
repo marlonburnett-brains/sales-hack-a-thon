@@ -21,6 +21,7 @@ import {
   zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
 import { executeRuntimeNamedAgent as executeNamedAgent } from "../../lib/agent-executor";
+import { assertLlmContentQuality } from "../../lib/validate-llm-content";
 import { assembleFromTemplate } from "../../lib/slide-assembly";
 import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { ingestDocument } from "../../lib/atlusai-client";
@@ -69,7 +70,7 @@ const generateContent = createStep({
     skeletonContent: SkeletonContentSchema,
     agentVersions: agentVersionsSchema,
   }),
-  execute: async ({ inputData }) => {
+  execute: async ({ inputData, runId }) => {
     // Create InteractionRecord at the start so we have an ID for stage tracking
     const interaction = await prisma.interactionRecord.create({
       data: {
@@ -82,7 +83,7 @@ const generateContent = createStep({
           industry: inputData.industry,
           context: inputData.context,
           salespersonName: inputData.salespersonName,
-          runId: inputData.runId,
+          runId: runId ?? inputData.runId,
         }),
       },
     });
@@ -113,6 +114,7 @@ This is a SKELETON outline -- concise summaries, not full paragraphs.`;
     });
 
     const parsed = SkeletonContentSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
+    assertLlmContentQuality(parsed);
 
     // Update hitlStage to skeleton
     await prisma.interactionRecord.update({
@@ -247,6 +249,7 @@ Keep the tone professional but engaging. This is the FULL DRAFT -- complete, pub
     });
 
     const parsed = PagerContentLlmSchema.parse(response.object ?? JSON.parse(response.text ?? "{}"));
+    assertLlmContentQuality(parsed);
 
     // Update hitlStage to lowfi
     await prisma.interactionRecord.update({
@@ -396,13 +399,29 @@ const assembleDeck = createStep({
 
     let result;
     if (strategy.type !== "legacy") {
-      result = await executeStructureDrivenPipeline({
-        blueprint: strategy.blueprint,
-        targetFolderId: folderId,
-        deckName,
-        dealContext,
-        ownerEmail: deal.ownerEmail ?? undefined,
-      });
+      try {
+        result = await executeStructureDrivenPipeline({
+          blueprint: strategy.blueprint,
+          targetFolderId: folderId,
+          deckName,
+          dealContext,
+          ownerEmail: deal.ownerEmail ?? undefined,
+        });
+      } catch (pipelineErr) {
+        console.warn(`[touch-1-workflow] Structure-driven pipeline failed, falling back to legacy:`, pipelineErr);
+        result = await assembleFromTemplate({
+          templateId: env.GOOGLE_TEMPLATE_PRESENTATION_ID,
+          targetFolderId: folderId,
+          deckName,
+          textReplacements: {
+            "{{company-name}}": content.companyName,
+            "{{headline}}": content.headline,
+            "{{value-proposition}}": content.valueProposition,
+            "{{capabilities}}": content.keyCapabilities.join(", "),
+            "{{call-to-action}}": content.callToAction,
+          },
+        });
+      }
     } else {
       // Legacy: Assemble deck from template with text replacements
       result = await assembleFromTemplate({

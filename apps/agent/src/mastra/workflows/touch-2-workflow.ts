@@ -80,7 +80,7 @@ const selectSlides = createStep({
     ...touch2BaseFields,
     skeletonContent: skeletonContentSchema,
   }),
-  execute: async ({ inputData }) => {
+  execute: async ({ inputData, runId }) => {
     // Create InteractionRecord at start
     const interaction = await prisma.interactionRecord.create({
       data: {
@@ -94,7 +94,7 @@ const selectSlides = createStep({
           salespersonName: inputData.salespersonName,
           customerName: inputData.customerName,
           context: inputData.context,
-          runId: inputData.runId,
+          runId: runId ?? inputData.runId,
         }),
       },
     });
@@ -378,20 +378,12 @@ const assembleDeck = createStep({
     console.log(`[touch-2-workflow] Using ${strategy.type} generation path`);
 
     let result;
-    if (strategy.type !== "legacy") {
-      result = await executeStructureDrivenPipeline({
-        blueprint: strategy.blueprint,
-        targetFolderId: folderId,
-        deckName,
-        dealContext,
-        ownerEmail: deal.ownerEmail ?? undefined,
-      });
-    } else {
+    const legacyAssembly = async () => {
       // Legacy: Use Meet Lumenalta source presentation or fall back to the general template
       const sourcePresentationId =
         env.MEET_LUMENALTA_PRESENTATION_ID || env.GOOGLE_TEMPLATE_PRESENTATION_ID;
 
-      result = await assembleDeckFromSlides({
+      return assembleDeckFromSlides({
         sourcePresentationId,
         selectedSlideIds: inputData.selectedSlideIds,
         slideOrder: inputData.approvedLowfi.slideOrder,
@@ -404,6 +396,23 @@ const assembleDeck = createStep({
           customerLogoUrl: inputData.customerLogoUrl,
         },
       });
+    };
+
+    if (strategy.type !== "legacy") {
+      try {
+        result = await executeStructureDrivenPipeline({
+          blueprint: strategy.blueprint,
+          targetFolderId: folderId,
+          deckName,
+          dealContext,
+          ownerEmail: deal.ownerEmail ?? undefined,
+        });
+      } catch (pipelineErr) {
+        console.warn(`[touch-2-workflow] Structure-driven pipeline failed, falling back to legacy:`, pipelineErr);
+        result = await legacyAssembly();
+      }
+    } else {
+      result = await legacyAssembly();
     }
 
     // Share with deal owner as editor (domain sharing handled by assembleDeckFromSlides)

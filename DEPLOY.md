@@ -21,6 +21,25 @@ Both services communicate via shared API key over HTTPS.
 5. **Vercel account** for web deployment
 6. **Railway account** for agent deployment
 
+### Google Cloud OAuth Consent Screen (CRITICAL)
+
+The OAuth consent screen **must** be configured as **"Internal"** user type:
+
+1. Go to **Google Cloud Console > APIs & Services > OAuth consent screen**
+2. Set **User type** to **"Internal"**
+   - This restricts login to users within the Lumenalta Google Workspace organization
+   - The app already enforces `hd: "lumenalta.com"` in the OAuth flow
+3. This is critical because:
+   - **"External" + "Testing" mode** causes Google to expire refresh tokens after **7 days**, forcing users to re-authenticate repeatedly
+   - **"External" + unverified** with sensitive scopes has the same 7-day limit
+   - **"Internal"** has **no token expiry limit** -- refresh tokens persist indefinitely (unless the user manually revokes access or changes their password)
+4. Add the following scopes to the consent screen configuration:
+   - `https://www.googleapis.com/auth/drive`
+   - `https://www.googleapis.com/auth/presentations`
+   - `https://www.googleapis.com/auth/documents`
+
+**If the consent screen is currently "External":** Change it to "Internal". Existing users will need to re-authenticate once, but their tokens will no longer expire after 7 days.
+
 ## Environment Variables
 
 ### Agent Service (`apps/agent`)
@@ -80,12 +99,12 @@ The login flow requests these scopes for user-delegated Google API access:
 openid
 email
 profile
-https://www.googleapis.com/auth/drive.readonly
-https://www.googleapis.com/auth/presentations.readonly
-https://www.googleapis.com/auth/documents.readonly
+https://www.googleapis.com/auth/drive
+https://www.googleapis.com/auth/presentations
+https://www.googleapis.com/auth/documents
 ```
 
-These are configured in the web app login page code (`apps/web/src/app/login/page.tsx`), not in Supabase Dashboard.
+These are full (not readonly) scopes, configured in the web app login page code (`apps/web/src/app/login/page.tsx`), not in Supabase Dashboard. Using "Internal" user type on the OAuth consent screen avoids the need for Google's OAuth app verification process.
 
 **Offline access:** The login flow requests `access_type: offline` to obtain a refresh token. The consent screen is forced on every login (`prompt: consent`) to ensure Google returns the refresh token.
 

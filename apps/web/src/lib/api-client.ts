@@ -383,7 +383,8 @@ export async function confirmDealChatBinding(
 // ────────────────────────────────────────────────────────────
 
 export interface WorkflowStartResult {
-  runId: string;
+  runId?: string;
+  status?: string;
   [key: string]: unknown;
 }
 
@@ -410,21 +411,19 @@ export async function startTouch1Workflow(
     salespersonName?: string;
   }
 ): Promise<WorkflowStartResult> {
-  const runId = crypto.randomUUID();
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
-    `/api/workflows/touch-1-workflow/start-async?runId=${runId}`,
+    `/api/workflows/touch-1-workflow/start-async`,
     {
       method: "POST",
       body: JSON.stringify({
         inputData: {
           dealId,
-          runId,
           ...formData,
         },
       }),
     }
   );
-  return { ...result, runId };
+  return result;
 }
 
 export async function resumeTouch1Workflow(
@@ -436,11 +435,11 @@ export async function resumeTouch1Workflow(
   }
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/touch-1-workflow/${runId}/resume`,
+    `/api/workflows/touch-1-workflow/resume?runId=${encodeURIComponent(runId)}`,
     {
       method: "POST",
       body: JSON.stringify({
-        stepId,
+        step: stepId,
         resumeData,
       }),
     }
@@ -451,7 +450,7 @@ export async function getWorkflowStatus(
   runId: string
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/touch-1-workflow/${runId}`
+    `/api/workflows/touch-1-workflow/runs/${encodeURIComponent(runId)}`
   );
 }
 
@@ -472,21 +471,19 @@ export async function startTouch2Workflow(
     priorTouchOutputs?: string[];
   }
 ): Promise<WorkflowStartResult> {
-  const runId = crypto.randomUUID();
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
-    `/api/workflows/touch-2-workflow/start-async?runId=${runId}`,
+    `/api/workflows/touch-2-workflow/start-async`,
     {
       method: "POST",
       body: JSON.stringify({
         inputData: {
           dealId,
-          runId,
           ...formData,
         },
       }),
     }
   );
-  return { ...result, runId };
+  return result;
 }
 
 export async function resumeTouch2Workflow(
@@ -498,11 +495,11 @@ export async function resumeTouch2Workflow(
   }
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/touch-2-workflow/${runId}/resume`,
+    `/api/workflows/touch-2-workflow/resume?runId=${encodeURIComponent(runId)}`,
     {
       method: "POST",
       body: JSON.stringify({
-        stepId,
+        step: stepId,
         resumeData,
       }),
     }
@@ -513,7 +510,7 @@ export async function getTouch2WorkflowStatus(
   runId: string
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/touch-2-workflow/${runId}`
+    `/api/workflows/touch-2-workflow/runs/${encodeURIComponent(runId)}`
   );
 }
 
@@ -531,21 +528,19 @@ export async function startTouch3Workflow(
     priorTouchOutputs?: string[];
   }
 ): Promise<WorkflowStartResult> {
-  const runId = crypto.randomUUID();
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
-    `/api/workflows/touch-3-workflow/start-async?runId=${runId}`,
+    `/api/workflows/touch-3-workflow/start-async`,
     {
       method: "POST",
       body: JSON.stringify({
         inputData: {
           dealId,
-          runId,
           ...formData,
         },
       }),
     }
   );
-  return { ...result, runId };
+  return result;
 }
 
 export async function resumeTouch3Workflow(
@@ -557,11 +552,11 @@ export async function resumeTouch3Workflow(
   }
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/touch-3-workflow/${runId}/resume`,
+    `/api/workflows/touch-3-workflow/resume?runId=${encodeURIComponent(runId)}`,
     {
       method: "POST",
       body: JSON.stringify({
-        stepId,
+        step: stepId,
         resumeData,
       }),
     }
@@ -572,7 +567,7 @@ export async function getTouch3WorkflowStatus(
   runId: string
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/touch-3-workflow/${runId}`
+    `/api/workflows/touch-3-workflow/runs/${encodeURIComponent(runId)}`
   );
 }
 
@@ -590,28 +585,26 @@ export async function startTouch4Workflow(
     additionalNotes?: string;
   }
 ): Promise<WorkflowStartResult> {
-  const runId = crypto.randomUUID();
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
-    `/api/workflows/touch-4-workflow/start-async?runId=${runId}`,
+    `/api/workflows/touch-4-workflow/start-async`,
     {
       method: "POST",
       body: JSON.stringify({
         inputData: {
           dealId,
-          runId,
           ...formData,
         },
       }),
     }
   );
-  return { ...result, runId };
+  return result;
 }
 
 export async function getTouch4WorkflowStatus(
   runId: string
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/touch-4-workflow/${runId}`
+    `/api/workflows/touch-4-workflow/runs/${encodeURIComponent(runId)}`
   );
 }
 
@@ -630,11 +623,11 @@ export async function resumeTouch4Workflow(
   }
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/touch-4-workflow/${runId}/resume`,
+    `/api/workflows/touch-4-workflow/resume?runId=${encodeURIComponent(runId)}`,
     {
       method: "POST",
       body: JSON.stringify({
-        stepId,
+        step: stepId,
         resumeData,
       }),
     }
@@ -664,6 +657,22 @@ export async function revertInteractionStage(
   );
 }
 
+/**
+ * Re-run LLM generation for the current HITL stage without starting a new workflow.
+ */
+export async function regenerateInteractionStage(
+  interactionId: string,
+  feedback?: string
+): Promise<{ success: boolean; stage: string }> {
+  return fetchJSON<{ success: boolean; stage: string }>(
+    `/interactions/${interactionId}/regenerate-stage`,
+    {
+      method: "POST",
+      body: JSON.stringify({ feedback: feedback || undefined }),
+    }
+  );
+}
+
 // ────────────────────────────────────────────────────────────
 // Generic Workflow Resume Helper
 // ────────────────────────────────────────────────────────────
@@ -679,11 +688,11 @@ export async function resumeWorkflowStep(
   resumeData: unknown
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/${workflowId}/${runId}/resume`,
+    `/api/workflows/${workflowId}/resume?runId=${encodeURIComponent(runId)}`,
     {
       method: "POST",
       body: JSON.stringify({
-        stepId,
+        step: stepId,
         resumeData,
       }),
     }
@@ -819,22 +828,21 @@ export async function startPreCallWorkflow(
     meetingContext: string;
   }
 ): Promise<WorkflowStartResult> {
-  const runId = crypto.randomUUID();
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
-    `/api/workflows/pre-call-workflow/start-async?runId=${runId}`,
+    `/api/workflows/pre-call-workflow/start-async`,
     {
       method: "POST",
       body: JSON.stringify({ inputData: { dealId, ...formData } }),
     }
   );
-  return { ...result, runId };
+  return result;
 }
 
 export async function getPreCallWorkflowStatus(
   runId: string
 ): Promise<WorkflowRunResult> {
   return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/pre-call-workflow/${runId}`
+    `/api/workflows/pre-call-workflow/runs/${encodeURIComponent(runId)}`
   );
 }
 

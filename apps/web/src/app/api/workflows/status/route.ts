@@ -48,10 +48,13 @@ export async function GET(request: NextRequest) {
         );
     }
 
+    console.log(`[workflows/status] runId=${runId} status=${(status as Record<string, unknown>).status}`);
     return NextResponse.json(status);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Status check failed";
+    const stack = err instanceof Error ? err.stack : undefined;
     console.error("[workflows/status] Error:", message);
+    if (stack) console.error("[workflows/status] Stack:", stack);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

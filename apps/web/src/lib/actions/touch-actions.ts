@@ -16,6 +16,7 @@ import {
   resumeTouch4Workflow,
   resumeWorkflowStep,
   revertInteractionStage,
+  regenerateInteractionStage,
   getBrief,
   getBriefReview,
   approveBrief,
@@ -242,6 +243,18 @@ export async function revertStageAction(
   targetStage: HitlStage
 ): Promise<{ success: boolean }> {
   const result = await revertInteractionStage(interactionId, targetStage);
+  revalidatePath("/deals");
+  return result;
+}
+
+/**
+ * Re-run LLM generation for the current stage without starting a new workflow.
+ */
+export async function regenerateStageAction(
+  interactionId: string,
+  feedback?: string
+): Promise<{ success: boolean; stage: string }> {
+  const result = await regenerateInteractionStage(interactionId, feedback);
   revalidatePath("/deals");
   return result;
 }

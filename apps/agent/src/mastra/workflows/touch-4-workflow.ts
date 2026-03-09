@@ -97,7 +97,7 @@ const parseTranscript = createStep({
     extractedFields: TranscriptFieldsLlmSchema,
     agentVersions: agentVersionsSchema,
   }),
-  execute: async ({ inputData }) => {
+  execute: async ({ inputData, runId }) => {
     // Create InteractionRecord early so we can track hitlStage from the first suspend
     const interaction = await prisma.interactionRecord.create({
       data: {
@@ -109,7 +109,7 @@ const parseTranscript = createStep({
           companyName: inputData.companyName,
           industry: inputData.industry,
           subsector: inputData.subsector,
-          runId: inputData.runId,
+          runId: runId ?? inputData.runId,
         }),
       },
     });
@@ -1176,17 +1176,7 @@ const createSlidesDeck = createStep({
     let deckUrl: string;
     let slideCount: number;
 
-    if (strategy.type !== "legacy") {
-      const pipelineResult = await executeStructureDrivenPipeline({
-        blueprint: strategy.blueprint,
-        targetFolderId: dealFolderId,
-        deckName: `${company.name} - Proposal - ${primaryPillar} - ${new Date().toISOString().split("T")[0]}`,
-        dealContext,
-        ownerEmail: deal.ownerEmail ?? undefined,
-      });
-      deckUrl = pipelineResult.driveUrl;
-      slideCount = 0; // Structure-driven pipeline does not track slide count
-    } else {
+    const legacyAssembly = async () => {
       // Legacy: c. Deserialize SlideJSON
       const slideAssembly = JSON.parse(inputData.slideJSON);
 
@@ -1207,8 +1197,30 @@ const createSlidesDeck = createStep({
         await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
       }
 
-      deckUrl = result.deckUrl;
-      slideCount = result.slideCount;
+      return { deckUrl: result.deckUrl, slideCount: result.slideCount };
+    };
+
+    if (strategy.type !== "legacy") {
+      try {
+        const pipelineResult = await executeStructureDrivenPipeline({
+          blueprint: strategy.blueprint,
+          targetFolderId: dealFolderId,
+          deckName: `${company.name} - Proposal - ${primaryPillar} - ${new Date().toISOString().split("T")[0]}`,
+          dealContext,
+          ownerEmail: deal.ownerEmail ?? undefined,
+        });
+        deckUrl = pipelineResult.driveUrl;
+        slideCount = 0; // Structure-driven pipeline does not track slide count
+      } catch (pipelineErr) {
+        console.warn(`[touch-4-workflow] Structure-driven pipeline failed, falling back to legacy:`, pipelineErr);
+        const legacyResult = await legacyAssembly();
+        deckUrl = legacyResult.deckUrl;
+        slideCount = legacyResult.slideCount;
+      }
+    } else {
+      const legacyResult = await legacyAssembly();
+      deckUrl = legacyResult.deckUrl;
+      slideCount = legacyResult.slideCount;
     }
 
     return {

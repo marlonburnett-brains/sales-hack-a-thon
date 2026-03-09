@@ -23,6 +23,7 @@ import {
   generateTouch4BriefAction,
   transitionStageAction,
   revertStageAction,
+  regenerateStageAction,
 } from "@/lib/actions/touch-actions";
 import { mapToFriendlyError } from "@/lib/error-messages";
 
@@ -241,7 +242,8 @@ export function TouchPageClient({
 
           if (
             status.status === "suspended" ||
-            status.status === "completed"
+            status.status === "completed" ||
+            status.status === "success"
           ) {
             if (pollRef.current) {
               clearInterval(pollRef.current);
@@ -282,6 +284,13 @@ export function TouchPageClient({
         companyName,
         industry
       );
+
+      // If workflow already completed/suspended (Mastra ran synchronously), just refresh
+      if (result.status === "suspended" || result.status === "completed" || result.status === "success") {
+        setIsGenerating(false);
+        router.refresh();
+        return;
+      }
 
       if (!result.runId) {
         setIsGenerating(false);
@@ -327,10 +336,11 @@ export function TouchPageClient({
       );
 
       // After approval, workflow continues. Poll for next suspend or completion.
-      if (result.status === "suspended" || result.status === "completed") {
+      // Mastra resume returns { message } not a full run result, so always poll.
+      if (result.status === "suspended" || result.status === "completed" || result.status === "success") {
         router.refresh();
       } else {
-        // Workflow still running, poll for result
+        // Workflow still running (or resume returned { message }), poll for result
         setGenerationMessage("Processing next stage...");
         setIsGenerating(true);
         startPolling(runId);
@@ -387,49 +397,19 @@ export function TouchPageClient({
 
       setIsRegenerating(true);
       try {
-        // Only revert if we're past the first stage — at skeleton there's nothing to revert to
-        const revertTarget: HitlStage = currentStage ?? "highfi";
-        if (revertTarget !== "skeleton") {
-          await revertStageAction(activeInteraction.id, revertTarget);
-        }
-
-        const result = await startGeneration(
-          touchType,
-          dealId,
-          companyName,
-          industry,
-          feedback
-        );
-
-        if (!result.runId) {
-          setIsRegenerating(false);
-          toast.error("Re-generation started but no run ID was returned.");
-          return;
-        }
-
+        // Re-generate the current stage's content directly (no new workflow).
+        // This calls the LLM to regenerate content for the current HITL stage
+        // and updates stageContent in place, then refreshes the page.
+        await regenerateStageAction(activeInteraction.id, feedback);
         setIsRegenerating(false);
-        setIsGenerating(true);
-        setGenerationMessage(
-          feedback
-            ? "Re-generating with your feedback..."
-            : "Re-generating..."
-        );
-        startPolling(result.runId);
+        router.refresh();
       } catch (err) {
         setIsRegenerating(false);
         const raw = err instanceof Error ? err.message : "Re-generation failed";
         toast.error(mapToFriendlyError(raw));
       }
     },
-    [
-      activeInteraction,
-      currentStage,
-      touchType,
-      dealId,
-      companyName,
-      industry,
-      startPolling,
-    ]
+    [activeInteraction, router]
   );
 
   // ────────────────────────────────────────────────────────────

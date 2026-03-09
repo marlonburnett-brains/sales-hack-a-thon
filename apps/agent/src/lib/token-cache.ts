@@ -73,20 +73,32 @@ export async function getAccessTokenForUser(
 
 async function doRefresh(userId: string): Promise<string | null> {
   try {
+    console.log(`[token-cache] doRefresh START for userId=${userId}`);
+
     const record = await prisma.userGoogleToken.findUnique({
       where: { userId, isValid: true },
     });
 
     if (!record) {
+      console.log(`[token-cache] No valid token record in DB for userId=${userId}`);
       return null;
     }
 
+    console.log(`[token-cache] Found token record for userId=${userId}, email=${record.email}, lastUsedAt=${record.lastUsedAt?.toISOString()}`);
+
     // Decrypt the stored refresh token
-    const decryptedRefresh = decryptToken(
-      record.encryptedRefresh,
-      record.iv,
-      record.authTag
-    );
+    let decryptedRefresh: string;
+    try {
+      decryptedRefresh = decryptToken(
+        record.encryptedRefresh,
+        record.iv,
+        record.authTag
+      );
+      console.log(`[token-cache] Decryption OK for userId=${userId}, refresh token length=${decryptedRefresh.length}`);
+    } catch (decryptErr) {
+      console.error(`[token-cache] DECRYPTION FAILED for userId=${userId}:`, decryptErr instanceof Error ? decryptErr.message : String(decryptErr));
+      throw decryptErr;
+    }
 
     // Exchange refresh token for access token
     const oauth2Client = new OAuth2Client(
@@ -98,26 +110,28 @@ async function doRefresh(userId: string): Promise<string | null> {
     // Capture token rotation — Google may issue a new refresh token
     oauth2Client.on("tokens", (newTokens) => {
       if (newTokens.refresh_token) {
+        console.log(`[token-cache] Google rotated refresh token for userId=${userId}`);
         const { encrypted, iv, authTag } = encryptToken(newTokens.refresh_token);
         prisma.userGoogleToken
           .update({
             where: { userId },
             data: { encryptedRefresh: encrypted, iv, authTag },
           })
-          .then(() => console.log(`[token-cache] Rotated refresh token for ${userId}`))
+          .then(() => console.log(`[token-cache] Saved rotated refresh token for ${userId}`))
           .catch((err) => console.error(`[token-cache] Failed to save rotated token:`, err));
       }
     });
 
+    console.log(`[token-cache] Calling Google OAuth2 getAccessToken for userId=${userId}...`);
     const tokenResponse = await oauth2Client.getAccessToken();
     const accessToken = tokenResponse.token;
 
     if (!accessToken) {
-      // No token returned but no error thrown — unusual but not definitive.
-      // Log a warning but don't invalidate; next request will retry.
-      console.warn(`[token-cache] No access token returned for ${userId} (no error thrown)`);
+      console.warn(`[token-cache] No access token returned for ${userId} (no error thrown). HTTP status: ${tokenResponse.res?.status}`);
       return null;
     }
+
+    console.log(`[token-cache] doRefresh SUCCESS for userId=${userId}`);
 
     // Cache the new access token
     cache.set(userId, {
@@ -137,9 +151,11 @@ async function doRefresh(userId: string): Promise<string | null> {
 
     return accessToken;
   } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorCode = err && typeof err === 'object' && 'code' in err ? (err as { code: string }).code : 'n/a';
+    const errorStatus = err && typeof err === 'object' && 'status' in err ? (err as { status: number }).status : 'n/a';
     console.error(
-      `[token-cache] Failed to refresh token for user ${userId}:`,
-      err
+      `[token-cache] doRefresh FAILED for userId=${userId}: "${errorMessage}" code=${errorCode} status=${errorStatus}`
     );
 
     // Only permanently invalidate on definitive errors (token revoked/expired).
@@ -147,7 +163,10 @@ async function doRefresh(userId: string): Promise<string | null> {
     const isDefinitive = isDefinitiveTokenError(err);
 
     if (isDefinitive) {
-      console.warn(`[token-cache] Definitive error for ${userId} — marking token invalid`);
+      console.warn(
+        `[token-cache] Definitive error for ${userId} — marking token invalid. ` +
+        `Error: "${errorMessage}"`
+      );
       await prisma.userGoogleToken
         .update({
           where: { userId },
@@ -170,7 +189,7 @@ async function doRefresh(userId: string): Promise<string | null> {
               userId,
               actionType: 'reauth_needed',
               title: `Re-authentication needed for ${tokenRecord?.email ?? 'your account'}`,
-              description: 'Your Google token has expired or been revoked. Please log out and log back in to re-authorize Google access.',
+              description: 'Your Google token has expired or been revoked. Click "Connect Google" to re-authorize access.',
             },
           });
         }

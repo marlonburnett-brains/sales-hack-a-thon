@@ -90,9 +90,12 @@ function Touch1Content({
   }
 
   if (stage === "lowfi") {
-    // Full draft text with sections
-    const sections = (data?.sections as Array<{ title: string; body: string }>) ?? [];
-    const draftText = (data?.draftText as string) ?? (data?.text as string) ?? "";
+    // PagerContent fields: headline, valueProposition, keyCapabilities, callToAction
+    const headline = (data?.headline as string) ?? "";
+    const valueProp = (data?.valueProposition as string) ?? "";
+    const capabilities = (data?.keyCapabilities as string[]) ?? [];
+    const callToAction = (data?.callToAction as string) ?? "";
+    const hasContent = headline || valueProp || capabilities.length > 0 || callToAction;
 
     return (
       <Card>
@@ -103,26 +106,40 @@ function Touch1Content({
               Draft
             </Badge>
           </div>
-          <CardTitle className="text-lg">Draft Content</CardTitle>
+          <CardTitle className="text-lg">{headline || "Draft Content"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          {sections.length > 0
-            ? sections.map((section, i) => (
-                <div key={i}>
-                  <h4 className="mb-1 font-semibold text-slate-800">
-                    {section.title}
-                  </h4>
-                  <p className="whitespace-pre-wrap leading-relaxed text-slate-700">
-                    {section.body}
-                  </p>
-                </div>
-              ))
-            : draftText && (
-                <p className="whitespace-pre-wrap leading-relaxed text-slate-700">
-                  {draftText}
-                </p>
-              )}
-          {sections.length === 0 && !draftText && (
+          {valueProp && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase text-slate-500">
+                Value Proposition
+              </p>
+              <p className="whitespace-pre-wrap leading-relaxed text-slate-700">
+                {valueProp}
+              </p>
+            </div>
+          )}
+          {capabilities.length > 0 && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase text-slate-500">
+                Key Capabilities
+              </p>
+              <ul className="list-disc space-y-1 pl-4 text-slate-700">
+                {capabilities.map((cap, i) => (
+                  <li key={i}>{cap}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {callToAction && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase text-slate-500">
+                Call to Action
+              </p>
+              <p className="leading-relaxed text-slate-700">{callToAction}</p>
+            </div>
+          )}
+          {!hasContent && (
             <p className="text-slate-400 italic">No draft content available yet</p>
           )}
         </CardContent>

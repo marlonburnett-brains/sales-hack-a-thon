@@ -35,6 +35,7 @@ import {
   dealContextSourceSchema,
 } from "@lumenalta/schemas";
 import { env } from "../env";
+import { regenerateStage } from "../lib/regenerate-stage";
 import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
 import { searchSlides } from "../lib/atlusai-search";
 import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS, cacheDocumentCover, checkGcsCoverExists } from "../lib/gcs-thumbnails";
@@ -1003,7 +1004,7 @@ export const mastra = new Mastra({
             }
 
             // Upload file to Drive
-            const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
+            const googleAuth = await extractGoogleAuth(c, await getVerifiedUserId(c, env.SUPABASE_URL));
             const drive = getDriveClient(googleAuth.accessToken ? googleAuth : undefined);
             const buffer = Buffer.from(await file.arrayBuffer());
             const { Readable } = await import("node:stream");
@@ -1589,6 +1590,29 @@ export const mastra = new Mastra({
         },
       }),
 
+      // POST /interactions/:id/regenerate-stage -- Re-run LLM generation for current stage
+      registerApiRoute("/interactions/:id/regenerate-stage", {
+        method: "POST",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const body = await c.req.json().catch(() => ({}));
+            const data = z
+              .object({ feedback: z.string().optional() })
+              .parse(body);
+
+            const result = await regenerateStage(id, data.feedback);
+            return c.json(result);
+          } catch (err) {
+            console.error("[regenerate-stage] Error:", err);
+            return c.json(
+              { error: "Stage regeneration failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
       // ────────────────────────────────────────────────────────────
       // Template CRUD + Drive Access (Phase 19 -- TMPL-05/06/07)
       // ────────────────────────────────────────────────────────────
@@ -1624,7 +1648,7 @@ export const mastra = new Mastra({
             let serviceAccountEmail: string | null = null;
             let templateName = data.name || "Untitled Presentation";
 
-            const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
+            const googleAuth = await extractGoogleAuth(c, await getVerifiedUserId(c, env.SUPABASE_URL));
             try {
               const drive = getDriveClient(googleAuth.accessToken ? googleAuth : undefined);
               const fileRes = await drive.files.get({
@@ -1872,7 +1896,7 @@ export const mastra = new Mastra({
         method: "POST",
         handler: async (c) => {
           const id = c.req.param("id");
-          const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
+          const googleAuth = await extractGoogleAuth(c, await getVerifiedUserId(c, env.SUPABASE_URL));
           try {
             const template = await prisma.template.findUniqueOrThrow({
               where: { id },
@@ -2003,7 +2027,7 @@ export const mastra = new Mastra({
         handler: async (c) => {
           const templateId = c.req.param("id");
           const template = await prisma.template.findUniqueOrThrow({ where: { id: templateId } });
-          const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
+          const googleAuth = await extractGoogleAuth(c, await getVerifiedUserId(c, env.SUPABASE_URL));
 
           // Query slides with cached thumbnail info
           const slides = await prisma.slideEmbedding.findMany({
@@ -2579,7 +2603,7 @@ export const mastra = new Mastra({
             }
 
             // Enrich documents with Drive MIME type to detect Google Slides
-            const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
+            const googleAuth = await extractGoogleAuth(c, await getVerifiedUserId(c, env.SUPABASE_URL));
             console.log(`[discovery/browse] Google auth: hasToken=${!!googleAuth.accessToken}, userId=${googleAuth.userId ?? "none"}, docs=${documents.length}`);
             await enrichDocsWithDriveMetadata(documents as Record<string, unknown>[], googleAuth);
 
@@ -2672,7 +2696,7 @@ export const mastra = new Mastra({
             });
 
             // Enrich results with Drive MIME type to detect Google Slides
-            const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
+            const googleAuth = await extractGoogleAuth(c, await getVerifiedUserId(c, env.SUPABASE_URL));
             await enrichDocsWithDriveMetadata(results as unknown as Record<string, unknown>[], googleAuth);
 
             // Template cross-reference: attach templateData for results with matching templates
