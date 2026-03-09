@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    console.log(`[workflows/status] runId=${runId} status=${(status as Record<string, unknown>).status}`);
+    console.log(`[workflows/status] runId=${runId} status=${(status as unknown as Record<string, unknown>).status}`);
     return NextResponse.json(status);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Status check failed";
