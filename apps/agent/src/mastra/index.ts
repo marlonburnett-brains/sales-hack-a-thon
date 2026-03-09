@@ -593,7 +593,7 @@ void detectAndQueueBackfill().catch((err) =>
 export const mastra = new Mastra({
   storage: new PostgresStore({
     id: "mastra-store",
-    connectionString: env.DIRECT_URL,
+    connectionString: env.DATABASE_URL,
     schemaName: "mastra",
   }),
   agents: namedMastraAgents,
