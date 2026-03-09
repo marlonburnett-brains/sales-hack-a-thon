@@ -80,6 +80,7 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 16 | Rename system to AtlusDeck and update logo | 2026-03-09 | a65ef86 | [16-rename-system-to-atlusdeck-and-update-lo](./quick/16-rename-system-to-atlusdeck-and-update-lo/) |
 | 15 | Replace AGENT_API_KEY with Supabase JWT auth between web and agent | 2026-03-09 | d3b7e6b | [15-replace-agent-api-key-with-supabase-jwt-](./quick/15-replace-agent-api-key-with-supabase-jwt-/) |
 | 14 | Add web research tool (Tavily) to deal chat assistant | 2026-03-09 | b3729b9 | [14-add-web-research-tool-to-deal-chat-assis](./quick/14-add-web-research-tool-to-deal-chat-assis/) |
 | 13 | Implement UI for visualizing and deleting deck structure memories | 2026-03-08 | c35085a | [13-implement-ui-for-visualizing-and-deletin](./quick/13-implement-ui-for-visualizing-and-deletin/) |
@@ -99,6 +100,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T11:43:44Z
-Stopped at: Completed 57-01-PLAN.md
+Last session: 2026-03-09T13:37:20Z
+Stopped at: Completed quick-16-PLAN.md
 Next action: v1.8 milestone complete
