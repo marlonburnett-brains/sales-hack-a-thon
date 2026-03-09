@@ -19,6 +19,8 @@ interface TouchPageShellProps {
   onStageApprove: () => void;
   isApproving?: boolean;
   historySection?: ReactNode;
+  onRegenerate?: (feedback?: string) => void;
+  isRegenerating?: boolean;
 }
 
 export function TouchPageShell({
@@ -31,6 +33,8 @@ export function TouchPageShell({
   onStageApprove,
   isApproving = false,
   historySection,
+  onRegenerate,
+  isRegenerating = false,
 }: TouchPageShellProps) {
   const isFinalStage = currentStage === "highfi";
 
@@ -67,6 +71,8 @@ export function TouchPageShell({
             onApprove={onStageApprove}
             isApproving={isApproving}
             isFinalStage={isFinalStage}
+            onRegenerate={onRegenerate}
+            isRegenerating={isRegenerating}
           />
         )}
       </div>

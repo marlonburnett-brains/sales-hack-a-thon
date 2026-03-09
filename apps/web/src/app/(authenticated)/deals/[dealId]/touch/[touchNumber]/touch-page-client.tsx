@@ -188,6 +188,7 @@ export function TouchPageClient({
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState("Generating...");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -380,6 +381,55 @@ export function TouchPageClient({
     [router]
   );
 
+  const handleRegenerate = useCallback(
+    async (feedback?: string) => {
+      if (!activeInteraction) return;
+
+      setIsRegenerating(true);
+      try {
+        // Determine which stage to revert to
+        const revertTarget: HitlStage = currentStage ?? "highfi";
+        await revertStageAction(activeInteraction.id, revertTarget);
+
+        const result = await startGeneration(
+          touchType,
+          dealId,
+          companyName,
+          industry,
+          feedback
+        );
+
+        if (!result.runId) {
+          setIsRegenerating(false);
+          toast.error("Re-generation started but no run ID was returned.");
+          return;
+        }
+
+        setIsRegenerating(false);
+        setIsGenerating(true);
+        setGenerationMessage(
+          feedback
+            ? "Re-generating with your feedback..."
+            : "Re-generating..."
+        );
+        startPolling(result.runId);
+      } catch (err) {
+        setIsRegenerating(false);
+        const raw = err instanceof Error ? err.message : "Re-generation failed";
+        toast.error(mapToFriendlyError(raw));
+      }
+    },
+    [
+      activeInteraction,
+      currentStage,
+      touchType,
+      dealId,
+      companyName,
+      industry,
+      startPolling,
+    ]
+  );
+
   // ────────────────────────────────────────────────────────────
   // Touch context for Phase 45 chat bar
   // ────────────────────────────────────────────────────────────
@@ -456,6 +506,8 @@ export function TouchPageClient({
           onStageApprove={handleStageApprove}
           isApproving={isApproving}
           historySection={historySection}
+          onRegenerate={handleRegenerate}
+          isRegenerating={isRegenerating}
         >
           <div className="space-y-4">
             {/* Drive save status */}
@@ -531,6 +583,8 @@ export function TouchPageClient({
         onStageApprove={handleStageApprove}
         isApproving={isApproving}
         historySection={historySection}
+        onRegenerate={handleRegenerate}
+        isRegenerating={isRegenerating}
       >
         {currentStage && stageContent ? (
           <TouchStageContent
@@ -576,25 +630,32 @@ async function startGeneration(
   touchType: string,
   dealId: string,
   companyName: string,
-  industry: string
+  industry: string,
+  feedback?: string
 ) {
   switch (touchType) {
-    case "touch_1":
+    case "touch_1": {
+      const baseContext = `Generate a first-contact pager for ${companyName} in ${industry}`;
       return generateTouch1PagerAction(dealId, {
         companyName,
         industry,
-        context: `Generate a first-contact pager for ${companyName} in ${industry}`,
+        context: feedback
+          ? `${baseContext}. User feedback: ${feedback}`
+          : baseContext,
       });
+    }
     case "touch_2":
       return generateTouch2DeckAction(dealId, {
         companyName,
         industry,
+        ...(feedback ? { context: feedback } : {}),
       });
     case "touch_3":
       return generateTouch3DeckAction(dealId, {
         companyName,
         industry,
         capabilityAreas: [],
+        ...(feedback ? { context: feedback } : {}),
       });
     case "touch_4":
       return generateTouch4BriefAction(dealId, {
@@ -602,6 +663,7 @@ async function startGeneration(
         industry,
         subsector: industry,
         transcript: "",
+        ...(feedback ? { additionalNotes: feedback } : {}),
       });
     default:
       throw new Error(`Unknown touch type: ${touchType}`);
