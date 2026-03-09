@@ -26,7 +26,10 @@ vi.mock("../../lib/drive-folders", () => ({
   shareWithOrg: mockShareWithOrg,
 }));
 
-import type { SlideSelectionEntry, SlideSelectionPlan } from "@lumenalta/schemas";
+import type {
+  SlideSelectionEntry,
+  SlideSelectionPlan,
+} from "@lumenalta/schemas";
 import {
   assembleMultiSourceDeck,
   buildMultiSourcePlan,
@@ -92,19 +95,25 @@ function makeTextShapeElement(
           {
             textRun: {
               content: text,
-              style: { bold: true },
+              style: {
+                bold: true,
+                fontFamily: "Arial",
+                foregroundColor: {
+                  opaqueColor: { rgbColor: { red: 0, green: 0, blue: 1 } },
+                },
+              },
             },
             startIndex: 0,
             endIndex: text.length,
           },
           {
             paragraphMarker: {
-              style: { alignment: "CENTER" },
+              style: { alignment: "CENTER", lineSpacing: 110 },
               bullet: { listId: "bullet-1" },
             },
             startIndex: 0,
             endIndex: text.length,
-          }
+          },
         ],
       },
     },
@@ -138,9 +147,27 @@ function makeShapeElement(
     objectId,
     shape: {
       shapeType,
+      shapeProperties: {
+        shapeBackgroundFill: {
+          solidFill: {
+            color: { rgbColor: { red: 0, green: 1, blue: 0 } },
+          },
+        },
+      },
       text: text
         ? {
-            textElements: [{ textRun: { content: text } }],
+            textElements: [
+              {
+                textRun: { content: text, style: { bold: true } },
+                startIndex: 0,
+                endIndex: text.length,
+              },
+              {
+                paragraphMarker: { style: { alignment: "LEFT" } },
+                startIndex: 0,
+                endIndex: text.length,
+              },
+            ],
           }
         : undefined,
     },
@@ -159,11 +186,25 @@ function makeTableElement(
     table: {
       rows: rows.length,
       columns: rows[0]?.length ?? 0,
+      tableColumns:
+        rows[0]?.map(() => ({ columnWidth: { magnitude: 100, unit: "PT" } })) ??
+        [],
       tableRows: rows.map((row) => ({
         tableCells: row.map((text) => ({
           text: text
             ? {
-                textElements: [{ textRun: { content: text } }],
+                textElements: [
+                  {
+                    paragraphMarker: { style: { alignment: "RIGHT" } },
+                    startIndex: 0,
+                    endIndex: text.length,
+                  },
+                  {
+                    textRun: { content: text, style: { italic: true } },
+                    startIndex: 0,
+                    endIndex: text.length,
+                  },
+                ],
               }
             : undefined,
         })),
@@ -200,7 +241,10 @@ function makeUnsupportedVideoElement(
 
 function makePresentation(
   slideIds: string[],
-  slideElementsById: Record<string, Array<string | slides_v1.Schema$PageElement>> = {},
+  slideElementsById: Record<
+    string,
+    Array<string | slides_v1.Schema$PageElement>
+  > = {},
 ) {
   return {
     data: {
@@ -213,10 +257,15 @@ function makePresentation(
             },
           },
         },
-        pageElements: (slideElementsById[slideId] ?? []).map((element, index) =>
-          typeof element === "string"
-            ? makeTextShapeElement(`${slideId}-shape-${index + 1}`, element, index)
-            : element,
+        pageElements: (slideElementsById[slideId] ?? []).map(
+          (element, index) =>
+            typeof element === "string"
+              ? makeTextShapeElement(
+                  `${slideId}-shape-${index + 1}`,
+                  element,
+                  index,
+                )
+              : element,
         ),
       })),
     },
@@ -253,9 +302,13 @@ function makeSlidesClient(overrides?: {
           .fn()
           .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
           .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
-          .mockResolvedValueOnce(makePresentation(["s4", "sx"], { s4: ["Secondary intro"] }))
+          .mockResolvedValueOnce(
+            makePresentation(["s4", "sx"], { s4: ["Secondary intro"] }),
+          )
           .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
-          .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"])),
+          .mockResolvedValueOnce(
+            makePresentation(["p1", "p2", "generated-s4"]),
+          ),
       batchUpdate: overrides?.batchUpdate ?? vi.fn().mockResolvedValue({}),
     },
   };
@@ -442,7 +495,11 @@ describe("assembleMultiSourceDeck", () => {
         .mockResolvedValueOnce(
           makePresentation(["s4", "sx"], {
             s4: [
-              makeImageElement("s4-image-1", "https://example.com/image.png", 0),
+              makeImageElement(
+                "s4-image-1",
+                "https://example.com/image.png",
+                0,
+              ),
               makeShapeElement("s4-shape-1", "RECTANGLE", 1),
               makeTableElement(
                 "s4-table-1",
@@ -453,8 +510,17 @@ describe("assembleMultiSourceDeck", () => {
                 2,
               ),
               makeGroupElement("s4-group-1", [
-                makeShapeElement("s4-group-child-shape", "ROUND_RECTANGLE", 3, "Grouped text"),
-                makeImageElement("s4-group-child-image", "https://example.com/group.png", 4),
+                makeShapeElement(
+                  "s4-group-child-shape",
+                  "ROUND_RECTANGLE",
+                  3,
+                  "Grouped text",
+                ),
+                makeImageElement(
+                  "s4-group-child-image",
+                  "https://example.com/group.png",
+                  4,
+                ),
               ]),
               makeUnsupportedVideoElement("s4-video-1", 5),
             ],
@@ -510,18 +576,37 @@ describe("assembleMultiSourceDeck", () => {
       },
     });
 
+    require("fs").writeFileSync(
+      "calls.json",
+      JSON.stringify(
+        slidesClient.presentations.batchUpdate.mock.calls[1][0],
+        null,
+        2,
+      ),
+    );
     expect(slidesClient.presentations.batchUpdate).toHaveBeenNthCalledWith(2, {
       presentationId: "primary-copy",
       requestBody: {
         requests: [
-          { createSlide: { objectId: "generated-s4", insertionIndex: 2 } },
+          {
+            createSlide: {
+              objectId: "generated-s4",
+              insertionIndex: 2,
+            },
+          },
           {
             updatePageProperties: {
               objectId: "generated-s4",
               pageProperties: {
                 pageBackgroundFill: {
                   solidFill: {
-                    color: { rgbColor: { red: 1, green: 1, blue: 1 } },
+                    color: {
+                      rgbColor: {
+                        red: 1,
+                        green: 1,
+                        blue: 1,
+                      },
+                    },
                   },
                 },
               },
@@ -534,8 +619,25 @@ describe("assembleMultiSourceDeck", () => {
               url: "https://example.com/image.png",
               elementProperties: {
                 pageObjectId: "generated-s4",
-                size: makeSize(),
-                transform: makeTransform(0),
+                size: {
+                  height: {
+                    magnitude: 100,
+                    unit: "PT",
+                  },
+                  width: {
+                    magnitude: 200,
+                    unit: "PT",
+                  },
+                },
+                transform: {
+                  scaleX: 1,
+                  scaleY: 1,
+                  shearX: 0,
+                  shearY: 0,
+                  translateX: 10,
+                  translateY: 20,
+                  unit: "PT",
+                },
               },
             },
           },
@@ -545,9 +647,45 @@ describe("assembleMultiSourceDeck", () => {
               shapeType: "RECTANGLE",
               elementProperties: {
                 pageObjectId: "generated-s4",
-                size: makeSize(),
-                transform: makeTransform(1),
+                size: {
+                  height: {
+                    magnitude: 100,
+                    unit: "PT",
+                  },
+                  width: {
+                    magnitude: 200,
+                    unit: "PT",
+                  },
+                },
+                transform: {
+                  scaleX: 1,
+                  scaleY: 1,
+                  shearX: 0,
+                  shearY: 0,
+                  translateX: 11,
+                  translateY: 21,
+                  unit: "PT",
+                },
               },
+            },
+          },
+          {
+            updateShapeProperties: {
+              objectId: "generated-s4-sha-s4-shape-1-1-92c42adeca25",
+              shapeProperties: {
+                shapeBackgroundFill: {
+                  solidFill: {
+                    color: {
+                      rgbColor: {
+                        red: 0,
+                        green: 1,
+                        blue: 0,
+                      },
+                    },
+                  },
+                },
+              },
+              fields: "*",
             },
           },
           {
@@ -557,53 +695,240 @@ describe("assembleMultiSourceDeck", () => {
               columns: 2,
               elementProperties: {
                 pageObjectId: "generated-s4",
-                size: makeSize(),
-                transform: makeTransform(2),
+                size: {
+                  height: {
+                    magnitude: 100,
+                    unit: "PT",
+                  },
+                  width: {
+                    magnitude: 200,
+                    unit: "PT",
+                  },
+                },
+                transform: {
+                  scaleX: 1,
+                  scaleY: 1,
+                  shearX: 0,
+                  shearY: 0,
+                  translateX: 12,
+                  translateY: 22,
+                  unit: "PT",
+                },
               },
+            },
+          },
+          {
+            updateTableColumnProperties: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              columnIndices: [0],
+              tableColumnProperties: {
+                columnWidth: {
+                  magnitude: 100,
+                  unit: "PT",
+                },
+              },
+              fields: "columnWidth",
+            },
+          },
+          {
+            updateTableColumnProperties: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              columnIndices: [1],
+              tableColumnProperties: {
+                columnWidth: {
+                  magnitude: 100,
+                  unit: "PT",
+                },
+              },
+              fields: "columnWidth",
             },
           },
           {
             insertText: {
               objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
-              cellLocation: {
-                rowIndex: 0,
-                columnIndex: 0,
-              },
               insertionIndex: 0,
               text: "Revenue",
+              cellLocation: {
+                rowIndex: 0,
+                columnIndex: 0,
+              },
+            },
+          },
+          {
+            updateParagraphStyle: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              style: {
+                alignment: "RIGHT",
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 7,
+              },
+              fields: "*",
+              cellLocation: {
+                rowIndex: 0,
+                columnIndex: 0,
+              },
+            },
+          },
+          {
+            updateTextStyle: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              style: {
+                italic: true,
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 7,
+              },
+              fields: "*",
+              cellLocation: {
+                rowIndex: 0,
+                columnIndex: 0,
+              },
             },
           },
           {
             insertText: {
               objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              insertionIndex: 0,
+              text: "Growth",
               cellLocation: {
                 rowIndex: 0,
                 columnIndex: 1,
               },
-              insertionIndex: 0,
-              text: "Growth",
+            },
+          },
+          {
+            updateParagraphStyle: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              style: {
+                alignment: "RIGHT",
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 6,
+              },
+              fields: "*",
+              cellLocation: {
+                rowIndex: 0,
+                columnIndex: 1,
+              },
+            },
+          },
+          {
+            updateTextStyle: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              style: {
+                italic: true,
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 6,
+              },
+              fields: "*",
+              cellLocation: {
+                rowIndex: 0,
+                columnIndex: 1,
+              },
             },
           },
           {
             insertText: {
               objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              insertionIndex: 0,
+              text: "$10M",
               cellLocation: {
                 rowIndex: 1,
                 columnIndex: 0,
               },
-              insertionIndex: 0,
-              text: "$10M",
+            },
+          },
+          {
+            updateParagraphStyle: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              style: {
+                alignment: "RIGHT",
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 4,
+              },
+              fields: "*",
+              cellLocation: {
+                rowIndex: 1,
+                columnIndex: 0,
+              },
+            },
+          },
+          {
+            updateTextStyle: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              style: {
+                italic: true,
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 4,
+              },
+              fields: "*",
+              cellLocation: {
+                rowIndex: 1,
+                columnIndex: 0,
+              },
             },
           },
           {
             insertText: {
               objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              insertionIndex: 0,
+              text: "20%",
               cellLocation: {
                 rowIndex: 1,
                 columnIndex: 1,
               },
-              insertionIndex: 0,
-              text: "20%",
+            },
+          },
+          {
+            updateParagraphStyle: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              style: {
+                alignment: "RIGHT",
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 3,
+              },
+              fields: "*",
+              cellLocation: {
+                rowIndex: 1,
+                columnIndex: 1,
+              },
+            },
+          },
+          {
+            updateTextStyle: {
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
+              style: {
+                italic: true,
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 3,
+              },
+              fields: "*",
+              cellLocation: {
+                rowIndex: 1,
+                columnIndex: 1,
+              },
             },
           },
           {
@@ -612,9 +937,45 @@ describe("assembleMultiSourceDeck", () => {
               shapeType: "ROUND_RECTANGLE",
               elementProperties: {
                 pageObjectId: "generated-s4",
-                size: makeSize(),
-                transform: makeTransform(3),
+                size: {
+                  height: {
+                    magnitude: 100,
+                    unit: "PT",
+                  },
+                  width: {
+                    magnitude: 200,
+                    unit: "PT",
+                  },
+                },
+                transform: {
+                  scaleX: 1,
+                  scaleY: 1,
+                  shearX: 0,
+                  shearY: 0,
+                  translateX: 13,
+                  translateY: 23,
+                  unit: "PT",
+                },
               },
+            },
+          },
+          {
+            updateShapeProperties: {
+              objectId: "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
+              shapeProperties: {
+                shapeBackgroundFill: {
+                  solidFill: {
+                    color: {
+                      rgbColor: {
+                        red: 0,
+                        green: 1,
+                        blue: 0,
+                      },
+                    },
+                  },
+                },
+              },
+              fields: "*",
             },
           },
           {
@@ -625,13 +986,58 @@ describe("assembleMultiSourceDeck", () => {
             },
           },
           {
+            updateTextStyle: {
+              objectId: "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
+              style: {
+                bold: true,
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 12,
+              },
+              fields: "*",
+            },
+          },
+          {
+            updateParagraphStyle: {
+              objectId: "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
+              style: {
+                alignment: "LEFT",
+              },
+              textRange: {
+                type: "FIXED_RANGE",
+                startIndex: 0,
+                endIndex: 12,
+              },
+              fields: "*",
+            },
+          },
+          {
             createImage: {
               objectId: "generated-s4-ima-s4-group-c-2-d7dcb427e603",
               url: "https://example.com/group.png",
               elementProperties: {
                 pageObjectId: "generated-s4",
-                size: makeSize(),
-                transform: makeTransform(4),
+                size: {
+                  height: {
+                    magnitude: 100,
+                    unit: "PT",
+                  },
+                  width: {
+                    magnitude: 200,
+                    unit: "PT",
+                  },
+                },
+                transform: {
+                  scaleX: 1,
+                  scaleY: 1,
+                  shearX: 0,
+                  shearY: 0,
+                  translateX: 14,
+                  translateY: 24,
+                  unit: "PT",
+                },
               },
             },
           },
@@ -641,8 +1047,25 @@ describe("assembleMultiSourceDeck", () => {
               shapeType: "TEXT_BOX",
               elementProperties: {
                 pageObjectId: "generated-s4",
-                size: makeSize(),
-                transform: makeTransform(5),
+                size: {
+                  height: {
+                    magnitude: 100,
+                    unit: "PT",
+                  },
+                  width: {
+                    magnitude: 200,
+                    unit: "PT",
+                  },
+                },
+                transform: {
+                  scaleX: 1,
+                  scaleY: 1,
+                  shearX: 0,
+                  shearY: 0,
+                  translateX: 15,
+                  translateY: 25,
+                  unit: "PT",
+                },
               },
             },
           },
@@ -661,10 +1084,17 @@ describe("assembleMultiSourceDeck", () => {
       presentationId: "primary-copy",
       requestBody: {
         requests: [
-          { updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 } },
-          { updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 2 } },
           {
-            updateSlidesPosition: { slideObjectIds: ["generated-s4"], insertionIndex: 1 },
+            updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 },
+          },
+          {
+            updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 2 },
+          },
+          {
+            updateSlidesPosition: {
+              slideObjectIds: ["generated-s4"],
+              insertionIndex: 1,
+            },
           },
         ],
       },
@@ -675,7 +1105,9 @@ describe("assembleMultiSourceDeck", () => {
       supportsAllDrives: true,
     });
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Unsupported element s4-video-1 (video) on source slide s4"),
+      expect.stringContaining(
+        "Unsupported element s4-video-1 (video) on source slide s4",
+      ),
     );
     expect(mockShareWithOrg).toHaveBeenCalledWith({
       fileId: "primary-copy",
@@ -726,8 +1158,12 @@ describe("assembleMultiSourceDeck", () => {
       presentationId: "primary-copy",
       requestBody: {
         requests: [
-          { updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 } },
-          { updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 1 } },
+          {
+            updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 },
+          },
+          {
+            updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 1 },
+          },
         ],
       },
     });
@@ -772,8 +1208,12 @@ describe("assembleMultiSourceDeck", () => {
       presentationId: "primary-copy",
       requestBody: {
         requests: [
-          { updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 } },
-          { updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 1 } },
+          {
+            updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 },
+          },
+          {
+            updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 1 },
+          },
         ],
       },
     });
@@ -793,7 +1233,9 @@ describe("assembleMultiSourceDeck", () => {
         .fn()
         .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
         .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
-        .mockResolvedValueOnce(makePresentation(["s4"], { s4: ["Secondary intro"] }))
+        .mockResolvedValueOnce(
+          makePresentation(["s4"], { s4: ["Secondary intro"] }),
+        )
         .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
         .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"])),
     });
@@ -845,10 +1287,16 @@ describe("assembleMultiSourceDeck", () => {
         .fn()
         .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
         .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
-        .mockResolvedValueOnce(makePresentation(["s4"], { s4: ["Secondary intro"] }))
+        .mockResolvedValueOnce(
+          makePresentation(["s4"], { s4: ["Secondary intro"] }),
+        )
         .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
-        .mockResolvedValueOnce(makePresentation(["s6"], { s6: ["Secondary close"] }))
-        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4", "generated-s6"]))
+        .mockResolvedValueOnce(
+          makePresentation(["s6"], { s6: ["Secondary close"] }),
+        )
+        .mockResolvedValueOnce(
+          makePresentation(["p1", "p2", "generated-s4", "generated-s6"]),
+        )
         .mockResolvedValueOnce(
           makePresentation(["p1", "p2", "generated-s4", "generated-s6"]),
         ),
@@ -942,15 +1390,17 @@ describe("assembleMultiSourceDeck", () => {
       deckName: "Collision Deck",
     });
 
-    const rebuildRequests = vi.mocked(slidesClient.presentations.batchUpdate).mock.calls[1]?.[0]
-      ?.requestBody?.requests;
+    const rebuildRequests = vi.mocked(slidesClient.presentations.batchUpdate)
+      .mock.calls[1]?.[0]?.requestBody?.requests;
     const createdImageIds = (rebuildRequests ?? [])
       .map((request) => request.createImage?.objectId)
       .filter((objectId): objectId is string => Boolean(objectId));
 
     expect(createdImageIds).toHaveLength(2);
     expect(new Set(createdImageIds).size).toBe(2);
-    expect(createdImageIds.every((objectId) => objectId.length <= 50)).toBe(true);
+    expect(createdImageIds.every((objectId) => objectId.length <= 50)).toBe(
+      true,
+    );
   });
 
   it("uses a safe fallback transform for unsupported placeholders when source transform is non-invertible", async () => {
@@ -1010,10 +1460,11 @@ describe("assembleMultiSourceDeck", () => {
       deckName: "Transform Fallback Deck",
     });
 
-    const rebuildRequests = vi.mocked(slidesClient.presentations.batchUpdate).mock.calls[1]?.[0]
-      ?.requestBody?.requests;
-    const placeholderRequest = (rebuildRequests ?? []).find((request) => request.createShape)
-      ?.createShape;
+    const rebuildRequests = vi.mocked(slidesClient.presentations.batchUpdate)
+      .mock.calls[1]?.[0]?.requestBody?.requests;
+    const placeholderRequest = (rebuildRequests ?? []).find(
+      (request) => request.createShape,
+    )?.createShape;
 
     expect(placeholderRequest?.shapeType).toBe("TEXT_BOX");
     expect(placeholderRequest?.elementProperties?.transform).toEqual({
@@ -1026,7 +1477,9 @@ describe("assembleMultiSourceDeck", () => {
       unit: "PT",
     });
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Unsupported element unsupported-line (line) on source slide s4"),
+      expect.stringContaining(
+        "Unsupported element unsupported-line (line) on source slide s4",
+      ),
     );
   });
 
@@ -1085,9 +1538,11 @@ describe("assembleMultiSourceDeck", () => {
       deckName: "Normalized Transform Deck",
     });
 
-    const rebuildRequests = vi.mocked(slidesClient.presentations.batchUpdate).mock.calls[1]?.[0]
-      ?.requestBody?.requests;
-    const shapeRequest = (rebuildRequests ?? []).find((request) => request.createShape)?.createShape;
+    const rebuildRequests = vi.mocked(slidesClient.presentations.batchUpdate)
+      .mock.calls[1]?.[0]?.requestBody?.requests;
+    const shapeRequest = (rebuildRequests ?? []).find(
+      (request) => request.createShape,
+    )?.createShape;
 
     expect(shapeRequest?.elementProperties?.transform).toEqual({
       scaleX: 1,
