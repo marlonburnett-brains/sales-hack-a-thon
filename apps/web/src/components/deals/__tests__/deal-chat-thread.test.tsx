@@ -205,4 +205,106 @@ describe("DealChatThread", () => {
     expect(screen.getByRole("button", { name: /save as general note/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /choose another touch/i })).toBeInTheDocument();
   });
+
+  it("exposes a transcript upload control and lets sellers clear a selected file before sending", async () => {
+    const { DealChatThread } = await import("../deal-chat-thread");
+    const user = userEvent.setup();
+    const file = new File(["speaker one joined late"], "briefing-call.txt", {
+      type: "text/plain",
+    });
+
+    render(
+      <DealChatThread
+        dealId="deal-1"
+        routeContext={routeContext}
+        initialMessages={[]}
+        greeting={null}
+        suggestions={[]}
+      />,
+    );
+
+    const input = screen.getByLabelText(/upload transcript/i);
+    await user.upload(input, file);
+
+    expect(screen.getByText("briefing-call.txt")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /remove transcript/i }));
+
+    expect(screen.queryByText("briefing-call.txt")).not.toBeInTheDocument();
+  });
+
+  it("reads uploaded transcript text client-side and posts transcriptUpload through the existing chat route", async () => {
+    const meta = makeMeta();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        `Grounded answer\n---DEAL_CHAT_META---\n${JSON.stringify(meta)}`,
+        { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { DealChatThread } = await import("../deal-chat-thread");
+    const user = userEvent.setup();
+    const file = new File(["speaker one joined late"], "briefing-call.txt", {
+      type: "text/plain",
+    });
+
+    render(
+      <DealChatThread
+        dealId="deal-1"
+        routeContext={routeContext}
+        initialMessages={[]}
+        greeting={null}
+        suggestions={[]}
+      />,
+    );
+
+    await user.upload(screen.getByLabelText(/upload transcript/i), file);
+    await user.type(screen.getByLabelText(/chat message input/i), "Please save this transcript.");
+    await user.click(screen.getByRole("button", { name: /send message/i }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/deals/deal-1/chat",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            dealId: "deal-1",
+            message: "Please save this transcript.",
+            transcriptUpload: {
+              fileName: "briefing-call.txt",
+              mimeType: "text/plain",
+              text: "speaker one joined late",
+            },
+            routeContext,
+          }),
+        }),
+      );
+    });
+
+    expect(await screen.findByText(/uploaded transcript: briefing-call.txt/i)).toBeInTheDocument();
+    expect(screen.getByText("Save to Touch 2 transcript?")).toBeInTheDocument();
+  });
+
+  it("shows clear feedback for unsupported transcript uploads", async () => {
+    const { DealChatThread } = await import("../deal-chat-thread");
+    const user = userEvent.setup();
+    const file = new File(["pdf bytes"], "briefing-call.pdf", {
+      type: "application/pdf",
+    });
+
+    render(
+      <DealChatThread
+        dealId="deal-1"
+        routeContext={routeContext}
+        initialMessages={[]}
+        greeting={null}
+        suggestions={[]}
+      />,
+    );
+
+    await user.upload(screen.getByLabelText(/upload transcript/i), file);
+
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/supported transcript/i));
+  });
 });
