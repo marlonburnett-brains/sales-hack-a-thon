@@ -108,6 +108,7 @@ function makeSlidesClient(overrides?: {
         vi
           .fn()
           .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
+          .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
           .mockResolvedValueOnce(makePresentation(["s4", "sx"], { s4: ["Secondary intro"] }))
           .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
           .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"])),
@@ -374,10 +375,10 @@ describe("assembleMultiSourceDeck", () => {
       requestBody: {
         requests: [
           { updateSlidesPosition: { slideObjectIds: ["p1"], insertionIndex: 0 } },
+          { updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 2 } },
           {
             updateSlidesPosition: { slideObjectIds: ["generated-s4"], insertionIndex: 1 },
           },
-          { updateSlidesPosition: { slideObjectIds: ["p2"], insertionIndex: 2 } },
         ],
       },
     });
