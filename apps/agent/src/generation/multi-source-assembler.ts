@@ -7,6 +7,7 @@
  * assembler. Full multi-source Google API orchestration lands in Plan 02.
  */
 
+import { createHash } from "node:crypto";
 import type { SlideSelectionEntry, SlideSelectionPlan } from "@lumenalta/schemas";
 import type { slides_v1 } from "googleapis";
 import {
@@ -14,7 +15,11 @@ import {
   type AssembleDeckResult,
 } from "../lib/deck-customizer";
 import { shareWithOrg } from "../lib/drive-folders";
-import { getDriveClient, getSlidesClient } from "../lib/google-auth";
+import {
+  getDriveClient,
+  getSlidesClient,
+  type GoogleAuthOptions,
+} from "../lib/google-auth";
 import type { MultiSourcePlan, SecondarySource } from "./types";
 
 export interface AssembleMultiSourceParams {
@@ -22,6 +27,7 @@ export interface AssembleMultiSourceParams {
   targetFolderId: string;
   deckName: string;
   ownerEmail?: string;
+  authOptions?: GoogleAuthOptions;
 }
 
 interface RebuildContext {
@@ -114,8 +120,8 @@ export async function assembleMultiSourceDeck(
     });
   }
 
-  const drive = getDriveClient();
-  const slides = getSlidesClient();
+  const drive = getDriveClient(params.authOptions);
+  const slides = getSlidesClient(params.authOptions);
   const tempFileIds: string[] = [];
 
   try {
@@ -325,12 +331,13 @@ function buildImageRequests(
   element: slides_v1.Schema$PageElement,
   context: RebuildContext,
 ): slides_v1.Schema$Request[] {
-  const imageUrl = element.image?.sourceUrl ?? element.image?.contentUrl;
+  const imageUrl = element.image?.contentUrl ?? element.image?.sourceUrl;
   if (!imageUrl) {
     return buildUnsupportedElementRequests(element, context, "image", "missing source url");
   }
 
-  if (!element.size || !element.transform) {
+  const elementProperties = buildElementProperties(element);
+  if (!elementProperties) {
     return buildUnsupportedElementRequests(element, context, "image", "missing geometry");
   }
 
@@ -341,8 +348,7 @@ function buildImageRequests(
         url: imageUrl,
         elementProperties: {
           pageObjectId: context.targetSlideId,
-          size: element.size,
-          transform: element.transform,
+          ...elementProperties,
         },
       },
     },
@@ -353,7 +359,8 @@ function buildShapeRequests(
   element: slides_v1.Schema$PageElement,
   context: RebuildContext,
 ): slides_v1.Schema$Request[] {
-  if (!element.size || !element.transform) {
+  const elementProperties = buildElementProperties(element);
+  if (!elementProperties) {
     return buildUnsupportedElementRequests(element, context, "shape", "missing geometry");
   }
 
@@ -367,8 +374,7 @@ function buildShapeRequests(
         shapeType,
         elementProperties: {
           pageObjectId: context.targetSlideId,
-          size: element.size,
-          transform: element.transform,
+          ...elementProperties,
         },
       },
     },
@@ -391,7 +397,8 @@ function buildTableRequests(
   element: slides_v1.Schema$PageElement,
   context: RebuildContext,
 ): slides_v1.Schema$Request[] {
-  if (!element.size || !element.transform) {
+  const elementProperties = buildElementProperties(element);
+  if (!elementProperties) {
     return buildUnsupportedElementRequests(element, context, "table", "missing geometry");
   }
 
@@ -422,8 +429,7 @@ function buildTableRequests(
         columns: columnCount,
         elementProperties: {
           pageObjectId: context.targetSlideId,
-          size: element.size,
-          transform: element.transform,
+          ...elementProperties,
         },
       },
     },
@@ -479,6 +485,10 @@ function buildPlaceholderRequests(
   text: string,
 ): slides_v1.Schema$Request[] {
   const placeholderId = makeElementObjectId(context, element, "placeholder");
+  const elementProperties = buildElementProperties(element, true) ?? {
+    size: defaultPlaceholderSize(),
+    transform: defaultPlaceholderTransform(),
+  };
 
   return [
     {
@@ -487,8 +497,7 @@ function buildPlaceholderRequests(
         shapeType: "TEXT_BOX",
         elementProperties: {
           pageObjectId: context.targetSlideId,
-          size: element.size ?? defaultPlaceholderSize(),
-          transform: element.transform ?? defaultPlaceholderTransform(),
+          ...elementProperties,
         },
       },
     },
@@ -521,12 +530,79 @@ function makeElementObjectId(
 
   const sourceId = sanitizeObjectIdFragment(element.objectId ?? `${kind}-${nextIndex}`);
   const kindPrefix = kind.slice(0, 3);
-  const sourceSuffix = sourceId.slice(-18);
-  return `${context.targetSlideId}-${kindPrefix}-${sourceSuffix}-${nextIndex}`.slice(0, 50);
+  const targetPrefix = sanitizeObjectIdFragment(context.targetSlideId).slice(0, 18);
+  const sourcePrefix = sourceId.slice(0, 10);
+  const digest = createHash("sha1")
+    .update(`${context.targetSlideId}:${kind}:${sourceId}:${nextIndex}`)
+    .digest("hex")
+    .slice(0, 12);
+
+  return `${targetPrefix}-${kindPrefix}-${sourcePrefix}-${nextIndex}-${digest}`.slice(0, 50);
 }
 
 function sanitizeObjectIdFragment(value: string): string {
   return value.replace(/[^A-Za-z0-9_-]/g, "-");
+}
+
+function buildElementProperties(
+  element: slides_v1.Schema$PageElement,
+  allowTransformFallback = false,
+): Pick<slides_v1.Schema$PageElement, "size" | "transform"> | null {
+  if (!element.size) {
+    return null;
+  }
+
+  const transform = normalizeTransform(element.transform, allowTransformFallback);
+  if (!transform) {
+    return null;
+  }
+
+  return {
+    size: element.size,
+    transform,
+  };
+}
+
+function normalizeTransform(
+  transform: slides_v1.Schema$AffineTransform | null | undefined,
+  allowFallback: boolean,
+): slides_v1.Schema$AffineTransform | null {
+  if (!transform) {
+    return allowFallback ? defaultPlaceholderTransform() : null;
+  }
+
+  const scaleX = transform.scaleX ?? 1;
+  const scaleY = transform.scaleY ?? 1;
+  const shearX = transform.shearX ?? 0;
+  const shearY = transform.shearY ?? 0;
+  const normalizedTransform: slides_v1.Schema$AffineTransform = {
+    scaleX,
+    scaleY,
+    shearX,
+    shearY,
+    translateX: transform.translateX ?? 0,
+    translateY: transform.translateY ?? 0,
+    unit: transform.unit ?? "PT",
+  };
+  const determinant = scaleX * scaleY - shearX * shearY;
+
+  if (determinant !== 0) {
+    return normalizedTransform;
+  }
+
+  if (!allowFallback) {
+    return null;
+  }
+
+  return {
+    scaleX: scaleX || 1,
+    scaleY: scaleY || 1,
+    shearX: 0,
+    shearY: 0,
+    translateX: normalizedTransform.translateX || 24,
+    translateY: normalizedTransform.translateY || 24,
+    unit: normalizedTransform.unit,
+  };
 }
 
 function defaultPlaceholderSize(): slides_v1.Schema$Size {

@@ -62,6 +62,8 @@ function makeTransform(offset = 0): slides_v1.Schema$AffineTransform {
   return {
     scaleX: 1,
     scaleY: 1,
+    shearX: 0,
+    shearY: 0,
     translateX: 10 + offset,
     translateY: 20 + offset,
     unit: "PT",
@@ -484,7 +486,7 @@ describe("assembleMultiSourceDeck", () => {
           { createSlide: { objectId: "generated-s4", insertionIndex: 2 } },
           {
             createImage: {
-              objectId: "generated-s4-ima-s4-image-1-1",
+              objectId: "generated-s4-ima-s4-image-1-1-42a31bacc0b7",
               url: "https://example.com/image.png",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -495,7 +497,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             createShape: {
-              objectId: "generated-s4-sha-s4-shape-1-1",
+              objectId: "generated-s4-sha-s4-shape-1-1-92c42adeca25",
               shapeType: "RECTANGLE",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -506,7 +508,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             createTable: {
-              objectId: "generated-s4-tab-s4-table-1-1",
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
               rows: 2,
               columns: 2,
               elementProperties: {
@@ -518,7 +520,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-tab-s4-table-1-1",
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
               cellLocation: {
                 rowIndex: 0,
                 columnIndex: 0,
@@ -529,7 +531,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-tab-s4-table-1-1",
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
               cellLocation: {
                 rowIndex: 0,
                 columnIndex: 1,
@@ -540,7 +542,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-tab-s4-table-1-1",
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
               cellLocation: {
                 rowIndex: 1,
                 columnIndex: 0,
@@ -551,7 +553,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-tab-s4-table-1-1",
+              objectId: "generated-s4-tab-s4-table-1-1-1d1d5fa7cbe9",
               cellLocation: {
                 rowIndex: 1,
                 columnIndex: 1,
@@ -562,7 +564,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             createShape: {
-              objectId: "generated-s4-sha--group-child-shape-2",
+              objectId: "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
               shapeType: "ROUND_RECTANGLE",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -573,14 +575,14 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-sha--group-child-shape-2",
+              objectId: "generated-s4-sha-s4-group-c-2-1a7f3f8a891f",
               insertionIndex: 0,
               text: "Grouped text",
             },
           },
           {
             createImage: {
-              objectId: "generated-s4-ima--group-child-image-2",
+              objectId: "generated-s4-ima-s4-group-c-2-d7dcb427e603",
               url: "https://example.com/group.png",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -591,7 +593,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             createShape: {
-              objectId: "generated-s4-pla-s4-video-1-1",
+              objectId: "generated-s4-pla-s4-video-1-1-6aec0cd78457",
               shapeType: "TEXT_BOX",
               elementProperties: {
                 pageObjectId: "generated-s4",
@@ -602,7 +604,7 @@ describe("assembleMultiSourceDeck", () => {
           },
           {
             insertText: {
-              objectId: "generated-s4-pla-s4-video-1-1",
+              objectId: "generated-s4-pla-s4-video-1-1-6aec0cd78457",
               insertionIndex: 0,
               text: "Unsupported element: video\nSource slide: s4\nElement: s4-video-1",
             },
@@ -847,5 +849,210 @@ describe("assembleMultiSourceDeck", () => {
       expect.stringContaining("Failed to clean up temp file secondary-copy-1"),
     );
     expect(result.presentationId).toBe("primary-copy");
+  });
+
+  it("generates unique rebuilt object ids even when long source ids share the same suffix", async () => {
+    const driveClient = makeDriveClient();
+    const slidesClient = makeSlidesClient({
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce(
+          makePresentation(["s4"], {
+            s4: [
+              makeImageElement(
+                "extremely-long-source-element-alpha-shared-suffix-1234567890",
+                "https://example.com/alpha.png",
+                0,
+              ),
+              makeImageElement(
+                "extremely-long-source-element-beta-shared-suffix-1234567890",
+                "https://example.com/beta.png",
+                1,
+              ),
+            ],
+          }),
+        )
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"])),
+    });
+    mockGetDriveClient.mockReturnValue(driveClient);
+    mockGetSlidesClient.mockReturnValue(slidesClient);
+
+    const plan = buildMultiSourcePlan(
+      makePlan([
+        makeEntry("p1", "pres-a", "tpl-a"),
+        makeEntry("s4", "pres-b", "tpl-b"),
+        makeEntry("p2", "pres-a", "tpl-a"),
+      ]),
+      new Map([
+        ["pres-a", ["p1", "p2", "p3"]],
+        ["pres-b", ["s4"]],
+      ]),
+    );
+
+    await assembleMultiSourceDeck({
+      plan,
+      targetFolderId: "folder-1",
+      deckName: "Collision Deck",
+    });
+
+    const rebuildRequests = vi.mocked(slidesClient.presentations.batchUpdate).mock.calls[1]?.[0]
+      ?.requestBody?.requests;
+    const createdImageIds = (rebuildRequests ?? [])
+      .map((request) => request.createImage?.objectId)
+      .filter((objectId): objectId is string => Boolean(objectId));
+
+    expect(createdImageIds).toHaveLength(2);
+    expect(new Set(createdImageIds).size).toBe(2);
+    expect(createdImageIds.every((objectId) => objectId.length <= 50)).toBe(true);
+  });
+
+  it("uses a safe fallback transform for unsupported placeholders when source transform is non-invertible", async () => {
+    const warnSpy = vi.mocked(console.warn);
+    const driveClient = makeDriveClient();
+    const slidesClient = makeSlidesClient({
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce({
+          data: {
+            slides: [
+              {
+                objectId: "s4",
+                pageElements: [
+                  {
+                    objectId: "unsupported-line",
+                    line: {},
+                    size: makeSize(),
+                    transform: {
+                      scaleX: 1,
+                      scaleY: 0,
+                      shearX: 0,
+                      shearY: 0,
+                      translateX: 42,
+                      translateY: 84,
+                      unit: "PT",
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"])),
+    });
+    mockGetDriveClient.mockReturnValue(driveClient);
+    mockGetSlidesClient.mockReturnValue(slidesClient);
+
+    const plan = buildMultiSourcePlan(
+      makePlan([
+        makeEntry("p1", "pres-a", "tpl-a"),
+        makeEntry("s4", "pres-b", "tpl-b"),
+        makeEntry("p2", "pres-a", "tpl-a"),
+      ]),
+      new Map([
+        ["pres-a", ["p1", "p2", "p3"]],
+        ["pres-b", ["s4"]],
+      ]),
+    );
+
+    await assembleMultiSourceDeck({
+      plan,
+      targetFolderId: "folder-1",
+      deckName: "Transform Fallback Deck",
+    });
+
+    const rebuildRequests = vi.mocked(slidesClient.presentations.batchUpdate).mock.calls[1]?.[0]
+      ?.requestBody?.requests;
+    const placeholderRequest = (rebuildRequests ?? []).find((request) => request.createShape)
+      ?.createShape;
+
+    expect(placeholderRequest?.shapeType).toBe("TEXT_BOX");
+    expect(placeholderRequest?.elementProperties?.transform).toEqual({
+      scaleX: 1,
+      scaleY: 1,
+      shearX: 0,
+      shearY: 0,
+      translateX: 42,
+      translateY: 84,
+      unit: "PT",
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Unsupported element unsupported-line (line) on source slide s4"),
+    );
+  });
+
+  it("normalizes supported element transforms so Slides requests always include invertible affine matrices", async () => {
+    const driveClient = makeDriveClient();
+    const slidesClient = makeSlidesClient({
+      get: vi
+        .fn()
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "p3"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2"]))
+        .mockResolvedValueOnce({
+          data: {
+            slides: [
+              {
+                objectId: "s4",
+                pageElements: [
+                  {
+                    objectId: "line-backed-shape",
+                    shape: {
+                      shapeType: "RECTANGLE",
+                    },
+                    size: makeSize(),
+                    transform: {
+                      scaleY: 0.0702,
+                      translateX: 6824638.545,
+                      translateY: 1753607.6825,
+                      unit: "EMU",
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"]))
+        .mockResolvedValueOnce(makePresentation(["p1", "p2", "generated-s4"])),
+    });
+    mockGetDriveClient.mockReturnValue(driveClient);
+    mockGetSlidesClient.mockReturnValue(slidesClient);
+
+    const plan = buildMultiSourcePlan(
+      makePlan([
+        makeEntry("p1", "pres-a", "tpl-a"),
+        makeEntry("s4", "pres-b", "tpl-b"),
+        makeEntry("p2", "pres-a", "tpl-a"),
+      ]),
+      new Map([
+        ["pres-a", ["p1", "p2", "p3"]],
+        ["pres-b", ["s4"]],
+      ]),
+    );
+
+    await assembleMultiSourceDeck({
+      plan,
+      targetFolderId: "folder-1",
+      deckName: "Normalized Transform Deck",
+    });
+
+    const rebuildRequests = vi.mocked(slidesClient.presentations.batchUpdate).mock.calls[1]?.[0]
+      ?.requestBody?.requests;
+    const shapeRequest = (rebuildRequests ?? []).find((request) => request.createShape)?.createShape;
+
+    expect(shapeRequest?.elementProperties?.transform).toEqual({
+      scaleX: 1,
+      scaleY: 0.0702,
+      shearX: 0,
+      shearY: 0,
+      translateX: 6824638.545,
+      translateY: 1753607.6825,
+      unit: "EMU",
+    });
   });
 });
