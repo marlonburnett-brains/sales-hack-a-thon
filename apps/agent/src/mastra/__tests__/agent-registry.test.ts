@@ -10,6 +10,22 @@ vi.mock("../../lib/agent-config", () => ({
   getPublishedAgentConfig: promptLoaderState.getPublishedAgentConfig,
 }));
 
+vi.mock("../../env", () => ({
+  env: {
+    DATABASE_URL: "postgresql://test:test@localhost:5432/test",
+    DIRECT_URL: "postgresql://test:test@localhost:5432/test",
+    GOOGLE_SERVICE_ACCOUNT_KEY: "{}",
+    GOOGLE_TEMPLATE_PRESENTATION_ID: "test-template-id",
+    GOOGLE_CLOUD_PROJECT: "test-project",
+    GOOGLE_CLOUD_LOCATION: "us-central1",
+    VERTEX_SERVICE_ACCOUNT_KEY: "{}",
+    AGENT_API_KEY: "test-key-that-is-at-least-32-characters-long",
+    GOOGLE_CLIENT_ID: "test-client-id",
+    GOOGLE_CLIENT_SECRET: "test-client-secret",
+    NODE_ENV: "test",
+  },
+}));
+
 describe("named Mastra agent registry", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -83,7 +99,15 @@ describe("named Mastra agent registry", () => {
       },
     );
 
-    expect(generate).toHaveBeenCalledWith([{ role: "user", content: "Write a proposal summary" }], undefined);
+    expect(generate).toHaveBeenCalledWith(
+      [{ role: "user", content: "Write a proposal summary" }],
+      expect.objectContaining({
+        instructions: expect.objectContaining({
+          role: "system",
+          content: expect.stringContaining("proposal-copywriter"),
+        }),
+      }),
+    );
     expect(result.text).toBe("Structured answer");
     expect(result.promptVersion.id).toBe("proposal-copywriter-version-1");
     expect(result.promptVersion.version).toBe(1);
