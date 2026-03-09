@@ -21,7 +21,7 @@ import {
   SectionDraftLlmSchema,
   zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
-import { loadDeckSections, formatSectionsForPrompt } from "../../lib/deck-structure-loader";
+import { loadDeckSectionsWithElements, formatSectionsWithElementsForPrompt } from "../../lib/deck-structure-loader";
 import { executeRuntimeNamedAgent as executeNamedAgent } from "../../lib/agent-executor";
 import { assertLlmContentQuality } from "../../lib/validate-llm-content";
 import { assembleFromTemplate } from "../../lib/slide-assembly";
@@ -221,12 +221,13 @@ const generateDraftText = createStep({
     const skeleton = inputData.approvedSkeleton;
 
     // Check if DeckStructure sections are available for section-aware drafting
-    const deckSections = await loadDeckSections("touch_1");
+    const enriched = await loadDeckSectionsWithElements("touch_1");
 
     let stageContent: Record<string, unknown>;
     let draftContent: z.infer<typeof PagerContentLlmSchema>;
 
-    if (deckSections && deckSections.length > 0) {
+    if (enriched && enriched.sections.length > 0) {
+      const deckSections = enriched.sections;
       // Section-aware path: generate per-section content mapped to template structure
       const sectionAwarePrompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved outline and the TEMPLATE STRUCTURE below, generate section-specific content that maps to each template section.
 
@@ -241,7 +242,7 @@ APPROVED OUTLINE:
 - Key Capabilities: ${skeleton.keyCapabilities.join(", ")}
 
 TEMPLATE STRUCTURE (generate content for EACH section):
-${formatSectionsForPrompt(deckSections)}
+${formatSectionsWithElementsForPrompt(deckSections, enriched.elementsBySlideId)}
 
 For each section, generate:
 - contentText: The actual text content tailored to this section's purpose, personalized for the target company

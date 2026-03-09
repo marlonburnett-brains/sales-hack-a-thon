@@ -14,7 +14,8 @@ import {
 } from "@lumenalta/schemas";
 import { executeRuntimeNamedAgent as executeNamedAgent } from "./agent-executor";
 import { assertLlmContentQuality } from "./validate-llm-content";
-import { loadDeckSections, formatSectionsForPrompt } from "./deck-structure-loader";
+import { loadDeckSectionsWithElements, formatSectionsWithElementsForPrompt } from "./deck-structure-loader";
+import type { SectionElementData } from "./deck-structure-loader";
 import { prisma } from "./db";
 
 export async function regenerateStage(
@@ -69,12 +70,13 @@ export async function regenerateStage(
     const skeletonContent = await getApprovedSkeleton(interaction);
 
     // Check if DeckStructure sections are available for section-aware drafting
-    const deckSections = await loadDeckSections("touch_1");
+    const enriched = await loadDeckSectionsWithElements("touch_1");
 
-    if (deckSections && deckSections.length > 0) {
+    if (enriched && enriched.sections.length > 0) {
+      const deckSections = enriched.sections;
       // Section-aware regeneration
       const sectionAwarePrompt = buildSectionAwareDraftPrompt(
-        companyName, industry, context, salespersonName, skeletonContent, deckSections, feedback,
+        companyName, industry, context, salespersonName, skeletonContent, deckSections, enriched.elementsBySlideId, feedback,
       );
 
       const response = await executeNamedAgent<z.infer<typeof SectionDraftLlmSchema>>({
@@ -200,6 +202,7 @@ function buildSectionAwareDraftPrompt(
   salespersonName: string | undefined,
   skeleton: { headline: string; valueProposition: string; keyCapabilities: string[] },
   deckSections: import("../deck-intelligence/deck-structure-schema").DeckSection[],
+  elementsBySlideId: Map<string, SectionElementData[]>,
   feedback?: string,
 ): string {
   let prompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved outline and the TEMPLATE STRUCTURE below, generate section-specific content that maps to each template section.
@@ -215,7 +218,7 @@ APPROVED OUTLINE:
 - Key Capabilities: ${skeleton.keyCapabilities.join(", ")}
 
 TEMPLATE STRUCTURE (generate content for EACH section):
-${formatSectionsForPrompt(deckSections)}
+${formatSectionsWithElementsForPrompt(deckSections, elementsBySlideId)}
 
 For each section, generate:
 - contentText: The actual text content tailored to this section's purpose, personalized for the target company
