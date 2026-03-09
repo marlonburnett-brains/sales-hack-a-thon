@@ -55,9 +55,9 @@ export const env = createEnv({
     // Port for the Mastra HTTP server (default 4111)
     MASTRA_PORT: z.string().default('4111'),
 
-    // Shared API key for service-to-service auth (web <-> agent)
-    // Generate with: openssl rand -base64 32
-    AGENT_API_KEY: z.string().min(32, "AGENT_API_KEY must be at least 32 characters"),
+    // Supabase JWT secret for verifying user tokens from the web app
+    // Found in: Supabase Dashboard -> Settings -> API -> JWT Secret
+    SUPABASE_JWT_SECRET: z.string().min(32, "SUPABASE_JWT_SECRET required for JWT verification"),
 
     // Web app origin URL for CORS restriction (default: http://localhost:3000)
     WEB_APP_URL: z.string().url().default('http://localhost:3000'),

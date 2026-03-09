@@ -1,5 +1,6 @@
 import { Mastra } from "@mastra/core";
-import { registerApiRoute, SimpleAuth } from "@mastra/core/server";
+import { registerApiRoute, MastraAuthProvider } from "@mastra/core/server";
+import { verifySupabaseJwt, type JwtPayload } from "../lib/supabase-jwt-auth";
 import { PostgresStore } from "@mastra/pg";
 import { z } from "zod";
 import { touch1Workflow } from "./workflows/touch-1-workflow";
@@ -10,7 +11,7 @@ import { preCallWorkflow } from "./workflows/pre-call-workflow";
 import { getOrCreateDealFolder, shareWithOrg } from "../lib/drive-folders";
 import { getDriveClient, getSlidesClient, getPooledGoogleAuth } from "../lib/google-auth";
 import { getAccessTokenForUser } from "../lib/token-cache";
-import { extractGoogleAuth } from "../lib/request-auth";
+import { extractGoogleAuth, getVerifiedUserId } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
 import { detectAndQueueBackfill } from "../ingestion/backfill-descriptions";
@@ -552,14 +553,25 @@ if (env.NODE_ENV === "development") {
   publicPaths.push(/^\/api\/openapi/);
 }
 
-// AUTH-CONTRACT: Web sends "Authorization: Bearer" not "X-API-Key". Works via Mastra internals. See .planning/AUTH-CONTRACT.md
-const auth = new SimpleAuth({
-  headers: ["X-API-Key"],
-  tokens: {
-    [env.AGENT_API_KEY]: { id: "web-app", role: "service" },
-  },
-  public: publicPaths,
-});
+// Supabase JWT auth: verifies user tokens from the web app
+class SupabaseJwtAuth extends MastraAuthProvider<JwtPayload> {
+  constructor(publicPaths: (string | RegExp)[]) {
+    super({ name: "supabase-jwt", public: publicPaths });
+  }
+
+  async authenticateToken(token: string): Promise<JwtPayload | null> {
+    // Strip Bearer prefix if present (Mastra may or may not strip it)
+    const rawToken = token.startsWith("Bearer ") ? token.slice(7) : token;
+    return verifySupabaseJwt(rawToken);
+  }
+
+  async authorizeUser(): Promise<boolean> {
+    // All authenticated users are authorized
+    return true;
+  }
+}
+
+const auth = new SupabaseJwtAuth(publicPaths);
 
 // Ensure all named agents from the catalog have DB config rows (idempotent)
 void seedPublishedAgentCatalog(prisma)
@@ -599,7 +611,7 @@ export const mastra = new Mastra({
     cors: {
       origin: env.WEB_APP_URL,
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'x-mastra-client-type', 'X-Google-Access-Token', 'X-User-Id'],
+      allowHeaders: ['Content-Type', 'Authorization', 'x-mastra-client-type', 'X-Google-Access-Token', 'X-User-Id'],
       credentials: false,
     },
     apiRoutes: [
@@ -989,7 +1001,7 @@ export const mastra = new Mastra({
             }
 
             // Upload file to Drive
-            const googleAuth = await extractGoogleAuth(c);
+            const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
             const drive = getDriveClient(googleAuth.accessToken ? googleAuth : undefined);
             const buffer = Buffer.from(await file.arrayBuffer());
             const { Readable } = await import("node:stream");
@@ -1610,7 +1622,7 @@ export const mastra = new Mastra({
             let serviceAccountEmail: string | null = null;
             let templateName = data.name || "Untitled Presentation";
 
-            const googleAuth = await extractGoogleAuth(c);
+            const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
             try {
               const drive = getDriveClient(googleAuth.accessToken ? googleAuth : undefined);
               const fileRes = await drive.files.get({
@@ -1858,7 +1870,7 @@ export const mastra = new Mastra({
         method: "POST",
         handler: async (c) => {
           const id = c.req.param("id");
-          const googleAuth = await extractGoogleAuth(c);
+          const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
           try {
             const template = await prisma.template.findUniqueOrThrow({
               where: { id },
@@ -1989,7 +2001,7 @@ export const mastra = new Mastra({
         handler: async (c) => {
           const templateId = c.req.param("id");
           const template = await prisma.template.findUniqueOrThrow({ where: { id: templateId } });
-          const googleAuth = await extractGoogleAuth(c);
+          const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
 
           // Query slides with cached thumbnail info
           const slides = await prisma.slideEmbedding.findMany({
@@ -2565,7 +2577,7 @@ export const mastra = new Mastra({
             }
 
             // Enrich documents with Drive MIME type to detect Google Slides
-            const googleAuth = await extractGoogleAuth(c);
+            const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
             console.log(`[discovery/browse] Google auth: hasToken=${!!googleAuth.accessToken}, userId=${googleAuth.userId ?? "none"}, docs=${documents.length}`);
             await enrichDocsWithDriveMetadata(documents as Record<string, unknown>[], googleAuth);
 
@@ -2658,7 +2670,7 @@ export const mastra = new Mastra({
             });
 
             // Enrich results with Drive MIME type to detect Google Slides
-            const googleAuth = await extractGoogleAuth(c);
+            const googleAuth = await extractGoogleAuth(c, getVerifiedUserId(c));
             await enrichDocsWithDriveMetadata(results as unknown as Record<string, unknown>[], googleAuth);
 
             // Template cross-reference: attach templateData for results with matching templates

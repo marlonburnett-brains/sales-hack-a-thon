@@ -1,4 +1,5 @@
 import { getAccessTokenForUser } from "./token-cache";
+import { verifySupabaseJwt } from "./supabase-jwt-auth";
 
 // ────────────────────────────────────────────────────────────
 // Google auth extraction from Hono request headers
@@ -21,14 +22,16 @@ interface RequestContext {
  *
  * Priority chain (per locked decision):
  * 1. X-Google-Access-Token present -> use directly
- * 2. X-User-Id present (no access token) -> agent-side refresh from stored token
+ * 2. verifiedUserId from JWT (or fallback X-User-Id) -> agent-side refresh from stored token
  * 3. Neither present -> empty result (service account fallback)
  */
 export async function extractGoogleAuth(
-  c: RequestContext
+  c: RequestContext,
+  verifiedUserId?: string,
 ): Promise<GoogleAuthResult> {
   const accessToken = c.req.header("X-Google-Access-Token");
-  const userId = c.req.header("X-User-Id");
+  // Prefer verified userId from JWT over spoofable X-User-Id header
+  const userId = verifiedUserId ?? c.req.header("X-User-Id");
 
   // Priority 1: Direct access token from web app session
   if (accessToken) {
@@ -48,4 +51,16 @@ export async function extractGoogleAuth(
 
   // Priority 3: No Google auth headers -- service account fallback
   return {};
+}
+
+/**
+ * Extract the verified user ID from the JWT in the Authorization header.
+ * Use this to pass to extractGoogleAuth as the verifiedUserId parameter.
+ */
+export function getVerifiedUserId(c: RequestContext): string | undefined {
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return undefined;
+  const token = authHeader.slice(7);
+  const payload = verifySupabaseJwt(token);
+  return payload?.sub;
 }
