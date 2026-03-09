@@ -18,10 +18,14 @@ import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import {
   PagerContentLlmSchema,
-  SectionDraftLlmSchema,
+  ContentSlotDraftSchema,
   zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
-import { loadDeckSectionsWithElements, formatSectionsWithElementsForPrompt } from "../../lib/deck-structure-loader";
+import {
+  loadDeckSectionsForSlotAnalysis,
+  deriveSectionSlotCounts,
+  formatSectionsWithSlotsForPrompt,
+} from "../../lib/deck-structure-loader";
 import { executeRuntimeNamedAgent as executeNamedAgent } from "../../lib/agent-executor";
 import { assertLlmContentQuality } from "../../lib/validate-llm-content";
 import { assembleFromTemplate } from "../../lib/slide-assembly";
@@ -221,15 +225,17 @@ const generateDraftText = createStep({
     const skeleton = inputData.approvedSkeleton;
 
     // Check if DeckStructure sections are available for section-aware drafting
-    const enriched = await loadDeckSectionsWithElements("touch_1");
+    const slotData = await loadDeckSectionsForSlotAnalysis("touch_1");
 
     let stageContent: Record<string, unknown>;
     let draftContent: z.infer<typeof PagerContentLlmSchema>;
 
-    if (enriched && enriched.sections.length > 0) {
-      const deckSections = enriched.sections;
-      // Section-aware path: generate per-section content mapped to template structure
-      const sectionAwarePrompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved outline and the TEMPLATE STRUCTURE below, generate section-specific content that maps to each template section.
+    if (slotData && slotData.sections.length > 0) {
+      const deckSections = slotData.sections;
+      const slotCounts = deriveSectionSlotCounts(deckSections, slotData.elementsBySlideId);
+
+      // Section-aware path: generate per-section structured content slots
+      const sectionAwarePrompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved outline and the TEMPLATE STRUCTURE below, generate structured content slots for each template section.
 
 Company: ${inputData.companyName}
 Industry: ${inputData.industry}
@@ -242,44 +248,53 @@ APPROVED OUTLINE:
 - Key Capabilities: ${skeleton.keyCapabilities.join(", ")}
 
 TEMPLATE STRUCTURE (generate content for EACH section):
-${formatSectionsWithElementsForPrompt(deckSections, enriched.elementsBySlideId)}
+${formatSectionsWithSlotsForPrompt(slotCounts, deckSections, slotData.elementsBySlideId)}
 
-For each section, generate:
-- contentText: The actual text content tailored to this section's purpose, personalized for the target company
+For each section, generate structured content matching the slot counts:
+- headlines: Array of headline strings (large/bold text)
+- bodyParagraphs: Array of narrative text blocks
+- metrics: Array of objects with {value, label} (quantitative proof points)
+- bulletPoints: Array of capability/feature items
 - speakerNotes: Brief talking points for the presenter
 
-Also provide an overall headline and call to action.
-Keep tone professional but engaging. Content must fit the section's purpose.`;
+Generate EXACTLY the number of items specified for each content type. Content must be tailored to the target company and fit the section's purpose.
+Also provide an overall headline, call to action, contactName, and contactRole (empty string if unknown).`;
 
-      const sectionResponse = await executeNamedAgent<z.infer<typeof SectionDraftLlmSchema>>({
+      const sectionResponse = await executeNamedAgent<z.infer<typeof ContentSlotDraftSchema>>({
         agentId: "first-contact-pager-writer",
         messages: [{ role: "user", content: sectionAwarePrompt }],
         options: {
           structuredOutput: {
-            schema: zodToLlmJsonSchema(SectionDraftLlmSchema) as Record<string, unknown>,
+            schema: zodToLlmJsonSchema(ContentSlotDraftSchema) as Record<string, unknown>,
           },
         },
       });
 
-      const sectionParsed = SectionDraftLlmSchema.parse(
+      const sectionParsed = ContentSlotDraftSchema.parse(
         sectionResponse.object ?? JSON.parse(sectionResponse.text ?? "{}"),
       );
       assertLlmContentQuality(sectionParsed);
 
-      // Store section-aware content as stageContent (UI reads sections array)
+      // Store structured slot content as stageContent (UI reads sections array)
       stageContent = sectionParsed as unknown as Record<string, unknown>;
 
-      // Build backward-compatible flat draftContent from section data
-      const allContentText = sectionParsed.sections.map((s) => s.contentText).join("\n\n");
-      const capabilities = sectionParsed.sections
+      // Build backward-compatible flat draftContent from structured slot data
+      const firstBodyParagraphs = sectionParsed.sections
+        .flatMap((s) => s.bodyParagraphs)
+        .join("\n\n");
+      const capBullets = sectionParsed.sections
         .filter((s) => s.sectionName.toLowerCase().includes("capabilit"))
-        .map((s) => s.contentText);
+        .flatMap((s) => s.bulletPoints);
+      const fallbackBullets = capBullets.length > 0
+        ? capBullets
+        : sectionParsed.sections.flatMap((s) => s.bulletPoints).slice(0, 3);
+
       draftContent = PagerContentLlmSchema.parse({
         companyName: sectionParsed.companyName,
         industry: sectionParsed.industry,
         headline: sectionParsed.headline,
-        valueProposition: allContentText.slice(0, 500),
-        keyCapabilities: capabilities.length > 0 ? capabilities : [allContentText.slice(0, 200)],
+        valueProposition: firstBodyParagraphs.slice(0, 500),
+        keyCapabilities: fallbackBullets.length > 0 ? fallbackBullets : [firstBodyParagraphs.slice(0, 200)],
         callToAction: sectionParsed.callToAction,
       });
     } else {

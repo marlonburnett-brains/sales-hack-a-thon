@@ -9,13 +9,17 @@
 import { z } from "zod";
 import {
   PagerContentLlmSchema,
-  SectionDraftLlmSchema,
+  ContentSlotDraftSchema,
   zodToLlmJsonSchema,
 } from "@lumenalta/schemas";
 import { executeRuntimeNamedAgent as executeNamedAgent } from "./agent-executor";
 import { assertLlmContentQuality } from "./validate-llm-content";
-import { loadDeckSectionsWithElements, formatSectionsWithElementsForPrompt } from "./deck-structure-loader";
-import type { SectionElementData } from "./deck-structure-loader";
+import {
+  loadDeckSectionsForSlotAnalysis,
+  deriveSectionSlotCounts,
+  formatSectionsWithSlotsForPrompt,
+} from "./deck-structure-loader";
+import type { SectionSlotCounts } from "./deck-structure-loader";
 import { prisma } from "./db";
 
 export async function regenerateStage(
@@ -70,26 +74,29 @@ export async function regenerateStage(
     const skeletonContent = await getApprovedSkeleton(interaction);
 
     // Check if DeckStructure sections are available for section-aware drafting
-    const enriched = await loadDeckSectionsWithElements("touch_1");
+    const slotData = await loadDeckSectionsForSlotAnalysis("touch_1");
 
-    if (enriched && enriched.sections.length > 0) {
-      const deckSections = enriched.sections;
-      // Section-aware regeneration
+    if (slotData && slotData.sections.length > 0) {
+      const deckSections = slotData.sections;
+      const slotCounts = deriveSectionSlotCounts(deckSections, slotData.elementsBySlideId);
+
+      // Section-aware regeneration with structured slots
       const sectionAwarePrompt = buildSectionAwareDraftPrompt(
-        companyName, industry, context, salespersonName, skeletonContent, deckSections, enriched.elementsBySlideId, feedback,
+        companyName, industry, context, salespersonName, skeletonContent,
+        deckSections, slotCounts, slotData.elementsBySlideId, feedback,
       );
 
-      const response = await executeNamedAgent<z.infer<typeof SectionDraftLlmSchema>>({
+      const response = await executeNamedAgent<z.infer<typeof ContentSlotDraftSchema>>({
         agentId: "first-contact-pager-writer",
         messages: [{ role: "user", content: sectionAwarePrompt }],
         options: {
           structuredOutput: {
-            schema: zodToLlmJsonSchema(SectionDraftLlmSchema) as Record<string, unknown>,
+            schema: zodToLlmJsonSchema(ContentSlotDraftSchema) as Record<string, unknown>,
           },
         },
       });
 
-      const parsed = SectionDraftLlmSchema.parse(
+      const parsed = ContentSlotDraftSchema.parse(
         response.object ?? JSON.parse(response.text ?? "{}"),
       );
       assertLlmContentQuality(parsed);
@@ -202,10 +209,11 @@ function buildSectionAwareDraftPrompt(
   salespersonName: string | undefined,
   skeleton: { headline: string; valueProposition: string; keyCapabilities: string[] },
   deckSections: import("../deck-intelligence/deck-structure-schema").DeckSection[],
-  elementsBySlideId: Map<string, SectionElementData[]>,
+  slotCounts: SectionSlotCounts[],
+  elementsBySlideId: Map<string, import("./deck-structure-loader").SlotAnalysisElement[]>,
   feedback?: string,
 ): string {
-  let prompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved outline and the TEMPLATE STRUCTURE below, generate section-specific content that maps to each template section.
+  let prompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Based on the approved outline and the TEMPLATE STRUCTURE below, generate structured content slots for each template section.
 
 Company: ${companyName}
 Industry: ${industry}
@@ -218,14 +226,17 @@ APPROVED OUTLINE:
 - Key Capabilities: ${skeleton.keyCapabilities.join(", ")}
 
 TEMPLATE STRUCTURE (generate content for EACH section):
-${formatSectionsWithElementsForPrompt(deckSections, elementsBySlideId)}
+${formatSectionsWithSlotsForPrompt(slotCounts, deckSections, elementsBySlideId)}
 
-For each section, generate:
-- contentText: The actual text content tailored to this section's purpose, personalized for the target company
+For each section, generate structured content matching the slot counts:
+- headlines: Array of headline strings (large/bold text)
+- bodyParagraphs: Array of narrative text blocks
+- metrics: Array of objects with {value, label} (quantitative proof points)
+- bulletPoints: Array of capability/feature items
 - speakerNotes: Brief talking points for the presenter
 
-Also provide an overall headline and call to action.
-Keep tone professional but engaging. Content must fit the section's purpose.`;
+Generate EXACTLY the number of items specified for each content type. Content must be tailored to the target company and fit the section's purpose.
+Also provide an overall headline, call to action, contactName, and contactRole (empty string if unknown).`;
 
   if (feedback) {
     prompt += `\n\nUser feedback for regeneration: ${feedback}`;
