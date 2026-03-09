@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 57 of 57 (Touch Routing & Fallback)
 Plan: 01 of 01 (complete)
 Status: Phase 57 complete -- v1.8 milestone complete
-Last activity: 2026-03-09 - Completed quick task 17: Add Collapse text to sidebar collapse button and show user name/email inline when panel expanded
+Last activity: 2026-03-09 - Completed quick task 18: Add re-generate button with optional feedback at every stage of touch flow
 
 Progress: [██████████] 100%
 
