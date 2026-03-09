@@ -5,7 +5,7 @@ milestone_name: Structure-Driven Deck Generation
 status: completed
 stopped_at: Completed 52-05-PLAN.md
 last_updated: "2026-03-09T14:53:18.054Z"
-last_activity: "2026-03-09 - Completed quick task 17: Add Collapse text to sidebar collapse button and show user name/email inline when panel expanded"
+last_activity: "2026-03-09 - Completed quick task 18: Add Re-generate button with optional feedback dialog at HITL stages"
 progress:
   total_phases: 8
   completed_phases: 8
@@ -83,6 +83,7 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 18 | Add Re-generate button with optional feedback at HITL stages | 2026-03-09 | 9e3fb7f | [18-add-re-generate-button-with-optional-fee](./quick/18-add-re-generate-button-with-optional-fee/) |
 | 17 | Add Collapse text to sidebar button and inline user info | 2026-03-09 | 6d71df7 | [17-add-collapse-text-to-sidebar-collapse-bu](./quick/17-add-collapse-text-to-sidebar-collapse-bu/) |
 | 16 | Rename system to AtlusDeck and update logo | 2026-03-09 | a65ef86 | [16-rename-system-to-atlusdeck-and-update-lo](./quick/16-rename-system-to-atlusdeck-and-update-lo/) |
 | 15 | Replace AGENT_API_KEY with Supabase JWT auth between web and agent | 2026-03-09 | d3b7e6b | [15-replace-agent-api-key-with-supabase-jwt-](./quick/15-replace-agent-api-key-with-supabase-jwt-/) |
