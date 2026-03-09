@@ -71,7 +71,9 @@ function makeCandidate(
         ? null
         : (overrides.classificationJson ?? JSON.stringify(metadata)),
     thumbnailUrl: overrides.thumbnailUrl ?? null,
-    confidence: overrides.confidence ?? 0.5,
+    confidence: Object.prototype.hasOwnProperty.call(overrides, "confidence")
+      ? (overrides.confidence ?? null)
+      : 0.5,
   };
 }
 
@@ -146,7 +148,7 @@ describe("selectSlidesForBlueprint", () => {
       sourcePresentationId: "pres-best",
       templateId: "tpl-best",
     });
-    expect(result.plan.selections[0]?.matchRationale).toContain("Score: 11");
+    expect(result.plan.selections[0]?.matchRationale).toContain("Score: 13");
     expect(result.blueprint.sections[0]).toMatchObject({
       selectedSlideId: "slide-best",
       sourcePresentationId: "pres-best",
@@ -174,7 +176,7 @@ describe("selectSlidesForBlueprint", () => {
     );
 
     expect(result.plan.selections[0]?.matchRationale).toContain("2 pillar overlap");
-    expect(result.plan.selections[0]?.matchRationale).toContain("Score: 11");
+    expect(result.plan.selections[0]?.matchRationale).toContain("Score: 13");
   });
 
   it("treats null and malformed classificationJson as zero-score candidates without crashing", async () => {
