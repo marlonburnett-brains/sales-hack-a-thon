@@ -198,6 +198,45 @@ describe("NAV-02: Collapsible sidebar with localStorage persistence", () => {
 
     expect(screen.getByLabelText("Close navigation")).toBeInTheDocument();
   });
+
+  it("shows Collapse text label when sidebar is expanded", () => {
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    const collapseBtn = desktop.querySelector(
+      'button[aria-label="Collapse sidebar"]'
+    ) as HTMLElement;
+    expect(collapseBtn.textContent).toContain("Collapse");
+  });
+
+  it("hides Collapse text when sidebar is collapsed", () => {
+    localStorage.setItem("sidebar-collapsed", "true");
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    const expandBtn = desktop.querySelector(
+      'button[aria-label="Expand sidebar"]'
+    ) as HTMLElement;
+    expect(expandBtn.textContent).not.toContain("Collapse");
+    expect(expandBtn.getAttribute("title")).toBe("Expand");
+  });
+
+  it("shows user info inline when sidebar is expanded", () => {
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    const userInfo = desktop.querySelector('[data-testid="user-info"]');
+    expect(userInfo).toBeTruthy();
+  });
+
+  it("hides user info when sidebar is collapsed", () => {
+    localStorage.setItem("sidebar-collapsed", "true");
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+
+    const desktop = getDesktopSidebar();
+    const userInfo = desktop.querySelector('[data-testid="user-info"]');
+    expect(userInfo).toBeFalsy();
+  });
 });
 
 // ---------------------------------------------------------------------------
