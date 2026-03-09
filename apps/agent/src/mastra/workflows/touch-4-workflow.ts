@@ -52,6 +52,7 @@ import type { DocSection } from "../../lib/doc-builder";
 import { runBrandComplianceChecks } from "../../lib/brand-compliance";
 import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { prisma } from "../../lib/db";
+import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../../generation/route-strategy";
 
 // ────────────────────────────────────────────────────────────
 // Shared schemas
@@ -1160,32 +1161,60 @@ const createSlidesDeck = createStep({
       }
     }
 
-    // c. Deserialize SlideJSON
-    const slideAssembly = JSON.parse(inputData.slideJSON);
-
-    // d. Create the deck
-    const result = await createSlidesDeckFromJSON({
-      slideJSON: slideAssembly,
+    // Route: structure-driven pipeline or legacy SlideJSON assembly
+    const dealContext = buildDealContext("touch_4", {
+      dealId: deal.id,
       companyName: company.name,
-      primaryPillar,
-      dealFolderId,
+      industry: deal.company.industry ?? "Technology",
     });
+    dealContext.pillars = [primaryPillar];
+    const strategy = await resolveGenerationStrategy("touch_4", "proposal", dealContext);
+    console.log(`[touch-4-workflow] Using ${strategy.type} generation path`);
 
-    console.log(
-      `[create-slides-deck] Created deck: ${result.deckUrl} (${result.slideCount} slides)`
-    );
+    let deckUrl: string;
+    let slideCount: number;
 
-    // Share with deal owner as editor (domain sharing handled by createSlidesDeckFromJSON)
-    if (deal.ownerEmail) {
-      await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
+    if (strategy.type !== "legacy") {
+      const pipelineResult = await executeStructureDrivenPipeline({
+        blueprint: strategy.blueprint,
+        targetFolderId: dealFolderId,
+        deckName: `${company.name} - Proposal - ${primaryPillar} - ${new Date().toISOString().split("T")[0]}`,
+        dealContext,
+        ownerEmail: deal.ownerEmail ?? undefined,
+      });
+      deckUrl = pipelineResult.driveUrl;
+      slideCount = 0; // Structure-driven pipeline does not track slide count
+    } else {
+      // Legacy: c. Deserialize SlideJSON
+      const slideAssembly = JSON.parse(inputData.slideJSON);
+
+      // d. Create the deck
+      const result = await createSlidesDeckFromJSON({
+        slideJSON: slideAssembly,
+        companyName: company.name,
+        primaryPillar,
+        dealFolderId,
+      });
+
+      console.log(
+        `[create-slides-deck] Created deck: ${result.deckUrl} (${result.slideCount} slides)`
+      );
+
+      // Share with deal owner as editor (domain sharing handled by createSlidesDeckFromJSON)
+      if (deal.ownerEmail) {
+        await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
+      }
+
+      deckUrl = result.deckUrl;
+      slideCount = result.slideCount;
     }
 
     return {
       interactionId: inputData.interactionId,
       briefId: inputData.briefId,
       slideJSON: inputData.slideJSON,
-      slideCount: result.slideCount,
-      deckUrl: result.deckUrl,
+      slideCount,
+      deckUrl,
       dealFolderId,
       agentVersions: inputData.agentVersions,
     };

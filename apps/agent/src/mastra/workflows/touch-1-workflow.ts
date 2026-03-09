@@ -26,6 +26,7 @@ import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExisti
 import { ingestDocument } from "../../lib/atlusai-client";
 import { prisma } from "../../lib/db";
 import { env } from "../../env";
+import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../../generation/route-strategy";
 
 const agentVersionsSchema = z.object({
   firstContactPagerWriter: z.string(),
@@ -382,19 +383,39 @@ const assembleDeck = createStep({
     const content = inputData.finalContent;
     const deckName = `Touch 1 Pager - ${inputData.companyName} - ${new Date().toISOString().split("T")[0]}`;
 
-    // Assemble deck from template with text replacements
-    const result = await assembleFromTemplate({
-      templateId: env.GOOGLE_TEMPLATE_PRESENTATION_ID,
-      targetFolderId: folderId,
-      deckName,
-      textReplacements: {
-        "{{company-name}}": content.companyName,
-        "{{headline}}": content.headline,
-        "{{value-proposition}}": content.valueProposition,
-        "{{capabilities}}": content.keyCapabilities.join(", "),
-        "{{call-to-action}}": content.callToAction,
-      },
+    // Route: structure-driven pipeline or legacy template assembly
+    const dealContext = buildDealContext("touch_1", {
+      dealId: inputData.dealId,
+      companyName: inputData.companyName,
+      industry: inputData.industry,
     });
+    const strategy = await resolveGenerationStrategy("touch_1", null, dealContext);
+    console.log(`[touch-1-workflow] Using ${strategy.type} generation path`);
+
+    let result;
+    if (strategy.type !== "legacy") {
+      result = await executeStructureDrivenPipeline({
+        blueprint: strategy.blueprint,
+        targetFolderId: folderId,
+        deckName,
+        dealContext,
+        ownerEmail: deal.ownerEmail ?? undefined,
+      });
+    } else {
+      // Legacy: Assemble deck from template with text replacements
+      result = await assembleFromTemplate({
+        templateId: env.GOOGLE_TEMPLATE_PRESENTATION_ID,
+        targetFolderId: folderId,
+        deckName,
+        textReplacements: {
+          "{{company-name}}": content.companyName,
+          "{{headline}}": content.headline,
+          "{{value-proposition}}": content.valueProposition,
+          "{{capabilities}}": content.keyCapabilities.join(", "),
+          "{{call-to-action}}": content.callToAction,
+        },
+      });
+    }
 
     // Share with deal owner as editor (domain sharing handled by assembleFromTemplate)
     if (deal.ownerEmail) {

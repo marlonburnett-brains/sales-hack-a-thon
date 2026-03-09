@@ -205,11 +205,11 @@ async function getAllSlidesByPresentation(
     select: { id: true, presentationId: true },
   });
 
-  const templateToPresentationId = new Map(
-    templates.map((t) => [t.id, t.presentationId]),
+  const templateToPresentationId = new Map<string, string>(
+    templates.map((t: { id: string; presentationId: string }) => [t.id, t.presentationId]),
   );
 
-  const uniquePresentationIds = [...new Set(templates.map((t) => t.presentationId))];
+  const uniquePresentationIds = [...new Set(templates.map((t: { id: string; presentationId: string }) => t.presentationId))];
 
   if (uniquePresentationIds.length === 0) {
     return new Map();
@@ -226,7 +226,7 @@ async function getAllSlidesByPresentation(
 
   // Group by presentationId
   const result = new Map<string, string[]>();
-  for (const slide of allSlides) {
+  for (const slide of allSlides as Array<{ id: string; templateId: string }>) {
     const presentationId = templateToPresentationId.get(slide.templateId);
     if (!presentationId) continue;
 

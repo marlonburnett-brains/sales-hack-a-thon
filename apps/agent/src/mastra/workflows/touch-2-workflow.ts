@@ -19,6 +19,7 @@ import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExisti
 import { ingestGeneratedDeck } from "../../lib/ingestion-pipeline";
 import { prisma } from "../../lib/db";
 import { env } from "../../env";
+import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../../generation/route-strategy";
 
 // ────────────────────────────────────────────────────────────
 // Shared schemas
@@ -364,23 +365,44 @@ const assembleDeck = createStep({
     const dateStr = new Date().toISOString().split("T")[0];
     const deckName = `${inputData.companyName} - Meet Lumenalta - ${dateStr}`;
 
-    // Use Meet Lumenalta source presentation or fall back to the general template
-    const sourcePresentationId =
-      env.MEET_LUMENALTA_PRESENTATION_ID || env.GOOGLE_TEMPLATE_PRESENTATION_ID;
-
-    const result = await assembleDeckFromSlides({
-      sourcePresentationId,
-      selectedSlideIds: inputData.selectedSlideIds,
-      slideOrder: inputData.approvedLowfi.slideOrder,
-      targetFolderId: folderId,
-      deckName,
-      customizations: {
-        salespersonName: inputData.salespersonName,
-        salespersonPhotoUrl: inputData.salespersonPhotoUrl,
-        customerName: inputData.customerName,
-        customerLogoUrl: inputData.customerLogoUrl,
-      },
+    // Route: structure-driven pipeline or legacy slide assembly
+    const dealContext = buildDealContext("touch_2", {
+      dealId: inputData.dealId,
+      companyName: inputData.companyName,
+      industry: inputData.industry,
+      priorTouchOutputs: inputData.priorTouchOutputs,
     });
+    const strategy = await resolveGenerationStrategy("touch_2", null, dealContext);
+    console.log(`[touch-2-workflow] Using ${strategy.type} generation path`);
+
+    let result;
+    if (strategy.type !== "legacy") {
+      result = await executeStructureDrivenPipeline({
+        blueprint: strategy.blueprint,
+        targetFolderId: folderId,
+        deckName,
+        dealContext,
+        ownerEmail: deal.ownerEmail ?? undefined,
+      });
+    } else {
+      // Legacy: Use Meet Lumenalta source presentation or fall back to the general template
+      const sourcePresentationId =
+        env.MEET_LUMENALTA_PRESENTATION_ID || env.GOOGLE_TEMPLATE_PRESENTATION_ID;
+
+      result = await assembleDeckFromSlides({
+        sourcePresentationId,
+        selectedSlideIds: inputData.selectedSlideIds,
+        slideOrder: inputData.approvedLowfi.slideOrder,
+        targetFolderId: folderId,
+        deckName,
+        customizations: {
+          salespersonName: inputData.salespersonName,
+          salespersonPhotoUrl: inputData.salespersonPhotoUrl,
+          customerName: inputData.customerName,
+          customerLogoUrl: inputData.customerLogoUrl,
+        },
+      });
+    }
 
     // Share with deal owner as editor (domain sharing handled by assembleDeckFromSlides)
     if (deal.ownerEmail) {
