@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Deals & HITL Pipeline
 status: executing
-stopped_at: Completed 49-01-PLAN.md
-last_updated: "2026-03-09T02:52:00.228Z"
-last_activity: "2026-03-09 - Completed 49-01: Fix env-coupled test + auth contract docs"
+stopped_at: Completed 49-02-PLAN.md
+last_updated: "2026-03-09T02:51:28Z"
+last_activity: "2026-03-09 - Completed 49-02: Dead touch UI cleanup"
 progress:
   total_phases: 9
   completed_phases: 9
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 49 of 49 (Tech Debt Cleanup)
-Plan: 1 of 2
-Status: In Progress
-Last activity: 2026-03-09 - Completed 49-01: Fix env-coupled test + auth contract docs
+Plan: 2 of 2 (Complete)
+Status: Completed
+Last activity: 2026-03-09 - Completed 49-02: Dead touch UI cleanup
 
 Progress: [██████████] 98%
 
@@ -96,6 +96,7 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 45]: Live validation uncovered a Mastra auth issue, so the deal-chat web bridge and shared server-side agent client currently stay on `Authorization: Bearer ...` as a temporary workaround instead of `X-API-Key`.
 - [Phase 45]: Kept the auth behavior shared in `fetchAgent()` and the route proxies so the temporary bearer workaround stays consistent across bootstrap, streaming, and binding flows until Mastra is fixed.
 - [Phase 49]: Used vi.mock for env module to prevent eager t3-env validation during dynamic import in agent-registry test
+- [Phase 49]: Deleted use-touch-preferences.ts entirely since both displayMode and layoutMode were removed, leaving the hook empty
 
 ### Pending Todos
 
@@ -130,6 +131,7 @@ None.
 | Phase 45 P07 | 2 min | 2 tasks | 8 files |
 | Phase 48 P01 | 1min | 2 tasks | 1 files |
 | Phase 49 P01 | 2min | 2 tasks | 4 files |
+| Phase 49 P02 | 2min | 2 tasks | 5 files |
 
 ### Blockers/Concerns
 
@@ -140,6 +142,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09T02:52:00.224Z
-Stopped at: Completed 49-01-PLAN.md
-Next action: No remaining roadmap plans -- v1.7 is complete.
+Last session: 2026-03-09T02:51:28Z
+Stopped at: Completed 49-02-PLAN.md
+Next action: Phase 49 tech debt cleanup complete.
