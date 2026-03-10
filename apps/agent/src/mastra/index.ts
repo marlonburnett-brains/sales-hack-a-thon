@@ -1596,10 +1596,13 @@ export const mastra = new Mastra({
           try {
             const body = await c.req.json().catch(() => ({}));
             const data = z
-              .object({ feedback: z.string().optional() })
+              .object({
+                feedback: z.string().optional(),
+                wipeData: z.boolean().optional(),
+              })
               .parse(body);
 
-            const result = await regenerateStage(id, data.feedback);
+            const result = await regenerateStage(id, data.feedback, data.wipeData);
             return c.json(result);
           } catch (err) {
             console.error("[regenerate-stage] Error:", err);

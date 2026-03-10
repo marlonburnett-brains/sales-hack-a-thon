@@ -26,14 +26,37 @@ import { prisma } from "./db";
 
 export async function regenerateStage(
   interactionId: string,
-  feedback?: string
+  feedback?: string,
+  wipeData?: boolean
 ): Promise<{ success: boolean; stage: string }> {
   const interaction = await prisma.interactionRecord.findUniqueOrThrow({
     where: { id: interactionId },
     include: { deal: { include: { company: true } } },
   });
 
-  const stage = interaction.hitlStage ?? "skeleton";
+  // Wipe all prior data if requested -- reset to clean skeleton state
+  if (wipeData) {
+    // Delete all feedback signals for this interaction
+    await prisma.feedbackSignal.deleteMany({
+      where: { interactionId },
+    });
+
+    // Reset all generated artifacts
+    await prisma.interactionRecord.update({
+      where: { id: interactionId },
+      data: {
+        stageContent: null,
+        generatedContent: null,
+        driveFileId: null,
+        outputRefs: null,
+        hitlStage: "skeleton",
+        status: "processing",
+      },
+    });
+  }
+
+  // If wipeData was requested, force stage to skeleton regardless of prior state
+  const stage = wipeData ? "skeleton" : (interaction.hitlStage ?? "skeleton");
   const inputs = JSON.parse(interaction.inputs ?? "{}");
   const companyName = inputs.companyName ?? interaction.deal?.company?.name ?? "Unknown";
   const industry = inputs.industry ?? "Technology";

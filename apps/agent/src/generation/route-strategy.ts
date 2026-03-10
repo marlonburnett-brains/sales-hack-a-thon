@@ -133,6 +133,7 @@ export interface ExecutePipelineParams {
   dealContext: DealContext;
   draftContent?: DraftContent;
   ownerEmail?: string;
+  enableVisualQA?: boolean;
 }
 
 /**
@@ -148,7 +149,7 @@ export interface ExecutePipelineParams {
 export async function executeStructureDrivenPipeline(
   params: ExecutePipelineParams,
 ): Promise<AssembleDeckResult> {
-  const { blueprint, targetFolderId, deckName, dealContext, ownerEmail } = params;
+  const { blueprint, targetFolderId, deckName, dealContext, ownerEmail, enableVisualQA } = params;
 
   // Use pooled user auth (user-delegated tokens) to access example presentations
   // Pool auth is REQUIRED — SA doesn't have access to org-shared template presentations
@@ -282,7 +283,9 @@ export async function executeStructureDrivenPipeline(
     }
 
     // Step 7: Post-modification visual QA — autofit + vision-based overlap detection
-    if (execResult.totalApplied > 0) {
+    if (enableVisualQA === false) {
+      console.log('[structure-pipeline] Step 7: Visual QA skipped (user opted out)');
+    } else if (execResult.totalApplied > 0) {
       console.log(`[structure-pipeline] Step 7: Running visual QA on ${activePlans.length} modified slides`);
       const qaResult = await performVisualQA({
         presentationId: assemblyResult.presentationId,

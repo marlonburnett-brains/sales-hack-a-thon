@@ -53,6 +53,7 @@ const touch1BaseFields = {
   industry: z.string(),
   context: z.string(),
   salespersonName: z.string().optional(),
+  enableVisualQA: z.boolean().optional(),
   interactionId: z.string(),
 };
 
@@ -68,6 +69,7 @@ const generateContent = createStep({
     industry: z.string(),
     context: z.string(),
     salespersonName: z.string().optional(),
+    enableVisualQA: z.boolean().optional(),
     runId: z.string().optional(),
   }),
   outputSchema: z.object({
@@ -136,6 +138,7 @@ This is a SKELETON outline -- concise summaries, not full paragraphs.`;
       industry: inputData.industry,
       context: inputData.context,
       salespersonName: inputData.salespersonName,
+      enableVisualQA: inputData.enableVisualQA,
       interactionId: interaction.id,
       skeletonContent: parsed,
       agentVersions: {
@@ -695,6 +698,7 @@ export const touch1Workflow = createWorkflow({
     industry: z.string(),
     context: z.string(),
     salespersonName: z.string().optional(),
+    enableVisualQA: z.boolean().optional(),
     runId: z.string().optional(),
   }),
   outputSchema: z.object({
