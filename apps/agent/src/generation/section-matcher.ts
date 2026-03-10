@@ -82,6 +82,7 @@ export async function selectSlidesForBlueprint(
     selections.push({
       sectionName: section.sectionName,
       slideId: selected.candidate.slideId,
+      slideObjectId: selected.candidate.slideObjectId,
       sourcePresentationId: selected.candidate.presentationId,
       templateId: selected.candidate.templateId,
       matchRationale: selected.matchRationale,

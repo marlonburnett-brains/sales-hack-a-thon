@@ -36,6 +36,8 @@ import type { DeckStructureOutput } from "../deck-intelligence/deck-structure-sc
  */
 export interface ResolvedCandidate {
   slideId: string;
+  /** Google Slides page objectId (distinct from DB record id) */
+  slideObjectId: string;
   templateId: string;
   presentationId: string;
   classificationJson: string | null;
@@ -144,6 +146,7 @@ export async function resolveBlueprint(
     const template = templateMap.get(slide.templateId);
     candidates.set(slide.id, {
       slideId: slide.id,
+      slideObjectId: slide.slideObjectId ?? slide.id,
       templateId: slide.templateId,
       presentationId: template?.presentationId ?? "",
       classificationJson: slide.classificationJson,

@@ -20,7 +20,7 @@ import { env } from "../env";
 import type { ExtractedSlide } from "../lib/slide-extractor";
 import {
   createJsonResponseOptions,
-  executeRuntimeNamedAgent,
+  executeRuntimeProviderNamedAgent,
 } from "../lib/agent-executor";
 import {
   SlideMetadataSchema,
@@ -111,7 +111,7 @@ export async function classifySlide(
     solutionPillarList
   );
 
-  const response = await executeRuntimeNamedAgent({
+  const response = await executeRuntimeProviderNamedAgent({
     agentId: "slide-metadata-classifier",
     messages: [{ role: "user", content: prompt }],
     options: createJsonResponseOptions(

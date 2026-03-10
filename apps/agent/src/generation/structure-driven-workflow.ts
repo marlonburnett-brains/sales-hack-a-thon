@@ -253,6 +253,7 @@ export const awaitSkeletonApprovalStep = createStep({
         return {
           sectionName: refined.sectionName,
           slideId: refined.selectedSlideId,
+          slideObjectId: candidate?.slideObjectId ?? refined.selectedSlideId,
           sourcePresentationId: candidate?.presentationId ?? "",
           templateId: candidate?.templateId ?? "",
           matchRationale: "Seller-refined selection",
@@ -274,6 +275,7 @@ export const awaitSkeletonApprovalStep = createStep({
       approvedSelections = selections.map((s) => ({
         sectionName: s.sectionName,
         slideId: s.slideId,
+        slideObjectId: s.slideObjectId,
         sourcePresentationId: s.sourcePresentationId,
         templateId: s.templateId,
         matchRationale: s.matchRationale,

@@ -77,6 +77,62 @@ export async function shareWithOrg(params: {
 }
 
 /**
+ * Share a newly created file with org + service account.
+ *
+ * Called right after files.copy using the CALLER's auth (pool user owns the file).
+ * Grants:
+ * - Domain-wide reader access for @lumenalta.com
+ * - Service account writer access (so SA can manage the file later)
+ * - Deal owner editor access (if ownerEmail provided)
+ */
+export async function shareNewFile(params: {
+  fileId: string;
+  drive: ReturnType<typeof getDriveClient>;
+  ownerEmail?: string;
+}): Promise<void> {
+  const { drive, fileId } = params;
+  const saCredentials = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_KEY);
+
+  // Grant org-wide reader access
+  await drive.permissions.create({
+    fileId,
+    requestBody: {
+      type: "domain",
+      domain: "lumenalta.com",
+      role: "reader",
+    },
+    supportsAllDrives: true,
+    sendNotificationEmail: false,
+  });
+
+  // Grant service account writer access
+  await drive.permissions.create({
+    fileId,
+    requestBody: {
+      type: "user",
+      emailAddress: saCredentials.client_email,
+      role: "writer",
+    },
+    supportsAllDrives: true,
+    sendNotificationEmail: false,
+  });
+
+  // Grant deal owner editor access (if provided)
+  if (params.ownerEmail) {
+    await drive.permissions.create({
+      fileId,
+      requestBody: {
+        type: "user",
+        emailAddress: params.ownerEmail,
+        role: "writer",
+      },
+      supportsAllDrives: true,
+      sendNotificationEmail: false,
+    });
+  }
+}
+
+/**
  * Get or create a subfolder inside a parent folder.
  *
  * Generic idempotent helper used for "Archive" and other subfolders.

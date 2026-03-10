@@ -102,8 +102,10 @@ export interface GenerationBlueprint {
 export interface SlideSelectionEntry {
   /** Section name this selection fills */
   sectionName: string;
-  /** Selected SlideEmbedding ID */
+  /** Selected SlideEmbedding ID (database record ID) */
   slideId: string;
+  /** Google Slides page objectId for this slide */
+  slideObjectId: string;
   /** Presentation ID containing the selected slide */
   sourcePresentationId: string;
   /** Template ID the presentation belongs to */

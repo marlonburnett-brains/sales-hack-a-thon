@@ -177,7 +177,7 @@ export async function executeStructureDrivenPipeline(
     plan.selections.map((selection) =>
       planSlideModifications({
         slideId: selection.slideId,
-        slideObjectId: selection.slideId,
+        slideObjectId: selection.slideObjectId,
         dealContext,
         draftContent: params.draftContent,
       }),
@@ -235,22 +235,24 @@ async function getAllSlidesByPresentation(
   }
 
   // Query all non-archived slides for these presentations
+  // Returns slideObjectId (Google Slides page objectId) for use in assembly
   const allSlides = await prisma.slideEmbedding.findMany({
     where: {
       templateId: { in: uniqueTemplateIds },
       archived: false,
     },
-    select: { id: true, templateId: true },
+    select: { id: true, slideObjectId: true, templateId: true },
   });
 
-  // Group by presentationId
+  // Group by presentationId, using slideObjectId (Google Slides objectId)
   const result = new Map<string, string[]>();
-  for (const slide of allSlides as Array<{ id: string; templateId: string }>) {
+  for (const slide of allSlides as Array<{ id: string; slideObjectId: string | null; templateId: string }>) {
     const presentationId = templateToPresentationId.get(slide.templateId);
     if (!presentationId) continue;
 
+    const objectId = slide.slideObjectId ?? slide.id;
     const existing = result.get(presentationId) ?? [];
-    existing.push(slide.id);
+    existing.push(objectId);
     result.set(presentationId, existing);
   }
 

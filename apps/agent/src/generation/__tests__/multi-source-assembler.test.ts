@@ -5,12 +5,12 @@ const {
   mockAssembleDeckFromSlides,
   mockGetDriveClient,
   mockGetSlidesClient,
-  mockShareWithOrg,
+  mockShareNewFile,
 } = vi.hoisted(() => ({
   mockAssembleDeckFromSlides: vi.fn(),
   mockGetDriveClient: vi.fn(),
   mockGetSlidesClient: vi.fn(),
-  mockShareWithOrg: vi.fn(),
+  mockShareNewFile: vi.fn(),
 }));
 
 vi.mock("../../lib/deck-customizer", () => ({
@@ -23,7 +23,7 @@ vi.mock("../../lib/google-auth", () => ({
 }));
 
 vi.mock("../../lib/drive-folders", () => ({
-  shareWithOrg: mockShareWithOrg,
+  shareNewFile: mockShareNewFile,
 }));
 
 import type {
@@ -44,6 +44,7 @@ function makeEntry(
   return {
     sectionName: `Section for ${slideId}`,
     slideId,
+    slideObjectId: slideId,
     sourcePresentationId,
     templateId,
     matchRationale: `Matched ${slideId}`,
@@ -445,7 +446,7 @@ describe("buildMultiSourcePlan", () => {
 describe("assembleMultiSourceDeck", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockShareWithOrg.mockResolvedValue(undefined);
+    mockShareNewFile.mockResolvedValue(undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
@@ -556,7 +557,6 @@ describe("assembleMultiSourceDeck", () => {
       fileId: "pres-a",
       requestBody: {
         name: "My Deck",
-        parents: ["folder-1"],
       },
       supportsAllDrives: true,
     });
@@ -564,7 +564,6 @@ describe("assembleMultiSourceDeck", () => {
       fileId: "pres-b",
       requestBody: {
         name: "_temp_secondary_tpl-b_1",
-        parents: ["folder-1"],
       },
       supportsAllDrives: true,
     });
@@ -1109,10 +1108,12 @@ describe("assembleMultiSourceDeck", () => {
         "Unsupported element s4-video-1 (video) on source slide s4",
       ),
     );
-    expect(mockShareWithOrg).toHaveBeenCalledWith({
-      fileId: "primary-copy",
-      ownerEmail: "owner@lumenalta.com",
-    });
+    expect(mockShareNewFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileId: "primary-copy",
+        ownerEmail: "owner@lumenalta.com",
+      }),
+    );
     expect(result).toEqual({
       presentationId: "primary-copy",
       driveUrl: "https://docs.google.com/presentation/d/primary-copy/edit",

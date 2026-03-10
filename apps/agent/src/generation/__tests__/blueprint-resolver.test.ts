@@ -407,11 +407,12 @@ describe("resolveBlueprint", () => {
     expect(candidate).toBeDefined();
     expect(candidate).toEqual({
       slideId: "slide-1",
+      slideObjectId: expect.any(String),
       templateId: "tpl-1",
       presentationId: "pres-1",
       classificationJson: '{"category":"title"}',
       thumbnailUrl: "https://thumb.example.com/slide-1",
       confidence: 0.81,
-    } satisfies ResolvedCandidate);
+    });
   });
 });

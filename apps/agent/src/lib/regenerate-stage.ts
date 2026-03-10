@@ -20,7 +20,6 @@ import {
   formatSectionsWithSlotsForPrompt,
 } from "./deck-structure-loader";
 import type { SectionSlotCounts } from "./deck-structure-loader";
-import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "./drive-folders";
 import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../generation/route-strategy";
 import { prisma } from "./db";
 
@@ -162,25 +161,6 @@ export async function regenerateStage(
       assertLlmContentQuality(draftContent);
     }
 
-    const rootFolderId = await resolveRootFolderId(deal.ownerId ?? undefined);
-    const folderId = await getOrCreateDealFolder({
-      companyName: deal.company.name,
-      dealName: deal.name,
-      parentFolderId: rootFolderId,
-    });
-
-    // Archive previous file if it exists
-    const existingStageContent = interaction.stageContent
-      ? JSON.parse(interaction.stageContent)
-      : null;
-    if (existingStageContent?.presentationId) {
-      try {
-        await archiveExistingFile({ dealFolderId: folderId, fileId: existingStageContent.presentationId });
-      } catch (err) {
-        console.warn("[regenerate-stage] Archive failed, continuing:", err);
-      }
-    }
-
     const deckName = `Touch 1 Pager - ${companyName} - ${new Date().toISOString().split("T")[0]}`;
 
     // Route via structure-driven pipeline (no legacy fallback)
@@ -197,17 +177,12 @@ export async function regenerateStage(
 
     const result = await executeStructureDrivenPipeline({
       blueprint: strategy.blueprint,
-      targetFolderId: folderId,
+      targetFolderId: "",
       deckName,
       dealContext,
       draftContent,
       ownerEmail: deal.ownerEmail ?? undefined,
     });
-
-    // Share with deal owner
-    if (deal.ownerEmail) {
-      await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
-    }
 
     // Update stageContent with new presentation and persist draft for future regeneration
     await prisma.interactionRecord.update({

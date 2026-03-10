@@ -14,7 +14,7 @@ import {
   assembleDeckFromSlides,
   type AssembleDeckResult,
 } from "../lib/deck-customizer";
-import { shareWithOrg } from "../lib/drive-folders";
+import { shareNewFile } from "../lib/drive-folders";
 import {
   getDriveClient,
   getSlidesClient,
@@ -75,7 +75,8 @@ export function buildMultiSourcePlan(
   const groupedSelections = groupSlidesBySource(selectionPlan.selections);
   const [primaryPresentationId, primaryEntries] = identifyPrimarySource(groupedSelections);
 
-  const keepSlideIds = primaryEntries.map((entry) => entry.slideId);
+  // Use slideObjectId (Google Slides page objectId) for all assembly operations
+  const keepSlideIds = primaryEntries.map((entry) => entry.slideObjectId);
   const keepSlideIdSet = new Set(keepSlideIds);
   const allPrimarySlideIds = allSlidesByPresentation.get(primaryPresentationId) ?? [];
 
@@ -89,7 +90,7 @@ export function buildMultiSourcePlan(
     secondarySources.push({
       templateId: entries[0].templateId,
       presentationId,
-      slideIds: entries.map((entry) => entry.slideId),
+      slideIds: entries.map((entry) => entry.slideObjectId),
     });
   }
 
@@ -103,7 +104,7 @@ export function buildMultiSourcePlan(
       ),
     },
     secondarySources,
-    finalSlideOrder: selectionPlan.selections.map((selection) => selection.slideId),
+    finalSlideOrder: selectionPlan.selections.map((selection) => selection.slideObjectId),
   };
 }
 
@@ -130,7 +131,6 @@ export async function assembleMultiSourceDeck(
       fileId: params.plan.primarySource.presentationId,
       requestBody: {
         name: params.deckName,
-        parents: [params.targetFolderId],
       },
       supportsAllDrives: true,
     });
@@ -139,6 +139,9 @@ export async function assembleMultiSourceDeck(
     if (!presentationId) {
       throw new Error("Primary presentation copy did not return an id");
     }
+
+    // Share with org + service account so both pool users and SA can access
+    await shareNewFile({ fileId: presentationId, ownerEmail: params.ownerEmail, drive });
 
     const slideIdMap = new Map<string, string>();
     for (const slideId of params.plan.primarySource.keepSlideIds) {
@@ -169,7 +172,6 @@ export async function assembleMultiSourceDeck(
           fileId: secondarySource.presentationId,
           requestBody: {
             name: `_temp_secondary_${secondarySource.templateId}_${index + 1}`,
-            parents: [params.targetFolderId],
           },
           supportsAllDrives: true,
         });
@@ -245,11 +247,6 @@ export async function assembleMultiSourceDeck(
         requestBody: { requests: reorderRequests },
       });
     }
-
-    await shareWithOrg({
-      fileId: presentationId,
-      ownerEmail: params.ownerEmail,
-    });
 
     return {
       presentationId,

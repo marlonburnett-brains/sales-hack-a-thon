@@ -18,7 +18,7 @@
  */
 
 import { getDriveClient, getSlidesClient, type GoogleAuthOptions } from "./google-auth";
-import { shareWithOrg } from "./drive-folders";
+import { shareNewFile } from "./drive-folders";
 import type { slides_v1 } from "googleapis";
 
 // ────────────────────────────────────────────────────────────
@@ -176,16 +176,18 @@ export async function assembleDeckFromSlides(
   const drive = getDriveClient(params.authOptions);
   const slides = getSlidesClient(params.authOptions);
 
-  // Step 1: Copy the source presentation to the target folder
+  // Step 1: Copy the source presentation (no parent folder — lands in caller's Drive)
+  // Then share with org + service account so both pool users and SA can access it
   const copy = await drive.files.copy({
     fileId: params.sourcePresentationId,
     requestBody: {
       name: params.deckName,
-      parents: [params.targetFolderId],
     },
     supportsAllDrives: true,
   });
   const presentationId = copy.data.id!;
+
+  await shareNewFile({ fileId: presentationId, drive });
 
   // Step 2: Read all slides from the copy
   const presentation = await slides.presentations.get({
@@ -263,9 +265,6 @@ export async function assembleDeckFromSlides(
       customerLogoUrl: params.customizations.customerLogoUrl,
     });
   }
-
-  // Step 7: Share with org (domain-wide viewer access)
-  await shareWithOrg({ fileId: presentationId });
 
   const driveUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
 

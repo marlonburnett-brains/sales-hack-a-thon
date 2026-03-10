@@ -89,6 +89,7 @@ const dealContext: DealContext = {
 
 const candidate1: ResolvedCandidate = {
   slideId: "slide-1",
+  slideObjectId: "obj-slide-1",
   templateId: "tmpl-1",
   presentationId: "pres-1",
   classificationJson: null,
@@ -98,6 +99,7 @@ const candidate1: ResolvedCandidate = {
 
 const candidate2: ResolvedCandidate = {
   slideId: "slide-2",
+  slideObjectId: "obj-slide-2",
   templateId: "tmpl-1",
   presentationId: "pres-1",
   classificationJson: null,
@@ -138,6 +140,7 @@ const selectionPlan: SlideSelectionPlan = {
     {
       sectionName: "Intro",
       slideId: "slide-1",
+      slideObjectId: "obj-slide-1",
       sourcePresentationId: "pres-1",
       templateId: "tmpl-1",
       matchRationale: "Industry match (Technology). Score: 3",
@@ -145,6 +148,7 @@ const selectionPlan: SlideSelectionPlan = {
     {
       sectionName: "Capabilities",
       slideId: "slide-2",
+      slideObjectId: "obj-slide-2",
       sourcePresentationId: "pres-1",
       templateId: "tmpl-1",
       matchRationale: "Fallback: first available candidate",

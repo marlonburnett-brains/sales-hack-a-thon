@@ -17,7 +17,7 @@ import {
 } from "@lumenalta/schemas";
 import {
   createJsonResponseOptions,
-  executeRuntimeNamedAgent,
+  executeRuntimeProviderNamedAgent,
 } from "../lib/agent-executor";
 
 // ────────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ export async function generateSlideDescription(
 ): Promise<string> {
   const prompt = buildDescriptionPrompt(slide, titleSlideText);
 
-  const response = await executeRuntimeNamedAgent({
+  const response = await executeRuntimeProviderNamedAgent({
     agentId: "slide-description-writer",
     messages: [{ role: "user", content: prompt }],
     options: createJsonResponseOptions(

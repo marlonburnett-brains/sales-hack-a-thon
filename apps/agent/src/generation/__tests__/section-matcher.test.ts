@@ -64,6 +64,7 @@ function makeCandidate(
 
   return {
     slideId,
+    slideObjectId: overrides.slideObjectId ?? `obj-${slideId}`,
     templateId: overrides.templateId ?? `tpl-${slideId}`,
     presentationId: overrides.presentationId ?? `pres-${slideId}`,
     classificationJson:

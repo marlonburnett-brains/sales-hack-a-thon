@@ -15,7 +15,7 @@ import {
 } from "@lumenalta/schemas";
 import {
   createJsonResponseOptions,
-  executeRuntimeNamedAgent,
+  executeRuntimeProviderNamedAgent,
 } from "../lib/agent-executor";
 
 // ────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ CLASSIFICATION INSTRUCTIONS:
 
 Classify this template.`;
 
-        const response = await executeRuntimeNamedAgent({
+        const response = await executeRuntimeProviderNamedAgent({
           agentId: "template-classification-analyst",
           messages: [{ role: "user", content: prompt }],
           options: createJsonResponseOptions(

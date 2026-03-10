@@ -31,7 +31,7 @@ import {
 } from "@lumenalta/schemas";
 import {
   createJsonResponseOptions,
-  executeRuntimeNamedAgent,
+  executeRuntimeProviderNamedAgent,
 } from "../lib/agent-executor";
 
 // ────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ async function extractSolutionPillars(
     )
     .join("\n\n---\n\n");
 
-  const response = await executeRuntimeNamedAgent({
+  const response = await executeRuntimeProviderNamedAgent({
     agentId: "solution-pillar-taxonomist",
     messages: [{ role: "user", content: `You are analyzing Lumenalta's Master Solutions and GTM Solutions decks to extract the complete list of solution pillar names.
 
