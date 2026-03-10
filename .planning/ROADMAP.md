@@ -10,7 +10,7 @@
 - ✅ v1.5 **Review Polish & Deck Intelligence** -- Phases 32-34 (shipped 2026-03-07) -- [Archive](milestones/v1.5-ROADMAP.md)
 - ✅ v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (shipped 2026-03-08) -- [Archive](milestones/v1.6-ROADMAP.md)
 - ✅ v1.7 **Deals & HITL Pipeline** -- Phases 41-49 (shipped 2026-03-09) -- [Archive](milestones/v1.7-ROADMAP.md)
-- 🚧 v1.8 **Structure-Driven Deck Generation** -- Phases 50-57 (in progress)
+- 🚧 v1.8 **Structure-Driven Deck Generation** -- Phases 50-61 (in progress)
 
 ## Phases
 
@@ -120,6 +120,8 @@
 - Wave 2: Phase 51 + Phase 52 + Phase 53 (parallel -- three independent tracks)
 - Wave 3: Phase 54 + Phase 55 (parallel -- each depends on one Wave 2 track)
 - Wave 4: Phase 56 + Phase 57 (parallel -- integration, depend on all prior)
+- Wave 5: Phase 58 + Phase 59 + Phase 61 (parallel -- close executor, planner handoff, and fallback gaps)
+- Wave 6: Phase 60 (live UX integration after gap-closure seams land)
 
 - [x] **Phase 50: Foundation Types & Interfaces** - Shared TypeScript types and Zod schemas for the generation pipeline (completed 2026-03-09)
 - [x] **Phase 51: Blueprint Resolver** - DeckStructure consumption producing GenerationBlueprint with candidate slides per section (completed 2026-03-09)
@@ -129,6 +131,10 @@
 - [x] **Phase 55: Modification Executor** - Execute planned modifications via scoped Google Slides API batchUpdate (completed 2026-03-09)
 - [x] **Phase 56: HITL Integration** - Wire 3-stage HITL (Skeleton/Low-fi/High-fi) to the generation pipeline data flow (completed 2026-03-09)
 - [x] **Phase 57: Touch Routing & Fallback** - Route all 4 touches through structure-driven pipeline with graceful legacy fallback (completed 2026-03-09)
+- [ ] **Phase 58: Secondary-Slide Execution Closure** - Fix assembled-slide ID handoff and verify safe secondary-slide modification execution
+- [ ] **Phase 59: Touch 1 Draft Handoff Repair** - Preserve approved draft content into modification planning for structure-driven Touch 1
+- [ ] **Phase 60: Live HITL Wiring & Confidence Gating** - Launch the structure-driven workflow from the real UX and branch low-confidence review correctly
+- [ ] **Phase 61: Legacy Fallback Routing** - Restore runtime legacy fallback for Touch 1-3 when routing resolves to legacy
 
 ## Phase Details
 
@@ -243,6 +249,60 @@ Plans:
 Plans:
 - [ ] 57-01-PLAN.md — Touch routing with structure-driven pipeline and legacy fallback
 
+### Phase 58: Secondary-Slide Execution Closure
+**Goal**: Secondary-slide personalization runs against assembled slide IDs end to end, and the executor has fresh verification proving safe scoped updates
+**Depends on**: Phase 52, Phase 55, Phase 57
+**Requirements**: FR-4.4, FR-6.1, FR-6.2, FR-6.3, FR-6.4, NFR-7, NFR-8
+**Gap Closure**: Closes audit gaps from the Phase 57 orchestration -> Phase 55 executor handoff, the secondary-slide personalization flow, and missing Phase 55 verification evidence
+**Success Criteria** (what must be TRUE):
+  1. Secondary-slide modification plans carry assembled slide/page object IDs rather than source slide IDs into execution
+  2. The executor applies element-scoped updates to assembled secondary slides without cross-slide contamination
+  3. Re-read and failure-isolation behavior are verified for assembled secondary slides after each slide update
+  4. Phase 55 verification artifacts exist and align with the behavior required for milestone audit closure
+**Plans**: 1 plan
+Plans:
+- [ ] 58-01-PLAN.md — Fix assembled-slide ID handoff, restore executor verification, and close secondary-slide personalization gaps
+
+### Phase 59: Touch 1 Draft Handoff Repair
+**Goal**: Approved Touch 1 draft content survives routing and reaches modification planning in the structure-driven path
+**Depends on**: Phase 53, Phase 57
+**Requirements**: FR-5.2, FR-5.4, FR-8.1
+**Gap Closure**: Closes the audit gap from Touch 1 orchestration -> Phase 53 planner where approved draft content is dropped before modification planning
+**Success Criteria** (what must be TRUE):
+  1. Approved draft content passed into the Touch 1 pipeline entry point is preserved through orchestration
+  2. Modification planning receives and uses the approved draft content when present
+  3. The Touch 1 structure-driven path proves draft-aware planning and execution end to end
+**Plans**: 1 plan
+Plans:
+- [ ] 59-01-PLAN.md — Preserve Touch 1 approved draft content through modification planning and verification
+
+### Phase 60: Live HITL Wiring & Confidence Gating
+**Goal**: The real touch UX launches and resumes the structure-driven HITL workflow, including the intended low-confidence warning/review branch
+**Depends on**: Phase 56, Phase 57, Phase 58, Phase 59
+**Requirements**: FR-7.1, FR-7.2, FR-7.3, FR-7.4, FR-7.5, FR-7.6, FR-7.7, FR-8.6
+**Gap Closure**: Closes the audit gaps between the Phase 56 workflow and the web touch flow, the route-strategy -> confidence/HITL branch, and the structure-driven HITL + low-confidence E2E flows
+**Success Criteria** (what must be TRUE):
+  1. The real touch flow starts the structure-driven workflow and resumes the same workflow run across skeleton, low-fi, and high-fi stages
+  2. Frontend approve/request-changes actions match the workflow resume contract for every HITL stage
+  3. Low-confidence routing surfaces the warning/manual-review experience in the live UX rather than silently following the happy path
+  4. Sellers can complete blueprint review, assembled-deck review, modification-plan review, and final deck delivery through the live product flow
+**Plans**: 1 plan
+Plans:
+- [ ] 60-01-PLAN.md — Wire live touch UX to structure-driven workflow resumes and low-confidence review branching
+
+### Phase 61: Legacy Fallback Routing
+**Goal**: Touch 1-3 reliably execute preserved legacy generation paths whenever routing resolves to a legacy strategy
+**Depends on**: Phase 57
+**Requirements**: FR-8.5, FR-9.4
+**Gap Closure**: Closes the audit gaps from Touch 1-3 routing consumers -> legacy generation paths and the legacy fallback end-to-end flow
+**Success Criteria** (what must be TRUE):
+  1. Touch 1-3 consumers honor `strategy.type = legacy` at runtime
+  2. Each touch invokes its correct existing legacy generator when DeckStructure is unavailable or routing resolves to legacy
+  3. Legacy generators remain preserved in code and are covered by runtime fallback verification
+**Plans**: 1 plan
+Plans:
+- [ ] 61-01-PLAN.md — Restore runtime legacy fallback routing for Touch 1-3 and verify preserved generators
+
 ## Progress
 
 **Execution Order (wave-based parallelization):**
@@ -250,6 +310,8 @@ Plans:
 - Wave 2: 51 + 52 + 53 (parallel)
 - Wave 3: 54 + 55 (parallel)
 - Wave 4: 56 + 57 (parallel)
+- Wave 5: 58 + 59 + 61 (parallel)
+- Wave 6: 60
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -310,3 +372,7 @@ Plans:
 | 55. Modification Executor | 1/1 | Complete   | 2026-03-09 | - |
 | 56. HITL Integration | 1/1 | Complete    | 2026-03-09 | - |
 | 57. Touch Routing & Fallback | 1/1 | Complete    | 2026-03-09 | - |
+| 58. Secondary-Slide Execution Closure | 0/1 | Pending | - | - |
+| 59. Touch 1 Draft Handoff Repair | 0/1 | Pending | - | - |
+| 60. Live HITL Wiring & Confidence Gating | 0/1 | Pending | - | - |
+| 61. Legacy Fallback Routing | 0/1 | Pending | - | - |

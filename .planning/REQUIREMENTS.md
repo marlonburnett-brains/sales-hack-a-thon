@@ -214,44 +214,54 @@ FR-1 (Types) ──────────────────────�
 | FR-4.1 | Phase 52 | Complete |
 | FR-4.2 | Phase 52 | Complete |
 | FR-4.3 | Phase 52 | Complete |
-| FR-4.4 | Phase 52 | Complete |
+| FR-4.4 | Phase 58 | Pending |
 | FR-4.5 | Phase 52 | Complete |
 | FR-4.6 | Phase 52 | Complete |
 | FR-4.7 | Phase 52 | Complete |
 | FR-4.8 | Phase 52 | Complete |
 | FR-4.9 | Phase 52 | Complete |
 | FR-5.1 | Phase 53 | Complete |
-| FR-5.2 | Phase 53 | Complete |
+| FR-5.2 | Phase 59 | Pending |
 | FR-5.3 | Phase 53 | Complete |
-| FR-5.4 | Phase 53 | Complete |
+| FR-5.4 | Phase 59 | Pending |
 | FR-5.5 | Phase 53 | Complete |
 | FR-5.6 | Phase 53 | Complete |
-| FR-6.1 | Phase 55 | Complete |
-| FR-6.2 | Phase 55 | Complete |
-| FR-6.3 | Phase 55 | Complete |
-| FR-6.4 | Phase 55 | Complete |
-| FR-7.1 | Phase 56 | Complete |
-| FR-7.2 | Phase 56 | Complete |
-| FR-7.3 | Phase 56 | Complete |
-| FR-7.4 | Phase 56 | Complete |
-| FR-7.5 | Phase 56 | Complete |
-| FR-7.6 | Phase 56 | Complete |
-| FR-7.7 | Phase 56 | Complete |
-| FR-8.1 | Phase 57 | Complete |
+| FR-6.1 | Phase 58 | Pending |
+| FR-6.2 | Phase 58 | Pending |
+| FR-6.3 | Phase 58 | Pending |
+| FR-6.4 | Phase 58 | Pending |
+| FR-7.1 | Phase 60 | Pending |
+| FR-7.2 | Phase 60 | Pending |
+| FR-7.3 | Phase 60 | Pending |
+| FR-7.4 | Phase 60 | Pending |
+| FR-7.5 | Phase 60 | Pending |
+| FR-7.6 | Phase 60 | Pending |
+| FR-7.7 | Phase 60 | Pending |
+| FR-8.1 | Phase 59 | Pending |
 | FR-8.2 | Phase 57 | Complete |
 | FR-8.3 | Phase 57 | Complete |
 | FR-8.4 | Phase 57 | Complete |
-| FR-8.5 | Phase 57 | Complete |
-| FR-8.6 | Phase 57 | Complete |
+| FR-8.5 | Phase 61 | Pending |
+| FR-8.6 | Phase 60 | Pending |
 | FR-9.1 | Phase 57 | Complete |
 | FR-9.2 | Phase 57 | Complete |
 | FR-9.3 | Phase 57 | Complete |
-| FR-9.4 | Phase 57 | Complete |
+| FR-9.4 | Phase 61 | Pending |
 | NFR-1 | Phase 57 | Complete |
 | NFR-2 | Phase 57 | Complete |
 | NFR-3 | Phase 52 | Complete |
 | NFR-4 | Phase 57 | Complete |
 | NFR-5 | Phase 50 | Complete |
 | NFR-6 | Phase 52 | Complete |
-| NFR-7 | Phase 55 | Complete |
-| NFR-8 | Phase 55 | Complete |
+| NFR-7 | Phase 58 | Pending |
+| NFR-8 | Phase 58 | Pending |
+
+**Coverage:**
+- v1.8 requirements: 62 total
+- Mapped to phases: 62
+- Unmapped: 0
+- Gap-closure reassignments open: 20
+
+---
+*Requirements defined: 2026-03-09*
+*Last updated: 2026-03-10 after milestone audit gap closure planning*
