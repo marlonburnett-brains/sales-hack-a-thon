@@ -31,6 +31,7 @@ import {
 } from "./multi-source-assembler";
 import { planSlideModifications } from "./modification-planner";
 import { executeModifications } from "./modification-executor";
+import { performVisualQA } from "./visual-qa";
 import type { AssembleDeckResult } from "../lib/deck-customizer";
 
 // ────────────────────────────────────────────────────────────
@@ -278,6 +279,23 @@ export async function executeStructureDrivenPipeline(
     console.log(`[structure-pipeline] Execution result: totalApplied=${execResult.totalApplied}, totalSkipped=${execResult.totalSkipped}`);
     for (const r of execResult.results) {
       console.log(`[structure-pipeline]   Slide ${r.slideObjectId}: status=${r.status}, applied=${r.modificationsApplied}${r.error ? `, error=${r.error}` : ''}`);
+    }
+
+    // Step 7: Post-modification visual QA — autofit + vision-based overlap detection
+    if (execResult.totalApplied > 0) {
+      console.log(`[structure-pipeline] Step 7: Running visual QA on ${activePlans.length} modified slides`);
+      const qaResult = await performVisualQA({
+        presentationId: assemblyResult.presentationId,
+        modifiedPlans: activePlans,
+        authOptions,
+      });
+      console.log(`[structure-pipeline] Step 7 result: status=${qaResult.status}, iterations=${qaResult.iterations}${qaResult.issues ? `, issues=${qaResult.issues.length}` : ''}`);
+      if (qaResult.status === "warning" && qaResult.issues) {
+        console.warn(`[structure-pipeline] Visual QA warnings after ${qaResult.iterations} correction attempts:`);
+        for (const issue of qaResult.issues) {
+          console.warn(`[structure-pipeline]   - ${issue}`);
+        }
+      }
     }
   } else {
     console.warn(`[structure-pipeline] WARNING: No active modification plans! All plans either used fallback or had 0 modifications.`);
