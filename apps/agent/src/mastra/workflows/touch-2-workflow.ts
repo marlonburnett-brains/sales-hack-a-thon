@@ -20,6 +20,7 @@ import { prisma } from "../../lib/db";
 import { env } from "../../env";
 import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../../generation/route-strategy";
 import { selectSlidesForBlueprint } from "../../generation/section-matcher";
+import { createStepLogger, buildLogKey, clearLogs } from "../../generation/generation-logger";
 
 // ────────────────────────────────────────────────────────────
 // Shared schemas
@@ -89,6 +90,10 @@ const selectSlides = createStep({
     skeletonContent: skeletonContentSchema,
   }),
   execute: async ({ inputData, runId }) => {
+    const logKey = buildLogKey(inputData.dealId, "touch_2");
+    const logger = createStepLogger("select-slides", logKey);
+    logger.log("Starting Touch 2 deck generation...");
+
     // Create InteractionRecord at start
     const interaction = await prisma.interactionRecord.create({
       data: {
@@ -114,13 +119,16 @@ const selectSlides = createStep({
       industry: inputData.industry,
       priorTouchOutputs: inputData.priorTouchOutputs,
     });
+    logger.log("Resolving generation strategy...");
     const strategy = await resolveGenerationStrategy("touch_2", null, dealContext);
     console.log(`[touch-2-workflow] selectSlides: Using ${strategy.type} generation path`);
+    logger.log(`Using ${strategy.type} generation path`);
 
     let skeletonContent: z.infer<typeof skeletonContentSchema>;
 
     if (strategy.type !== "legacy") {
       // Structure-driven path: use blueprint-based slide selection
+      logger.log("Selecting slides from template library...");
       const { plan, blueprint } = await selectSlidesForBlueprint(strategy.blueprint);
 
       const selectedSlideIds = plan.selections.map((s) => s.slideId);
@@ -134,6 +142,8 @@ const selectSlides = createStep({
           rationale: selection?.matchRationale ?? "No candidate available",
         };
       });
+
+      logger.log(`Selected ${selectedSlideIds.length} slides across ${sections.length} sections`);
 
       skeletonContent = {
         selectedSlideIds,
@@ -403,6 +413,10 @@ const assembleDeck = createStep({
     driveUrl: z.string(),
   }),
   execute: async ({ inputData }) => {
+    const logKey = buildLogKey(inputData.dealId, "touch_2");
+    const logger = createStepLogger("assemble-deck", logKey);
+    logger.log("Preparing deck assembly...");
+
     // Get or create per-deal folder using user's root folder setting
     const deal = await prisma.deal.findUniqueOrThrow({
       where: { id: inputData.dealId },
@@ -455,6 +469,7 @@ const assembleDeck = createStep({
       throw new Error("[touch-2-workflow] No DeckStructure/blueprint found for touch_2. Register an example presentation first.");
     }
 
+    logger.log("Starting structure-driven pipeline...");
     const result = await executeStructureDrivenPipeline({
       blueprint: strategy.blueprint,
       targetFolderId: folderId,
@@ -462,6 +477,7 @@ const assembleDeck = createStep({
       dealContext,
       ownerEmail: deal.ownerEmail ?? undefined,
       enableVisualQA: inputData.enableVisualQA,
+      logKey,
     });
 
     // Share with deal owner as editor
@@ -521,6 +537,10 @@ const recordInteraction = createStep({
     driveUrl: z.string(),
   }),
   execute: async ({ inputData }) => {
+    const logKey = buildLogKey(inputData.dealId, "touch_2");
+    const logger = createStepLogger("record-interaction", logKey);
+    logger.log("Saving final deck and recording interaction...");
+
     // Update existing interaction record with final content
     await prisma.interactionRecord.update({
       where: { id: inputData.interactionId },
@@ -566,6 +586,10 @@ const recordInteraction = createStep({
     } catch (err) {
       console.error("[touch-2-workflow] AtlusAI ingestion failed:", err);
     }
+
+    logger.log("Deck generation complete — ready for review!");
+    // Clean up in-memory logs after workflow completes
+    clearLogs(logKey);
 
     return {
       interactionId: inputData.interactionId,

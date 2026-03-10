@@ -33,6 +33,7 @@ import { planSlideModifications } from "./modification-planner";
 import { executeModifications } from "./modification-executor";
 import { performVisualQA } from "./visual-qa";
 import type { AssembleDeckResult } from "../lib/deck-customizer";
+import { buildLogKey, createStepLogger, type StepLogger } from "./generation-logger";
 
 // ────────────────────────────────────────────────────────────
 // Exported Types
@@ -134,6 +135,8 @@ export interface ExecutePipelineParams {
   draftContent?: DraftContent;
   ownerEmail?: string;
   enableVisualQA?: boolean;
+  /** Optional key for real-time log streaming (dealId:touchType). */
+  logKey?: string;
 }
 
 /**
@@ -149,7 +152,10 @@ export interface ExecutePipelineParams {
 export async function executeStructureDrivenPipeline(
   params: ExecutePipelineParams,
 ): Promise<AssembleDeckResult> {
-  const { blueprint, targetFolderId, deckName, dealContext, ownerEmail, enableVisualQA } = params;
+  const { blueprint, targetFolderId, deckName, dealContext, ownerEmail, enableVisualQA, logKey } = params;
+  const logger = createStepLogger("structure-pipeline", logKey);
+
+  logger.log("Initializing generation pipeline...");
 
   // Use pooled user auth (user-delegated tokens) to access example presentations
   // Pool auth is REQUIRED — SA doesn't have access to org-shared template presentations
@@ -166,19 +172,26 @@ export async function executeStructureDrivenPipeline(
   }
 
   // Step 1: Select slides for blueprint sections
+  logger.log("Selecting best slides for each section...");
   const { plan } = await selectSlidesForBlueprint(blueprint);
+  const uniqueSources = new Set(plan.selections.map((s) => s.sourcePresentationId));
+  logger.log(`Selected ${plan.selections.length} slides from ${uniqueSources.size} source presentations`);
 
   // Step 2: Get all slides per involved presentation
+  logger.log("Fetching slide data from source presentations...");
   const allSlidesByPresentation = await getAllSlidesByPresentation(plan);
 
   // Step 3: Build multi-source plan
+  logger.log("Building multi-source assembly plan...");
   const multiSourcePlan = buildMultiSourcePlan(plan, allSlidesByPresentation);
   console.log(`[structure-pipeline] Step 3: Multi-source plan - primary=${multiSourcePlan.primarySource.presentationId}, keepSlides=[${multiSourcePlan.primarySource.keepSlideIds.join(', ')}], deleteSlides=[${multiSourcePlan.primarySource.deleteSlideIds.join(', ')}], secondarySources=${multiSourcePlan.secondarySources.length}`);
   for (const sec of multiSourcePlan.secondarySources) {
     console.log(`[structure-pipeline]   Secondary: ${sec.presentationId}, slides=[${sec.slideIds.join(', ')}]`);
   }
+  logger.log(`Assembly plan ready: ${multiSourcePlan.secondarySources.length > 0 ? `merging ${multiSourcePlan.secondarySources.length + 1} presentations` : "single source"}`);
 
   // Step 4: Assemble the deck
+  logger.log(`Assembling deck: ${deckName}...`);
   const assemblyResult = await assembleMultiSourceDeck({
     plan: multiSourcePlan,
     targetFolderId,
@@ -186,25 +199,32 @@ export async function executeStructureDrivenPipeline(
     ownerEmail,
     authOptions,
   });
+  logger.log(`Deck assembled — ${plan.selections.length} slides in Google Slides`);
   console.log(`[structure-pipeline] Step 4: Assembly complete - presentationId=${assemblyResult.presentationId}`);
 
   // Step 5: Plan modifications for each selected slide
   // Use source slideObjectId for planning (DB elements are keyed to source IDs)
+  logger.log(`Planning content modifications for ${plan.selections.length} slides...`);
   console.log(`[structure-pipeline] Step 5: Planning modifications for ${plan.selections.length} selections`);
   for (const selection of plan.selections) {
     console.log(`[structure-pipeline]   Selection: slideId=${selection.slideId}, slideObjectId=${selection.slideObjectId}, source=${selection.sourcePresentationId}, template=${selection.templateId}`);
   }
 
   const modificationResults = await Promise.all(
-    plan.selections.map((selection) =>
-      planSlideModifications({
+    plan.selections.map(async (selection, i) => {
+      const result = await planSlideModifications({
         slideId: selection.slideId,
         slideObjectId: selection.slideObjectId,
         dealContext,
         draftContent: params.draftContent,
-      }),
-    ),
+      });
+      logger.log(`Planned slide ${i + 1}/${plan.selections.length}: ${result.plan.modifications.length} modifications`);
+      return result;
+    }),
   );
+
+  const totalMods = modificationResults.reduce((s, r) => s + r.plan.modifications.length, 0);
+  logger.log(`Modification planning complete: ${totalMods} total changes across ${plan.selections.length} slides`);
 
   console.log(`[structure-pipeline] Step 5 results:`);
   for (const r of modificationResults) {
@@ -272,11 +292,13 @@ export async function executeStructureDrivenPipeline(
   }
 
   if (activePlans.length > 0) {
+    logger.log(`Applying text modifications to ${activePlans.length} slides...`);
     const execResult = await executeModifications({
       presentationId: assemblyResult.presentationId,
       plans: activePlans,
       authOptions,
     });
+    logger.log(`Modifications applied: ${execResult.totalApplied} changes, ${execResult.totalSkipped} skipped`);
     console.log(`[structure-pipeline] Execution result: totalApplied=${execResult.totalApplied}, totalSkipped=${execResult.totalSkipped}`);
     for (const r of execResult.results) {
       console.log(`[structure-pipeline]   Slide ${r.slideObjectId}: status=${r.status}, applied=${r.modificationsApplied}${r.error ? `, error=${r.error}` : ''}`);
@@ -284,14 +306,17 @@ export async function executeStructureDrivenPipeline(
 
     // Step 7: Post-modification visual QA — autofit + vision-based overlap detection
     if (enableVisualQA === false) {
+      logger.log("Visual QA skipped (opted out)");
       console.log('[structure-pipeline] Step 7: Visual QA skipped (user opted out)');
     } else if (execResult.totalApplied > 0) {
+      logger.log("Running visual quality check on modified slides...");
       console.log(`[structure-pipeline] Step 7: Running visual QA on ${activePlans.length} modified slides`);
       const qaResult = await performVisualQA({
         presentationId: assemblyResult.presentationId,
         modifiedPlans: activePlans,
         authOptions,
       });
+      logger.log(`Visual QA ${qaResult.status === "clean" ? "passed" : `completed with ${qaResult.issues?.length ?? 0} warnings`}`);
       console.log(`[structure-pipeline] Step 7 result: status=${qaResult.status}, iterations=${qaResult.iterations}${qaResult.issues ? `, issues=${qaResult.issues.length}` : ''}`);
       if (qaResult.status === "warning" && qaResult.issues) {
         console.warn(`[structure-pipeline] Visual QA warnings after ${qaResult.iterations} correction attempts:`);
@@ -301,8 +326,11 @@ export async function executeStructureDrivenPipeline(
       }
     }
   } else {
+    logger.log("No text modifications needed — deck is ready as-is");
     console.warn(`[structure-pipeline] WARNING: No active modification plans! All plans either used fallback or had 0 modifications.`);
   }
+
+  logger.log("Generation complete!");
 
   return assemblyResult;
 }

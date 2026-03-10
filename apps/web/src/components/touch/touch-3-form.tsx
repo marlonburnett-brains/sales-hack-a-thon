@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,6 +73,43 @@ export function Touch3Form({
   const [errorStep, setErrorStep] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [generationLogs, setGenerationLogs] = useState<GenerationLogEntry[]>([]);
+  const logPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (logPollRef.current) {
+        clearInterval(logPollRef.current);
+        logPollRef.current = null;
+      }
+    };
+  }, []);
+
+  const startLogPolling = useCallback(() => {
+    if (logPollRef.current) clearInterval(logPollRef.current);
+    logPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/generation-logs?dealId=${encodeURIComponent(dealId)}&touchType=touch_3`,
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { logs: GenerationLogEntry[] };
+          if (data.logs && data.logs.length > 0) {
+            setGenerationLogs(data.logs);
+          }
+        }
+      } catch {
+        // Non-critical
+      }
+    }, 1500);
+  }, [dealId]);
+
+  const stopLogPolling = useCallback(() => {
+    if (logPollRef.current) {
+      clearInterval(logPollRef.current);
+      logPollRef.current = null;
+    }
+    setGenerationLogs([]);
+  }, []);
 
   const toggleCapability = (cap: string) => {
     setSelectedCapabilities((prev) => {
@@ -96,28 +133,14 @@ export function Touch3Form({
     const maxAttempts = 120;
     let attempts = 0;
 
+    startLogPolling();
+
     while (attempts < maxAttempts) {
       await new Promise((r) => setTimeout(r, 2000));
       attempts++;
 
       try {
         const status = await checkTouch3StatusAction(runId);
-
-        // Extract logs from all step outputs
-        const allSteps = status.steps ?? {};
-        const allLogs: GenerationLogEntry[] = [];
-        for (const step of Object.values(allSteps)) {
-          const output = (step as Record<string, unknown>).output as
-            | Record<string, unknown>
-            | undefined;
-          if (output && Array.isArray(output.logs)) {
-            allLogs.push(...(output.logs as GenerationLogEntry[]));
-          }
-        }
-        if (allLogs.length > 0) {
-          allLogs.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-          setGenerationLogs(allLogs);
-        }
 
         // Derive step progress
         const steps = status.steps ?? {};
@@ -166,7 +189,7 @@ export function Touch3Form({
     }
 
     throw new Error("Polling timeout - workflow did not complete in time");
-  }, []);
+  }, [startLogPolling]);
 
   // Gather prior touch outputs for cross-touch context
   const getPriorTouchOutputs = async (): Promise<string[]> => {
@@ -226,6 +249,7 @@ export function Touch3Form({
       setState("error");
     } finally {
       setIsSubmitting(false);
+      stopLogPolling();
     }
   };
 

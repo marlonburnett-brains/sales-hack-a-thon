@@ -627,6 +627,19 @@ export const mastra = new Mastra({
         },
       }),
       // ────────────────────────────────────────────────────────────
+      // Generation Logs (real-time polling)
+      // ────────────────────────────────────────────────────────────
+      registerApiRoute("/generation-logs/:dealId/:touchType", {
+        method: "GET",
+        handler: async (c) => {
+          const dealId = c.req.param("dealId");
+          const touchType = c.req.param("touchType");
+          const { getLogs, buildLogKey } = await import("../generation/generation-logger");
+          const key = buildLogKey(dealId, touchType);
+          return c.json({ logs: getLogs(key) });
+        },
+      }),
+      // ────────────────────────────────────────────────────────────
       // Company CRUD
       // ────────────────────────────────────────────────────────────
       registerApiRoute("/companies", {

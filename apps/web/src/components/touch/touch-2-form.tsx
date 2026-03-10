@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -64,11 +64,52 @@ export function Touch2Form({
   const [errorStep, setErrorStep] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [generationLogs, setGenerationLogs] = useState<GenerationLogEntry[]>([]);
+  const logPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up log polling on unmount
+  useEffect(() => {
+    return () => {
+      if (logPollRef.current) {
+        clearInterval(logPollRef.current);
+        logPollRef.current = null;
+      }
+    };
+  }, []);
+
+  const startLogPolling = useCallback(() => {
+    if (logPollRef.current) clearInterval(logPollRef.current);
+    logPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/generation-logs?dealId=${encodeURIComponent(dealId)}&touchType=touch_2`,
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { logs: GenerationLogEntry[] };
+          if (data.logs && data.logs.length > 0) {
+            setGenerationLogs(data.logs);
+          }
+        }
+      } catch {
+        // Non-critical
+      }
+    }, 1500);
+  }, [dealId]);
+
+  const stopLogPolling = useCallback(() => {
+    if (logPollRef.current) {
+      clearInterval(logPollRef.current);
+      logPollRef.current = null;
+    }
+    setGenerationLogs([]);
+  }, []);
 
   // Poll workflow status until completion
   const pollStatus = useCallback(async (runId: string) => {
     const maxAttempts = 120;
     let attempts = 0;
+
+    // Start real-time log polling alongside status polling
+    startLogPolling();
 
     while (attempts < maxAttempts) {
       await new Promise((r) => setTimeout(r, 2000));
@@ -76,22 +117,6 @@ export function Touch2Form({
 
       try {
         const status = await checkTouch2StatusAction(runId);
-
-        // Extract logs from all step outputs
-        const allSteps = status.steps ?? {};
-        const allLogs: GenerationLogEntry[] = [];
-        for (const step of Object.values(allSteps)) {
-          const output = (step as Record<string, unknown>).output as
-            | Record<string, unknown>
-            | undefined;
-          if (output && Array.isArray(output.logs)) {
-            allLogs.push(...(output.logs as GenerationLogEntry[]));
-          }
-        }
-        if (allLogs.length > 0) {
-          allLogs.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-          setGenerationLogs(allLogs);
-        }
 
         // Derive step progress
         const steps = status.steps ?? {};
@@ -142,7 +167,7 @@ export function Touch2Form({
     }
 
     throw new Error("Polling timeout - workflow did not complete in time");
-  }, []);
+  }, [startLogPolling]);
 
   // Gather prior touch outputs for cross-touch context
   const getPriorTouchOutputs = async (): Promise<string[]> => {
@@ -204,6 +229,7 @@ export function Touch2Form({
       setState("error");
     } finally {
       setIsSubmitting(false);
+      stopLogPolling();
     }
   };
 

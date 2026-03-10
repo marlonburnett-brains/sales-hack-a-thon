@@ -866,6 +866,27 @@ export async function getPreCallWorkflowStatus(
 }
 
 // ────────────────────────────────────────────────────────────
+// Generation Logs (real-time polling)
+// ────────────────────────────────────────────────────────────
+
+export interface GenerationLogEntry {
+  timestamp: string;
+  step: string;
+  message: string;
+  detail?: string;
+}
+
+export async function getGenerationLogs(
+  dealId: string,
+  touchType: string,
+): Promise<GenerationLogEntry[]> {
+  const data = await fetchJSON<{ logs: GenerationLogEntry[] }>(
+    `/api/generation-logs/${encodeURIComponent(dealId)}/${encodeURIComponent(touchType)}`,
+  );
+  return data.logs;
+}
+
+// ────────────────────────────────────────────────────────────
 // Templates (Phase 19 -- TMPL-05/06/07)
 // ────────────────────────────────────────────────────────────
 

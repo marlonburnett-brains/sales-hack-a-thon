@@ -194,6 +194,7 @@ export function TouchPageClient({
   const [generationMessage, setGenerationMessage] = useState("Generating...");
   const [generationLogs, setGenerationLogs] = useState<GenerationLogEntry[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const logPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Clean up polling on unmount
   useEffect(() => {
@@ -201,6 +202,10 @@ export function TouchPageClient({
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
+      }
+      if (logPollRef.current) {
+        clearInterval(logPollRef.current);
+        logPollRef.current = null;
       }
     };
   }, []);
@@ -232,31 +237,43 @@ export function TouchPageClient({
   // Polling helper
   // ────────────────────────────────────────────────────────────
 
+  const stopLogPolling = useCallback(() => {
+    if (logPollRef.current) {
+      clearInterval(logPollRef.current);
+      logPollRef.current = null;
+    }
+  }, []);
+
+  const startLogPolling = useCallback(() => {
+    stopLogPolling();
+    logPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/generation-logs?dealId=${encodeURIComponent(dealId)}&touchType=${encodeURIComponent(touchType)}`,
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { logs: GenerationLogEntry[] };
+          if (data.logs && data.logs.length > 0) {
+            setGenerationLogs(data.logs);
+          }
+        }
+      } catch {
+        // Non-critical — continue polling
+      }
+    }, 1500);
+  }, [dealId, touchType, stopLogPolling]);
+
   const startPolling = useCallback(
     (currentRunId: string) => {
       if (pollRef.current) clearInterval(pollRef.current);
 
       const checkStatus = getStatusChecker(touchType);
+      // Start log polling alongside status polling
+      startLogPolling();
 
       pollRef.current = setInterval(async () => {
         try {
           const status = await checkStatus(currentRunId);
-
-          // Extract logs from all step outputs
-          const steps = status.steps ?? {};
-          const allLogs: GenerationLogEntry[] = [];
-          for (const step of Object.values(steps)) {
-            const output = (step as Record<string, unknown>).output as
-              | Record<string, unknown>
-              | undefined;
-            if (output && Array.isArray(output.logs)) {
-              allLogs.push(...(output.logs as GenerationLogEntry[]));
-            }
-          }
-          if (allLogs.length > 0) {
-            allLogs.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-            setGenerationLogs(allLogs);
-          }
 
           if (
             status.status === "suspended" ||
@@ -267,6 +284,7 @@ export function TouchPageClient({
               clearInterval(pollRef.current);
               pollRef.current = null;
             }
+            stopLogPolling();
             setIsGenerating(false);
             setGenerationLogs([]);
             router.refresh();
@@ -277,6 +295,7 @@ export function TouchPageClient({
               clearInterval(pollRef.current);
               pollRef.current = null;
             }
+            stopLogPolling();
             setIsGenerating(false);
             setGenerationLogs([]);
             toast.error("Generation failed. Please try again.");
@@ -286,7 +305,7 @@ export function TouchPageClient({
         }
       }, 2000);
     },
-    [touchType, router]
+    [touchType, router, startLogPolling, stopLogPolling],
   );
 
   // ────────────────────────────────────────────────────────────
