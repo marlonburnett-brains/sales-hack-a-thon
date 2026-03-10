@@ -83,7 +83,7 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 27 | Stream detailed generation status logs to UI | 2026-03-10 | 87fdf3f | [27-stream-detailed-generation-status-logs-t](./quick/27-stream-detailed-generation-status-logs-t/) |
+| 27 | Stream detailed generation status logs to UI | 2026-03-10 | a306be0 | [27-stream-detailed-generation-status-logs-t](./quick/27-stream-detailed-generation-status-logs-t/) |
 | 26 | Add optional Visual QA toggle dialog | 2026-03-10 | 0248284 | [26-add-optional-visual-qa-toggle-dialog-for](./quick/26-add-optional-visual-qa-toggle-dialog-for/) |
 | 25 | Add regenerate dialog with wipe option | 2026-03-10 | f98e0e3 | [25-add-regenerate-dialog-with-option-to-wip](./quick/25-add-regenerate-dialog-with-option-to-wip/) |
 | 24 | Change default model to gemini-3-flash-preview | 2026-03-10 | 4d98d8a | [24-change-default-model-to-be-gemini-3-flas](./quick/24-change-default-model-to-be-gemini-3-flas/) |
