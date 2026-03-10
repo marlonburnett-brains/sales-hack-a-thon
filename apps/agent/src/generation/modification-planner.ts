@@ -76,6 +76,7 @@ const PLANNER_MODEL = "gemini-3-flash-preview";
 
 export async function planSlideModifications(
   params: PlanModificationsParams,
+  onLog?: (message: string, detail?: string) => void,
 ): Promise<PlanModificationsResult> {
   const { slideId, slideObjectId, dealContext, draftContent } = params;
 

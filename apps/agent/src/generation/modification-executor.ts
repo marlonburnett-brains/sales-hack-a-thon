@@ -192,6 +192,7 @@ function buildTextStyleFields(style: slides_v1.Schema$TextStyle): string {
 
 export async function executeModifications(
   params: ExecuteModificationsParams,
+  onLog?: (message: string, detail?: string) => void,
 ): Promise<ExecuteModificationsResult> {
   const { presentationId, plans, authOptions } = params;
   const slides = getSlidesClient(authOptions);

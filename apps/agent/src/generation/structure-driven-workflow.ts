@@ -24,6 +24,7 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { resolveBlueprint, type ResolvedCandidate } from "./blueprint-resolver";
+import { createStepLogger, type GenerationLogEntry } from "./generation-logger";
 import { selectSlidesForBlueprint } from "./section-matcher";
 import {
   buildMultiSourcePlan,
@@ -76,8 +77,11 @@ export const resolveAndSelectSlidesStep = createStep({
     candidates: z.any(),
     dealContext: z.any(),
     ownerEmail: z.string().optional(),
+    logs: z.array(z.any()).optional(),
   }),
   execute: async ({ inputData }) => {
+    const logger = createStepLogger("resolve-and-select-slides");
+
     // Query deal for context assembly
     const deal = await prisma.deal.findUniqueOrThrow({
       where: { id: inputData.dealId },
@@ -94,6 +98,8 @@ export const resolveAndSelectSlidesStep = createStep({
       priorTouchSlideIds: [],
     };
 
+    logger.log(`Resolving deck blueprint for ${inputData.touchType}...`);
+
     // Resolve blueprint + candidates
     const key: DeckStructureKey = {
       touchType: inputData.touchType as DeckStructureKey["touchType"],
@@ -107,9 +113,21 @@ export const resolveAndSelectSlidesStep = createStep({
       );
     }
 
+    logger.log(
+      `Found blueprint with ${blueprintResult.blueprint.sections.length} sections`,
+    );
+    logger.log("Selecting best-matching slides for each section...");
+
     // Select slides for each section
     const { plan: selectionPlan, blueprint } =
       await selectSlidesForBlueprint(blueprintResult);
+
+    const uniqueSources = new Set(
+      selectionPlan.selections.map((s) => s.sourcePresentationId),
+    );
+    logger.log(
+      `Selected ${selectionPlan.selections.length} slides from ${uniqueSources.size} source presentations`,
+    );
 
     // Create InteractionRecord
     const interaction = await prisma.interactionRecord.create({
@@ -134,6 +152,8 @@ export const resolveAndSelectSlidesStep = createStep({
       },
     });
 
+    logger.log("Created interaction record");
+
     // Enrich selections with thumbnail URLs from candidates
     const selections: SelectionWithThumbnail[] = selectionPlan.selections.map(
       (s) => ({
@@ -157,6 +177,7 @@ export const resolveAndSelectSlidesStep = createStep({
       candidates: candidatesObj,
       dealContext,
       ownerEmail: deal.ownerEmail ?? undefined,
+      logs: logger.entries,
     };
   },
 });
@@ -182,6 +203,7 @@ export const awaitSkeletonApprovalStep = createStep({
     approvedSelections: z.array(z.any()),
     dealContext: z.any(),
     ownerEmail: z.string().optional(),
+    logs: z.array(z.any()).optional(),
   }),
   resumeSchema: z.object({
     decision: z.enum(["approved", "refined"]),
@@ -204,11 +226,13 @@ export const awaitSkeletonApprovalStep = createStep({
     selections: z.array(z.any()),
   }),
   execute: async ({ inputData, resumeData, suspend }) => {
+    const logger = createStepLogger("await-skeleton-approval");
     const blueprint = inputData.blueprint as GenerationBlueprint;
     const selections = inputData.selections as SelectionWithThumbnail[];
     const candidates = inputData.candidates as Record<string, ResolvedCandidate>;
 
     if (!resumeData) {
+      logger.log("Awaiting skeleton approval...");
       // Build slim suspend payload
       const sections = blueprint.sections.map((s) => {
         const selection = selections.find(
@@ -282,12 +306,15 @@ export const awaitSkeletonApprovalStep = createStep({
       }));
     }
 
+    logger.log("Skeleton approved, proceeding to assembly...");
+
     return {
       interactionId: inputData.interactionId,
       dealId: inputData.dealId,
       approvedSelections,
       dealContext: inputData.dealContext,
       ownerEmail: inputData.ownerEmail,
+      logs: logger.entries,
     };
   },
 });
@@ -314,10 +341,14 @@ export const assembleMultiSourceDeckStep = createStep({
     approvedSelections: z.array(z.any()),
     dealContext: z.any(),
     ownerEmail: z.string().optional(),
+    logs: z.array(z.any()).optional(),
   }),
   execute: async ({ inputData }) => {
+    const logger = createStepLogger("assemble-multi-source-deck");
     const approvedSelections = inputData.approvedSelections as SlideSelectionEntry[];
     const dealContext = inputData.dealContext as DealContext;
+
+    logger.log(`Preparing deck assembly for ${dealContext.companyName}...`);
 
     // Get deal folder
     const deal = await prisma.deal.findUniqueOrThrow({
@@ -337,6 +368,9 @@ export const assembleMultiSourceDeckStep = createStep({
     const presentationIds = [
       ...new Set(approvedSelections.map((s) => s.sourcePresentationId)),
     ];
+    logger.log(
+      `Fetching slide data from ${presentationIds.length} source presentations...`,
+    );
     const allSlidesByPresentation = new Map<string, string[]>();
 
     for (const presId of presentationIds) {
@@ -353,6 +387,8 @@ export const assembleMultiSourceDeckStep = createStep({
       }
     }
 
+    logger.log("Building multi-source assembly plan...");
+
     // Build plan and assemble
     const plan = buildMultiSourcePlan(
       { selections: approvedSelections },
@@ -360,12 +396,15 @@ export const assembleMultiSourceDeckStep = createStep({
     );
 
     const deckName = `${dealContext.companyName} - ${new Date().toISOString().split("T")[0]}`;
+    logger.log(`Assembling deck: ${deckName}...`);
     const result = await assembleMultiSourceDeck({
       plan,
       targetFolderId: folderId,
       deckName,
       ownerEmail: inputData.ownerEmail,
     });
+
+    logger.log(`Deck assembled with ${approvedSelections.length} slides`);
 
     // Update hitlStage to lowfi
     await prisma.interactionRecord.update({
@@ -388,6 +427,7 @@ export const assembleMultiSourceDeckStep = createStep({
       approvedSelections,
       dealContext,
       ownerEmail: inputData.ownerEmail,
+      logs: logger.entries,
     };
   },
 });
@@ -415,6 +455,7 @@ export const awaitLowfiApprovalStep = createStep({
     driveUrl: z.string(),
     approvedSelections: z.array(z.any()),
     dealContext: z.any(),
+    logs: z.array(z.any()).optional(),
   }),
   resumeSchema: z.object({
     decision: z.enum(["approved", "request_changes"]),
@@ -428,7 +469,10 @@ export const awaitLowfiApprovalStep = createStep({
     slideCount: z.number(),
   }),
   execute: async ({ inputData, resumeData, suspend }) => {
+    const logger = createStepLogger("await-lowfi-approval");
+
     if (!resumeData) {
+      logger.log("Awaiting low-fidelity deck approval...");
       return await suspend({
         stage: "lowfi" as const,
         interactionId: inputData.interactionId,
@@ -446,6 +490,8 @@ export const awaitLowfiApprovalStep = createStep({
       );
     }
 
+    logger.log("Low-fidelity deck approved, proceeding to modifications...");
+
     return {
       interactionId: inputData.interactionId,
       dealId: inputData.dealId,
@@ -453,6 +499,7 @@ export const awaitLowfiApprovalStep = createStep({
       driveUrl: inputData.driveUrl,
       approvedSelections: inputData.approvedSelections,
       dealContext: inputData.dealContext,
+      logs: logger.entries,
     };
   },
 });
@@ -478,10 +525,16 @@ export const planAndPrepareModificationsStep = createStep({
     driveUrl: z.string(),
     modificationPlans: z.array(z.any()),
     modificationSummary: z.array(z.any()),
+    logs: z.array(z.any()).optional(),
   }),
   execute: async ({ inputData }) => {
+    const logger = createStepLogger("plan-and-prepare-modifications");
     const approvedSelections = inputData.approvedSelections as SlideSelectionEntry[];
     const dealContext = inputData.dealContext as DealContext;
+
+    logger.log(
+      `Planning content modifications for ${approvedSelections.length} slides...`,
+    );
 
     // Read assembled presentation to get current slide objectIds
     const slides = getSlidesClient();
@@ -501,6 +554,10 @@ export const planAndPrepareModificationsStep = createStep({
       const selection = approvedSelections[i];
       const slideObjectId = slideObjectIds[i] ?? `unknown-${i}`;
 
+      logger.log(
+        `Planning modifications for slide ${i + 1}: ${selection.sectionName}...`,
+      );
+
       const { plan } = await planSlideModifications({
         slideId: selection.slideId,
         slideObjectId,
@@ -518,6 +575,14 @@ export const planAndPrepareModificationsStep = createStep({
       });
     }
 
+    const totalMods = modificationPlans.reduce(
+      (sum, p) => sum + p.modifications.length,
+      0,
+    );
+    logger.log(
+      `Planned ${totalMods} modifications across ${approvedSelections.length} slides`,
+    );
+
     // Update hitlStage to highfi
     await prisma.interactionRecord.update({
       where: { id: inputData.interactionId },
@@ -534,6 +599,7 @@ export const planAndPrepareModificationsStep = createStep({
       driveUrl: inputData.driveUrl,
       modificationPlans,
       modificationSummary,
+      logs: logger.entries,
     };
   },
 });
@@ -559,6 +625,7 @@ export const awaitHighfiApprovalStep = createStep({
     driveUrl: z.string(),
     decision: z.string(),
     modificationPlans: z.array(z.any()),
+    logs: z.array(z.any()).optional(),
   }),
   resumeSchema: z.object({
     decision: z.enum(["approved", "rejected"]),
@@ -572,7 +639,10 @@ export const awaitHighfiApprovalStep = createStep({
     modificationSummary: z.array(z.any()),
   }),
   execute: async ({ inputData, resumeData, suspend }) => {
+    const logger = createStepLogger("await-highfi-approval");
+
     if (!resumeData) {
+      logger.log("Awaiting high-fidelity modification approval...");
       return await suspend({
         stage: "highfi" as const,
         interactionId: inputData.interactionId,
@@ -584,6 +654,7 @@ export const awaitHighfiApprovalStep = createStep({
     }
 
     if (resumeData.decision === "rejected") {
+      logger.log("Modifications rejected, keeping deck as-is");
       // No modifications applied -- update to ready state with deck as-is
       await prisma.interactionRecord.update({
         where: { id: inputData.interactionId },
@@ -597,8 +668,11 @@ export const awaitHighfiApprovalStep = createStep({
         driveUrl: inputData.driveUrl,
         decision: "rejected",
         modificationPlans: [], // empty -- no modifications to execute
+        logs: logger.entries,
       };
     }
+
+    logger.log("Modifications approved, proceeding to execution...");
 
     return {
       interactionId: inputData.interactionId,
@@ -607,6 +681,7 @@ export const awaitHighfiApprovalStep = createStep({
       driveUrl: inputData.driveUrl,
       decision: "approved",
       modificationPlans: inputData.modificationPlans,
+      logs: logger.entries,
     };
   },
 });
@@ -630,17 +705,26 @@ export const executeAndRecordFinalStep = createStep({
     presentationId: z.string(),
     driveUrl: z.string(),
     decision: z.string(),
+    logs: z.array(z.any()).optional(),
   }),
   execute: async ({ inputData }) => {
+    const logger = createStepLogger("execute-and-record-final");
     const plans = inputData.modificationPlans as ModificationPlan[];
 
     // Execute modifications (skip if rejected / no plans)
     if (plans.length > 0) {
+      logger.log(`Executing ${plans.length} modification plans...`);
+      logger.log("Applying text modifications to slides...");
       await executeModifications({
         presentationId: inputData.presentationId,
         plans,
       });
+      logger.log("Text modifications applied successfully");
+    } else {
+      logger.log("No modifications to execute");
     }
+
+    logger.log("Recording final interaction state...");
 
     // Update InteractionRecord to final state
     await prisma.interactionRecord.update({
@@ -667,11 +751,14 @@ export const executeAndRecordFinalStep = createStep({
       },
     });
 
+    logger.log("Generation complete");
+
     return {
       interactionId: inputData.interactionId,
       presentationId: inputData.presentationId,
       driveUrl: inputData.driveUrl,
       decision: inputData.decision,
+      logs: logger.entries,
     };
   },
 });

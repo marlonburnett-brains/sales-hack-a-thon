@@ -33,6 +33,7 @@ export interface SectionMatchResult {
 
 export async function selectSlidesForBlueprint(
   input: BlueprintWithCandidates,
+  onLog?: (message: string, detail?: string) => void,
 ): Promise<SectionMatchResult> {
   const blueprint: GenerationBlueprint = {
     ...input.blueprint,

@@ -260,6 +260,7 @@ async function applyCorrectionPass(
  */
 export async function performVisualQA(
   params: VisualQAParams,
+  onLog?: (message: string, detail?: string) => void,
 ): Promise<VisualQAResult> {
   const { presentationId, modifiedPlans, authOptions } = params;
 

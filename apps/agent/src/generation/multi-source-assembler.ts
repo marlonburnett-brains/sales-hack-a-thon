@@ -112,6 +112,7 @@ export function buildMultiSourcePlan(
 
 export async function assembleMultiSourceDeck(
   params: AssembleMultiSourceParams,
+  onLog?: (message: string, detail?: string) => void,
 ): Promise<AssembleDeckResult> {
   if (params.plan.secondarySources.length === 0) {
     console.log(`[multi-source-assembler] Single-source path: presentationId=${params.plan.primarySource.presentationId}, keepSlides=[${params.plan.primarySource.keepSlideIds.join(', ')}], slideOrder=[${params.plan.finalSlideOrder.join(', ')}]`);
