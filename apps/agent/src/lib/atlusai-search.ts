@@ -87,7 +87,7 @@ async function searchSlidesMcp(params: {
   // Build MCP tool args
   const args: Record<string, unknown> = { query: searchText };
   if (env.ATLUS_PROJECT_ID) {
-    args.project_id = env.ATLUS_PROJECT_ID;
+    args.aiProjectId = env.ATLUS_PROJECT_ID;
   }
 
   const rawResult = await callMcpTool("knowledge_base_search_semantic", args);
@@ -177,7 +177,9 @@ async function extractSingleBatch(
     options: createJsonResponseOptions(),
   });
 
-  const text = response.text ?? "[]";
+  const rawText = response.text ?? "[]";
+  // Strip markdown code fences the LLM sometimes wraps around JSON
+  const text = rawText.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
   const parsed = JSON.parse(text) as SlideSearchResult[];
 
   // After first successful extraction: build and cache a prompt template

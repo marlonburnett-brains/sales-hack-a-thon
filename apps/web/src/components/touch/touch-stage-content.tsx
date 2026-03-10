@@ -334,13 +334,28 @@ function Touch23Content({
   const data = content as Record<string, unknown> | null;
 
   if (stage === "skeleton") {
-    // Slide selection rationale
-    const slides =
+    // Support both legacy shape (selectedSlides array of objects) and
+    // current workflow shape (selectedSlideIds + slideOrder + selectionRationale)
+    const legacySlides =
       (data?.selectedSlides as Array<{
         slideId?: string;
         title: string;
         reason: string;
       }>) ?? [];
+
+    const selectedSlideIds = (data?.selectedSlideIds as string[]) ?? [];
+    const slideOrder = (data?.slideOrder as string[]) ?? [];
+    const selectionRationale = (data?.selectionRationale as string) ?? "";
+    const personalizationNotes = (data?.personalizationNotes as string) ?? "";
+
+    // Build display list: prefer legacy shape, fall back to workflow shape
+    const slides = legacySlides.length > 0
+      ? legacySlides
+      : (slideOrder.length > 0 ? slideOrder : selectedSlideIds).map((slideId, i) => ({
+          slideId,
+          title: `Slide ${i + 1}`,
+          reason: selectionRationale || personalizationNotes || "Selected for deck",
+        }));
 
     return (
       <Card>
@@ -354,6 +369,9 @@ function Touch23Content({
           <CardTitle className="text-lg">Selected Slides</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
+          {selectionRationale && (
+            <p className="leading-relaxed text-slate-700">{selectionRationale}</p>
+          )}
           {slides.length > 0 ? (
             <div className="space-y-2">
               {slides.map((slide, i) => (
@@ -372,6 +390,12 @@ function Touch23Content({
             </div>
           ) : (
             <p className="text-slate-400 italic">No slide selection available yet</p>
+          )}
+          {personalizationNotes && !selectionRationale && (
+            <div className="rounded-md bg-slate-50 px-3 py-2">
+              <p className="text-xs font-medium uppercase text-slate-500 mb-1">Personalization Notes</p>
+              <p className="text-slate-600 text-xs">{personalizationNotes}</p>
+            </div>
           )}
         </CardContent>
       </Card>

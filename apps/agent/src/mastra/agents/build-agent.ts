@@ -5,8 +5,8 @@ import { getPublishedAgentConfig } from "../../lib/agent-config";
 import { env } from "../../env";
 
 // Mastra splits on the first "/" — provider becomes "google", and the model
-// name sent in the request body becomes "gemini-3.1-flash-lite-preview".
-const MODEL_ID = "google/gemini-3.1-flash-lite-preview";
+// name sent in the request body becomes "gemini-3-flash-preview".
+const MODEL_ID = "google/gemini-3-flash-preview";
 
 /**
  * Google AI Studio OpenAI-compatible endpoint.

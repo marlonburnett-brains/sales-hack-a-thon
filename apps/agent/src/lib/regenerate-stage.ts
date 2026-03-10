@@ -21,6 +21,7 @@ import {
 } from "./deck-structure-loader";
 import type { SectionSlotCounts } from "./deck-structure-loader";
 import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../generation/route-strategy";
+import { selectSlidesForDeck } from "./slide-selection";
 import { prisma } from "./db";
 
 export async function regenerateStage(
@@ -40,34 +41,61 @@ export async function regenerateStage(
   const salespersonName = inputs.salespersonName;
 
   if (stage === "skeleton") {
-    // Regenerate outline
-    const prompt = buildSkeletonPrompt(companyName, industry, context, salespersonName, feedback);
-    const SkeletonContentSchema = z.object({
-      companyName: z.string(),
-      headline: z.string(),
-      valueProposition: z.string(),
-      keyCapabilities: z.array(z.string()),
-    });
+    const touchType = interaction.touchType;
 
-    const response = await executeNamedAgent({
-      agentId: "first-contact-pager-writer",
-      messages: [{ role: "user", content: prompt }],
-      options: {
-        structuredOutput: {
-          schema: zodToLlmJsonSchema(SkeletonContentSchema) as Record<string, unknown>,
+    if (touchType === "touch_2" || touchType === "touch_3") {
+      // Touch 2/3: Re-run slide selection (same logic as workflow selectSlides step)
+      const result = await selectSlidesForDeck({
+        touchType: touchType as "touch_2" | "touch_3",
+        companyName,
+        industry,
+        context: context || undefined,
+        ...(touchType === "touch_3" && inputs.capabilityAreas
+          ? { capabilityAreas: inputs.capabilityAreas }
+          : {}),
+      });
+
+      const skeletonContent = {
+        selectedSlideIds: result.selectedSlideIds,
+        slideOrder: result.slideOrder,
+        selectionRationale: `Selected ${result.selectedSlideIds.length} slides for ${companyName} in ${industry}. ${result.personalizationNotes}`,
+        personalizationNotes: result.personalizationNotes,
+      };
+
+      await prisma.interactionRecord.update({
+        where: { id: interactionId },
+        data: { stageContent: JSON.stringify(skeletonContent) },
+      });
+    } else {
+      // Touch 1 (and default): Regenerate pager outline
+      const prompt = buildSkeletonPrompt(companyName, industry, context, salespersonName, feedback);
+      const SkeletonContentSchema = z.object({
+        companyName: z.string(),
+        headline: z.string(),
+        valueProposition: z.string(),
+        keyCapabilities: z.array(z.string()),
+      });
+
+      const response = await executeNamedAgent({
+        agentId: "first-contact-pager-writer",
+        messages: [{ role: "user", content: prompt }],
+        options: {
+          structuredOutput: {
+            schema: zodToLlmJsonSchema(SkeletonContentSchema) as Record<string, unknown>,
+          },
         },
-      },
-    });
+      });
 
-    const parsed = SkeletonContentSchema.parse(
-      response.object ?? JSON.parse(response.text ?? "{}")
-    );
-    assertLlmContentQuality(parsed);
+      const parsed = SkeletonContentSchema.parse(
+        response.object ?? JSON.parse(response.text ?? "{}")
+      );
+      assertLlmContentQuality(parsed);
 
-    await prisma.interactionRecord.update({
-      where: { id: interactionId },
-      data: { stageContent: JSON.stringify(parsed) },
-    });
+      await prisma.interactionRecord.update({
+        where: { id: interactionId },
+        data: { stageContent: JSON.stringify(parsed) },
+      });
+    }
   } else if (stage === "lowfi") {
     // Regenerate draft from existing skeleton
     // The skeleton was approved earlier, so look at the previous stageContent

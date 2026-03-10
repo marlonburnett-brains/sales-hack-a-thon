@@ -457,7 +457,7 @@ describe("atlusai-search", () => {
   // ── Project scoping (SRCH-06) ──
 
   describe("project scoping", () => {
-    it("MCP tool call includes project_id from ATLUS_PROJECT_ID env var", async () => {
+    it("MCP tool call includes aiProjectId from ATLUS_PROJECT_ID env var", async () => {
       const mod = await freshModule();
       envOverrides.ATLUS_PROJECT_ID = "my-project-123";
 
@@ -472,11 +472,11 @@ describe("atlusai-search", () => {
 
       expect(mockCallMcpTool).toHaveBeenCalledWith(
         "knowledge_base_search_semantic",
-        expect.objectContaining({ project_id: "my-project-123" }),
+        expect.objectContaining({ aiProjectId: "my-project-123" }),
       );
     });
 
-    it("MCP tool call omits project_id when env var is not set", async () => {
+    it("MCP tool call omits aiProjectId when env var is not set", async () => {
       const mod = await freshModule();
 
       mockIsMcpAvailable.mockReturnValue(true);
@@ -489,7 +489,7 @@ describe("atlusai-search", () => {
       await mod.searchSlides({ query: "unscoped search" });
 
       const args = mockCallMcpTool.mock.calls[0][1];
-      expect(args).not.toHaveProperty("project_id");
+      expect(args).not.toHaveProperty("aiProjectId");
     });
   });
 
