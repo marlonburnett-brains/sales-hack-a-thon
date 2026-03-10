@@ -34,6 +34,8 @@ interface RebuildContext {
   targetSlideId: string;
   sourceSlideId: string;
   counters: Record<string, number>;
+  /** Maps source element objectId -> generated element objectId */
+  elementIdMap: Map<string, string>;
 }
 
 export function groupSlidesBySource(
@@ -112,6 +114,7 @@ export async function assembleMultiSourceDeck(
   params: AssembleMultiSourceParams,
 ): Promise<AssembleDeckResult> {
   if (params.plan.secondarySources.length === 0) {
+    console.log(`[multi-source-assembler] Single-source path: presentationId=${params.plan.primarySource.presentationId}, keepSlides=[${params.plan.primarySource.keepSlideIds.join(', ')}], slideOrder=[${params.plan.finalSlideOrder.join(', ')}]`);
     return assembleDeckFromSlides({
       sourcePresentationId: params.plan.primarySource.presentationId,
       selectedSlideIds: params.plan.primarySource.keepSlideIds,
@@ -121,6 +124,8 @@ export async function assembleMultiSourceDeck(
       authOptions: params.authOptions,
     });
   }
+
+  console.log(`[multi-source-assembler] Multi-source path: primary=${params.plan.primarySource.presentationId}, secondarySources=${params.plan.secondarySources.length}`);
 
   const drive = getDriveClient(params.authOptions);
   const slides = getSlidesClient(params.authOptions);
@@ -144,6 +149,7 @@ export async function assembleMultiSourceDeck(
     await shareNewFile({ fileId: presentationId, ownerEmail: params.ownerEmail, drive });
 
     const slideIdMap = new Map<string, string>();
+    const elementIdMap = new Map<string, string>();
     for (const slideId of params.plan.primarySource.keepSlideIds) {
       slideIdMap.set(slideId, slideId);
     }
@@ -208,6 +214,7 @@ export async function assembleMultiSourceDeck(
             sourceSlide,
             targetSlideId,
             (primaryPresentation.data.slides ?? []).length,
+            elementIdMap,
           );
 
           await slides.presentations.batchUpdate({
@@ -251,6 +258,8 @@ export async function assembleMultiSourceDeck(
     return {
       presentationId,
       driveUrl: `https://docs.google.com/presentation/d/${presentationId}/edit`,
+      slideIdMap,
+      elementIdMap,
     };
   } finally {
     for (const tempFileId of tempFileIds) {
@@ -272,11 +281,13 @@ function buildSecondarySlideRequests(
   slide: slides_v1.Schema$Page,
   targetSlideId: string,
   insertionIndex: number,
+  elementIdMap?: Map<string, string>,
 ): slides_v1.Schema$Request[] {
   const context: RebuildContext = {
     targetSlideId,
     sourceSlideId: slide.objectId ?? "unknown-slide",
     counters: {},
+    elementIdMap: elementIdMap ?? new Map(),
   };
 
   const requests: slides_v1.Schema$Request[] = [
@@ -318,7 +329,12 @@ function buildPageElementRequests(
     }
 
     if (element.image) {
-      requests.push(...buildImageRequests(element, context));
+      // Skip image recreation — images should be kept as-is or removed,
+      // never recreated from potentially ephemeral source URLs.
+      // The rebuilt slide will simply not have this image.
+      console.log(
+        `[multi-source-assembler] Skipping image element ${element.objectId ?? 'unknown'} on source slide ${context.sourceSlideId} (images not rebuilt)`,
+      );
       continue;
     }
 
@@ -710,7 +726,14 @@ function makeElementObjectId(
     .digest("hex")
     .slice(0, 12);
 
-  return `${targetPrefix}-${kindPrefix}-${sourcePrefix}-${nextIndex}-${digest}`.slice(0, 50);
+  const generatedId = `${targetPrefix}-${kindPrefix}-${sourcePrefix}-${nextIndex}-${digest}`.slice(0, 50);
+
+  // Record source -> generated mapping for downstream modification plans
+  if (element.objectId) {
+    context.elementIdMap.set(element.objectId, generatedId);
+  }
+
+  return generatedId;
 }
 
 function sanitizeObjectIdFragment(value: string): string {

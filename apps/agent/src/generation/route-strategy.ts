@@ -171,6 +171,10 @@ export async function executeStructureDrivenPipeline(
 
   // Step 3: Build multi-source plan
   const multiSourcePlan = buildMultiSourcePlan(plan, allSlidesByPresentation);
+  console.log(`[structure-pipeline] Step 3: Multi-source plan - primary=${multiSourcePlan.primarySource.presentationId}, keepSlides=[${multiSourcePlan.primarySource.keepSlideIds.join(', ')}], deleteSlides=[${multiSourcePlan.primarySource.deleteSlideIds.join(', ')}], secondarySources=${multiSourcePlan.secondarySources.length}`);
+  for (const sec of multiSourcePlan.secondarySources) {
+    console.log(`[structure-pipeline]   Secondary: ${sec.presentationId}, slides=[${sec.slideIds.join(', ')}]`);
+  }
 
   // Step 4: Assemble the deck
   const assemblyResult = await assembleMultiSourceDeck({
@@ -180,8 +184,15 @@ export async function executeStructureDrivenPipeline(
     ownerEmail,
     authOptions,
   });
+  console.log(`[structure-pipeline] Step 4: Assembly complete - presentationId=${assemblyResult.presentationId}`);
 
   // Step 5: Plan modifications for each selected slide
+  // Use source slideObjectId for planning (DB elements are keyed to source IDs)
+  console.log(`[structure-pipeline] Step 5: Planning modifications for ${plan.selections.length} selections`);
+  for (const selection of plan.selections) {
+    console.log(`[structure-pipeline]   Selection: slideId=${selection.slideId}, slideObjectId=${selection.slideObjectId}, source=${selection.sourcePresentationId}, template=${selection.templateId}`);
+  }
+
   const modificationResults = await Promise.all(
     plan.selections.map((selection) =>
       planSlideModifications({
@@ -193,17 +204,83 @@ export async function executeStructureDrivenPipeline(
     ),
   );
 
-  // Step 6: Execute modifications (filter out fallback/empty plans)
+  console.log(`[structure-pipeline] Step 5 results:`);
+  for (const r of modificationResults) {
+    console.log(`[structure-pipeline]   Slide ${r.plan.slideObjectId}: usedFallback=${r.usedFallback}, modifications=${r.plan.modifications.length}, unmodified=${r.plan.unmodifiedElements.length}`);
+    for (const mod of r.plan.modifications) {
+      console.log(`[structure-pipeline]     Modify element ${mod.elementId}: "${mod.currentContent.slice(0, 40)}..." -> "${mod.newContent.slice(0, 40)}..."`);
+    }
+  }
+
+  // Step 6: Translate objectIds for assembled presentation and execute
+  // When multi-source assembly rebuilds secondary slides, element and slide
+  // objectIds change. Translate the modification plans to use assembled IDs.
+  const { slideIdMap, elementIdMap } = assemblyResult;
+
+  console.log(`[structure-pipeline] Step 6: slideIdMap=${slideIdMap ? `size=${slideIdMap.size}` : 'undefined'}, elementIdMap=${elementIdMap ? `size=${elementIdMap.size}` : 'undefined'}`);
+  if (slideIdMap) {
+    for (const [src, dst] of slideIdMap.entries()) {
+      console.log(`[structure-pipeline]   slideIdMap: ${src} -> ${dst}`);
+    }
+  }
+  if (elementIdMap && elementIdMap.size > 0) {
+    for (const [src, dst] of elementIdMap.entries()) {
+      console.log(`[structure-pipeline]   elementIdMap: ${src} -> ${dst}`);
+    }
+  }
+
   const activePlans = modificationResults
     .filter((r) => !r.usedFallback && r.plan.modifications.length > 0)
-    .map((r) => r.plan);
+    .map((r) => {
+      const plan = r.plan;
+
+      // Translate slideObjectId if it changed during assembly
+      if (slideIdMap) {
+        const translatedSlideId = slideIdMap.get(plan.slideObjectId);
+        if (translatedSlideId && translatedSlideId !== plan.slideObjectId) {
+          console.log(
+            `[structure-pipeline] Translating slide objectId: ${plan.slideObjectId} -> ${translatedSlideId}`,
+          );
+          plan.slideObjectId = translatedSlideId;
+        }
+      }
+
+      // Translate element objectIds if they changed during secondary slide rebuild
+      if (elementIdMap && elementIdMap.size > 0) {
+        for (const mod of plan.modifications) {
+          const translatedElementId = elementIdMap.get(mod.elementId);
+          if (translatedElementId) {
+            console.log(
+              `[structure-pipeline] Translating element objectId: ${mod.elementId} -> ${translatedElementId}`,
+            );
+            mod.elementId = translatedElementId;
+          }
+        }
+      }
+
+      return plan;
+    });
+
+  console.log(`[structure-pipeline] Active plans after filtering: ${activePlans.length}`);
+  for (const p of activePlans) {
+    console.log(`[structure-pipeline]   Plan for slide ${p.slideObjectId}: ${p.modifications.length} modifications`);
+    for (const mod of p.modifications) {
+      console.log(`[structure-pipeline]     -> element ${mod.elementId}: "${mod.newContent.slice(0, 50)}..."`);
+    }
+  }
 
   if (activePlans.length > 0) {
-    await executeModifications({
+    const execResult = await executeModifications({
       presentationId: assemblyResult.presentationId,
       plans: activePlans,
       authOptions,
     });
+    console.log(`[structure-pipeline] Execution result: totalApplied=${execResult.totalApplied}, totalSkipped=${execResult.totalSkipped}`);
+    for (const r of execResult.results) {
+      console.log(`[structure-pipeline]   Slide ${r.slideObjectId}: status=${r.status}, applied=${r.modificationsApplied}${r.error ? `, error=${r.error}` : ''}`);
+    }
+  } else {
+    console.warn(`[structure-pipeline] WARNING: No active modification plans! All plans either used fallback or had 0 modifications.`);
   }
 
   return assemblyResult;

@@ -63,6 +63,13 @@ export interface PlanModificationsResult {
 const MAX_CONTENT_LENGTH = 500;
 const LOG_PREFIX = "[modification-planner]";
 
+/**
+ * Use a more capable model for modification planning.
+ * Flash Lite struggles to generate 20-40+ structured modifications per slide.
+ * Gemini 3 Flash has enough capacity while remaining cost-efficient.
+ */
+const PLANNER_MODEL = "gemini-3-flash-preview";
+
 // ────────────────────────────────────────────────────────────
 // Main Entry Point
 // ────────────────────────────────────────────────────────────
@@ -77,6 +84,11 @@ export async function planSlideModifications(
     where: { slideId },
   });
 
+  console.log(`${LOG_PREFIX} Slide ${slideId} (objectId=${slideObjectId}): found ${allElements.length} total elements in DB`);
+  for (const el of allElements) {
+    console.log(`${LOG_PREFIX}   element ${el.elementId} (type=${el.elementType}): "${el.contentText.slice(0, 60)}..."`);
+  }
+
   // 2. Filter to text-bearing elements (FR-5.3)
   const textElements = allElements.filter(
     (el) =>
@@ -84,8 +96,11 @@ export async function planSlideModifications(
       el.contentText.trim().length > 0,
   );
 
+  console.log(`${LOG_PREFIX} Filtered to ${textElements.length} text-bearing elements`);
+
   // 3. Fallback: no text elements available (FR-5.6)
   if (textElements.length === 0) {
+    console.warn(`${LOG_PREFIX} No text elements found for slide ${slideId}, using fallback (no modifications)`);
     return {
       plan: {
         slideId,
@@ -102,13 +117,16 @@ export async function planSlideModifications(
     const prompt = buildPrompt(slideId, slideObjectId, dealContext, textElements, draftContent);
 
     // 5. Call LLM via executeRuntimeProviderNamedAgent
-    const result = await executeRuntimeProviderNamedAgent({
-      agentId: "modification-planner",
-      messages: [{ role: "user", content: prompt }],
-      options: createJsonResponseOptions(
-        MODIFICATION_PLAN_SCHEMA as Record<string, unknown>,
-      ),
-    });
+    const result = await executeRuntimeProviderNamedAgent(
+      {
+        agentId: "modification-planner",
+        messages: [{ role: "user", content: prompt }],
+        options: createJsonResponseOptions(
+          MODIFICATION_PLAN_SCHEMA as Record<string, unknown>,
+        ),
+      },
+      { model: PLANNER_MODEL },
+    );
 
     // 6. Parse response
     const rawPlan = JSON.parse(result.text) as ModificationPlan;
@@ -181,7 +199,11 @@ function buildPrompt(
     )
     .join("\n");
 
-  return `You are a modification planner for sales presentation slides. Your job is to analyze a slide's text elements and decide which ones need deal-specific modifications.
+  return `You are a modification planner for sales presentation slides. Your job is to replace ALL template/placeholder text with content tailored to the target company and deal.
+
+## CRITICAL: Default is MODIFY, not preserve
+
+Your default action for EVERY text element should be to MODIFY it with deal-relevant content. Only preserve an element if it is a very short structural label (like a single word "01" or "STEP 1") that has no meaningful text to customize.
 
 ## Deal Context
 
@@ -205,32 +227,34 @@ ${elementList}
 
 ## Modification Rules
 
-### MODIFY (deal-specific content) -- change these to reference the target company:
-- Company names or generic company references
-- Industry references that should match the target industry
-- Persona mentions that should match the target persona
-- Generic summary bullets that should reference the target company
-- Placeholder-like content (e.g., "[Company Name]", "Your Company")
-- Headline/title text → replace with the approved draft headline
-- Value proposition text → replace with the approved draft value proposition
-- Capability/service descriptions → replace with approved draft capabilities
-- CTA text → replace with the approved draft call to action
+### MODIFY (the vast majority of elements) -- you MUST modify these:
+- ALL descriptive text, paragraphs, and multi-word content
+- Headlines, titles, subtitles
+- Value propositions, taglines, summary text
+- Case study descriptions, success story text, client names, metrics
+- Capability descriptions and service descriptions
+- Bullet points and list items
+- Company names (replace with target company: ${dealContext.companyName})
+- Industry references (replace with target industry: ${dealContext.industry})
+- Lorem ipsum or any placeholder text
+- Statistics, percentages, and metric labels (adapt to deal context)
+- Call-to-action text
+- ANY text longer than 3 words should almost certainly be modified
 
-### PRESERVE (structural content) -- do NOT modify these:
-- Methodology descriptions and framework explanations
-- Capability definitions and service descriptions
-- Case study specifics (specific client success stories, metrics from past work)
-- Process step labels and numbered methodology steps
-- Section headers that define the slide's purpose
-- Numbered lists describing capabilities
-- Specific client success stories with named companies and results
+### PRESERVE (rare -- only these specific cases):
+- Pure numeric labels like "01", "02", "03"
+- Single-word structural markers like "STEP", "PHASE"
+- Navigation elements or page numbers
+- The company's own brand name "Lumenalta" when used as the presenting company (NOT the target company)
 
 ## Output Requirements
 
-1. For each element you modify, provide the elementId, currentContent (exact current text), newContent (replacement text), and reason.
-2. New content MUST be the same length or shorter than current content (to avoid text overflow).
-3. Every element listed above MUST appear in either the "modifications" array OR the "unmodifiedElements" array.
-4. Return the slideId and slideObjectId exactly as provided above.`;
+1. For EVERY element, decide: modify or preserve. You should be modifying the MAJORITY of elements (typically 80-100%).
+2. For each element you modify, provide the elementId, currentContent (exact current text), newContent (replacement text), and reason.
+3. New content MUST be the same length or shorter than current content (to avoid text overflow).
+4. Every element listed above MUST appear in either the "modifications" array OR the "unmodifiedElements" array.
+5. Return the slideId and slideObjectId exactly as provided above.
+6. If you find yourself preserving more than 20% of elements, reconsider -- most template text should be customized for the deal.`;
 }
 
 // ────────────────────────────────────────────────────────────

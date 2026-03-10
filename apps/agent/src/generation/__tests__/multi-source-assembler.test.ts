@@ -612,34 +612,7 @@ describe("assembleMultiSourceDeck", () => {
               fields: "pageBackgroundFill",
             },
           },
-          {
-            createImage: {
-              objectId: "generated-s4-ima-s4-image-1-1-42a31bacc0b7",
-              url: "https://example.com/image.png",
-              elementProperties: {
-                pageObjectId: "generated-s4",
-                size: {
-                  height: {
-                    magnitude: 100,
-                    unit: "PT",
-                  },
-                  width: {
-                    magnitude: 200,
-                    unit: "PT",
-                  },
-                },
-                transform: {
-                  scaleX: 1,
-                  scaleY: 1,
-                  shearX: 0,
-                  shearY: 0,
-                  translateX: 10,
-                  translateY: 20,
-                  unit: "PT",
-                },
-              },
-            },
-          },
+          // Image element skipped (images not rebuilt for secondary slides)
           {
             createShape: {
               objectId: "generated-s4-sha-s4-shape-1-1-92c42adeca25",
@@ -1012,34 +985,7 @@ describe("assembleMultiSourceDeck", () => {
               fields: "*",
             },
           },
-          {
-            createImage: {
-              objectId: "generated-s4-ima-s4-group-c-2-d7dcb427e603",
-              url: "https://example.com/group.png",
-              elementProperties: {
-                pageObjectId: "generated-s4",
-                size: {
-                  height: {
-                    magnitude: 100,
-                    unit: "PT",
-                  },
-                  width: {
-                    magnitude: 200,
-                    unit: "PT",
-                  },
-                },
-                transform: {
-                  scaleX: 1,
-                  scaleY: 1,
-                  shearX: 0,
-                  shearY: 0,
-                  translateX: 14,
-                  translateY: 24,
-                  unit: "PT",
-                },
-              },
-            },
-          },
+          // Image element inside group skipped (images not rebuilt)
           {
             createShape: {
               objectId: "generated-s4-pla-s4-video-1-1-6aec0cd78457",
@@ -1114,10 +1060,18 @@ describe("assembleMultiSourceDeck", () => {
         ownerEmail: "owner@lumenalta.com",
       }),
     );
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       presentationId: "primary-copy",
       driveUrl: "https://docs.google.com/presentation/d/primary-copy/edit",
     });
+    // Verify slide ID mapping was built
+    expect(result.slideIdMap).toBeDefined();
+    expect(result.slideIdMap?.get("p1")).toBe("p1");
+    expect(result.slideIdMap?.get("p2")).toBe("p2");
+    expect(result.slideIdMap?.get("s4")).toBe("generated-s4");
+    // Verify element ID mapping was built for secondary slide elements
+    expect(result.elementIdMap).toBeDefined();
+    expect(result.elementIdMap?.size).toBeGreaterThan(0);
   });
 
   it("skips primary delete batchUpdate when there are no primary slides to prune", async () => {
@@ -1397,11 +1351,8 @@ describe("assembleMultiSourceDeck", () => {
       .map((request) => request.createImage?.objectId)
       .filter((objectId): objectId is string => Boolean(objectId));
 
-    expect(createdImageIds).toHaveLength(2);
-    expect(new Set(createdImageIds).size).toBe(2);
-    expect(createdImageIds.every((objectId) => objectId.length <= 50)).toBe(
-      true,
-    );
+    // Images are no longer rebuilt for secondary slides (skipped to avoid ephemeral URL issues)
+    expect(createdImageIds).toHaveLength(0);
   });
 
   it("uses a safe fallback transform for unsupported placeholders when source transform is non-invertible", async () => {

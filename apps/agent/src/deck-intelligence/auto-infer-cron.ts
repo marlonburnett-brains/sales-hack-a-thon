@@ -11,7 +11,7 @@ import { prisma } from "../lib/db";
 import { getDeckStructureCronKeys } from "./deck-structure-key";
 import { inferDeckStructure, computeDataHash } from "./infer-deck-structure";
 
-const INFERENCE_INTERVAL = 600_000; // 10 minutes
+const INFERENCE_INTERVAL = 86_400_000; // 24 hours
 const ACTIVE_SESSION_WINDOW = 30 * 60 * 1000; // 30 minutes
 
 /**
@@ -30,7 +30,7 @@ export function startDeckInferenceCron(): void {
   }, INFERENCE_INTERVAL);
 
   console.log(
-    "[deck-infer-cron] Background deck inference started (interval: 10m)",
+    "[deck-infer-cron] Background deck inference started (interval: 24h)",
   );
 }
 

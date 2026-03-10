@@ -58,6 +58,10 @@ export interface AssembleDeckResult {
   presentationId: string;
   /** Direct Drive URL to the presentation */
   driveUrl: string;
+  /** Maps source slideObjectId -> assembled slideObjectId (identity for primary, generated for secondary) */
+  slideIdMap?: Map<string, string>;
+  /** Maps source elementObjectId -> assembled elementObjectId (only for rebuilt secondary slides) */
+  elementIdMap?: Map<string, string>;
 }
 
 // ────────────────────────────────────────────────────────────

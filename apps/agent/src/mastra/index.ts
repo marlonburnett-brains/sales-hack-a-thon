@@ -103,12 +103,12 @@ const deckStructureArtifactQuerySchema = z.object({
 // Background Staleness Polling
 // ────────────────────────────────────────────────────────────
 
-const STALENESS_POLL_INTERVAL = 300_000; // 5 minutes
-const STALENESS_INITIAL_DELAY = 10_000; // 10 seconds after startup
+const STALENESS_POLL_INTERVAL = 86_400_000; // 24 hours
+const STALENESS_INITIAL_DELAY = 60_000; // 1 minute after startup
 const DRIVE_API_DELAY = 200; // 200ms between Drive API calls
 
-const AUTO_CLASSIFY_INTERVAL = 600_000; // 10 minutes
-const AUTO_CLASSIFY_INITIAL_DELAY = 30_000; // 30 seconds after startup
+const AUTO_CLASSIFY_INTERVAL = 86_400_000; // 24 hours
+const AUTO_CLASSIFY_INITIAL_DELAY = 120_000; // 2 minutes after startup (stagger with staleness)
 
 // ────────────────────────────────────────────────────────────
 // Discovery Batch Ingestion State (Phase 29)
@@ -447,7 +447,7 @@ function startStalenessPolling() {
     return;
   }
 
-  console.log("[staleness] Background polling started (interval: 5m)");
+  console.log("[staleness] Background polling started (interval: 24h)");
 
   async function pollStaleTemplates() {
     try {
@@ -3948,7 +3948,7 @@ setTimeout(() => {
   }
   void runAutoTasks();
   setInterval(() => void runAutoTasks(), AUTO_CLASSIFY_INTERVAL);
-  console.log("[auto-tasks] Background auto-classify/ingest started (interval: 10m)");
+  console.log("[auto-tasks] Background auto-classify/ingest started (interval: 24h)");
 }, AUTO_CLASSIFY_INITIAL_DELAY);
 
 // ── Deck Intelligence Cron ──
