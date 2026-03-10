@@ -200,6 +200,7 @@ const awaitSkeletonApproval = createStep({
       industry: inputData.industry,
       context: inputData.context,
       salespersonName: inputData.salespersonName,
+      enableVisualQA: inputData.enableVisualQA,
       interactionId: inputData.interactionId,
       approvedSkeleton,
       agentVersions: inputData.agentVersions,
@@ -353,6 +354,7 @@ Keep the tone professional but engaging. This is the FULL DRAFT -- complete, pub
       industry: inputData.industry,
       context: inputData.context,
       salespersonName: inputData.salespersonName,
+      enableVisualQA: inputData.enableVisualQA,
       interactionId: inputData.interactionId,
       draftContent,
       agentVersions: inputData.agentVersions,
@@ -411,6 +413,7 @@ const awaitLowfiApproval = createStep({
       industry: inputData.industry,
       context: inputData.context,
       salespersonName: inputData.salespersonName,
+      enableVisualQA: inputData.enableVisualQA,
       interactionId: inputData.interactionId,
       finalContent,
       agentVersions: inputData.agentVersions,
@@ -495,6 +498,7 @@ const assembleDeck = createStep({
       dealContext,
       draftContent: content,
       ownerEmail: deal.ownerEmail ?? undefined,
+      enableVisualQA: inputData.enableVisualQA,
     });
 
     // Share with deal owner as editor
@@ -521,6 +525,7 @@ const assembleDeck = createStep({
       industry: inputData.industry,
       context: inputData.context,
       salespersonName: inputData.salespersonName,
+      enableVisualQA: inputData.enableVisualQA,
       interactionId: inputData.interactionId,
       finalContent: inputData.finalContent,
       presentationId: result.presentationId,
@@ -590,6 +595,7 @@ const awaitApproval = createStep({
       industry: inputData.industry,
       context: inputData.context,
       salespersonName: inputData.salespersonName,
+      enableVisualQA: inputData.enableVisualQA,
       interactionId: inputData.interactionId,
       finalContent,
       decision: resumeData.decision,

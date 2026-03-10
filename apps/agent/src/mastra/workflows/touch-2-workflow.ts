@@ -35,6 +35,7 @@ const inputSchema = z.object({
   customerLogoUrl: z.string().optional(),
   context: z.string().optional(),
   priorTouchOutputs: z.array(z.string()).optional(),
+  enableVisualQA: z.boolean().optional(),
   runId: z.string().optional(),
 });
 
@@ -72,6 +73,7 @@ const touch2BaseFields = {
   customerLogoUrl: z.string().optional(),
   context: z.string().optional(),
   priorTouchOutputs: z.array(z.string()).optional(),
+  enableVisualQA: z.boolean().optional(),
   interactionId: z.string(),
 };
 
@@ -222,6 +224,7 @@ const awaitSkeletonApproval = createStep({
       customerLogoUrl: inputData.customerLogoUrl,
       context: inputData.context,
       priorTouchOutputs: inputData.priorTouchOutputs,
+      enableVisualQA: inputData.enableVisualQA,
       interactionId: inputData.interactionId,
       approvedSkeleton,
     };
@@ -309,6 +312,7 @@ const generateDraftOrder = createStep({
       customerLogoUrl: inputData.customerLogoUrl,
       context: inputData.context,
       priorTouchOutputs: inputData.priorTouchOutputs,
+      enableVisualQA: inputData.enableVisualQA,
       interactionId: inputData.interactionId,
       lowfiContent,
       selectedSlideIds: skeleton.selectedSlideIds,
@@ -371,6 +375,7 @@ const awaitLowfiApproval = createStep({
       customerLogoUrl: inputData.customerLogoUrl,
       context: inputData.context,
       priorTouchOutputs: inputData.priorTouchOutputs,
+      enableVisualQA: inputData.enableVisualQA,
       interactionId: inputData.interactionId,
       approvedLowfi,
       selectedSlideIds: inputData.selectedSlideIds,
@@ -456,6 +461,7 @@ const assembleDeck = createStep({
       deckName,
       dealContext,
       ownerEmail: deal.ownerEmail ?? undefined,
+      enableVisualQA: inputData.enableVisualQA,
     });
 
     // Share with deal owner as editor
