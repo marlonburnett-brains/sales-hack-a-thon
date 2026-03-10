@@ -252,9 +252,10 @@ export async function revertStageAction(
  */
 export async function regenerateStageAction(
   interactionId: string,
-  feedback?: string
+  feedback?: string,
+  wipeData?: boolean
 ): Promise<{ success: boolean; stage: string }> {
-  const result = await regenerateInteractionStage(interactionId, feedback);
+  const result = await regenerateInteractionStage(interactionId, feedback, wipeData);
   revalidatePath("/deals");
   return result;
 }

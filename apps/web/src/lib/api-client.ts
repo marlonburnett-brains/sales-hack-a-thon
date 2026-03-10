@@ -662,13 +662,17 @@ export async function revertInteractionStage(
  */
 export async function regenerateInteractionStage(
   interactionId: string,
-  feedback?: string
+  feedback?: string,
+  wipeData?: boolean
 ): Promise<{ success: boolean; stage: string }> {
   return fetchJSON<{ success: boolean; stage: string }>(
     `/interactions/${interactionId}/regenerate-stage`,
     {
       method: "POST",
-      body: JSON.stringify({ feedback: feedback || undefined }),
+      body: JSON.stringify({
+        feedback: feedback || undefined,
+        wipeData: wipeData || undefined,
+      }),
     }
   );
 }

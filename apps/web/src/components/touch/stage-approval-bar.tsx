@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Popover,
   PopoverContent,
@@ -16,7 +26,7 @@ interface StageApprovalBarProps {
   onApprove: () => void;
   isApproving?: boolean;
   isFinalStage?: boolean;
-  onRegenerate?: (feedback?: string) => void;
+  onRegenerate?: (feedback?: string, wipeData?: boolean) => void;
   isRegenerating?: boolean;
 }
 
@@ -31,18 +41,38 @@ export function StageApprovalBar({
   const buttonLabel = isFinalStage ? "Mark as Ready" : "Approve & Continue";
   const [feedbackText, setFeedbackText] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const [showWipeDialog, setShowWipeDialog] = useState(false);
+  const [wipeData, setWipeData] = useState(false);
 
   const handleSkip = () => {
     setPopoverOpen(false);
     setFeedbackText("");
-    onRegenerate?.();
+    onRegenerate?.(undefined, wipeData);
+    setWipeData(false);
   };
 
   const handleSubmitFeedback = () => {
     setPopoverOpen(false);
     const text = feedbackText.trim();
     setFeedbackText("");
-    onRegenerate?.(text || undefined);
+    onRegenerate?.(text || undefined, wipeData);
+    setWipeData(false);
+  };
+
+  const handleRegenerateClick = () => {
+    setShowWipeDialog(true);
+  };
+
+  const handleWipeAndRegenerate = () => {
+    setShowWipeDialog(false);
+    setWipeData(true);
+    setPopoverOpen(true);
+  };
+
+  const handleJustRegenerate = () => {
+    setShowWipeDialog(false);
+    setWipeData(false);
+    setPopoverOpen(true);
   };
 
   return (
@@ -50,58 +80,95 @@ export function StageApprovalBar({
       <p className="text-xs text-slate-500">Refine via chat before approving</p>
       <div className="flex items-center gap-2">
         {onRegenerate && (
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={isRegenerating || isApproving}
-                className="min-h-[44px] cursor-pointer gap-2"
-              >
-                {isRegenerating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Re-generating...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4" />
-                    Re-generate
-                  </>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80" align="end">
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-slate-700">
-                  Add feedback (optional)
-                </label>
-                <Textarea
-                  placeholder="e.g. Make the headline more aggressive, focus on cost savings..."
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  rows={3}
-                  className="resize-none"
-                />
-                <div className="flex items-center justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleSkip}
-                    className="cursor-pointer"
+          <>
+            {/* Wipe confirmation dialog */}
+            <AlertDialog open={showWipeDialog} onOpenChange={setShowWipeDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Start fresh?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Would you like to wipe all previous data for this step and
+                    start from scratch, or just re-generate the current stage?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="cursor-pointer">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleJustRegenerate}
+                    className={buttonVariants({ variant: "outline" }) + " cursor-pointer"}
                   >
-                    Skip
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSubmitFeedback}
-                    className="cursor-pointer"
+                    Just Re-generate
+                  </AlertDialogAction>
+                  <AlertDialogAction
+                    onClick={handleWipeAndRegenerate}
+                    className={buttonVariants({ variant: "destructive" }) + " cursor-pointer"}
                   >
-                    Re-generate
-                  </Button>
+                    Wipe &amp; Re-generate
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Re-generate button opens wipe dialog first */}
+            <Button
+              variant="outline"
+              disabled={isRegenerating || isApproving}
+              className="min-h-[44px] cursor-pointer gap-2"
+              onClick={handleRegenerateClick}
+            >
+              {isRegenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Re-generating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Re-generate
+                </>
+              )}
+            </Button>
+
+            {/* Feedback popover (opens after wipe dialog choice) */}
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+              <PopoverTrigger asChild>
+                <span />
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-slate-700">
+                    Add feedback (optional)
+                  </label>
+                  <Textarea
+                    placeholder="e.g. Make the headline more aggressive, focus on cost savings..."
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSkip}
+                      className="cursor-pointer"
+                    >
+                      Skip
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSubmitFeedback}
+                      className="cursor-pointer"
+                    >
+                      Re-generate
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
+          </>
         )}
         <Button
           onClick={onApprove}

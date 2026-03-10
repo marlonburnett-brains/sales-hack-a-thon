@@ -270,6 +270,54 @@ export function TouchPageClient({
   );
 
   // ────────────────────────────────────────────────────────────
+  // Restore generating state on mount/refresh
+  // ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    // If we already know the interaction is not in-progress, skip
+    if (!activeInteraction || activeInteraction.status !== "in_progress") return;
+
+    const currentRunId = extractRunId(activeInteraction);
+    if (!currentRunId) return;
+
+    // Check workflow status to see if it's still running
+    let cancelled = false;
+    const checkStatus = getStatusChecker(touchType);
+
+    checkStatus(currentRunId)
+      .then((status) => {
+        if (cancelled) return;
+
+        if (
+          status.status === "running" ||
+          status.status === "waiting" ||
+          status.status === "pending"
+        ) {
+          // Workflow is still running -- restore generating state and resume polling
+          setIsGenerating(true);
+          setGenerationMessage("Generation in progress...");
+          startPolling(currentRunId);
+        } else if (
+          status.status === "suspended"
+        ) {
+          // Workflow is suspended (waiting for HITL approval).
+          // The interaction DB record might be stale -- refresh to get latest hitlStage.
+          router.refresh();
+        }
+        // For "completed", "success", "failed" -- the server data should already
+        // reflect final state, so just let the normal render handle it.
+      })
+      .catch(() => {
+        // Transient error -- don't block the UI
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ────────────────────────────────────────────────────────────
   // Handlers
   // ────────────────────────────────────────────────────────────
 
@@ -392,7 +440,7 @@ export function TouchPageClient({
   );
 
   const handleRegenerate = useCallback(
-    async (feedback?: string) => {
+    async (feedback?: string, wipeData?: boolean) => {
       if (!activeInteraction) return;
 
       setIsRegenerating(true);
@@ -400,7 +448,7 @@ export function TouchPageClient({
         // Re-generate the current stage's content directly (no new workflow).
         // This calls the LLM to regenerate content for the current HITL stage
         // and updates stageContent in place, then refreshes the page.
-        await regenerateStageAction(activeInteraction.id, feedback);
+        await regenerateStageAction(activeInteraction.id, feedback, wipeData);
         setIsRegenerating(false);
         router.refresh();
       } catch (err) {
