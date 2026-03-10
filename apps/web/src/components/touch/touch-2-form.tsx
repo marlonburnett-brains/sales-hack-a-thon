@@ -12,6 +12,7 @@ import { ExternalLink, X, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { VisualQADialog } from "./visual-qa-dialog";
 import { PipelineStepper } from "./pipeline-stepper";
+import { GenerationLogFeed, type GenerationLogEntry } from "./generation-log-feed";
 import { TOUCH_2_PIPELINE_STEPS } from "./pipeline-steps";
 import { mapToFriendlyError } from "@/lib/error-messages";
 import { DeckPreview } from "./deck-preview";
@@ -62,6 +63,7 @@ export function Touch2Form({
   const [activeStep, setActiveStep] = useState<string | null>(null);
   const [errorStep, setErrorStep] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [generationLogs, setGenerationLogs] = useState<GenerationLogEntry[]>([]);
 
   // Poll workflow status until completion
   const pollStatus = useCallback(async (runId: string) => {
@@ -74,6 +76,22 @@ export function Touch2Form({
 
       try {
         const status = await checkTouch2StatusAction(runId);
+
+        // Extract logs from all step outputs
+        const allSteps = status.steps ?? {};
+        const allLogs: GenerationLogEntry[] = [];
+        for (const step of Object.values(allSteps)) {
+          const output = (step as Record<string, unknown>).output as
+            | Record<string, unknown>
+            | undefined;
+          if (output && Array.isArray(output.logs)) {
+            allLogs.push(...(output.logs as GenerationLogEntry[]));
+          }
+        }
+        if (allLogs.length > 0) {
+          allLogs.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+          setGenerationLogs(allLogs);
+        }
 
         // Derive step progress
         const steps = status.steps ?? {};
@@ -196,6 +214,7 @@ export function Touch2Form({
     setErrorStep(null);
     setErrorMessage(null);
     setError(null);
+    setGenerationLogs([]);
     setState("input");
   };
 
@@ -314,6 +333,7 @@ export function Touch2Form({
           errorStepId={errorStep}
           errorMessage={errorMessage}
         />
+        <GenerationLogFeed logs={generationLogs} />
       </div>
     );
   }
@@ -332,6 +352,7 @@ export function Touch2Form({
           errorStepId={errorStep}
           errorMessage={errorMessage}
         />
+        <GenerationLogFeed logs={generationLogs} />
         <Button
           onClick={handleRegenerate}
           variant="outline"

@@ -1,5 +1,5 @@
 ---
-status: investigating
+status: awaiting_human_verify
 trigger: "deck-generation-state-lost-on-refresh - When a deck is being generated, refresh loses the generating state and reverts to previous step"
 created: 2026-03-10T00:00:00Z
 updated: 2026-03-10T00:00:00Z
@@ -48,5 +48,5 @@ started: Likely always been this way since step-based generation was implemented
 
 root_cause: isGenerating is useState(false) -- ephemeral React state lost on refresh. When page loads after refresh, there is no check for whether the workflow associated with the active interaction is still running. The interaction record in the DB has status="in_progress" and a runId, but the client never uses these to restore generating state.
 fix: Add a useEffect that runs on mount to detect an in-progress interaction with a runId, check the workflow status via the existing /api/workflows/status endpoint, and if still running, set isGenerating=true and resume polling.
-verification:
+verification: TypeScript compiles clean. No pre-existing test regressions introduced. Needs manual verification by starting a generation, refreshing mid-generation, and confirming the generating spinner persists.
 files_changed: [apps/web/src/app/(authenticated)/deals/[dealId]/touch/[touchNumber]/touch-page-client.tsx]

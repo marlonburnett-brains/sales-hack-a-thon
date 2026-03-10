@@ -10,6 +10,7 @@ import { TouchGuidedStart } from "@/components/touch/touch-guided-start";
 import { TouchStageContent } from "@/components/touch/touch-stage-content";
 import { TouchGenerationHistory } from "@/components/touch/touch-generation-history";
 import { GenerationProgress } from "@/components/touch/generation-progress";
+import type { GenerationLogEntry } from "@/components/touch/generation-log-feed";
 import {
   TouchContextProvider,
   type TouchContext,
@@ -191,6 +192,7 @@ export function TouchPageClient({
   const [isApproving, setIsApproving] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState("Generating...");
+  const [generationLogs, setGenerationLogs] = useState<GenerationLogEntry[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Clean up polling on unmount
@@ -240,6 +242,22 @@ export function TouchPageClient({
         try {
           const status = await checkStatus(currentRunId);
 
+          // Extract logs from all step outputs
+          const steps = status.steps ?? {};
+          const allLogs: GenerationLogEntry[] = [];
+          for (const step of Object.values(steps)) {
+            const output = (step as Record<string, unknown>).output as
+              | Record<string, unknown>
+              | undefined;
+            if (output && Array.isArray(output.logs)) {
+              allLogs.push(...(output.logs as GenerationLogEntry[]));
+            }
+          }
+          if (allLogs.length > 0) {
+            allLogs.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+            setGenerationLogs(allLogs);
+          }
+
           if (
             status.status === "suspended" ||
             status.status === "completed" ||
@@ -250,6 +268,7 @@ export function TouchPageClient({
               pollRef.current = null;
             }
             setIsGenerating(false);
+            setGenerationLogs([]);
             router.refresh();
           }
 
@@ -259,6 +278,7 @@ export function TouchPageClient({
               pollRef.current = null;
             }
             setIsGenerating(false);
+            setGenerationLogs([]);
             toast.error("Generation failed. Please try again.");
           }
         } catch {
@@ -324,6 +344,7 @@ export function TouchPageClient({
   const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
     setGenerationMessage("Starting generation...");
+    setGenerationLogs([]);
 
     try {
       const result = await startGeneration(
@@ -485,7 +506,7 @@ export function TouchPageClient({
           <h1 className="text-xl font-bold text-slate-900">
             Touch {touchNumber}: {touchName}
           </h1>
-          <GenerationProgress message={generationMessage} />
+          <GenerationProgress message={generationMessage} logs={generationLogs} />
         </div>
       </TouchContextProvider>
     );
