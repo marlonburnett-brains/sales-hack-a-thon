@@ -13,13 +13,13 @@
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
-import { selectSlidesForDeck } from "../../lib/slide-selection";
 import { loadDeckSections } from "../../lib/deck-structure-loader";
 import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { ingestGeneratedDeck } from "../../lib/ingestion-pipeline";
 import { prisma } from "../../lib/db";
 import { env } from "../../env";
 import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../../generation/route-strategy";
+import { selectSlidesForBlueprint } from "../../generation/section-matcher";
 
 // ────────────────────────────────────────────────────────────
 // Shared schemas
@@ -43,6 +43,12 @@ const skeletonContentSchema = z.object({
   slideOrder: z.array(z.string()),
   selectionRationale: z.string(),
   personalizationNotes: z.string(),
+  sections: z.array(z.object({
+    sectionName: z.string(),
+    purpose: z.string(),
+    selectedSlideId: z.string().nullable(),
+    rationale: z.string(),
+  })).optional(),
 });
 
 const lowfiContentSchema = z.object({
@@ -99,20 +105,52 @@ const selectSlides = createStep({
       },
     });
 
-    const result = await selectSlidesForDeck({
-      touchType: "touch_2",
+    // Build DealContext and resolve blueprint for structure-driven selection
+    const dealContext = buildDealContext("touch_2", {
+      dealId: inputData.dealId,
       companyName: inputData.companyName,
       industry: inputData.industry,
-      context: inputData.context,
       priorTouchOutputs: inputData.priorTouchOutputs,
     });
+    const strategy = await resolveGenerationStrategy("touch_2", null, dealContext);
+    console.log(`[touch-2-workflow] selectSlides: Using ${strategy.type} generation path`);
 
-    const skeletonContent = {
-      selectedSlideIds: result.selectedSlideIds,
-      slideOrder: result.slideOrder,
-      selectionRationale: `Selected ${result.selectedSlideIds.length} slides for ${inputData.companyName} in ${inputData.industry}. ${result.personalizationNotes}`,
-      personalizationNotes: result.personalizationNotes,
-    };
+    let skeletonContent: z.infer<typeof skeletonContentSchema>;
+
+    if (strategy.type !== "legacy") {
+      // Structure-driven path: use blueprint-based slide selection
+      const { plan, blueprint } = await selectSlidesForBlueprint(strategy.blueprint);
+
+      const selectedSlideIds = plan.selections.map((s) => s.slideId);
+      const slideOrder = plan.selections.map((s) => s.slideId);
+      const sections = blueprint.sections.map((section) => {
+        const selection = plan.selections.find((s) => s.sectionName === section.sectionName);
+        return {
+          sectionName: section.sectionName,
+          purpose: section.purpose,
+          selectedSlideId: selection?.slideId ?? null,
+          rationale: selection?.matchRationale ?? "No candidate available",
+        };
+      });
+
+      skeletonContent = {
+        selectedSlideIds,
+        slideOrder,
+        selectionRationale: `Selected ${selectedSlideIds.length} slides across ${sections.length} sections for ${inputData.companyName} in ${inputData.industry}. Blueprint: ${blueprint.sequenceRationale}`,
+        personalizationNotes: `Structure-driven selection for ${inputData.companyName} (${inputData.industry})`,
+        sections,
+      };
+    } else {
+      // No DeckStructure available -- empty skeleton with explanation
+      console.warn("[touch-2-workflow] No DeckStructure found for touch_2; skeleton will be empty");
+      skeletonContent = {
+        selectedSlideIds: [],
+        slideOrder: [],
+        selectionRationale: "No deck structure available. Register an example presentation to enable slide selection.",
+        personalizationNotes: `Awaiting deck structure for ${inputData.companyName} (${inputData.industry})`,
+        sections: [],
+      };
+    }
 
     // Update hitlStage to skeleton
     await prisma.interactionRecord.update({
@@ -211,9 +249,21 @@ const generateDraftOrder = createStep({
     // Load DeckStructure sections to enrich slide notes
     const deckSections = await loadDeckSections("touch_2");
 
-    // Generate notes for each slide, enriched with section info when available
+    // Generate notes for each slide, using skeleton sections first, then DeckStructure fallback
     const slideNotes = skeleton.slideOrder.map((slideId) => {
-      // Try to match slideId against DeckStructure section slideIds
+      // First: check skeleton sections (from blueprint-based selection)
+      if (skeleton.sections && skeleton.sections.length > 0) {
+        const skeletonSection = skeleton.sections.find((s) => s.selectedSlideId === slideId);
+        if (skeletonSection) {
+          return {
+            slideId,
+            notes: `Section: ${skeletonSection.sectionName} — ${skeletonSection.purpose}. Personalized for ${inputData.companyName} in ${inputData.industry}. Selection: ${skeletonSection.rationale}`,
+            purpose: `${skeletonSection.sectionName}: ${skeletonSection.purpose}`,
+          };
+        }
+      }
+
+      // Second: try DeckStructure sections (backward compat)
       if (deckSections) {
         const matchedSection = deckSections.find((section) =>
           section.slideIds.includes(slideId),

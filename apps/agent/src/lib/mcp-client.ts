@@ -55,8 +55,8 @@ function createClient(): MCPClient {
     servers: {
       atlus: {
         url: new URL("https://knowledge-base-api.lumenalta.com/sse"),
-        timeout: 30_000,
-        connectTimeout: 5_000,
+        timeout: 60_000,
+        connectTimeout: 10_000,
         fetch: (input: string | URL | Request, init?: RequestInit) => {
           const headers = new Headers(init?.headers);
           if (currentAuth?.token) {
@@ -66,7 +66,7 @@ function createClient(): MCPClient {
         },
       },
     },
-    timeout: 30_000,
+    timeout: 60_000,
   });
 }
 
@@ -413,7 +413,7 @@ export async function callMcpTool(
     const result = await sdkClient.callTool(
       { name: toolName, arguments: args },
       undefined,
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     );
     // Log only errors or unexpected states
     if (result.isError) {

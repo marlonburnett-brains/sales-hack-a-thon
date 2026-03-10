@@ -480,6 +480,7 @@ export async function searchSlides(params: {
   }
 
   const results = await searchSlidesDrive(params);
+  console.log(`[search] Drive fallback returned ${results.length} results`);
   return results.map((r) => ({ ...r, source: "drive" as const }));
 }
 

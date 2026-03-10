@@ -1,16 +1,16 @@
 ---
-status: awaiting_human_verify
-trigger: "Touch 2 generation completes (POST 200) but UI shows 'No slide selection available yet'"
+status: fixing
+trigger: "Refactor Touch 2/3 skeleton and low-fi stages to use deck-structure-aware infrastructure"
 created: 2026-03-09T00:00:00Z
-updated: 2026-03-09T01:00:00Z
+updated: 2026-03-09T02:00:00Z
 ---
 
 ## Current Focus
 
-hypothesis: CONFIRMED - Two bugs: (1) regenerateStage overwrites touch_2 skeleton with touch_1 pager content, (2) UI reads wrong field name for stageContent
-test: Queried DB, traced code, confirmed both issues with direct evidence
-expecting: After fixes + DB repair, touch_2 skeleton stage shows slide selection data
-next_action: Await human verification
+hypothesis: CONFIRMED - Touch 2/3 selectSlides used broken MCP/Drive keyword search (selectSlidesForDeck); refactored to use blueprint-based selection (selectSlidesForBlueprint)
+test: Replaced selectSlidesForDeck with resolveGenerationStrategy + selectSlidesForBlueprint; added sections to skeleton schema; updated UI
+expecting: Skeleton stage now produces section-aware slide selections with proper slideIds from DeckStructure
+next_action: Verify TypeScript compilation and await human verification
 
 ## Symptoms
 
@@ -60,17 +60,17 @@ started: Currently broken
 
 ## Resolution
 
-root_cause: Two bugs combined:
-  1. regenerateStage (apps/agent/src/lib/regenerate-stage.ts) skeleton path is NOT touch-type-aware. It always generates Touch 1 pager content regardless of interaction.touchType. When called on a touch_2 interaction, it overwrites the slide selection stageContent with {companyName, headline, valueProposition, keyCapabilities} -- a completely wrong data shape.
-  2. UI (apps/web/src/components/touch/touch-stage-content.tsx) Touch23Content skeleton renderer reads data?.selectedSlides which doesn't exist in the workflow's stageContent (which uses selectedSlideIds, slideOrder, etc.)
-  3. (Data issue, not code bug) No slides are ingested in AtlusAI knowledge base, so slide selection returns 0 candidates.
+root_cause: Touch 2/3 skeleton stage used selectSlidesForDeck (MCP/Drive keyword search) which is unreliable and produces empty results. Meanwhile, the assembleDeck step already used the correct blueprint-based infrastructure (resolveGenerationStrategy + selectSlidesForBlueprint). The skeleton and low-fi stages were disconnected from this working infrastructure.
 
-fix: Three changes applied:
-  1. Fixed regenerateStage to route touch_2/touch_3 skeleton regeneration through selectSlidesForDeck (same as the workflow), keeping Touch 1 pager regeneration for touch_1 only
-  2. Fixed Touch23Content UI to read both legacy (selectedSlides) and current workflow (selectedSlideIds, slideOrder, selectionRationale) stageContent shapes
-  3. Repaired corrupted DB record (cmmjyv8en) to have correct touch_2 skeleton stageContent shape
+fix: Refactored Touch 2/3 workflows to use blueprint-based selection throughout:
+  1. Replaced selectSlidesForDeck with buildDealContext + resolveGenerationStrategy + selectSlidesForBlueprint in both touch-2 and touch-3 selectSlides steps
+  2. Added `sections` field (optional) to skeletonContentSchema with sectionName, purpose, selectedSlideId, rationale
+  3. Updated generateDraftOrder in both workflows to use skeleton sections first for enriched notes, falling back to DeckStructure sections, then generic notes
+  4. Updated Touch23Content UI to render section-based view when sections are available (showing section names, purposes, match status, and rationale)
+  5. Removed selectSlidesForDeck import from both workflow files
 
-verification: TypeScript compilation passes on both apps (no new errors). DB record repaired. Needs browser verification.
+verification: TypeScript compilation passes -- zero errors in modified files. All pre-existing errors are in unrelated files. Backward compatibility maintained (sections field is optional, legacy shapes still rendered).
 files_changed:
-  - apps/agent/src/lib/regenerate-stage.ts
+  - apps/agent/src/mastra/workflows/touch-2-workflow.ts
+  - apps/agent/src/mastra/workflows/touch-3-workflow.ts
   - apps/web/src/components/touch/touch-stage-content.tsx

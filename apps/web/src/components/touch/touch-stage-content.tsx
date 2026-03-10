@@ -335,7 +335,7 @@ function Touch23Content({
 
   if (stage === "skeleton") {
     // Support both legacy shape (selectedSlides array of objects) and
-    // current workflow shape (selectedSlideIds + slideOrder + selectionRationale)
+    // current workflow shape (selectedSlideIds + slideOrder + selectionRationale + sections)
     const legacySlides =
       (data?.selectedSlides as Array<{
         slideId?: string;
@@ -347,8 +347,17 @@ function Touch23Content({
     const slideOrder = (data?.slideOrder as string[]) ?? [];
     const selectionRationale = (data?.selectionRationale as string) ?? "";
     const personalizationNotes = (data?.personalizationNotes as string) ?? "";
+    const sections = (data?.sections as Array<{
+      sectionName: string;
+      purpose: string;
+      selectedSlideId: string | null;
+      rationale: string;
+    }>) ?? [];
 
-    // Build display list: prefer legacy shape, fall back to workflow shape
+    // If sections are available, render section-based view
+    const hasSections = sections.length > 0;
+
+    // Build display list for non-section view: prefer legacy shape, fall back to workflow shape
     const slides = legacySlides.length > 0
       ? legacySlides
       : (slideOrder.length > 0 ? slideOrder : selectedSlideIds).map((slideId, i) => ({
@@ -363,16 +372,44 @@ function Touch23Content({
           <div className="flex items-center gap-2">
             <List className="h-4 w-4 text-slate-500" />
             <Badge variant="secondary" className="text-xs">
-              Slide Selection
+              {hasSections ? "Blueprint Selection" : "Slide Selection"}
             </Badge>
           </div>
-          <CardTitle className="text-lg">Selected Slides</CardTitle>
+          <CardTitle className="text-lg">
+            {hasSections ? "Deck Sections" : "Selected Slides"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {selectionRationale && (
             <p className="leading-relaxed text-slate-700">{selectionRationale}</p>
           )}
-          {slides.length > 0 ? (
+          {hasSections ? (
+            <div className="space-y-2">
+              {sections.map((section, i) => (
+                <div
+                  key={section.sectionName}
+                  className="rounded-lg border border-slate-200 px-3 py-2 space-y-1"
+                >
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-slate-800">
+                      {i + 1}. {section.sectionName}
+                    </p>
+                    {section.selectedSlideId ? (
+                      <Badge variant="default" className="text-[10px] font-normal bg-green-100 text-green-800 hover:bg-green-100">
+                        Matched
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] font-normal text-amber-600 border-amber-300">
+                        No match
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">{section.purpose}</p>
+                  <p className="text-xs text-slate-400 italic">{section.rationale}</p>
+                </div>
+              ))}
+            </div>
+          ) : slides.length > 0 ? (
             <div className="space-y-2">
               {slides.map((slide, i) => (
                 <div
@@ -419,14 +456,22 @@ function Touch23Content({
       }>) ?? [];
     const draftText = (data?.draftText as string) ?? "";
 
-    // Merge slideNotes into slideOrder if slideOrder has no notes
-    const enrichedSlides = slideOrder.length > 0
-      ? slideOrder
-      : slideNotes.map((sn) => ({
+    // slideOrder may be string[] (IDs) or Array<{slideId, title, notes}> (legacy)
+    // Prefer slideNotes when available (richer data), fall back to slideOrder objects
+    const isStringArray = slideOrder.length > 0 && typeof slideOrder[0] === "string";
+    const enrichedSlides = slideNotes.length > 0
+      ? slideNotes.map((sn) => ({
           slideId: sn.slideId,
           title: sn.purpose,
           notes: sn.notes,
-        }));
+        }))
+      : isStringArray
+        ? (slideOrder as unknown as string[]).map((id, i) => ({
+            slideId: id,
+            title: `Slide ${i + 1}`,
+            notes: "",
+          }))
+        : slideOrder;
 
     return (
       <Card>
