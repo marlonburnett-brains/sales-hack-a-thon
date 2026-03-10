@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGenerationLogs } from "@/lib/api-client";
+import { env } from "@/env";
 
 /**
  * GET /api/generation-logs?dealId=...&touchType=touch_2
  *
  * Proxies real-time generation log entries from the agent's
- * in-memory log store. Polled by the frontend during generation.
+ * in-memory log store. No auth required — logs are transient
+ * non-sensitive data keyed by dealId+touchType.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -20,10 +21,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const logs = await getGenerationLogs(dealId, touchType);
-    return NextResponse.json({ logs });
+    const agentUrl = `${env.AGENT_SERVICE_URL}/api/generation-logs/${encodeURIComponent(dealId)}/${encodeURIComponent(touchType)}`;
+    const res = await fetch(agentUrl);
+
+    if (!res.ok) {
+      console.warn(`[generation-logs] Agent returned ${res.status}`);
+      return NextResponse.json({ logs: [] });
+    }
+
+    const data = await res.json();
+    return NextResponse.json(data);
   } catch (err) {
-    // Return empty logs on error rather than failing — this is non-critical polling
     const message = err instanceof Error ? err.message : "Failed to fetch logs";
     console.warn("[generation-logs] Error:", message);
     return NextResponse.json({ logs: [] });

@@ -9,6 +9,7 @@ import { touch3Workflow } from "./workflows/touch-3-workflow";
 import { touch4Workflow } from "./workflows/touch-4-workflow";
 import { preCallWorkflow } from "./workflows/pre-call-workflow";
 import { structureDrivenWorkflow } from "../generation/structure-driven-workflow";
+import { getLogs as getGenerationLogs, buildLogKey as buildGenLogKey } from "../generation/generation-logger";
 import { getOrCreateDealFolder, shareWithOrg } from "../lib/drive-folders";
 import { getDriveClient, getSlidesClient, getPooledGoogleAuth } from "../lib/google-auth";
 import { getAccessTokenForUser } from "../lib/token-cache";
@@ -35,7 +36,7 @@ import {
   dealContextSourceSchema,
 } from "@lumenalta/schemas";
 import { env } from "../env";
-import { regenerateStage } from "../lib/regenerate-stage";
+import { regenerateStage, retryGeneration } from "../lib/regenerate-stage";
 import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
 import { searchSlides } from "../lib/atlusai-search";
 import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS, cacheDocumentCover, checkGcsCoverExists } from "../lib/gcs-thumbnails";
@@ -631,12 +632,14 @@ export const mastra = new Mastra({
       // ────────────────────────────────────────────────────────────
       registerApiRoute("/generation-logs/:dealId/:touchType", {
         method: "GET",
+        requiresAuth: false,
         handler: async (c) => {
           const dealId = c.req.param("dealId");
           const touchType = c.req.param("touchType");
-          const { getLogs, buildLogKey } = await import("../generation/generation-logger");
-          const key = buildLogKey(dealId, touchType);
-          return c.json({ logs: getLogs(key) });
+          const key = buildGenLogKey(dealId, touchType);
+          const logs = getGenerationLogs(key);
+          console.log(`[generation-logs] key=${key} logs=${logs.length}`);
+          return c.json({ logs });
         },
       }),
       // ────────────────────────────────────────────────────────────
@@ -1601,6 +1604,38 @@ export const mastra = new Mastra({
         },
       }),
 
+      // POST /interactions/:id/mark-failed -- Mark an interaction as failed (workflow died)
+      registerApiRoute("/interactions/:id/mark-failed", {
+        method: "POST",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const interaction = await prisma.interactionRecord.findUniqueOrThrow({
+              where: { id },
+              select: { status: true },
+            });
+
+            // Only mark as failed if currently in_progress
+            if (interaction.status !== "in_progress") {
+              return c.json({ success: true, status: interaction.status });
+            }
+
+            await prisma.interactionRecord.update({
+              where: { id },
+              data: { status: "failed" },
+            });
+
+            return c.json({ success: true, status: "failed" });
+          } catch (err) {
+            console.error("[mark-failed] Error:", err);
+            return c.json(
+              { error: "Mark failed failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
       // POST /interactions/:id/regenerate-stage -- Re-run LLM generation for current stage
       registerApiRoute("/interactions/:id/regenerate-stage", {
         method: "POST",
@@ -1621,6 +1656,24 @@ export const mastra = new Mastra({
             console.error("[regenerate-stage] Error:", err);
             return c.json(
               { error: "Stage regeneration failed", details: String(err) },
+              500
+            );
+          }
+        },
+      }),
+
+      // POST /interactions/:id/retry-generation -- Retry from failed step (preserves approved stages)
+      registerApiRoute("/interactions/:id/retry-generation", {
+        method: "POST",
+        handler: async (c) => {
+          const id = c.req.param("id");
+          try {
+            const result = await retryGeneration(id);
+            return c.json(result);
+          } catch (err) {
+            console.error("[retry-generation] Error:", err);
+            return c.json(
+              { error: "Retry generation failed", details: String(err) },
               500
             );
           }

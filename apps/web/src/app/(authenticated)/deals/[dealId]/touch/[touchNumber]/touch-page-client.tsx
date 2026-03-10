@@ -25,6 +25,8 @@ import {
   transitionStageAction,
   revertStageAction,
   regenerateStageAction,
+  markInteractionFailedAction,
+  retryGenerationAction,
 } from "@/lib/actions/touch-actions";
 import { mapToFriendlyError } from "@/lib/error-messages";
 
@@ -246,6 +248,7 @@ export function TouchPageClient({
 
   const startLogPolling = useCallback(() => {
     stopLogPolling();
+    console.log(`[gen-logs] Starting log poll for dealId=${dealId} touchType=${touchType}`);
     logPollRef.current = setInterval(async () => {
       try {
         const res = await fetch(
@@ -253,12 +256,15 @@ export function TouchPageClient({
         );
         if (res.ok) {
           const data = (await res.json()) as { logs: GenerationLogEntry[] };
+          console.log(`[gen-logs] Polled: ${data.logs?.length ?? 0} logs`);
           if (data.logs && data.logs.length > 0) {
             setGenerationLogs(data.logs);
           }
+        } else {
+          console.warn(`[gen-logs] Poll failed: ${res.status}`);
         }
-      } catch {
-        // Non-critical — continue polling
+      } catch (err) {
+        console.warn("[gen-logs] Poll error:", err);
       }
     }, 1500);
   }, [dealId, touchType, stopLogPolling]);
@@ -299,6 +305,7 @@ export function TouchPageClient({
             setIsGenerating(false);
             setGenerationLogs([]);
             toast.error("Generation failed. Please try again.");
+            router.refresh();
           }
         } catch {
           // Continue polling on transient errors
@@ -342,8 +349,21 @@ export function TouchPageClient({
           // Workflow is suspended (waiting for HITL approval).
           // The interaction DB record might be stale -- refresh to get latest hitlStage.
           router.refresh();
+        } else if (status.status === "failed") {
+          // Workflow run died but interaction record is still in_progress.
+          // Mark it as failed so the UI shows the recovery screen.
+          if (activeInteraction) {
+            markInteractionFailedAction(activeInteraction.id)
+              .then(() => {
+                if (!cancelled) router.refresh();
+              })
+              .catch(() => {
+                // Best-effort -- refresh anyway so user sees current state
+                if (!cancelled) router.refresh();
+              });
+          }
         }
-        // For "completed", "success", "failed" -- the server data should already
+        // For "completed", "success" -- the server data should already
         // reflect final state, so just let the normal render handle it.
       })
       .catch(() => {
@@ -410,7 +430,14 @@ export function TouchPageClient({
       )?.[0];
 
       if (!suspendedStepId) {
-        toast.error("No suspended step found to approve");
+        // If the workflow has failed, mark the interaction and show recovery UI
+        if (status.status === "failed" && activeInteraction) {
+          await markInteractionFailedAction(activeInteraction.id);
+          toast.error("This generation failed due to a transient error. Please start a new generation.");
+          router.refresh();
+        } else {
+          toast.error("No suspended step found to approve");
+        }
         setIsApproving(false);
         return;
       }
@@ -499,6 +526,31 @@ export function TouchPageClient({
     },
     [activeInteraction, router]
   );
+
+  const handleRetryGeneration = useCallback(async () => {
+    if (!activeInteraction) return;
+
+    setIsGenerating(true);
+    setGenerationMessage("Retrying generation from where it left off...");
+    setGenerationLogs([]);
+
+    try {
+      const result = await retryGenerationAction(activeInteraction.id);
+
+      if (!result.runId) {
+        setIsGenerating(false);
+        toast.error("Retry started but no run ID was returned.");
+        return;
+      }
+
+      setGenerationMessage("Generating deck from approved outline...");
+      startPolling(result.runId);
+    } catch (err) {
+      setIsGenerating(false);
+      const raw = err instanceof Error ? err.message : "Retry failed";
+      toast.error(mapToFriendlyError(raw));
+    }
+  }, [activeInteraction, startPolling]);
 
   // ────────────────────────────────────────────────────────────
   // Touch context for Phase 45 chat bar
@@ -612,28 +664,66 @@ export function TouchPageClient({
     );
   }
 
-  // Stale/failed interaction: hitlStage and stageContent are both null,
-  // meaning the workflow failed during generation before completing the first step.
-  // Show the guided start so the user can retry instead of an infinite spinner.
-  if (!currentStage && !stageContent) {
+  // Stale/failed interaction: either hitlStage and stageContent are both null
+  // (workflow failed before completing the first step), or the interaction status
+  // is explicitly "failed" (workflow died mid-execution, e.g. from a transient DB error).
+  const isFailed = activeInteraction.status === "failed";
+  // Can retry if the interaction has approved stage data (e.g., outline was approved but deck assembly failed)
+  const canRetry = isFailed && activeInteraction.hitlStage === "lowfi" && activeInteraction.stageContent !== null
+    && (touchType === "touch_2" || touchType === "touch_3");
+  if (isFailed || (!currentStage && !stageContent)) {
     return (
       <TouchContextProvider value={touchContext}>
         <div className="space-y-4">
           <h1 className="text-xl font-bold text-slate-900">
             Touch {touchNumber}: {touchName}
           </h1>
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            A previous generation did not complete. You can start a new generation below.
-          </div>
-          <TouchGuidedStart
-            touchNumber={touchNumber}
-            touchType={touchType}
-            dealId={dealId}
-            companyName={companyName}
-            industry={industry}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
-          />
+          {canRetry ? (
+            <>
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                The final deck generation failed, but your approved outline is preserved. You can retry the deck generation without starting over.
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleRetryGeneration}
+                  disabled={isGenerating}
+                  className="cursor-pointer"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Retrying...
+                    </>
+                  ) : (
+                    "Retry Deck Generation"
+                  )}
+                </Button>
+                <Button
+                  onClick={handleGenerate}
+                  variant="outline"
+                  disabled={isGenerating}
+                  className="cursor-pointer"
+                >
+                  Start Over
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                A previous generation did not complete. You can start a new generation below.
+              </div>
+              <TouchGuidedStart
+                touchNumber={touchNumber}
+                touchType={touchType}
+                dealId={dealId}
+                companyName={companyName}
+                industry={industry}
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+              />
+            </>
+          )}
           {interactions.length > 1 && historySection}
         </div>
       </TouchContextProvider>
