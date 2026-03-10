@@ -23,6 +23,10 @@ import type { SectionSlotCounts } from "./deck-structure-loader";
 import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../generation/route-strategy";
 import { selectSlidesForDeck } from "./slide-selection";
 import { prisma } from "./db";
+import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "./drive-folders";
+import { ingestGeneratedDeck } from "./ingestion-pipeline";
+import { env } from "../env";
+import { buildLogKey, createStepLogger, clearLogs } from "../generation/generation-logger";
 
 export async function regenerateStage(
   interactionId: string,
@@ -252,6 +256,203 @@ export async function regenerateStage(
   }
 
   return { success: true, stage };
+}
+
+// ────────────────────────────────────────────────────────────
+// Retry generation from failed step
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Retry generation for a failed interaction, resuming from the last completed HITL stage.
+ *
+ * When a workflow dies mid-execution (e.g., transient DB error at assemble-deck),
+ * the InteractionRecord preserves the approved stage data (hitlStage + stageContent).
+ * This function re-runs just the remaining steps (assemble + record) without
+ * requiring the user to re-approve already-approved stages.
+ *
+ * Supports Touch 2 and Touch 3 workflows (which share the assemble-deck pattern).
+ * Returns a runId so the UI can poll for status.
+ */
+export async function retryGeneration(
+  interactionId: string,
+  enableVisualQA?: boolean,
+): Promise<{ success: boolean; runId: string; interactionId: string }> {
+  const interaction = await prisma.interactionRecord.findUniqueOrThrow({
+    where: { id: interactionId },
+    include: { deal: { include: { company: true } } },
+  });
+
+  const touchType = interaction.touchType;
+  if (touchType !== "touch_2" && touchType !== "touch_3") {
+    throw new Error(`Retry generation not supported for ${touchType}. Only touch_2 and touch_3 support resume-from-failure.`);
+  }
+
+  const hitlStage = interaction.hitlStage;
+  if (!hitlStage || !interaction.stageContent) {
+    throw new Error("Cannot retry: no approved stage data found. Please start a new generation.");
+  }
+
+  // Only retry when the workflow failed after lowfi approval (assemble-deck or later)
+  if (hitlStage !== "lowfi") {
+    throw new Error(`Cannot retry from stage "${hitlStage}". Retry is only supported when the deck assembly step failed (hitlStage=lowfi).`);
+  }
+
+  const inputs = JSON.parse(interaction.inputs ?? "{}");
+  const companyName = inputs.companyName ?? interaction.deal?.company?.name ?? "Unknown";
+  const industry = inputs.industry ?? "Technology";
+  const stageContent = JSON.parse(interaction.stageContent);
+
+  // The lowfi stageContent contains the approved slide order
+  const selectedSlideIds: string[] = stageContent.slideOrder ?? [];
+  const personalizationNotes: string = stageContent.personalizationNotes ?? "";
+
+  if (selectedSlideIds.length === 0) {
+    throw new Error("Cannot retry: no selected slides found in stage content.");
+  }
+
+  // Reset interaction to in_progress for the retry
+  const runId = crypto.randomUUID();
+  await prisma.interactionRecord.update({
+    where: { id: interactionId },
+    data: { status: "in_progress" },
+  });
+
+  const logKey = buildLogKey(interaction.dealId, touchType);
+  const logger = createStepLogger("retry-generation", logKey);
+  logger.log("Retrying deck generation from approved outline...");
+
+  try {
+    // ── Replicate assemble-deck step logic ──
+    const deal = await prisma.deal.findUniqueOrThrow({
+      where: { id: interaction.dealId },
+      include: { company: true },
+    });
+
+    const rootFolderId = await resolveRootFolderId(deal.ownerId ?? undefined);
+    const folderId = await getOrCreateDealFolder({
+      companyName: deal.company.name,
+      dealName: deal.name,
+      parentFolderId: rootFolderId,
+    });
+
+    if (!deal.driveFolderId) {
+      await prisma.deal.update({
+        where: { id: deal.id },
+        data: { driveFolderId: folderId },
+      });
+    }
+
+    // Archive previous file if re-generating
+    const existingInteraction = await prisma.interactionRecord.findFirst({
+      where: { dealId: interaction.dealId, touchType, driveFileId: { not: null } },
+      orderBy: { createdAt: "desc" },
+      select: { driveFileId: true },
+    });
+    if (existingInteraction?.driveFileId) {
+      try {
+        await archiveExistingFile({ dealFolderId: folderId, fileId: existingInteraction.driveFileId });
+      } catch (err) {
+        console.warn(`[retry-generation] Archive failed, continuing:`, err);
+      }
+    }
+
+    const dateStr = new Date().toISOString().split("T")[0];
+    const deckLabel = touchType === "touch_2" ? "Meet Lumenalta" : "Capabilities Deep Dive";
+    const deckName = `${companyName} - ${deckLabel} - ${dateStr}`;
+
+    const dealContext = buildDealContext(touchType, {
+      dealId: interaction.dealId,
+      companyName,
+      industry,
+      priorTouchOutputs: inputs.priorTouchOutputs,
+    });
+    const strategy = await resolveGenerationStrategy(touchType, null, dealContext);
+
+    if (strategy.type === "legacy") {
+      throw new Error(`No DeckStructure/blueprint found for ${touchType}. Register an example presentation first.`);
+    }
+
+    logger.log("Starting structure-driven pipeline...");
+    const result = await executeStructureDrivenPipeline({
+      blueprint: strategy.blueprint,
+      targetFolderId: folderId,
+      deckName,
+      dealContext,
+      ownerEmail: deal.ownerEmail ?? undefined,
+      enableVisualQA: enableVisualQA ?? inputs.enableVisualQA,
+      logKey,
+    });
+
+    if (deal.ownerEmail) {
+      await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
+    }
+
+    // ── Replicate record-interaction step logic ──
+    logger.log("Saving final deck and recording interaction...");
+
+    await prisma.interactionRecord.update({
+      where: { id: interactionId },
+      data: {
+        status: "approved",
+        decision: "approved",
+        hitlStage: "ready",
+        stageContent: JSON.stringify({
+          presentationId: result.presentationId,
+          driveUrl: result.driveUrl,
+        }),
+        generatedContent: JSON.stringify({
+          selectedSlideIds,
+          slideOrder: selectedSlideIds,
+          personalizationNotes,
+        }),
+        outputRefs: JSON.stringify([result.driveUrl]),
+        driveFileId: result.presentationId,
+      },
+    });
+
+    await prisma.feedbackSignal.create({
+      data: {
+        interactionId,
+        signalType: "positive",
+        source: `${touchType}_retry_generate`,
+        content: JSON.stringify({
+          selectedSlideIds,
+          personalizationNotes,
+        }),
+      },
+    });
+
+    // Ingest generated deck into AtlusAI (non-blocking)
+    try {
+      await ingestGeneratedDeck({
+        presentationId: result.presentationId,
+        deckName: `${companyName} - ${deckLabel}`,
+        dealContext: {
+          companyName,
+          industry,
+          touchType,
+          decision: "approved",
+        },
+        driveFolderId: env.GOOGLE_DRIVE_FOLDER_ID,
+      });
+    } catch (err) {
+      console.error("[retry-generation] AtlusAI ingestion failed:", err);
+    }
+
+    logger.log("Deck generation complete — ready for review!");
+    clearLogs(logKey);
+
+    return { success: true, runId, interactionId };
+  } catch (err) {
+    // Mark as failed again if retry also fails
+    await prisma.interactionRecord.update({
+      where: { id: interactionId },
+      data: { status: "failed" },
+    });
+    logger.log(`Retry failed: ${err instanceof Error ? err.message : String(err)}`);
+    clearLogs(logKey);
+    throw err;
+  }
 }
 
 // ────────────────────────────────────────────────────────────

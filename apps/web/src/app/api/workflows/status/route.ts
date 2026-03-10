@@ -55,6 +55,11 @@ export async function GET(request: NextRequest) {
     const stack = err instanceof Error ? err.stack : undefined;
     console.error("[workflows/status] Error:", message);
     if (stack) console.error("[workflows/status] Stack:", stack);
-    return NextResponse.json({ error: message }, { status: 502 });
+
+    // Forward the original status code (e.g. 404 "Workflow run not found")
+    // so the client can distinguish "run gone" from transient failures.
+    const statusMatch = message.match(/Agent API error \((\d+)\)/);
+    const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : 502;
+    return NextResponse.json({ error: message }, { status: statusCode });
   }
 }

@@ -673,6 +673,19 @@ export async function revertInteractionStage(
 }
 
 /**
+ * Mark an interaction as failed when its workflow run has died.
+ * Only transitions interactions that are currently "in_progress".
+ */
+export async function markInteractionFailed(
+  interactionId: string
+): Promise<{ success: boolean; status: string }> {
+  return fetchJSON<{ success: boolean; status: string }>(
+    `/interactions/${interactionId}/mark-failed`,
+    { method: "POST" }
+  );
+}
+
+/**
  * Re-run LLM generation for the current HITL stage without starting a new workflow.
  */
 export async function regenerateInteractionStage(
@@ -688,6 +701,24 @@ export async function regenerateInteractionStage(
         feedback: feedback || undefined,
         wipeData: wipeData || undefined,
       }),
+    }
+  );
+}
+
+/**
+ * Retry generation from the failed step, preserving approved stage data.
+ * Used when a workflow dies mid-execution (e.g., transient DB error at assemble-deck).
+ */
+export async function retryInteractionGeneration(
+  interactionId: string,
+  enableVisualQA?: boolean
+): Promise<{ success: boolean; runId: string; interactionId: string }> {
+  return fetchJSON<{ success: boolean; runId: string; interactionId: string }>(
+    `/interactions/${interactionId}/retry-generation`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enableVisualQA }),
     }
   );
 }
@@ -868,13 +899,6 @@ export async function getPreCallWorkflowStatus(
 // ────────────────────────────────────────────────────────────
 // Generation Logs (real-time polling)
 // ────────────────────────────────────────────────────────────
-
-export interface GenerationLogEntry {
-  timestamp: string;
-  step: string;
-  message: string;
-  detail?: string;
-}
 
 export async function getGenerationLogs(
   dealId: string,

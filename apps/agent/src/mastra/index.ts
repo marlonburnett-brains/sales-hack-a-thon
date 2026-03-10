@@ -12,7 +12,7 @@ import { structureDrivenWorkflow } from "../generation/structure-driven-workflow
 import { getLogs as getGenerationLogs, buildLogKey as buildGenLogKey } from "../generation/generation-logger";
 import { getOrCreateDealFolder, shareWithOrg } from "../lib/drive-folders";
 import { getDriveClient, getSlidesClient, getPooledGoogleAuth } from "../lib/google-auth";
-import { getAccessTokenForUser } from "../lib/token-cache";
+import { getAccessTokenForUser, resetTokenState } from "../lib/token-cache";
 import { extractGoogleAuth, getVerifiedUserId } from "../lib/request-auth";
 import { ingestDocument } from "../lib/atlusai-client";
 import { ingestionQueue, clearStaleIngestions } from "../ingestion/ingestion-queue";
@@ -1668,7 +1668,9 @@ export const mastra = new Mastra({
         handler: async (c) => {
           const id = c.req.param("id");
           try {
-            const result = await retryGeneration(id);
+            const body = await c.req.json().catch(() => ({}));
+            const enableVisualQA = typeof body.enableVisualQA === "boolean" ? body.enableVisualQA : undefined;
+            const result = await retryGeneration(id, enableVisualQA);
             return c.json(result);
           } catch (err) {
             console.error("[retry-generation] Error:", err);
@@ -2248,6 +2250,11 @@ export const mastra = new Mastra({
                 authTag,
               },
             });
+
+            // CRITICAL: Clear in-memory failure tracking for this user.
+            // Without this, a previous doRefresh failure's cooldown timer
+            // would carry over and prematurely invalidate the freshly stored token.
+            resetTokenState(data.userId);
 
             // Auto-resolve any reauth_needed actions for this user
             await prisma.actionRequired.updateMany({

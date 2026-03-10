@@ -17,6 +17,8 @@ import {
   resumeWorkflowStep,
   revertInteractionStage,
   regenerateInteractionStage,
+  markInteractionFailed,
+  retryInteractionGeneration,
   getBrief,
   getBriefReview,
   approveBrief,
@@ -247,6 +249,31 @@ export async function revertStageAction(
   targetStage: HitlStage
 ): Promise<{ success: boolean }> {
   const result = await revertInteractionStage(interactionId, targetStage);
+  revalidatePath("/deals");
+  return result;
+}
+
+/**
+ * Mark an interaction as failed when its workflow run has died.
+ * Called automatically when the UI detects a failed workflow with a stale interaction record.
+ */
+export async function markInteractionFailedAction(
+  interactionId: string
+): Promise<{ success: boolean; status: string }> {
+  const result = await markInteractionFailed(interactionId);
+  revalidatePath("/deals");
+  return result;
+}
+
+/**
+ * Retry generation from the failed step, preserving approved stage data.
+ * Used when a workflow dies after outline approval (e.g., transient DB error at assemble-deck).
+ */
+export async function retryGenerationAction(
+  interactionId: string,
+  enableVisualQA?: boolean
+): Promise<{ success: boolean; runId: string; interactionId: string }> {
+  const result = await retryInteractionGeneration(interactionId, enableVisualQA);
   revalidatePath("/deals");
   return result;
 }

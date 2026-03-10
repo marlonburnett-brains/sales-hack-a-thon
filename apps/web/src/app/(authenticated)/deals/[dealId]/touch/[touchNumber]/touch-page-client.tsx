@@ -28,6 +28,7 @@ import {
   markInteractionFailedAction,
   retryGenerationAction,
 } from "@/lib/actions/touch-actions";
+import { VisualQADialog } from "@/components/touch/visual-qa-dialog";
 import { mapToFriendlyError } from "@/lib/error-messages";
 
 interface InteractionData {
@@ -193,8 +194,13 @@ export function TouchPageClient({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  // True while the mount effect is checking whether the workflow is still alive.
+  // Prevents flashing the approval screen for a dead workflow.
+  const needsWorkflowCheck = activeInteraction?.status === "in_progress" && !!extractRunId(activeInteraction);
+  const [isCheckingWorkflow, setIsCheckingWorkflow] = useState(needsWorkflowCheck);
   const [generationMessage, setGenerationMessage] = useState("Generating...");
   const [generationLogs, setGenerationLogs] = useState<GenerationLogEntry[]>([]);
+  const [showRetryQADialog, setShowRetryQADialog] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -307,8 +313,21 @@ export function TouchPageClient({
             toast.error("Generation failed. Please try again.");
             router.refresh();
           }
-        } catch {
-          // Continue polling on transient errors
+        } catch (err) {
+          // 404 means the workflow run no longer exists (completed and cleaned up).
+          // Stop polling and refresh to show the final state.
+          if (err instanceof StatusCheckError && err.httpStatus === 404) {
+            if (pollRef.current) {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+            }
+            stopLogPolling();
+            setIsGenerating(false);
+            setGenerationLogs([]);
+            router.refresh();
+            return;
+          }
+          // Continue polling on transient errors (500, network, etc.)
         }
       }, 2000);
     },
@@ -321,10 +340,16 @@ export function TouchPageClient({
 
   useEffect(() => {
     // If we already know the interaction is not in-progress, skip
-    if (!activeInteraction || activeInteraction.status !== "in_progress") return;
+    if (!activeInteraction || activeInteraction.status !== "in_progress") {
+      setIsCheckingWorkflow(false);
+      return;
+    }
 
     const currentRunId = extractRunId(activeInteraction);
-    if (!currentRunId) return;
+    if (!currentRunId) {
+      setIsCheckingWorkflow(false);
+      return;
+    }
 
     // Check workflow status to see if it's still running
     let cancelled = false;
@@ -343,11 +368,13 @@ export function TouchPageClient({
           setIsGenerating(true);
           setGenerationMessage("Generation in progress...");
           startPolling(currentRunId);
+          setIsCheckingWorkflow(false);
         } else if (
           status.status === "suspended"
         ) {
           // Workflow is suspended (waiting for HITL approval).
           // The interaction DB record might be stale -- refresh to get latest hitlStage.
+          setIsCheckingWorkflow(false);
           router.refresh();
         } else if (status.status === "failed") {
           // Workflow run died but interaction record is still in_progress.
@@ -355,19 +382,28 @@ export function TouchPageClient({
           if (activeInteraction) {
             markInteractionFailedAction(activeInteraction.id)
               .then(() => {
-                if (!cancelled) router.refresh();
+                if (!cancelled) {
+                  setIsCheckingWorkflow(false);
+                  router.refresh();
+                }
               })
               .catch(() => {
                 // Best-effort -- refresh anyway so user sees current state
-                if (!cancelled) router.refresh();
+                if (!cancelled) {
+                  setIsCheckingWorkflow(false);
+                  router.refresh();
+                }
               });
           }
+        } else {
+          // For "completed", "success" -- the server data should already
+          // reflect final state, so just let the normal render handle it.
+          setIsCheckingWorkflow(false);
         }
-        // For "completed", "success" -- the server data should already
-        // reflect final state, so just let the normal render handle it.
       })
       .catch(() => {
         // Transient error -- don't block the UI
+        setIsCheckingWorkflow(false);
       });
 
     return () => {
@@ -527,7 +563,13 @@ export function TouchPageClient({
     [activeInteraction, router]
   );
 
-  const handleRetryGeneration = useCallback(async () => {
+  const handleRetryClick = useCallback(() => {
+    if (!activeInteraction) return;
+    setShowRetryQADialog(true);
+  }, [activeInteraction]);
+
+  const handleRetryGeneration = useCallback(async (enableVisualQA: boolean) => {
+    setShowRetryQADialog(false);
     if (!activeInteraction) return;
 
     setIsGenerating(true);
@@ -535,7 +577,7 @@ export function TouchPageClient({
     setGenerationLogs([]);
 
     try {
-      const result = await retryGenerationAction(activeInteraction.id);
+      const result = await retryGenerationAction(activeInteraction.id, enableVisualQA);
 
       if (!result.runId) {
         setIsGenerating(false);
@@ -664,6 +706,21 @@ export function TouchPageClient({
     );
   }
 
+  // Still checking whether the workflow is alive — show a brief loading state
+  // instead of flashing the error/approval screen for a potentially active workflow.
+  if (isCheckingWorkflow) {
+    return (
+      <TouchContextProvider value={touchContext}>
+        <div className="space-y-4">
+          <h1 className="text-xl font-bold text-slate-900">
+            Touch {touchNumber}: {touchName}
+          </h1>
+          <GenerationProgress message="Checking generation status..." />
+        </div>
+      </TouchContextProvider>
+    );
+  }
+
   // Stale/failed interaction: either hitlStage and stageContent are both null
   // (workflow failed before completing the first step), or the interaction status
   // is explicitly "failed" (workflow died mid-execution, e.g. from a transient DB error).
@@ -685,7 +742,7 @@ export function TouchPageClient({
               </div>
               <div className="flex items-center gap-3">
                 <Button
-                  onClick={handleRetryGeneration}
+                  onClick={handleRetryClick}
                   disabled={isGenerating}
                   className="cursor-pointer"
                 >
@@ -707,6 +764,11 @@ export function TouchPageClient({
                   Start Over
                 </Button>
               </div>
+              <VisualQADialog
+                open={showRetryQADialog}
+                onConfirm={handleRetryGeneration}
+                onCancel={() => setShowRetryQADialog(false)}
+              />
             </>
           ) : (
             <>
@@ -770,12 +832,20 @@ export function TouchPageClient({
  * the Next.js server-action queue, which would otherwise stall client-side
  * navigation while generation polling is active.
  */
+class StatusCheckError extends Error {
+  httpStatus: number;
+  constructor(message: string, httpStatus: number) {
+    super(message);
+    this.httpStatus = httpStatus;
+  }
+}
+
 function getStatusChecker(touchType: string) {
   return async (runId: string) => {
     const params = new URLSearchParams({ runId, touchType });
     const res = await fetch(`/api/workflows/status?${params}`);
     if (!res.ok) {
-      throw new Error(`Status check failed: ${res.status}`);
+      throw new StatusCheckError(`Status check failed: ${res.status}`, res.status);
     }
     return res.json() as Promise<{
       runId: string;

@@ -71,6 +71,43 @@ export async function getAccessTokenForUser(
   }
 }
 
+// Track first failure timestamp per user. A token is only permanently
+// invalidated if definitive errors persist for longer than this window.
+// This prevents hot-reload (server restart) from immediately burning tokens
+// on the first refresh attempt — the second attempt after the cooldown
+// window will invalidate if the token is truly expired/revoked.
+const firstFailureAt = new Map<string, number>();
+const FAILURE_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+// Track consecutive definitive failures per user. Require multiple failures
+// AFTER the cooldown window before invalidating, to protect against transient
+// Google errors that happen to match definitive patterns.
+const consecutiveFailures = new Map<string, number>();
+const REQUIRED_CONSECUTIVE_FAILURES = 3;
+
+/**
+ * Reset all in-memory state for a user's token.
+ *
+ * MUST be called when a new refresh token is stored (POST /tokens)
+ * to prevent stale failure tracking from prematurely invalidating
+ * the freshly stored token.
+ *
+ * Without this, the following bug occurs:
+ * 1. doRefresh fails at T=0 -> firstFailureAt set
+ * 2. User re-authenticates at T=3min -> new token stored in DB
+ * 3. firstFailureAt is NOT cleared (it's in-memory, POST /tokens doesn't know about it)
+ * 4. At T=5min, doRefresh is called -> fails for any reason -> cooldown check:
+ *    5min - 0min >= 5min -> TOKEN INVALIDATED immediately, despite being freshly stored
+ *
+ * This function breaks that chain by clearing all failure state.
+ */
+export function resetTokenState(userId: string): void {
+  cache.delete(userId);
+  firstFailureAt.delete(userId);
+  consecutiveFailures.delete(userId);
+  console.log(`[token-cache] Reset all in-memory state for userId=${userId} (new token stored)`);
+}
+
 async function doRefresh(userId: string): Promise<string | null> {
   try {
     console.log(`[token-cache] doRefresh START for userId=${userId}`);
@@ -133,6 +170,10 @@ async function doRefresh(userId: string): Promise<string | null> {
 
     console.log(`[token-cache] doRefresh SUCCESS for userId=${userId}`);
 
+    // Reset ALL failure tracking on success
+    firstFailureAt.delete(userId);
+    consecutiveFailures.delete(userId);
+
     // Cache the new access token
     cache.set(userId, {
       accessToken,
@@ -158,46 +199,86 @@ async function doRefresh(userId: string): Promise<string | null> {
       `[token-cache] doRefresh FAILED for userId=${userId}: "${errorMessage}" code=${errorCode} status=${errorStatus}`
     );
 
-    // Only permanently invalidate on definitive errors (token revoked/expired).
-    // Transient network errors should NOT burn the token.
-    const isDefinitive = isDefinitiveTokenError(err);
+    // Classify the error
+    const errorClass = classifyTokenError(err);
 
-    if (isDefinitive) {
-      console.warn(
-        `[token-cache] Definitive error for ${userId} — marking token invalid. ` +
-        `Error: "${errorMessage}"`
+    if (errorClass === 'config') {
+      // Configuration error — never invalidate, just log loudly
+      console.error(
+        `[token-cache] CLIENT CONFIGURATION ERROR for userId=${userId}: "${errorMessage}". ` +
+        `Check that GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET match the Supabase Google provider config. ` +
+        `NOT invalidating user token — this is a server-side configuration issue.`
       );
-      await prisma.userGoogleToken
-        .update({
-          where: { userId },
-          data: { isValid: false, revokedAt: new Date() },
-        })
-        .catch(() => {});
+    } else if (errorClass === 'definitive') {
+      // Definitive token error — use cooldown + consecutive failure guard
+      const now = Date.now();
+      const existingFirst = firstFailureAt.get(userId);
+      const failures = (consecutiveFailures.get(userId) ?? 0) + 1;
+      consecutiveFailures.set(userId, failures);
 
-      // Create reauth_needed ActionRequired record
-      try {
-        const existing = await prisma.actionRequired.findFirst({
-          where: { userId, actionType: 'reauth_needed', resolved: false },
-        });
-        if (!existing) {
-          const tokenRecord = await prisma.userGoogleToken.findUnique({
+      if (!existingFirst) {
+        // First failure — record timestamp, don't invalidate yet
+        firstFailureAt.set(userId, now);
+        console.warn(
+          `[token-cache] Definitive error for ${userId} — first occurrence (failure #${failures}), ` +
+          `will invalidate after ${FAILURE_COOLDOWN_MS / 1000}s AND ${REQUIRED_CONSECUTIVE_FAILURES} consecutive failures. ` +
+          `Error: "${errorMessage}"`
+        );
+      } else if (now - existingFirst < FAILURE_COOLDOWN_MS) {
+        // Within cooldown window — keep token valid
+        console.warn(
+          `[token-cache] Definitive error for ${userId} — within cooldown window ` +
+          `(${Math.round((now - existingFirst) / 1000)}s / ${FAILURE_COOLDOWN_MS / 1000}s), ` +
+          `failure #${failures}/${REQUIRED_CONSECUTIVE_FAILURES}, ` +
+          `keeping token valid. Error: "${errorMessage}"`
+        );
+      } else if (failures < REQUIRED_CONSECUTIVE_FAILURES) {
+        // Past cooldown but not enough consecutive failures
+        console.warn(
+          `[token-cache] Definitive error for ${userId} — past cooldown but only ${failures}/${REQUIRED_CONSECUTIVE_FAILURES} ` +
+          `consecutive failures, keeping token valid. Error: "${errorMessage}"`
+        );
+      } else {
+        // Past cooldown AND enough consecutive failures — token is truly bad
+        console.warn(
+          `[token-cache] Definitive error for ${userId} — persisted for ${Math.round((now - existingFirst) / 1000)}s ` +
+          `with ${failures} consecutive failures, marking token invalid. Error: "${errorMessage}"`
+        );
+        firstFailureAt.delete(userId);
+        consecutiveFailures.delete(userId);
+        await prisma.userGoogleToken
+          .update({
             where: { userId },
-            select: { email: true },
+            data: { isValid: false, revokedAt: new Date() },
+          })
+          .catch(() => {});
+
+        // Create reauth_needed ActionRequired record
+        try {
+          const existing = await prisma.actionRequired.findFirst({
+            where: { userId, actionType: 'reauth_needed', resolved: false },
           });
-          await prisma.actionRequired.create({
-            data: {
-              userId,
-              actionType: 'reauth_needed',
-              title: `Re-authentication needed for ${tokenRecord?.email ?? 'your account'}`,
-              description: 'Your Google token has expired or been revoked. Click "Connect Google" to re-authorize access.',
-            },
-          });
+          if (!existing) {
+            const tokenRecord = await prisma.userGoogleToken.findUnique({
+              where: { userId },
+              select: { email: true },
+            });
+            await prisma.actionRequired.create({
+              data: {
+                userId,
+                actionType: 'reauth_needed',
+                title: `Re-authentication needed for ${tokenRecord?.email ?? 'your account'}`,
+                description: 'Your Google token has expired or been revoked. Click "Connect Google" to re-authorize access.',
+              },
+            });
+          }
+        } catch {
+          // Non-critical
         }
-      } catch {
-        // Non-critical
       }
     } else {
-      console.warn(`[token-cache] Transient error for ${userId} — keeping token valid for retry`);
+      // Transient error — never invalidate
+      console.warn(`[token-cache] Transient error for ${userId} — keeping token valid for retry. Error: "${errorMessage}"`);
     }
 
     cache.delete(userId);
@@ -206,19 +287,41 @@ async function doRefresh(userId: string): Promise<string | null> {
 }
 
 /**
- * Determine if a token refresh error is definitive (token truly revoked/expired)
- * vs transient (network timeout, server error, etc.).
- * Only definitive errors should permanently invalidate the stored refresh token.
+ * Classify a token refresh error into one of three categories:
+ * - 'config': Server configuration problem (wrong client ID/secret). NEVER invalidate.
+ * - 'definitive': The refresh token itself is expired/revoked. Invalidate after safeguards.
+ * - 'transient': Network error, timeout, server error. NEVER invalidate.
+ *
+ * IMPORTANT: 'invalid_grant' can mean EITHER:
+ * (a) The refresh token was truly revoked/expired (user-facing issue)
+ * (b) The refresh token was issued by a different OAuth client than GOOGLE_CLIENT_ID
+ *     (server configuration issue — same symptom as invalid_client but different error code)
+ *
+ * We treat invalid_grant as definitive but require multiple consecutive failures
+ * plus a cooldown window before invalidating, which protects against case (b)
+ * because the admin/developer will see the repeated error logs and fix the config.
  */
-function isDefinitiveTokenError(err: unknown): boolean {
+function classifyTokenError(err: unknown): 'config' | 'definitive' | 'transient' {
   const message = err instanceof Error ? err.message : String(err);
+  const lower = message.toLowerCase();
+
+  // Configuration errors — wrong client ID/secret. This is a deployment problem,
+  // NOT the user's fault. Don't burn their token.
+  if (lower.includes('invalid_client') || lower.includes('unauthorized_client')) {
+    return 'config';
+  }
+
+  // Definitive token errors — the refresh token itself is truly expired/revoked
+  // (or possibly a client ID mismatch, which also returns invalid_grant).
   const definitivePatterns = [
     'invalid_grant',
-    'Token has been expired or revoked',
-    'Token has been revoked',
-    'invalid_client',
-    'unauthorized_client',
-    'access_denied',
+    'token has been expired or revoked',
+    'token has been revoked',
   ];
-  return definitivePatterns.some((pattern) => message.includes(pattern));
+  if (definitivePatterns.some((pattern) => lower.includes(pattern))) {
+    return 'definitive';
+  }
+
+  // Everything else is transient
+  return 'transient';
 }
