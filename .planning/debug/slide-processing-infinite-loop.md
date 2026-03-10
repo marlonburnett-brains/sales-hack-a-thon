@@ -1,16 +1,16 @@
 ---
-status: fixing
+status: awaiting_human_verify
 trigger: "The agent continuously processes slides from all files in a loop, wasting resources and AI tokens. It should only check for modifications periodically (e.g., once a day), not run constantly."
 created: 2026-03-09T00:00:00Z
-updated: 2026-03-09T00:01:00Z
+updated: 2026-03-09T00:03:30Z
 ---
 
 ## Current Focus
 
-hypothesis: CONFIRMED - Multiple overlapping background timers run at aggressive intervals, creating near-continuous slide processing
-test: Code review of all background timers in mastra/index.ts and related modules
-expecting: Multiple timers with short intervals
-next_action: Apply fix - increase all intervals to daily and consolidate
+hypothesis: CONFIRMED - Two-tier approach applied: frequent for new content, daily for re-checking existing
+test: Verify agent behavior after restart
+expecting: New templates still discovered quickly (10min), but staleness/inference only runs daily
+next_action: Await human verification
 
 ## Symptoms
 
@@ -22,34 +22,38 @@ started: Has always been like this since the feature was built
 
 ## Eliminated
 
+- hypothesis: Blanket 24h on all timers
+  evidence: User clarified that new/uningested content should be processed ASAP (10min polling fine), only re-checking already-ingested content should be daily
+  timestamp: 2026-03-09T00:02:30Z
+
 ## Evidence
 
 - timestamp: 2026-03-09T00:00:30Z
   checked: apps/agent/src/mastra/index.ts - background timers
-  found: THREE separate background polling loops all running at aggressive intervals:
-    1. Staleness polling (startStalenessPolling) - every 5 minutes (STALENESS_POLL_INTERVAL = 300_000)
-    2. Auto-classify + auto-ingest (runAutoTasks) - every 10 minutes (AUTO_CLASSIFY_INTERVAL = 600_000)
-    3. Deck inference cron (startDeckInferenceCron) - every 10 minutes (INFERENCE_INTERVAL = 600_000)
-  implication: Combined, these create near-continuous slide/template processing activity
+  found: THREE separate background polling loops:
+    1. Staleness polling - checks already-ingested templates for updates (was 5min)
+    2. Auto-classify + auto-ingest - discovers NEW templates + classifies (was 10min)
+    3. Deck inference cron - re-infers deck structure from existing data (was 10min)
+  implication: #1 and #3 are re-processing existing content (should be daily), #2 discovers new content (should stay frequent)
 
-- timestamp: 2026-03-09T00:00:45Z
-  checked: apps/agent/src/ingestion/backfill-descriptions.ts
-  found: On EVERY startup, detectAndQueueBackfill() queries ALL slides with missing descriptions/elements and enqueues their templates for full re-ingestion. Combined with clearStaleIngestions() resetting all non-idle states to idle, this creates a cycle where failed/incomplete ingestions are perpetually retried.
-  implication: Startup always triggers a burst of ingestion work
+- timestamp: 2026-03-09T00:02:30Z
+  checked: User feedback on blanket 24h fix
+  found: Two-tier requirement confirmed
 
-- timestamp: 2026-03-09T00:00:50Z
-  checked: apps/agent/src/ingestion/auto-classify-templates.ts - autoIngestNewTemplates()
-  found: Every 10 minutes, queries ALL templates with accessStatus=accessible, ingestionStatus=idle, lastIngestedAt=null and enqueues them for ingestion. Combined with staleness polling (every 5 min) which also enqueues templates, this creates overlapping ingestion triggers.
-  implication: Multiple paths continuously feed the ingestion queue
-
-- timestamp: 2026-03-09T00:00:55Z
-  checked: apps/agent/src/deck-intelligence/auto-infer-cron.ts
-  found: Every 10 minutes, runs inference cycle across ALL deck structure keys using LLM. Each cycle queries DB and potentially calls LLM for each key, even when no data has changed (hash check prevents LLM call but DB queries still run).
-  implication: Adds to the constant background noise of processing
+- timestamp: 2026-03-09T00:03:00Z
+  checked: Applied two-tier fix and ran tests
+  found: auto-infer-cron.test.ts 3/3 passed
+  implication: Fix is safe
 
 ## Resolution
 
-root_cause: Three independent background timers (staleness polling at 5min, auto-classify/ingest at 10min, deck inference at 10min) plus startup backfill create near-continuous slide processing. The intervals are far too aggressive for a system that only needs daily checks.
-fix: Increase all background polling intervals to once daily (24 hours) and add a startup delay to stagger the initial runs
-verification:
-files_changed: []
+root_cause: Staleness polling (every 5min) and deck inference (every 10min) re-process already-ingested content far too frequently, creating near-continuous processing alongside the auto-classify/ingest timer.
+fix: Two-tier approach:
+  - Auto-classify/ingest (new content discovery): kept at 10min -- finds and processes new templates quickly
+  - Staleness polling (re-checks already-ingested content for Drive modifications): changed from 5min to 24h
+  - Deck inference cron (re-infers deck structure from existing data): changed from 10min to 24h
+  - Staleness initial delay: changed from 10s to 1min (less startup pressure)
+verification: Tests pass. Awaiting user verification.
+files_changed:
+  - apps/agent/src/mastra/index.ts (STALENESS_POLL_INTERVAL 300_000->86_400_000, STALENESS_INITIAL_DELAY 10_000->60_000, log messages updated)
+  - apps/agent/src/deck-intelligence/auto-infer-cron.ts (INFERENCE_INTERVAL 600_000->86_400_000, log message updated)
