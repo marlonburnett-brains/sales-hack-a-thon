@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { X, Loader2, CheckCircle, RotateCcw, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { VisualQADialog } from "./visual-qa-dialog";
 import { PipelineStepper } from "./pipeline-stepper";
 import {
   TOUCH_4_EXTRACT_STEPS,
@@ -104,6 +105,10 @@ export function Touch4Form({
   );
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Visual QA dialog state
+  const [showQADialog, setShowQADialog] = useState(false);
+  const [enableVisualQA, setEnableVisualQA] = useState<boolean | undefined>(undefined);
 
   // Pipeline stepper state
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
@@ -254,9 +259,16 @@ export function Touch4Form({
     []
   );
 
-  // Step 1: Submit form -> extract fields from transcript
-  const handleProcessTranscript = async () => {
+  // Show Visual QA dialog before processing
+  const handleProcessClick = () => {
     if (!transcript.trim() || !selectedSubsector) return;
+    setShowQADialog(true);
+  };
+
+  // Step 1: Submit form -> extract fields from transcript
+  const handleProcessTranscript = async (qaEnabled: boolean) => {
+    setShowQADialog(false);
+    setEnableVisualQA(qaEnabled);
     setError(null);
     setIsSubmitting(true);
     setState("extracting");
@@ -268,6 +280,7 @@ export function Touch4Form({
         subsector: selectedSubsector,
         transcript,
         additionalNotes: additionalNotes || undefined,
+        enableVisualQA: qaEnabled,
       });
 
       setRunId(result.runId);
@@ -664,7 +677,7 @@ export function Touch4Form({
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <Button
-            onClick={handleProcessTranscript}
+            onClick={handleProcessClick}
             disabled={
               !transcript.trim() || !selectedSubsector || isSubmitting
             }
@@ -673,6 +686,12 @@ export function Touch4Form({
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             Process Transcript
           </Button>
+
+          <VisualQADialog
+            open={showQADialog}
+            onConfirm={handleProcessTranscript}
+            onCancel={() => setShowQADialog(false)}
+          />
         </div>
       </div>
     );
@@ -744,6 +763,7 @@ export function Touch4Form({
                   subsector: selectedSubsector,
                   transcript,
                   additionalNotes: additionalNotes || undefined,
+                  enableVisualQA,
                 });
                 setRunId(result.runId);
                 // Poll for first suspend

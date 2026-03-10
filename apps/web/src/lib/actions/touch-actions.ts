@@ -46,6 +46,7 @@ export async function generateTouch1PagerAction(
     industry: string;
     context: string;
     salespersonName?: string;
+    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await startTouch1Workflow(dealId, formData);
@@ -87,6 +88,7 @@ export async function generateTouch2DeckAction(
     customerLogoUrl?: string;
     context?: string;
     priorTouchOutputs?: string[];
+    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await startTouch2Workflow(dealId, formData);
@@ -111,6 +113,7 @@ export async function generateTouch3DeckAction(
     capabilityAreas: string[];
     context?: string;
     priorTouchOutputs?: string[];
+    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await startTouch3Workflow(dealId, formData);
@@ -135,6 +138,7 @@ export async function generateTouch4BriefAction(
     subsector: string;
     transcript: string;
     additionalNotes?: string;
+    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await startTouch4Workflow(dealId, formData);

@@ -379,6 +379,17 @@ export async function confirmDealChatBinding(
 }
 
 // ────────────────────────────────────────────────────────────
+// Generation Log Entry (shared type for workflow step logs)
+// ────────────────────────────────────────────────────────────
+
+export interface GenerationLogEntry {
+  timestamp: string;
+  step: string;
+  message: string;
+  detail?: string;
+}
+
+// ────────────────────────────────────────────────────────────
 // Touch 1 Workflow
 // ────────────────────────────────────────────────────────────
 
@@ -409,6 +420,7 @@ export async function startTouch1Workflow(
     industry: string;
     context: string;
     salespersonName?: string;
+    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
@@ -469,6 +481,7 @@ export async function startTouch2Workflow(
     customerLogoUrl?: string;
     context?: string;
     priorTouchOutputs?: string[];
+    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
@@ -526,6 +539,7 @@ export async function startTouch3Workflow(
     capabilityAreas: string[];
     context?: string;
     priorTouchOutputs?: string[];
+    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
@@ -583,6 +597,7 @@ export async function startTouch4Workflow(
     subsector: string;
     transcript: string;
     additionalNotes?: string;
+    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(

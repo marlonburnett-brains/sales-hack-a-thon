@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, X, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { VisualQADialog } from "./visual-qa-dialog";
 import { PipelineStepper } from "./pipeline-stepper";
 import { TOUCH_2_PIPELINE_STEPS } from "./pipeline-steps";
 import { mapToFriendlyError } from "@/lib/error-messages";
@@ -52,6 +53,9 @@ export function Touch2Form({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Visual QA dialog state
+  const [showQADialog, setShowQADialog] = useState(false);
 
   // Pipeline stepper state
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
@@ -144,7 +148,12 @@ export function Touch2Form({
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerateClick = () => {
+    setShowQADialog(true);
+  };
+
+  const handleGenerate = async (enableVisualQA: boolean) => {
+    setShowQADialog(false);
     setError(null);
     setIsSubmitting(true);
     setState("generating");
@@ -161,6 +170,7 @@ export function Touch2Form({
         customerLogoUrl: customerLogoUrl || undefined,
         context: context || undefined,
         priorTouchOutputs: priorOutputs.length > 0 ? priorOutputs : undefined,
+        enableVisualQA,
       });
 
       const pollResult = await pollStatus(result.runId);
@@ -272,13 +282,19 @@ export function Touch2Form({
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <Button
-            onClick={handleGenerate}
+            onClick={handleGenerateClick}
             disabled={isSubmitting}
             className="w-full cursor-pointer gap-2"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             Generate Intro Deck
           </Button>
+
+          <VisualQADialog
+            open={showQADialog}
+            onConfirm={handleGenerate}
+            onCancel={() => setShowQADialog(false)}
+          />
         </div>
       </div>
     );

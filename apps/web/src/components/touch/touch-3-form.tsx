@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, X, Loader2, XCircle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { VisualQADialog } from "./visual-qa-dialog";
 import { PipelineStepper } from "./pipeline-stepper";
 import { TOUCH_3_PIPELINE_STEPS } from "./pipeline-steps";
 import { mapToFriendlyError } from "@/lib/error-messages";
@@ -61,6 +62,9 @@ export function Touch3Form({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Visual QA dialog state
+  const [showQADialog, setShowQADialog] = useState(false);
 
   // Pipeline stepper state
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
@@ -168,8 +172,13 @@ export function Touch3Form({
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerateClick = () => {
     if (selectedCapabilities.length === 0) return;
+    setShowQADialog(true);
+  };
+
+  const handleGenerate = async (enableVisualQA: boolean) => {
+    setShowQADialog(false);
     setError(null);
     setIsSubmitting(true);
     setState("generating");
@@ -183,6 +192,7 @@ export function Touch3Form({
         capabilityAreas: selectedCapabilities,
         context: context || undefined,
         priorTouchOutputs: priorOutputs.length > 0 ? priorOutputs : undefined,
+        enableVisualQA,
       });
 
       const pollResult = await pollStatus(result.runId);
@@ -310,13 +320,19 @@ export function Touch3Form({
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <Button
-            onClick={handleGenerate}
+            onClick={handleGenerateClick}
             disabled={selectedCapabilities.length === 0 || isSubmitting}
             className="w-full cursor-pointer gap-2"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             Generate Capability Deck
           </Button>
+
+          <VisualQADialog
+            open={showQADialog}
+            onConfirm={handleGenerate}
+            onCancel={() => setShowQADialog(false)}
+          />
         </div>
       </div>
     );
