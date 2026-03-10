@@ -109,6 +109,46 @@ describe("UI-api-client: Action Required API client helpers", () => {
     expect(result).toEqual(resolved);
   });
 
+  it("fetchActions passes userId query param when provided", async () => {
+    const mockActions = [
+      { id: "a1", actionType: "reauth_needed", title: "Re-auth" },
+    ];
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockActions),
+    });
+
+    await fetchActions("user-uuid-123");
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://test-agent:4111/actions?userId=user-uuid-123",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+        }),
+      })
+    );
+  });
+
+  it("fetchActionCount passes userId query param when provided", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ count: 3 }),
+    });
+
+    const count = await fetchActionCount("user-uuid-456");
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://test-agent:4111/actions/count?userId=user-uuid-456",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Content-Type": "application/json",
+        }),
+      })
+    );
+    expect(count).toBe(3);
+  });
+
   it("fetchActions throws on non-OK response", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,

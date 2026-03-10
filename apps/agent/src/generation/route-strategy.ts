@@ -150,9 +150,18 @@ export async function executeStructureDrivenPipeline(
   const { blueprint, targetFolderId, deckName, dealContext, ownerEmail } = params;
 
   // Use pooled user auth (user-delegated tokens) to access example presentations
+  // Pool auth is REQUIRED — SA doesn't have access to org-shared template presentations
   const pooled = await getPooledGoogleAuth();
   const authOptions = pooled.accessToken ? { accessToken: pooled.accessToken } : undefined;
-  console.log(`[structure-pipeline] Auth source: ${pooled.source}${authOptions ? '' : ' (WARNING: no pool token, using service account)'}`);
+  console.log(`[structure-pipeline] Auth source: ${pooled.source}`);
+
+  if (!authOptions) {
+    throw new Error(
+      "[structure-pipeline] No authenticated Google user available. " +
+      "A connected Google account is required to access template presentations. " +
+      "Please ask a team member to connect their Google account via Settings."
+    );
+  }
 
   // Step 1: Select slides for blueprint sections
   const { plan } = await selectSlidesForBlueprint(blueprint);

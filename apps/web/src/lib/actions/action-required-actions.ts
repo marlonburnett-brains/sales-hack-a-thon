@@ -6,12 +6,17 @@ import {
   resolveAction,
   silenceAction,
 } from "@/lib/api-client";
+import { createClient } from "@/lib/supabase/server";
 import type { ActionRequiredItem } from "@/lib/api-client";
 
 export type { ActionRequiredItem };
 
 export async function listActionsAction(): Promise<ActionRequiredItem[]> {
-  return fetchActions();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return fetchActions(user?.id);
 }
 
 export async function resolveActionAction(id: string): Promise<ActionRequiredItem> {

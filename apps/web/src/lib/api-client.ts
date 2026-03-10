@@ -1097,12 +1097,14 @@ export interface ActionRequiredItem {
   updatedAt: string;
 }
 
-export async function fetchActions(): Promise<ActionRequiredItem[]> {
-  return fetchJSON<ActionRequiredItem[]>("/actions");
+export async function fetchActions(userId?: string): Promise<ActionRequiredItem[]> {
+  const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+  return fetchJSON<ActionRequiredItem[]>(`/actions${qs}`);
 }
 
-export async function fetchActionCount(): Promise<number> {
-  const result = await fetchJSON<{ count: number }>("/actions/count");
+export async function fetchActionCount(userId?: string): Promise<number> {
+  const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+  const result = await fetchJSON<{ count: number }>(`/actions/count${qs}`);
   return result.count;
 }
 
