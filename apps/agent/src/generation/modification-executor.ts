@@ -26,121 +26,6 @@ export interface ExecuteModificationsResult {
 const LOG_PREFIX = "[modification-executor]";
 
 // ────────────────────────────────────────────────────────────
-// Bounding Box Overlap Detection
-// ────────────────────────────────────────────────────────────
-
-interface Rect {
-  left: number;
-  top: number;
-  right: number;
-  bottom: number;
-}
-
-function computeBoundingBox(element: slides_v1.Schema$PageElement): Rect | null {
-  const size = element.size;
-  const transform = element.transform;
-  if (!size?.width?.magnitude || !size?.height?.magnitude) return null;
-
-  const w = size.width.magnitude;
-  const h = size.height.magnitude;
-  const sx = transform?.scaleX ?? 1;
-  const sy = transform?.scaleY ?? 1;
-  const tx = transform?.translateX ?? 0;
-  const ty = transform?.translateY ?? 0;
-
-  return {
-    left: tx,
-    top: ty,
-    right: tx + w * Math.abs(sx),
-    bottom: ty + h * Math.abs(sy),
-  };
-}
-
-function rectArea(r: Rect): number {
-  return (r.right - r.left) * (r.bottom - r.top);
-}
-
-function overlapRatio(a: Rect, b: Rect): number {
-  const overlapLeft = Math.max(a.left, b.left);
-  const overlapTop = Math.max(a.top, b.top);
-  const overlapRight = Math.min(a.right, b.right);
-  const overlapBottom = Math.min(a.bottom, b.bottom);
-
-  if (overlapLeft >= overlapRight || overlapTop >= overlapBottom) return 0;
-
-  const overlapArea = (overlapRight - overlapLeft) * (overlapBottom - overlapTop);
-  const smallerArea = Math.min(rectArea(a), rectArea(b));
-  return smallerArea > 0 ? overlapArea / smallerArea : 0;
-}
-
-/**
- * Find modified text elements that overlap spatially.
- * Returns objectIds to delete (the ones behind in z-order).
- *
- * pageElements order = z-order in Google Slides (later = on top).
- * For each overlapping pair, we keep the frontmost and delete the one behind.
- */
-function findOverlappingModifiedElements(
-  pageElements: slides_v1.Schema$PageElement[],
-  modifiedElementIds: Set<string>,
-): Set<string> {
-  const OVERLAP_THRESHOLD = 0.5;
-  const toDelete = new Set<string>();
-
-  // Collect modified elements with bounding boxes, preserving z-order
-  const modifiedWithBoxes: Array<{
-    objectId: string;
-    rect: Rect;
-    zIndex: number;
-  }> = [];
-
-  flattenElements(pageElements).forEach((element, zIndex) => {
-    if (element.objectId && modifiedElementIds.has(element.objectId)) {
-      const rect = computeBoundingBox(element);
-      if (rect) {
-        modifiedWithBoxes.push({ objectId: element.objectId, rect, zIndex });
-      }
-    }
-  });
-
-  // Check all pairs for overlap
-  for (let i = 0; i < modifiedWithBoxes.length; i++) {
-    for (let j = i + 1; j < modifiedWithBoxes.length; j++) {
-      const a = modifiedWithBoxes[i];
-      const b = modifiedWithBoxes[j];
-
-      if (toDelete.has(a.objectId) || toDelete.has(b.objectId)) continue;
-
-      const ratio = overlapRatio(a.rect, b.rect);
-      if (ratio >= OVERLAP_THRESHOLD) {
-        // Delete the one behind (lower z-index)
-        const behind = a.zIndex < b.zIndex ? a : b;
-        toDelete.add(behind.objectId);
-        console.log(
-          `${LOG_PREFIX} Overlap detected: ${a.objectId} and ${b.objectId} overlap ${(ratio * 100).toFixed(0)}%, deleting ${behind.objectId} (behind)`,
-        );
-      }
-    }
-  }
-
-  return toDelete;
-}
-
-/** Flatten pageElements into a flat list preserving z-order (including group children) */
-function flattenElements(
-  elements: slides_v1.Schema$PageElement[],
-): slides_v1.Schema$PageElement[] {
-  const flat: slides_v1.Schema$PageElement[] = [];
-  for (const el of elements) {
-    flat.push(el);
-    if (el.elementGroup?.children) {
-      flat.push(...flattenElements(el.elementGroup.children));
-    }
-  }
-  return flat;
-}
-
-// ────────────────────────────────────────────────────────────
 // Style Extraction
 // ────────────────────────────────────────────────────────────
 
@@ -312,7 +197,7 @@ export async function executeModifications(
   const slides = getSlidesClient(authOptions);
   const results: SlideModificationResult[] = [];
 
-  for (let plan of plans) {
+  for (const plan of plans) {
     if (plan.modifications.length === 0) {
       results.push({
         slideId: plan.slideId,
@@ -352,38 +237,13 @@ export async function executeModifications(
       console.log(`${LOG_PREFIX} Plan targets elements: [${plan.modifications.map(m => m.elementId).join(', ')}]`);
       console.log(`${LOG_PREFIX} Captured styles for ${elementStyles.size} elements`);
 
-      // Detect overlapping modified text elements and remove the ones behind
-      const modifiedIds = new Set(plan.modifications.map((m) => m.elementId));
-      const overlappingToDelete = findOverlappingModifiedElements(
-        targetSlide.pageElements ?? [],
-        modifiedIds,
-      );
-
-      // Filter out modifications targeting elements we're about to delete
-      if (overlappingToDelete.size > 0) {
-        plan = {
-          ...plan,
-          modifications: plan.modifications.filter(
-            (m) => !overlappingToDelete.has(m.elementId),
-          ),
-        };
-        console.log(
-          `${LOG_PREFIX} Removed ${overlappingToDelete.size} overlapping elements, ${plan.modifications.length} modifications remain`,
-        );
-      }
-
       const { requests, modificationsApplied } = buildRequests(
         plan,
         currentElementIds,
         elementStyles,
       );
 
-      // Add deleteObject requests for overlapping elements behind modified ones
-      for (const elementId of overlappingToDelete) {
-        requests.push({ deleteObject: { objectId: elementId } });
-      }
-
-      console.log(`${LOG_PREFIX} Built ${requests.length} requests for ${modificationsApplied} modifications (+ ${overlappingToDelete.size} overlap deletions)`);
+      console.log(`${LOG_PREFIX} Built ${requests.length} requests for ${modificationsApplied} modifications`);
       if (requests.length > 0) {
         // Log the actual request types being sent
         for (const req of requests) {
@@ -395,9 +255,6 @@ export async function executeModifications(
           }
           if (req.updateTextStyle) {
             console.log(`${LOG_PREFIX}   updateTextStyle on ${req.updateTextStyle.objectId} fields=${req.updateTextStyle.fields}`);
-          }
-          if (req.deleteObject) {
-            console.log(`${LOG_PREFIX}   deleteObject ${req.deleteObject.objectId} (overlapping element)`);
           }
         }
 
