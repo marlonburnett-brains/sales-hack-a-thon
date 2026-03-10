@@ -29,6 +29,15 @@ import { prisma } from "../lib/db";
 // Public Interfaces
 // ────────────────────────────────────────────────────────────
 
+export interface DraftContent {
+  headline: string;
+  valueProposition: string;
+  keyCapabilities: string[];
+  callToAction: string;
+  companyName: string;
+  [key: string]: unknown;
+}
+
 export interface PlanModificationsParams {
   /** SlideEmbedding database ID */
   slideId: string;
@@ -36,6 +45,8 @@ export interface PlanModificationsParams {
   slideObjectId: string;
   /** Deal context for content tailoring */
   dealContext: DealContext;
+  /** Approved draft content from the Draft step */
+  draftContent?: DraftContent;
 }
 
 export interface PlanModificationsResult {
@@ -59,7 +70,7 @@ const LOG_PREFIX = "[modification-planner]";
 export async function planSlideModifications(
   params: PlanModificationsParams,
 ): Promise<PlanModificationsResult> {
-  const { slideId, slideObjectId, dealContext } = params;
+  const { slideId, slideObjectId, dealContext, draftContent } = params;
 
   // 1. Load elements from database
   const allElements = await prisma.slideElement.findMany({
@@ -88,7 +99,7 @@ export async function planSlideModifications(
 
   // 4. Build prompt and call LLM
   try {
-    const prompt = buildPrompt(slideId, slideObjectId, dealContext, textElements);
+    const prompt = buildPrompt(slideId, slideObjectId, dealContext, textElements, draftContent);
 
     // 5. Call LLM via executeRuntimeProviderNamedAgent
     const result = await executeRuntimeProviderNamedAgent({
@@ -139,11 +150,29 @@ function truncateContent(content: string): string {
   return content.slice(0, MAX_CONTENT_LENGTH) + "... [truncated]";
 }
 
+function formatDraftContent(draftContent?: DraftContent): string {
+  if (!draftContent) return "";
+  return `
+
+## Approved Draft Content (MUST USE)
+
+The user approved the following draft content. You MUST use this content when modifying slide elements. Replace generic/placeholder text with the corresponding draft content:
+
+- **Headline:** ${draftContent.headline}
+- **Value Proposition:** ${draftContent.valueProposition}
+- **Key Capabilities:** ${draftContent.keyCapabilities.join("; ")}
+- **Call to Action:** ${draftContent.callToAction}
+- **Company Name:** ${draftContent.companyName}
+
+IMPORTANT: The draft content above was approved by the user. Prioritize using this exact content over generating new text. Match each slide element to the most relevant piece of draft content.`;
+}
+
 function buildPrompt(
   slideId: string,
   slideObjectId: string,
   dealContext: DealContext,
   elements: TextElement[],
+  draftContent?: DraftContent,
 ): string {
   const elementList = elements
     .map(
@@ -161,6 +190,7 @@ function buildPrompt(
 - **Solution Pillars:** ${dealContext.pillars.join(", ")}
 - **Persona:** ${dealContext.persona}
 - **Funnel Stage:** ${dealContext.funnelStage}
+${formatDraftContent(draftContent)}
 
 ## Slide Identification
 
@@ -181,6 +211,10 @@ ${elementList}
 - Persona mentions that should match the target persona
 - Generic summary bullets that should reference the target company
 - Placeholder-like content (e.g., "[Company Name]", "Your Company")
+- Headline/title text → replace with the approved draft headline
+- Value proposition text → replace with the approved draft value proposition
+- Capability/service descriptions → replace with approved draft capabilities
+- CTA text → replace with the approved draft call to action
 
 ### PRESERVE (structural content) -- do NOT modify these:
 - Methodology descriptions and framework explanations

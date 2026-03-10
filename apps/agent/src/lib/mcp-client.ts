@@ -21,8 +21,10 @@ import {
   updateAtlusTokenInDb,
   registerAtlusClient,
   persistAtlusClientId,
+  upsertActionRequired,
   type PooledAtlusAuthResult,
 } from "./atlus-auth";
+import { ACTION_TYPES } from "@lumenalta/schemas";
 import { prisma } from "./db";
 import { env } from "../env";
 
@@ -183,6 +185,16 @@ async function handleAuthFailure(): Promise<boolean> {
         } catch {
           // ignore DB errors during rotation
         }
+
+        // Surface "Action Required" so the user knows to reconnect AtlusAI
+        upsertActionRequired(
+          currentAuth.userId,
+          ACTION_TYPES.ATLUS_ACCOUNT_REQUIRED,
+          "AtlusAI reconnection required",
+          "Your AtlusAI session has expired and could not be refreshed automatically. Click 'Connect to AtlusAI' to re-authenticate.",
+        ).catch((err) =>
+          console.warn("[mcp] Failed to create reconnect action:", err),
+        );
       }
 
       // Get next token from pool
@@ -295,6 +307,21 @@ export async function initMcp(): Promise<void> {
     } catch (healthErr) {
       fallbackMode = true;
       console.warn("[mcp] Health check failed -- fallback mode enabled:", healthErr);
+
+      // Surface "Action Required" so the user knows to reconnect AtlusAI.
+      // The most common cause of MCP_CLIENT_CONNECT_FAILED is expired/invalid
+      // OAuth tokens -- the SSE transport rejects the connection at HTTP level.
+      if (currentAuth?.userId) {
+        upsertActionRequired(
+          currentAuth.userId,
+          ACTION_TYPES.ATLUS_ACCOUNT_REQUIRED,
+          "AtlusAI reconnection required",
+          "Could not connect to AtlusAI. Your session may have expired. Click 'Connect to AtlusAI' to re-authenticate.",
+        ).catch((err) =>
+          console.warn("[mcp] Failed to create reconnect action:", err),
+        );
+      }
+
       try {
         await client.disconnect();
       } catch {
@@ -305,6 +332,19 @@ export async function initMcp(): Promise<void> {
   } catch (err) {
     fallbackMode = true;
     console.error("[mcp] Init failed -- fallback mode enabled:", err);
+
+    // Surface "Action Required" if we had a userId before the failure
+    if (currentAuth?.userId) {
+      upsertActionRequired(
+        currentAuth.userId,
+        ACTION_TYPES.ATLUS_ACCOUNT_REQUIRED,
+        "AtlusAI reconnection required",
+        "Could not connect to AtlusAI. Your session may have expired. Click 'Connect to AtlusAI' to re-authenticate.",
+      ).catch((initErr) =>
+        console.warn("[mcp] Failed to create reconnect action:", initErr),
+      );
+    }
+
     client = null;
   }
 }

@@ -235,12 +235,12 @@ export function TemplateCard({
       const result = await classifyTemplateAction(
         template.id,
         values.classification,
-        values.classification === "example" ? values.touchTypes : undefined,
+        values.touchTypes,
         values.artifactType,
       );
       if (result.success) {
         setSavedClassification(values.classification);
-        setSavedTouchTypes(values.classification === "example" ? values.touchTypes : []);
+        setSavedTouchTypes(values.touchTypes);
         setSavedArtifactType(values.artifactType);
         toast.success(`Classified as ${values.classification}`);
         setClassifyOpen(false);
@@ -288,7 +288,7 @@ export function TemplateCard({
               <TemplateClassificationControls
                 key={`${savedClassification ?? "template"}-${savedTouchTypes.join(",")}-${savedArtifactType ?? "none"}`}
                 initialClassification={savedClassification ?? "template"}
-                initialTouchTypes={savedClassification === "example" ? savedTouchTypes : []}
+                initialTouchTypes={savedTouchTypes}
                 initialArtifactType={savedArtifactType}
                 isSaving={isClassifying}
                 onSave={handleClassify}

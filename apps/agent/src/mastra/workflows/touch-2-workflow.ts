@@ -14,7 +14,6 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { selectSlidesForDeck } from "../../lib/slide-selection";
-import { assembleDeckFromSlides } from "../../lib/deck-customizer";
 import { loadDeckSections } from "../../lib/deck-structure-loader";
 import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { ingestGeneratedDeck } from "../../lib/ingestion-pipeline";
@@ -397,45 +396,19 @@ const assembleDeck = createStep({
     const strategy = await resolveGenerationStrategy("touch_2", null, dealContext);
     console.log(`[touch-2-workflow] Using ${strategy.type} generation path`);
 
-    let result;
-    const legacyAssembly = async () => {
-      // Legacy: Use Meet Lumenalta source presentation or fall back to the general template
-      const sourcePresentationId =
-        env.MEET_LUMENALTA_PRESENTATION_ID || env.GOOGLE_TEMPLATE_PRESENTATION_ID;
-
-      return assembleDeckFromSlides({
-        sourcePresentationId,
-        selectedSlideIds: inputData.selectedSlideIds,
-        slideOrder: inputData.approvedLowfi.slideOrder,
-        targetFolderId: folderId,
-        deckName,
-        customizations: {
-          salespersonName: inputData.salespersonName,
-          salespersonPhotoUrl: inputData.salespersonPhotoUrl,
-          customerName: inputData.customerName,
-          customerLogoUrl: inputData.customerLogoUrl,
-        },
-      });
-    };
-
-    if (strategy.type !== "legacy") {
-      try {
-        result = await executeStructureDrivenPipeline({
-          blueprint: strategy.blueprint,
-          targetFolderId: folderId,
-          deckName,
-          dealContext,
-          ownerEmail: deal.ownerEmail ?? undefined,
-        });
-      } catch (pipelineErr) {
-        console.warn(`[touch-2-workflow] Structure-driven pipeline failed, falling back to legacy:`, pipelineErr);
-        result = await legacyAssembly();
-      }
-    } else {
-      result = await legacyAssembly();
+    if (strategy.type === "legacy") {
+      throw new Error("[touch-2-workflow] No DeckStructure/blueprint found for touch_2. Register an example presentation first.");
     }
 
-    // Share with deal owner as editor (domain sharing handled by assembleDeckFromSlides)
+    const result = await executeStructureDrivenPipeline({
+      blueprint: strategy.blueprint,
+      targetFolderId: folderId,
+      deckName,
+      dealContext,
+      ownerEmail: deal.ownerEmail ?? undefined,
+    });
+
+    // Share with deal owner as editor
     if (deal.ownerEmail) {
       await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
     }

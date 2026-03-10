@@ -35,7 +35,8 @@ export default async function DiscoveryPage() {
       case "mcp_unavailable":
       default:
         description =
-          "AtlusAI service is temporarily unavailable. Please try again later.";
+          "Could not connect to AtlusAI. Your session may have expired. Try reconnecting your account.";
+        showConnectButton = true;
         break;
     }
 

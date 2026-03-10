@@ -1786,17 +1786,16 @@ export const mastra = new Mastra({
               })
               .parse(body);
 
-            const exampleTouchTypes =
-              data.classification === "example" ? data.touchTypes ?? [] : [];
+            const touchTypes = data.touchTypes ?? [];
 
-            if (data.classification === "example" && exampleTouchTypes.length === 0) {
+            if (data.classification === "example" && touchTypes.length === 0) {
               return c.json(
                 { error: "touchTypes must be a non-empty array when classification is 'example'" },
                 400
               );
             }
 
-            if (data.classification === "example" && exampleTouchTypes.length !== 1) {
+            if (data.classification === "example" && touchTypes.length !== 1) {
               return c.json(
                 { error: "examples must include exactly one touch type" },
                 400,
@@ -1805,7 +1804,7 @@ export const mastra = new Mastra({
 
             if (
               data.classification === "example" &&
-              exampleTouchTypes[0] === "touch_4" &&
+              touchTypes[0] === "touch_4" &&
               !data.artifactType
             ) {
               return c.json(
@@ -1821,15 +1820,14 @@ export const mastra = new Mastra({
             const updateData: Record<string, unknown> = {
               contentClassification: data.classification,
               artifactType: null,
+              touchTypes: JSON.stringify(touchTypes),
             };
 
-            // Only update touchTypes when classifying as "example"
-            if (data.classification === "example") {
-              updateData.touchTypes = JSON.stringify(exampleTouchTypes);
-
-              if (exampleTouchTypes[0] === "touch_4") {
-                updateData.artifactType = data.artifactType as ArtifactType;
-              }
+            if (
+              data.classification === "example" &&
+              touchTypes[0] === "touch_4"
+            ) {
+              updateData.artifactType = data.artifactType as ArtifactType;
             }
 
             const updated = await prisma.template.update({

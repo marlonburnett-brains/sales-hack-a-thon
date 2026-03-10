@@ -17,7 +17,7 @@
  *   - supportsAllDrives: true on all Drive API calls
  */
 
-import { getDriveClient, getSlidesClient } from "./google-auth";
+import { getDriveClient, getSlidesClient, type GoogleAuthOptions } from "./google-auth";
 import { shareWithOrg } from "./drive-folders";
 import type { slides_v1 } from "googleapis";
 
@@ -49,6 +49,8 @@ export interface AssembleDeckParams {
   deckName: string;
   /** Optional branding customizations */
   customizations?: DeckCustomizations;
+  /** Optional auth options (pooled user token) */
+  authOptions?: GoogleAuthOptions;
 }
 
 export interface AssembleDeckResult {
@@ -171,8 +173,8 @@ export async function applyDeckCustomizations(params: {
 export async function assembleDeckFromSlides(
   params: AssembleDeckParams
 ): Promise<AssembleDeckResult> {
-  const drive = getDriveClient();
-  const slides = getSlidesClient();
+  const drive = getDriveClient(params.authOptions);
+  const slides = getSlidesClient(params.authOptions);
 
   // Step 1: Copy the source presentation to the target folder
   const copy = await drive.files.copy({

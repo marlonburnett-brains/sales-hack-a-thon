@@ -1,11 +1,12 @@
 import type { slides_v1 } from "googleapis";
 
 import type { ModificationPlan } from "./modification-plan-schema";
-import { getSlidesClient } from "../lib/google-auth";
+import { getSlidesClient, type GoogleAuthOptions } from "../lib/google-auth";
 
 export interface ExecuteModificationsParams {
   presentationId: string;
   plans: ModificationPlan[];
+  authOptions?: GoogleAuthOptions;
 }
 
 export interface SlideModificationResult {
@@ -76,8 +77,8 @@ function buildRequests(
 export async function executeModifications(
   params: ExecuteModificationsParams,
 ): Promise<ExecuteModificationsResult> {
-  const { presentationId, plans } = params;
-  const slides = getSlidesClient();
+  const { presentationId, plans, authOptions } = params;
+  const slides = getSlidesClient(authOptions);
   const results: SlideModificationResult[] = [];
 
   for (const plan of plans) {

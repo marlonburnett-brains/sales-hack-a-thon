@@ -14,6 +14,7 @@
 import type { ArtifactType, DealContext, SlideSelectionPlan } from "@lumenalta/schemas";
 
 import { prisma } from "../lib/db";
+import { getPooledGoogleAuth } from "../lib/google-auth";
 import {
   resolveBlueprint,
   type BlueprintWithCandidates,
@@ -115,11 +116,21 @@ export function buildDealContext(
 // executeStructureDrivenPipeline
 // ────────────────────────────────────────────────────────────
 
+export interface DraftContent {
+  headline: string;
+  valueProposition: string;
+  keyCapabilities: string[];
+  callToAction: string;
+  companyName: string;
+  [key: string]: unknown;
+}
+
 export interface ExecutePipelineParams {
   blueprint: BlueprintWithCandidates;
   targetFolderId: string;
   deckName: string;
   dealContext: DealContext;
+  draftContent?: DraftContent;
   ownerEmail?: string;
 }
 
@@ -138,6 +149,11 @@ export async function executeStructureDrivenPipeline(
 ): Promise<AssembleDeckResult> {
   const { blueprint, targetFolderId, deckName, dealContext, ownerEmail } = params;
 
+  // Use pooled user auth (user-delegated tokens) to access example presentations
+  const pooled = await getPooledGoogleAuth();
+  const authOptions = pooled.accessToken ? { accessToken: pooled.accessToken } : undefined;
+  console.log(`[structure-pipeline] Auth source: ${pooled.source}${authOptions ? '' : ' (WARNING: no pool token, using service account)'}`);
+
   // Step 1: Select slides for blueprint sections
   const { plan } = await selectSlidesForBlueprint(blueprint);
 
@@ -153,6 +169,7 @@ export async function executeStructureDrivenPipeline(
     targetFolderId,
     deckName,
     ownerEmail,
+    authOptions,
   });
 
   // Step 5: Plan modifications for each selected slide
@@ -162,6 +179,7 @@ export async function executeStructureDrivenPipeline(
         slideId: selection.slideId,
         slideObjectId: selection.slideId,
         dealContext,
+        draftContent: params.draftContent,
       }),
     ),
   );
@@ -175,6 +193,7 @@ export async function executeStructureDrivenPipeline(
     await executeModifications({
       presentationId: assemblyResult.presentationId,
       plans: activePlans,
+      authOptions,
     });
   }
 

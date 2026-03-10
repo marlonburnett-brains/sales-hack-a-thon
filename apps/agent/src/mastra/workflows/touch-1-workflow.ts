@@ -28,7 +28,6 @@ import {
 } from "../../lib/deck-structure-loader";
 import { executeRuntimeNamedAgent as executeNamedAgent } from "../../lib/agent-executor";
 import { assertLlmContentQuality } from "../../lib/validate-llm-content";
-import { assembleFromTemplate } from "../../lib/slide-assembly";
 import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "../../lib/drive-folders";
 import { ingestDocument } from "../../lib/atlusai-client";
 import { prisma } from "../../lib/db";
@@ -482,53 +481,25 @@ const assembleDeck = createStep({
     const strategy = await resolveGenerationStrategy("touch_1", null, dealContext);
     console.log(`[touch-1-workflow] Using ${strategy.type} generation path`);
 
-    let result;
-    if (strategy.type !== "legacy") {
-      try {
-        result = await executeStructureDrivenPipeline({
-          blueprint: strategy.blueprint,
-          targetFolderId: folderId,
-          deckName,
-          dealContext,
-          ownerEmail: deal.ownerEmail ?? undefined,
-        });
-      } catch (pipelineErr) {
-        console.warn(`[touch-1-workflow] Structure-driven pipeline failed, falling back to legacy:`, pipelineErr);
-        result = await assembleFromTemplate({
-          templateId: env.GOOGLE_TEMPLATE_PRESENTATION_ID,
-          targetFolderId: folderId,
-          deckName,
-          textReplacements: {
-            "{{company-name}}": content.companyName,
-            "{{headline}}": content.headline,
-            "{{value-proposition}}": content.valueProposition,
-            "{{capabilities}}": content.keyCapabilities.join(", "),
-            "{{call-to-action}}": content.callToAction,
-          },
-        });
-      }
-    } else {
-      // Legacy: Assemble deck from template with text replacements
-      result = await assembleFromTemplate({
-        templateId: env.GOOGLE_TEMPLATE_PRESENTATION_ID,
-        targetFolderId: folderId,
-        deckName,
-        textReplacements: {
-          "{{company-name}}": content.companyName,
-          "{{headline}}": content.headline,
-          "{{value-proposition}}": content.valueProposition,
-          "{{capabilities}}": content.keyCapabilities.join(", "),
-          "{{call-to-action}}": content.callToAction,
-        },
-      });
+    if (strategy.type === "legacy") {
+      throw new Error("[touch-1-workflow] No DeckStructure/blueprint found for touch_1. Register an example presentation first.");
     }
 
-    // Share with deal owner as editor (domain sharing handled by assembleFromTemplate)
+    const result = await executeStructureDrivenPipeline({
+      blueprint: strategy.blueprint,
+      targetFolderId: folderId,
+      deckName,
+      dealContext,
+      draftContent: content,
+      ownerEmail: deal.ownerEmail ?? undefined,
+    });
+
+    // Share with deal owner as editor
     if (deal.ownerEmail) {
       await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
     }
 
-    // Update hitlStage to highfi
+    // Update hitlStage to highfi and persist draft content for regeneration
     await prisma.interactionRecord.update({
       where: { id: inputData.interactionId },
       data: {
@@ -537,6 +508,7 @@ const assembleDeck = createStep({
           presentationId: result.presentationId,
           driveUrl: result.driveUrl,
         }),
+        generatedContent: JSON.stringify(inputData.finalContent),
       },
     });
 

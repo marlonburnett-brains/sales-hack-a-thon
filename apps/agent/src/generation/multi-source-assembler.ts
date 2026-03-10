@@ -117,6 +117,7 @@ export async function assembleMultiSourceDeck(
       slideOrder: params.plan.finalSlideOrder,
       targetFolderId: params.targetFolderId,
       deckName: params.deckName,
+      authOptions: params.authOptions,
     });
   }
 

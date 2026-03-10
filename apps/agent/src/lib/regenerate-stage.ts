@@ -20,6 +20,8 @@ import {
   formatSectionsWithSlotsForPrompt,
 } from "./deck-structure-loader";
 import type { SectionSlotCounts } from "./deck-structure-loader";
+import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExistingFile } from "./drive-folders";
+import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../generation/route-strategy";
 import { prisma } from "./db";
 
 export async function regenerateStage(
@@ -129,6 +131,96 @@ export async function regenerateStage(
         data: { stageContent: JSON.stringify(parsed) },
       });
     }
+  } else if (stage === "highfi") {
+    // Regenerate the Google Slides deck from approved draft content
+    const deal = await prisma.deal.findUniqueOrThrow({
+      where: { id: interaction.dealId },
+      include: { company: true },
+    });
+
+    // Get the approved draft content, or re-generate it from the skeleton
+    let draftContent: z.infer<typeof PagerContentLlmSchema>;
+    try {
+      draftContent = await getApprovedDraft(interaction);
+    } catch {
+      // Draft not persisted (pre-fix interactions) — re-generate from skeleton via LLM
+      console.log("[regenerate-stage] Draft not found, re-generating from skeleton via LLM");
+      const skeleton = await getApprovedSkeleton(interaction);
+      const prompt = buildDraftPrompt(companyName, industry, context, salespersonName, skeleton, feedback);
+      const response = await executeNamedAgent<z.infer<typeof PagerContentLlmSchema>>({
+        agentId: "first-contact-pager-writer",
+        messages: [{ role: "user", content: prompt }],
+        options: {
+          structuredOutput: {
+            schema: zodToLlmJsonSchema(PagerContentLlmSchema) as Record<string, unknown>,
+          },
+        },
+      });
+      draftContent = PagerContentLlmSchema.parse(
+        response.object ?? JSON.parse(response.text ?? "{}")
+      );
+      assertLlmContentQuality(draftContent);
+    }
+
+    const rootFolderId = await resolveRootFolderId(deal.ownerId ?? undefined);
+    const folderId = await getOrCreateDealFolder({
+      companyName: deal.company.name,
+      dealName: deal.name,
+      parentFolderId: rootFolderId,
+    });
+
+    // Archive previous file if it exists
+    const existingStageContent = interaction.stageContent
+      ? JSON.parse(interaction.stageContent)
+      : null;
+    if (existingStageContent?.presentationId) {
+      try {
+        await archiveExistingFile({ dealFolderId: folderId, fileId: existingStageContent.presentationId });
+      } catch (err) {
+        console.warn("[regenerate-stage] Archive failed, continuing:", err);
+      }
+    }
+
+    const deckName = `Touch 1 Pager - ${companyName} - ${new Date().toISOString().split("T")[0]}`;
+
+    // Route via structure-driven pipeline (no legacy fallback)
+    const dealContext = buildDealContext("touch_1", {
+      dealId: interaction.dealId,
+      companyName,
+      industry,
+    });
+    const strategy = await resolveGenerationStrategy("touch_1", null, dealContext);
+
+    if (strategy.type === "legacy") {
+      throw new Error("[regenerate-stage] No DeckStructure/blueprint found for touch_1. Register an example presentation first.");
+    }
+
+    const result = await executeStructureDrivenPipeline({
+      blueprint: strategy.blueprint,
+      targetFolderId: folderId,
+      deckName,
+      dealContext,
+      draftContent,
+      ownerEmail: deal.ownerEmail ?? undefined,
+    });
+
+    // Share with deal owner
+    if (deal.ownerEmail) {
+      await shareWithOrg({ fileId: result.presentationId, ownerEmail: deal.ownerEmail });
+    }
+
+    // Update stageContent with new presentation and persist draft for future regeneration
+    await prisma.interactionRecord.update({
+      where: { id: interactionId },
+      data: {
+        stageContent: JSON.stringify({
+          presentationId: result.presentationId,
+          driveUrl: result.driveUrl,
+        }),
+        generatedContent: JSON.stringify(draftContent),
+        driveFileId: result.presentationId,
+      },
+    });
   } else {
     throw new Error(`Regeneration not supported for stage: ${stage}`);
   }
@@ -247,6 +339,58 @@ Also provide an overall headline, call to action, contactName, and contactRole (
 // ────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────
+
+async function getApprovedDraft(
+  interaction: { id: string; stageContent: string | null; generatedContent: string | null; dealId: string }
+): Promise<z.infer<typeof PagerContentLlmSchema>> {
+  // Try generatedContent first (set after full workflow completion)
+  if (interaction.generatedContent) {
+    try {
+      return PagerContentLlmSchema.parse(JSON.parse(interaction.generatedContent));
+    } catch {
+      // fall through
+    }
+  }
+
+  // Look for approved draft in feedback signals
+  const signals = await prisma.feedbackSignal.findMany({
+    where: { interactionId: interaction.id },
+    orderBy: { createdAt: "desc" },
+    select: { content: true },
+  });
+
+  for (const signal of signals) {
+    if (signal.content) {
+      try {
+        const parsed = JSON.parse(signal.content);
+        if (parsed.finalContent) {
+          return PagerContentLlmSchema.parse(parsed.finalContent);
+        }
+      } catch {
+        // continue
+      }
+    }
+  }
+
+  // Fallback: find the most recent lowfi-stage interaction content
+  // The lowfi stageContent would have been overwritten by highfi, so
+  // look at the previous interaction record or reconstruct from inputs
+  const prevInteraction = await prisma.interactionRecord.findFirst({
+    where: { dealId: interaction.dealId, touchType: "touch_1" },
+    orderBy: { createdAt: "desc" },
+    select: { generatedContent: true },
+  });
+
+  if (prevInteraction?.generatedContent) {
+    try {
+      return PagerContentLlmSchema.parse(JSON.parse(prevInteraction.generatedContent));
+    } catch {
+      // fall through
+    }
+  }
+
+  throw new Error("Could not find approved draft content for highfi regeneration");
+}
 
 async function getApprovedSkeleton(
   interaction: { id: string; stageContent: string | null; dealId: string }
