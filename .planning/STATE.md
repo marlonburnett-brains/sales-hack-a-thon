@@ -5,7 +5,7 @@ milestone_name: Structure-Driven Deck Generation
 status: completed
 stopped_at: Completed quick task 24
 last_updated: "2026-03-10T02:23:38.000Z"
-last_activity: "2026-03-10 - Completed quick task 26: Add optional Visual QA toggle dialog"
+last_activity: "2026-03-10 - Completed quick task 27: Stream detailed generation status logs to UI"
 progress:
   total_phases: 8
   completed_phases: 8
