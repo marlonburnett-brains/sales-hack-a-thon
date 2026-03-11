@@ -28,7 +28,7 @@ import {
   markInteractionFailedAction,
   retryGenerationAction,
 } from "@/lib/actions/touch-actions";
-import { VisualQADialog } from "@/components/touch/visual-qa-dialog";
+import { VisualQAOverlay } from "@/components/touch/visual-qa-overlay";
 import { mapToFriendlyError } from "@/lib/error-messages";
 
 interface InteractionData {
@@ -200,7 +200,6 @@ export function TouchPageClient({
   const [isCheckingWorkflow, setIsCheckingWorkflow] = useState(needsWorkflowCheck);
   const [generationMessage, setGenerationMessage] = useState("Generating...");
   const [generationLogs, setGenerationLogs] = useState<GenerationLogEntry[]>([]);
-  const [showRetryQADialog, setShowRetryQADialog] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -562,13 +561,7 @@ export function TouchPageClient({
     [activeInteraction, router]
   );
 
-  const handleRetryClick = useCallback(() => {
-    if (!activeInteraction) return;
-    setShowRetryQADialog(true);
-  }, [activeInteraction]);
-
-  const handleRetryGeneration = useCallback(async (enableVisualQA: boolean) => {
-    setShowRetryQADialog(false);
+  const handleRetryGeneration = useCallback(async () => {
     if (!activeInteraction) return;
 
     setIsGenerating(true);
@@ -576,7 +569,7 @@ export function TouchPageClient({
     setGenerationLogs([]);
 
     try {
-      const result = await retryGenerationAction(activeInteraction.id, enableVisualQA);
+      const result = await retryGenerationAction(activeInteraction.id);
 
       if (!result.runId) {
         setIsGenerating(false);
@@ -699,6 +692,20 @@ export function TouchPageClient({
                 Generate Another
               </Button>
             </div>
+
+            {/* Visual QA overlay — on-demand post-generation */}
+            {(() => {
+              const parsed = stageContent as Record<string, unknown> | null;
+              const pid = typeof parsed?.presentationId === "string" ? parsed.presentationId : null;
+              if (!pid) return null;
+              return (
+                <VisualQAOverlay
+                  interactionId={activeInteraction.id}
+                  presentationId={pid}
+                  autoStart={false}
+                />
+              );
+            })()}
           </div>
         </TouchPageShell>
       </TouchContextProvider>
@@ -741,7 +748,7 @@ export function TouchPageClient({
               </div>
               <div className="flex items-center gap-3">
                 <Button
-                  onClick={handleRetryClick}
+                  onClick={handleRetryGeneration}
                   disabled={isGenerating}
                   className="cursor-pointer"
                 >
@@ -763,11 +770,6 @@ export function TouchPageClient({
                   Start Over
                 </Button>
               </div>
-              <VisualQADialog
-                open={showRetryQADialog}
-                onConfirm={handleRetryGeneration}
-                onCancel={() => setShowRetryQADialog(false)}
-              />
             </>
           ) : (
             <>

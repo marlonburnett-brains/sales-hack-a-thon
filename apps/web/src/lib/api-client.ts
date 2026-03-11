@@ -433,7 +433,6 @@ export async function startTouch1Workflow(
     industry: string;
     context: string;
     salespersonName?: string;
-    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
@@ -494,7 +493,6 @@ export async function startTouch2Workflow(
     customerLogoUrl?: string;
     context?: string;
     priorTouchOutputs?: string[];
-    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
@@ -552,7 +550,6 @@ export async function startTouch3Workflow(
     capabilityAreas: string[];
     context?: string;
     priorTouchOutputs?: string[];
-    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
@@ -610,7 +607,6 @@ export async function startTouch4Workflow(
     subsector: string;
     transcript: string;
     additionalNotes?: string;
-    enableVisualQA?: boolean;
   }
 ): Promise<WorkflowStartResult> {
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
@@ -724,14 +720,13 @@ export async function regenerateInteractionStage(
  */
 export async function retryInteractionGeneration(
   interactionId: string,
-  enableVisualQA?: boolean
 ): Promise<{ success: boolean; runId: string; interactionId: string }> {
   return fetchJSON<{ success: boolean; runId: string; interactionId: string }>(
     `/interactions/${interactionId}/retry-generation`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enableVisualQA }),
+      body: JSON.stringify({}),
     }
   );
 }

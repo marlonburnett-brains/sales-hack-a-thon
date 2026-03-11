@@ -19,7 +19,6 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { VisualQADialog } from "./visual-qa-dialog";
 import { PipelineStepper } from "./pipeline-stepper";
 import {
   TOUCH_1_PIPELINE_STEPS,
@@ -77,9 +76,6 @@ export function Touch1Form({
   );
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Visual QA dialog state
-  const [showQADialog, setShowQADialog] = useState(false);
 
   // Pipeline stepper state
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
@@ -188,15 +184,8 @@ export function Touch1Form({
     []
   );
 
-  // Show Visual QA dialog before generating
-  const handleGenerateClick = () => {
-    if (!context.trim()) return;
-    setShowQADialog(true);
-  };
-
   // Step 1: Submit form -> generate content
-  const handleGenerate = async (enableVisualQA: boolean) => {
-    setShowQADialog(false);
+  const handleGenerate = async () => {
     setError(null);
     setState("generating");
 
@@ -206,7 +195,6 @@ export function Touch1Form({
         industry,
         context,
         salespersonName,
-        enableVisualQA,
       });
 
       setRunId(result.runId);
@@ -461,18 +449,12 @@ export function Touch1Form({
           )}
 
           <Button
-            onClick={handleGenerateClick}
+            onClick={handleGenerate}
             disabled={!context.trim()}
             className="w-full cursor-pointer"
           >
             Generate Pager
           </Button>
-
-          <VisualQADialog
-            open={showQADialog}
-            onConfirm={handleGenerate}
-            onCancel={() => setShowQADialog(false)}
-          />
         </div>
       </div>
     );
