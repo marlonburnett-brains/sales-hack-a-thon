@@ -36,7 +36,7 @@ export async function resolveRootFolderId(userId?: string): Promise<string> {
 /**
  * Share a Drive file/folder with the Lumenalta org.
  *
- * Replaces the old makePubliclyViewable pattern with org-scoped access:
+ * Grants:
  * - Domain-wide viewer access for @lumenalta.com
  * - Deal owner gets editor access (if ownerEmail provided)
  * - Service account already has access as file creator

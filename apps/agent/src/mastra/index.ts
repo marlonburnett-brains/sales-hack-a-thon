@@ -40,7 +40,7 @@ import { regenerateStage, retryGeneration } from "../lib/regenerate-stage";
 import { performVisualQA } from "../generation/visual-qa";
 import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
 import { searchSlides } from "../lib/atlusai-search";
-import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS, cacheDocumentCover, checkGcsCoverExists } from "../lib/gcs-thumbnails";
+import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS, cacheDocumentCover, checkGcsCoverExists, cachePresentationThumbnails, checkPresentationThumbnails, invalidatePresentationThumbnails } from "../lib/gcs-thumbnails";
 import crypto from "node:crypto";
 import { startDeckInferenceCron } from "../deck-intelligence/auto-infer-cron";
 import {
@@ -1733,6 +1733,20 @@ export const mastra = new Mastra({
                     (type, detail) =>
                       send("log", { type, detail, timestamp: Date.now() }),
                   );
+
+                  // If corrections were applied, invalidate stale GCS thumbnails
+                  // and re-cache fresh ones so the frontend shows updated slides.
+                  if (result.status === "corrected" || result.status === "warning") {
+                    send("log", { type: "info", detail: "Refreshing slide thumbnails...", timestamp: Date.now() });
+                    try {
+                      await invalidatePresentationThumbnails(presentationId);
+                      await cachePresentationThumbnails(presentationId, authOptions);
+                      send("log", { type: "info", detail: "Thumbnails refreshed", timestamp: Date.now() });
+                    } catch (thumbErr) {
+                      console.warn("[visual-qa/run] Thumbnail refresh failed (non-fatal):", thumbErr);
+                    }
+                  }
+
                   send("complete", result);
                 } catch (err) {
                   send("error", {
@@ -2214,6 +2228,47 @@ export const mastra = new Mastra({
             thumbnails,
             caching: needsRefresh,
           });
+        },
+      }),
+
+      // GET /presentations/:id/thumbnails -- Return cached GCS thumbnail URLs for a generated presentation
+      // Returns whatever is cached immediately; kicks off background caching for missing ones.
+      // Frontend should poll while `caching` is true.
+      registerApiRoute("/presentations/:id/thumbnails", {
+        method: "GET",
+        handler: async (c) => {
+          const presentationId = c.req.param("id");
+
+          // Get total slide count so we know when caching is complete
+          let totalSlides = 0;
+          try {
+            const slidesApi = getSlidesClient();
+            const pres = await slidesApi.presentations.get({
+              presentationId,
+              fields: "slides.objectId",
+            });
+            totalSlides = pres.data.slides?.length ?? 0;
+          } catch {
+            // If we can't reach Slides API, fall back to returning what we have
+          }
+
+          // Check GCS for existing cached thumbnails
+          const cached = await checkPresentationThumbnails(presentationId);
+          const cachedCount = cached?.length ?? 0;
+          const isComplete = totalSlides > 0 && cachedCount >= totalSlides;
+
+          if (isComplete) {
+            return c.json({ thumbnails: cached, caching: false });
+          }
+
+          // Fire-and-forget: cache thumbnails in the background
+          if (cachedCount === 0 || cachedCount < totalSlides) {
+            cachePresentationThumbnails(presentationId).catch((err) =>
+              console.error("[thumbnails] Background presentation thumbnail cache failed:", err),
+            );
+          }
+
+          return c.json({ thumbnails: cached ?? [], caching: true });
         },
       }),
 

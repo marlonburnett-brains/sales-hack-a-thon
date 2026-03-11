@@ -194,6 +194,7 @@ export function TouchPageClient({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [deckRefreshKey, setDeckRefreshKey] = useState(0);
   // True while the mount effect is checking whether the workflow is still alive.
   // Prevents flashing the approval screen for a dead workflow.
   const needsWorkflowCheck = activeInteraction?.status === "in_progress" && !!extractRunId(activeInteraction);
@@ -678,6 +679,7 @@ export function TouchPageClient({
               touchType={touchType}
               stage="highfi"
               content={stageContent}
+              deckRefreshKey={deckRefreshKey}
             />
 
             {/* Visual QA — on-demand post-generation */}
@@ -690,6 +692,12 @@ export function TouchPageClient({
                   interactionId={activeInteraction.id}
                   presentationId={pid}
                   autoStart={false}
+                  onComplete={(result) => {
+                    if (result.status === "corrected" || result.status === "warning") {
+                      // Trigger DeckPreview to re-fetch thumbnails after QA corrections
+                      setDeckRefreshKey((k) => k + 1);
+                    }
+                  }}
                 />
               );
             })()}

@@ -11,23 +11,26 @@ interface TouchStageContentProps {
   touchType: string;
   stage: HitlStage;
   content: unknown;
+  /** Increment to force DeckPreview thumbnail re-fetch (e.g. after Visual QA). */
+  deckRefreshKey?: number;
 }
 
 export function TouchStageContent({
   touchType,
   stage,
   content,
+  deckRefreshKey,
 }: TouchStageContentProps) {
   if (touchType === "touch_4") {
     return <Touch4ArtifactContent stage={stage} content={content} />;
   }
 
   if (touchType === "touch_1") {
-    return <Touch1Content stage={stage} content={content} />;
+    return <Touch1Content stage={stage} content={content} deckRefreshKey={deckRefreshKey} />;
   }
 
   // Touch 2 and Touch 3 share the same deck-based content pattern
-  return <Touch23Content stage={stage} content={content} />;
+  return <Touch23Content stage={stage} content={content} deckRefreshKey={deckRefreshKey} />;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -37,9 +40,11 @@ export function TouchStageContent({
 function Touch1Content({
   stage,
   content,
+  deckRefreshKey,
 }: {
   stage: HitlStage;
   content: unknown;
+  deckRefreshKey?: number;
 }) {
   const data = content as Record<string, unknown> | null;
 
@@ -317,7 +322,7 @@ function Touch1Content({
   }
 
   // highfi: Google Slides deck preview
-  return <HighFiContent content={data} />;
+  return <HighFiContent content={data} deckRefreshKey={deckRefreshKey} />;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -327,9 +332,11 @@ function Touch1Content({
 function Touch23Content({
   stage,
   content,
+  deckRefreshKey,
 }: {
   stage: HitlStage;
   content: unknown;
+  deckRefreshKey?: number;
 }) {
   const data = content as Record<string, unknown> | null;
 
@@ -540,7 +547,7 @@ function Touch23Content({
   }
 
   // highfi: Google Slides deck preview
-  return <HighFiContent content={data} />;
+  return <HighFiContent content={data} deckRefreshKey={deckRefreshKey} />;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -573,8 +580,10 @@ function Touch4ArtifactContent({
 
 function HighFiContent({
   content,
+  deckRefreshKey,
 }: {
   content: Record<string, unknown> | null;
+  deckRefreshKey?: number;
 }) {
   const presentationId = (content?.presentationId as string) ?? "";
   const driveUrl = (content?.driveUrl as string) ?? "";
@@ -582,7 +591,7 @@ function HighFiContent({
   if (presentationId) {
     return (
       <div className="space-y-3">
-        <DeckPreview presentationId={presentationId} />
+        <DeckPreview presentationId={presentationId} refreshKey={deckRefreshKey} />
         {driveUrl && (
           <a
             href={driveUrl}

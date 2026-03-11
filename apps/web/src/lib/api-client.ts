@@ -1099,6 +1099,20 @@ export async function getSlideThumbnails(
   );
 }
 
+export interface PresentationThumbnail {
+  slideIndex: number;
+  slideObjectId: string;
+  thumbnailUrl: string;
+}
+
+export async function getPresentationThumbnails(
+  presentationId: string,
+): Promise<{ thumbnails: PresentationThumbnail[]; caching: boolean }> {
+  return fetchJSON<{ thumbnails: PresentationThumbnail[]; caching: boolean }>(
+    `/presentations/${presentationId}/thumbnails`,
+  );
+}
+
 export async function updateSlideClassification(
   slideId: string,
   data: {

@@ -198,6 +198,192 @@ export async function cacheThumbnailsForTemplate(
 }
 
 // ────────────────────────────────────────────────────────────
+// Generated presentation thumbnails
+// ────────────────────────────────────────────────────────────
+
+export interface PresentationThumbnail {
+  slideIndex: number;
+  slideObjectId: string;
+  thumbnailUrl: string;
+}
+
+/**
+ * Check GCS for existing cached thumbnails of a generated presentation.
+ * Returns array of thumbnail URLs if they exist and are fresh, null otherwise.
+ */
+export async function checkPresentationThumbnails(
+  presentationId: string,
+): Promise<PresentationThumbnail[] | null> {
+  const bucket = env.GCS_THUMBNAIL_BUCKET;
+  if (!bucket) return null;
+
+  const storage = getStorageClient();
+  const prefix = `presentation-thumbnails/${presentationId}/`;
+
+  try {
+    const res = await storage.objects.list({ bucket, prefix });
+    const items = res.data.items;
+    if (!items?.length) return null;
+
+    // Check freshness of first item
+    const updated = items[0].updated;
+    if (updated) {
+      const age = Date.now() - new Date(updated).getTime();
+      if (age > THUMBNAIL_TTL_MS) return null;
+    }
+
+    return items
+      .filter((item) => item.name?.endsWith(".png"))
+      .map((item) => {
+        const filename = item.name!.split("/").pop()!.replace(".png", "");
+        const [indexStr, ...rest] = filename.split("_");
+        return {
+          slideIndex: parseInt(indexStr, 10),
+          slideObjectId: rest.join("_"),
+          thumbnailUrl: `https://storage.googleapis.com/${bucket}/${item.name}`,
+        };
+      })
+      .sort((a, b) => a.slideIndex - b.slideIndex);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Invalidate (delete) all cached thumbnails for a generated presentation.
+ * Call this after Visual QA applies corrections so the next fetch gets fresh images.
+ */
+export async function invalidatePresentationThumbnails(
+  presentationId: string,
+): Promise<void> {
+  const bucket = env.GCS_THUMBNAIL_BUCKET;
+  if (!bucket) return;
+
+  const storage = getStorageClient();
+  const prefix = `presentation-thumbnails/${presentationId}/`;
+
+  try {
+    const res = await storage.objects.list({ bucket, prefix });
+    const items = res.data.items;
+    if (!items?.length) return;
+
+    // Delete all cached thumbnail objects for this presentation
+    await Promise.allSettled(
+      items.map((item) =>
+        storage.objects.delete({ bucket, object: item.name! }),
+      ),
+    );
+
+    console.log(
+      `[gcs-thumbnails] Invalidated ${items.length} cached thumbnails for presentation ${presentationId}`,
+    );
+  } catch (err) {
+    console.warn(
+      "[gcs-thumbnails] Failed to invalidate thumbnails:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
+// In-flight caching promises to avoid duplicate concurrent runs
+const cachingInFlight = new Map<string, Promise<PresentationThumbnail[]>>();
+
+/**
+ * Fetch and cache all slide thumbnails for a generated presentation to GCS.
+ * Returns array of GCS thumbnail URLs ordered by slide index.
+ * Deduplicates concurrent calls for the same presentation.
+ */
+export function cachePresentationThumbnails(
+  presentationId: string,
+  authOptions?: GoogleAuthOptions,
+): Promise<PresentationThumbnail[]> {
+  const existing = cachingInFlight.get(presentationId);
+  if (existing) return existing;
+
+  const promise = _cachePresentationThumbnails(presentationId, authOptions).finally(() => {
+    cachingInFlight.delete(presentationId);
+  });
+  cachingInFlight.set(presentationId, promise);
+  return promise;
+}
+
+async function _cachePresentationThumbnails(
+  presentationId: string,
+  authOptions?: GoogleAuthOptions,
+): Promise<PresentationThumbnail[]> {
+  const bucket = env.GCS_THUMBNAIL_BUCKET;
+  if (!bucket) {
+    console.warn("[gcs-thumbnails] GCS_THUMBNAIL_BUCKET not configured");
+    return [];
+  }
+
+  const slidesApi = getSlidesClient(authOptions);
+  const pres = await slidesApi.presentations.get({
+    presentationId,
+    fields: "slides.objectId",
+  });
+
+  const allSlides = pres.data.slides ?? [];
+  if (!allSlides.length) return [];
+
+  // Check what's already cached — skip those slides
+  const existing = await checkPresentationThumbnails(presentationId);
+  const cachedObjectIds = new Set(existing?.map((t) => t.slideObjectId) ?? []);
+
+  if (existing?.length && existing.length >= allSlides.length) {
+    return existing; // All slides already cached
+  }
+
+  const slides = allSlides.filter((s) => !cachedObjectIds.has(s.objectId!));
+  const results: PresentationThumbnail[] = [...(existing ?? [])];
+
+  console.log(
+    `[gcs-thumbnails] Caching ${slides.length} remaining thumbnails (${cachedObjectIds.size} already cached) for ${presentationId}`,
+  );
+
+  for (let i = 0; i < slides.length; i += BATCH_SIZE) {
+    if (i > 0) await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
+
+    const batch = slides.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.allSettled(
+      batch.map(async (slide) => {
+        const slideObjectId = slide.objectId!;
+        const slideIndex = allSlides.findIndex((s) => s.objectId === slideObjectId);
+
+        const thumbResult = await slidesApi.presentations.pages.getThumbnail({
+          presentationId,
+          pageObjectId: slideObjectId,
+          "thumbnailProperties.thumbnailSize": "LARGE",
+        });
+
+        const contentUrl = thumbResult.data.contentUrl;
+        if (!contentUrl) throw new Error(`No contentUrl for slide ${slideObjectId}`);
+
+        const response = await fetch(contentUrl);
+        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+        const imageBuffer = Buffer.from(await response.arrayBuffer());
+
+        const gcsKey = `presentation-thumbnails/${presentationId}/${String(slideIndex).padStart(3, "0")}_${slideObjectId}.png`;
+        const gcsUrl = await uploadThumbnailToGCS(bucket, gcsKey, imageBuffer, "image/png");
+
+        return { slideIndex, slideObjectId, thumbnailUrl: gcsUrl };
+      }),
+    );
+
+    for (const r of batchResults) {
+      if (r.status === "fulfilled") {
+        results.push(r.value);
+      } else {
+        console.error("[gcs-thumbnails] Failed to cache slide:", r.reason?.message ?? r.reason);
+      }
+    }
+  }
+
+  console.log(`[gcs-thumbnails] Cached ${results.length}/${allSlides.length} presentation thumbnails`);
+  return results.sort((a, b) => a.slideIndex - b.slideIndex);
+}
+
+// ────────────────────────────────────────────────────────────
 // Document cover caching (for Discovery browse)
 // ────────────────────────────────────────────────────────────
 

@@ -4,8 +4,9 @@
  * After text modifications are applied to Google Slides, replacement text can
  * overflow bounding boxes or overlap adjacent elements. This module:
  *   1. Applies TEXT_AUTOFIT to all modified shapes (best-effort)
- *   2. Renders slide thumbnails and sends them to Gemini 3 Flash for vision check
- *   3. Runs up to 2 correction iterations if overlap/overflow issues are found
+ *   2. Processes each slide individually: assess → fix → re-assess loop
+ *   3. Each slide gets up to MAX_ATTEMPTS_PER_SLIDE correction attempts
+ *   4. Already-clean slides are never re-analyzed
  */
 
 import { GoogleGenAI } from "@google/genai";
@@ -15,6 +16,9 @@ import { getSlidesClient, type GoogleAuthOptions } from "../lib/google-auth";
 import { env } from "../env";
 
 const LOG_PREFIX = "[visual-qa]";
+
+/** Max correction attempts per individual slide before giving up. */
+const MAX_ATTEMPTS_PER_SLIDE = 5;
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -35,6 +39,16 @@ export interface VisualQAResult {
 interface OverlapCheckResult {
   hasIssues: boolean;
   issues: string[];
+}
+
+/** Tracks the outcome of processing a single slide. */
+interface SlideOutcome {
+  slideObjectId: string;
+  status: "clean" | "fixed" | "unfixable";
+  attemptsUsed: number;
+  remainingIssues: string[];
+  /** If unfixable, detailed reasons per issue. */
+  unfixableReasons: string[];
 }
 
 // ────────────────────────────────────────────────────────────
@@ -165,30 +179,45 @@ async function checkSlideForOverlap(
 }
 
 // ────────────────────────────────────────────────────────────
-// applyCorrectionPass
+// applySlideCorrectionPass
 // ────────────────────────────────────────────────────────────
 
 /**
- * For each issue identified by the vision model, attempt to shorten text in
- * the corresponding modification plans and re-apply via Slides API.
+ * Apply corrections to a SINGLE slide's modifications.
+ * Provides the vision-detected issues as context so Gemini can make targeted fixes.
  */
-async function applyCorrectionPass(
+async function applySlideCorrectionPass(
   presentationId: string,
-  modifiedPlans: ModificationPlan[],
+  slidePlans: ModificationPlan[],
+  issues: string[],
+  attempt: number,
   authOptions?: GoogleAuthOptions,
 ): Promise<string[]> {
-  const slides = getSlidesClient(authOptions);
+  const slidesApi = getSlidesClient(authOptions);
   const ai = new GoogleGenAI({ apiKey: env.GOOGLE_AI_STUDIO_API_KEY });
   const corrections: string[] = [];
 
-  for (const plan of modifiedPlans) {
+  const issueContext = issues.join("; ");
+
+  for (const plan of slidePlans) {
     for (const mod of plan.modifications) {
       try {
-        // Ask Gemini to shorten the text by ~30%
+        // Build a prompt that includes the specific issues found on this slide
+        // so Gemini can make a targeted fix rather than a generic 30% reduction.
+        const reductionPct = Math.min(20 + attempt * 10, 50); // escalate: 30%, 40%, 50%
+        const prompt = attempt === 1
+          ? `The following text was placed in a presentation slide text box but causes visual issues: ${issueContext}. ` +
+            `Rewrite the text to be ${reductionPct}% shorter while preserving the key message. ` +
+            `Original text: ${mod.newContent}\n\nRespond with only the shortened text, no explanation.`
+          : `A previous attempt to shorten this text did not fully resolve the visual issues on the slide. ` +
+            `Remaining issues: ${issueContext}. ` +
+            `The text MUST be significantly shorter (at least ${reductionPct}% reduction) to fit the text box without overflow or overlap. ` +
+            `Be aggressive — remove filler words, use shorter synonyms, and condense sentences. ` +
+            `Current text: ${mod.newContent}\n\nRespond with only the shortened text, no explanation.`;
+
         const shortenResult = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
-          contents:
-            `The following text was placed in a presentation slide text box but overflows or overlaps other elements. Rewrite it to be 30% shorter while preserving the key message. Original text: ${mod.newContent}. Respond with only the shortened text, no explanation.`,
+          contents: prompt,
         });
 
         const shortenedText = (shortenResult.text ?? "").trim();
@@ -216,7 +245,7 @@ async function applyCorrectionPass(
           },
         ];
 
-        await slides.presentations.batchUpdate({
+        await slidesApi.presentations.batchUpdate({
           presentationId,
           requestBody: { requests },
         });
@@ -228,7 +257,7 @@ async function applyCorrectionPass(
           `Shortened element ${mod.elementId}: "${mod.newContent.slice(0, 40)}..."`,
         );
         console.log(
-          `${LOG_PREFIX} Corrected element ${mod.elementId} on slide ${plan.slideObjectId}`,
+          `${LOG_PREFIX} Corrected element ${mod.elementId} on slide ${plan.slideObjectId} (attempt ${attempt})`,
         );
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -240,12 +269,136 @@ async function applyCorrectionPass(
   }
 
   // Re-apply autofit after corrections
-  const allElementIds = modifiedPlans.flatMap((p) =>
+  const correctedElementIds = slidePlans.flatMap((p) =>
     p.modifications.map((m) => m.elementId),
   );
-  await applyAutofitToModifiedShapes(presentationId, allElementIds, authOptions);
+  await applyAutofitToModifiedShapes(presentationId, correctedElementIds, authOptions);
 
   return corrections;
+}
+
+// ────────────────────────────────────────────────────────────
+// processSlide — per-slide assess→fix loop
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Process a single slide: assess it, and if issues are found, iterate
+ * fix → re-assess until clean or max attempts exhausted.
+ */
+async function processSlide(
+  presentationId: string,
+  slideObjectId: string,
+  slidePlans: ModificationPlan[],
+  slideIndex: number,
+  totalSlides: number,
+  authOptions?: GoogleAuthOptions,
+  onLog?: (message: string, detail?: string) => void,
+): Promise<SlideOutcome> {
+  const slideLabel = `slide ${slideIndex + 1}/${totalSlides} (${slideObjectId})`;
+
+  // Initial assessment
+  onLog?.("checking", `Checking ${slideLabel} for issues`);
+  let checkResult = await checkSlideForOverlap(presentationId, slideObjectId, authOptions);
+
+  if (!checkResult.hasIssues) {
+    onLog?.("slide_clean", `${slideLabel}: no issues found`);
+    return {
+      slideObjectId,
+      status: "clean",
+      attemptsUsed: 0,
+      remainingIssues: [],
+      unfixableReasons: [],
+    };
+  }
+
+  onLog?.("issue_found", `${slideLabel}: found ${checkResult.issues.length} issue(s) — ${checkResult.issues.join("; ")}`);
+
+  let previousIssueCount = checkResult.issues.length;
+  let previousIssues = checkResult.issues;
+  let consecutiveNoProgress = 0;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_SLIDE; attempt++) {
+    onLog?.("correcting", `Fixing ${slideLabel} (attempt ${attempt}/${MAX_ATTEMPTS_PER_SLIDE})`);
+
+    // Apply corrections with issue context
+    await applySlideCorrectionPass(
+      presentationId,
+      slidePlans,
+      checkResult.issues,
+      attempt,
+      authOptions,
+    );
+
+    // Re-assess the same slide
+    onLog?.("checking", `Re-checking ${slideLabel} after corrections`);
+    checkResult = await checkSlideForOverlap(presentationId, slideObjectId, authOptions);
+
+    if (!checkResult.hasIssues) {
+      onLog?.("slide_fixed", `${slideLabel}: all issues resolved after ${attempt} attempt(s)`);
+      return {
+        slideObjectId,
+        status: "fixed",
+        attemptsUsed: attempt,
+        remainingIssues: [],
+        unfixableReasons: [],
+      };
+    }
+
+    const currentIssueCount = checkResult.issues.length;
+    onLog?.("issue_found", `${slideLabel}: ${currentIssueCount} issue(s) remaining after attempt ${attempt} — ${checkResult.issues.join("; ")}`);
+
+    // Track whether we're making progress
+    if (currentIssueCount >= previousIssueCount) {
+      consecutiveNoProgress++;
+    } else {
+      consecutiveNoProgress = 0;
+    }
+
+    // Only give up if we've had 2+ consecutive attempts with no improvement
+    // AND we've tried at least 3 attempts total. The bar is high because
+    // text overlaps and cut-off headings are typically fixable.
+    if (consecutiveNoProgress >= 2 && attempt >= 3) {
+      const reasons = checkResult.issues.map(
+        (issue) => `After ${attempt} correction attempts with escalating text reduction, the issue persists: "${issue}". ` +
+          `This may require manual layout adjustment (e.g., resizing the text box or repositioning elements) ` +
+          `that cannot be done via text shortening alone.`,
+      );
+
+      for (const reason of reasons) {
+        onLog?.("slide_unfixable", `${slideLabel}: giving up — ${reason}`);
+      }
+
+      return {
+        slideObjectId,
+        status: "unfixable",
+        attemptsUsed: attempt,
+        remainingIssues: checkResult.issues,
+        unfixableReasons: reasons,
+      };
+    }
+
+    previousIssueCount = currentIssueCount;
+    previousIssues = checkResult.issues;
+  }
+
+  // Exhausted all attempts
+  const reasons = checkResult.issues.map(
+    (issue) => `Exhausted ${MAX_ATTEMPTS_PER_SLIDE} correction attempts. Remaining issue: "${issue}". ` +
+      `The text has been shortened as much as possible while preserving meaning. ` +
+      `Manual layout adjustment may be needed.`,
+  );
+
+  for (const reason of reasons) {
+    onLog?.("slide_unfixable", `${slideLabel}: giving up — ${reason}`);
+  }
+
+  return {
+    slideObjectId,
+    status: "unfixable",
+    attemptsUsed: MAX_ATTEMPTS_PER_SLIDE,
+    remainingIssues: checkResult.issues,
+    unfixableReasons: reasons,
+  };
 }
 
 // ────────────────────────────────────────────────────────────
@@ -253,10 +406,11 @@ async function applyCorrectionPass(
 // ────────────────────────────────────────────────────────────
 
 /**
- * Post-modification visual QA loop:
+ * Post-modification visual QA — per-slide iteration:
  *   1. Apply autofit to all modified shapes
- *   2. Render slide thumbnails and check for overlap via Gemini vision
- *   3. If issues found, shorten text and re-check (max 2 iterations)
+ *   2. Process each slide individually: assess → fix → re-assess (up to MAX_ATTEMPTS_PER_SLIDE per slide)
+ *   3. Already-clean slides are never re-analyzed
+ *   4. Only give up on a slide after exhausting attempts with detailed justification
  */
 export async function performVisualQA(
   params: VisualQAParams,
@@ -305,74 +459,66 @@ export async function performVisualQA(
     return { status: "clean", iterations: 0 };
   }
 
-  // Step 3: Vision check + correction loop (max 2 iterations)
-  for (let iteration = 1; iteration <= 2; iteration++) {
-    console.log(
-      `${LOG_PREFIX} Iteration ${iteration}: Checking ${slideObjectIds.length} slides for visual issues`,
-    );
-
-    const allIssues: string[] = [];
-
-    for (const slideObjectId of slideObjectIds) {
-      onLog?.("checking", `Checking slide ${slideObjectId} for issues`);
-      const result = await checkSlideForOverlap(
-        presentationId,
-        slideObjectId,
-        authOptions,
-      );
-      if (result.hasIssues) {
-        allIssues.push(...result.issues);
-        onLog?.("issue_found", JSON.stringify(result.issues));
-      }
-    }
-
-    if (allIssues.length === 0) {
-      const status = iteration === 1 ? "clean" : "corrected";
-      console.log(
-        `${LOG_PREFIX} Visual QA complete: status=${status}, iterations=${iteration}`,
-      );
-      const qaResult: VisualQAResult = { status, iterations: iteration };
-      onLog?.("complete", JSON.stringify(qaResult));
-      return qaResult;
-    }
-
-    console.log(
-      `${LOG_PREFIX} Iteration ${iteration}: Found ${allIssues.length} issues, applying corrections`,
-    );
-
-    // Apply corrections
-    onLog?.("correcting", `Applying corrections to ${allIssues.length} issues`);
-    await applyCorrectionPass(
-      presentationId,
-      modifiedPlans,
-      authOptions,
-    );
+  // Build a map of slideObjectId -> modification plans for that slide
+  const plansBySlide = new Map<string, ModificationPlan[]>();
+  for (const plan of modifiedPlans) {
+    const existing = plansBySlide.get(plan.slideObjectId) ?? [];
+    existing.push(plan);
+    plansBySlide.set(plan.slideObjectId, existing);
   }
 
-  // After 2 iterations, still have issues — return warning
-  // Do a final check to see what remains
-  const remainingIssues: string[] = [];
-  for (const slideObjectId of slideObjectIds) {
-    const result = await checkSlideForOverlap(
+  onLog?.("info", `Processing ${slideObjectIds.length} slides individually`);
+
+  // Step 3: Process each slide independently
+  const outcomes: SlideOutcome[] = [];
+  let totalAttempts = 0;
+
+  for (let i = 0; i < slideObjectIds.length; i++) {
+    const slideObjectId = slideObjectIds[i];
+    const slidePlans = plansBySlide.get(slideObjectId) ?? [];
+
+    const outcome = await processSlide(
       presentationId,
       slideObjectId,
+      slidePlans,
+      i,
+      slideObjectIds.length,
       authOptions,
+      onLog,
     );
-    if (result.hasIssues) {
-      remainingIssues.push(...result.issues);
-    }
+
+    outcomes.push(outcome);
+    totalAttempts += outcome.attemptsUsed;
   }
 
-  console.warn(
-    `${LOG_PREFIX} Visual QA warning: ${remainingIssues.length} issues remain after 2 correction attempts`,
+  // Compute final result
+  const cleanSlides = outcomes.filter((o) => o.status === "clean").length;
+  const fixedSlides = outcomes.filter((o) => o.status === "fixed").length;
+  const unfixableSlides = outcomes.filter((o) => o.status === "unfixable").length;
+  const allRemainingIssues = outcomes.flatMap((o) => o.remainingIssues);
+
+  console.log(
+    `${LOG_PREFIX} Visual QA complete: ${cleanSlides} clean, ${fixedSlides} fixed, ${unfixableSlides} unfixable ` +
+      `(${totalAttempts} total correction attempts, ${allRemainingIssues.length} remaining issues)`,
   );
 
-  const warningResult: VisualQAResult = {
-    status: "warning",
-    iterations: 2,
-    issues: remainingIssues.length > 0 ? remainingIssues : undefined,
-  };
-  onLog?.("complete", JSON.stringify(warningResult));
+  onLog?.("info",
+    `Summary: ${cleanSlides} slides clean, ${fixedSlides} slides fixed, ${unfixableSlides} slides with remaining issues`,
+  );
 
-  return warningResult;
+  let status: VisualQAResult["status"];
+  if (allRemainingIssues.length === 0) {
+    status = fixedSlides > 0 ? "corrected" : "clean";
+  } else {
+    status = "warning";
+  }
+
+  const qaResult: VisualQAResult = {
+    status,
+    iterations: totalAttempts,
+    issues: allRemainingIssues.length > 0 ? allRemainingIssues : undefined,
+  };
+  onLog?.("complete", JSON.stringify(qaResult));
+
+  return qaResult;
 }

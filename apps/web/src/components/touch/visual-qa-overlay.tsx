@@ -18,6 +18,8 @@ interface VisualQAOverlayProps {
   interactionId: string;
   presentationId: string;
   autoStart: boolean;
+  /** Called when QA finishes (with any status) so parent can trigger thumbnail refresh etc. */
+  onComplete?: (result: VisualQAResult) => void;
 }
 
 interface LogEntry {
@@ -38,6 +40,7 @@ export function VisualQAOverlay({
   interactionId,
   presentationId,
   autoStart,
+  onComplete,
 }: VisualQAOverlayProps) {
   const [qaStatus, setQaStatus] = useState<QAStatus>("idle");
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -100,8 +103,10 @@ export function VisualQAOverlay({
               if (currentEvent === "log") {
                 setLogs((prev) => [...prev, data as LogEntry]);
               } else if (currentEvent === "complete") {
-                setResult(data as VisualQAResult);
+                const qaResult = data as VisualQAResult;
+                setResult(qaResult);
                 setQaStatus("complete");
+                onComplete?.(qaResult);
               } else if (currentEvent === "error") {
                 setErrorMessage(data.message ?? "Unknown error");
                 setQaStatus("error");
@@ -119,7 +124,7 @@ export function VisualQAOverlay({
       setErrorMessage(err instanceof Error ? err.message : "Visual QA failed");
       setQaStatus("error");
     }
-  }, [presentationId, interactionId]);
+  }, [presentationId, interactionId, onComplete]);
 
   // Auto-start on mount if enabled
   useEffect(() => {
@@ -138,13 +143,14 @@ export function VisualQAOverlay({
       case "checking":
         return entry.detail;
       case "issue_found":
-        try {
-          const issues = JSON.parse(entry.detail);
-          return `Found ${Array.isArray(issues) ? issues.length : 0} issue(s)`;
-        } catch {
-          return "Issues detected";
-        }
+        return entry.detail;
       case "correcting":
+        return entry.detail;
+      case "slide_clean":
+        return entry.detail;
+      case "slide_fixed":
+        return entry.detail;
+      case "slide_unfixable":
         return entry.detail;
       case "complete":
         return "Visual QA finished";
@@ -246,7 +252,7 @@ export function VisualQAOverlay({
         <div className="border-t border-slate-100 px-4 py-2">
           <p className="text-xs text-slate-500">
             {result?.status === "corrected"
-              ? "Slides were updated in real-time. Refresh the preview to see changes."
+              ? "Slides were updated and thumbnails have been refreshed."
               : "Some issues could not be auto-fixed. Click Re-run to try again or expand to see details."}
           </p>
         </div>

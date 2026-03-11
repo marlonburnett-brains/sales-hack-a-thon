@@ -8,14 +8,10 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DeckPreview } from "./deck-preview";
 
-function getEmbedUrl(driveUrl: string, type: "slides" | "docs"): string {
-  const id = driveUrl.split("/d/")[1]?.split("/")[0];
-  if (!id) return driveUrl;
-  if (type === "slides") {
-    return `https://docs.google.com/presentation/d/${id}/embed?start=false&loop=false&delayms=3000`;
-  }
-  return `https://docs.google.com/document/d/${id}/preview`;
+function extractPresentationId(driveUrl: string): string | null {
+  return driveUrl.split("/d/")[1]?.split("/")[0] ?? null;
 }
 
 interface AssetReviewPanelProps {
@@ -26,7 +22,43 @@ interface AssetReviewPanelProps {
   };
 }
 
+function DriveDocCard({
+  title,
+  icon,
+  url,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  url: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            {icon}
+            {title}
+          </CardTitle>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="cursor-pointer gap-1.5"
+          >
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open in Drive
+            </a>
+          </Button>
+        </div>
+      </CardHeader>
+    </Card>
+  );
+}
+
 export function AssetReviewPanel({ outputRefs }: AssetReviewPanelProps) {
+  const deckId = extractPresentationId(outputRefs.deckUrl);
+
   return (
     <div className="space-y-6">
       {/* Proposal Deck */}
@@ -55,84 +87,29 @@ export function AssetReviewPanel({ outputRefs }: AssetReviewPanelProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <iframe
-            src={getEmbedUrl(outputRefs.deckUrl, "slides")}
-            className="h-[450px] w-full rounded-md border"
-            allowFullScreen
-            title="Proposal Deck preview"
-          />
+          {deckId ? (
+            <DeckPreview presentationId={deckId} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Deck URL not available
+            </p>
+          )}
         </CardContent>
       </Card>
 
       {/* Talk Track */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-5 w-5 text-green-600" />
-              Talk Track
-            </CardTitle>
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="cursor-pointer gap-1.5"
-            >
-              <a
-                href={outputRefs.talkTrackUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Open in Drive
-              </a>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <iframe
-            src={getEmbedUrl(outputRefs.talkTrackUrl, "docs")}
-            className="h-[350px] w-full rounded-md border"
-            allowFullScreen
-            title="Talk Track preview"
-          />
-        </CardContent>
-      </Card>
+      <DriveDocCard
+        title="Talk Track"
+        icon={<FileText className="h-5 w-5 text-green-600" />}
+        url={outputRefs.talkTrackUrl}
+      />
 
       {/* Buyer FAQ */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <HelpCircle className="h-5 w-5 text-purple-600" />
-              Buyer FAQ
-            </CardTitle>
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="cursor-pointer gap-1.5"
-            >
-              <a
-                href={outputRefs.faqUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Open in Drive
-              </a>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <iframe
-            src={getEmbedUrl(outputRefs.faqUrl, "docs")}
-            className="h-[350px] w-full rounded-md border"
-            allowFullScreen
-            title="Buyer FAQ preview"
-          />
-        </CardContent>
-      </Card>
+      <DriveDocCard
+        title="Buyer FAQ"
+        icon={<HelpCircle className="h-5 w-5 text-purple-600" />}
+        url={outputRefs.faqUrl}
+      />
     </div>
   );
 }
