@@ -1,7 +1,7 @@
 import { Mastra } from "@mastra/core";
 import { registerApiRoute, MastraAuthProvider } from "@mastra/core/server";
 import { verifySupabaseJwt, type JwtPayload } from "../lib/supabase-jwt-auth";
-import { PostgresStore } from "@mastra/pg";
+import { createResilientStorage } from "../lib/resilient-storage";
 import { z } from "zod";
 import { touch1Workflow } from "./workflows/touch-1-workflow";
 import { touch2Workflow } from "./workflows/touch-2-workflow";
@@ -592,7 +592,7 @@ void detectAndQueueBackfill().catch((err) =>
 );
 
 export const mastra = new Mastra({
-  storage: new PostgresStore({
+  storage: createResilientStorage({
     id: "mastra-store",
     connectionString: env.DATABASE_URL,
     schemaName: "mastra",
@@ -4032,6 +4032,13 @@ startDeckInferenceCron();
 
 // ── MCP Client Initialization ──
 initMcp().catch((err) => console.error("[mcp] Init failed:", err));
+
+// ── Process-level safety nets ──
+// Prevent transient unhandled rejections (e.g. DB connectivity blips,
+// DNS hiccups) from fatally crashing the Node process.
+process.on("unhandledRejection", (reason) => {
+  console.error("[process] Unhandled rejection (non-fatal):", reason);
+});
 
 // ── Graceful Shutdown ──
 process.on("SIGTERM", async () => {

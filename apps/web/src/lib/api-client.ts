@@ -24,24 +24,37 @@ import { getSupabaseAccessToken } from "@/lib/supabase/get-access-token";
 
 const BASE_URL = env.AGENT_SERVICE_URL;
 
+const AGENT_RETRY_ATTEMPTS = 3;
+const AGENT_RETRY_BASE_MS = 500;
+
 async function fetchAgent(path: string, init?: RequestInit): Promise<Response> {
   const accessToken = await getSupabaseAccessToken();
   if (!accessToken) {
     throw new Error("Not authenticated — no Supabase session");
   }
 
-  try {
-    return await fetch(`${BASE_URL}${path}`, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        ...init?.headers,
-      },
-    });
-  } catch {
-    throw new Error("Agent service is unreachable. Please try again later.");
+  for (let attempt = 0; attempt < AGENT_RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await fetch(`${BASE_URL}${path}`, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          ...init?.headers,
+        },
+      });
+    } catch {
+      // Only retry on network-level failures (fetch throws on connection errors).
+      // Don't retry if this is the last attempt.
+      if (attempt < AGENT_RETRY_ATTEMPTS - 1) {
+        const delay = AGENT_RETRY_BASE_MS * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
   }
+  throw new Error(
+    `Agent service is unreachable after ${AGENT_RETRY_ATTEMPTS} attempts. Please try again later.`,
+  );
 }
 
 async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
