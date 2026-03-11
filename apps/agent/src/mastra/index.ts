@@ -37,6 +37,7 @@ import {
 } from "@lumenalta/schemas";
 import { env } from "../env";
 import { regenerateStage, retryGeneration } from "../lib/regenerate-stage";
+import { performVisualQA } from "../generation/visual-qa";
 import { initMcp, shutdownMcp, callMcpTool, isMcpAvailable } from "../lib/mcp-client";
 import { searchSlides } from "../lib/atlusai-search";
 import { cacheThumbnailsForTemplate, THUMBNAIL_TTL_MS, cacheDocumentCover, checkGcsCoverExists } from "../lib/gcs-thumbnails";
@@ -1668,15 +1669,97 @@ export const mastra = new Mastra({
         handler: async (c) => {
           const id = c.req.param("id");
           try {
-            const body = await c.req.json().catch(() => ({}));
-            const enableVisualQA = typeof body.enableVisualQA === "boolean" ? body.enableVisualQA : undefined;
-            const result = await retryGeneration(id, enableVisualQA);
+            const result = await retryGeneration(id);
             return c.json(result);
           } catch (err) {
             console.error("[retry-generation] Error:", err);
             return c.json(
               { error: "Retry generation failed", details: String(err) },
               500
+            );
+          }
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Visual QA — On-demand SSE endpoint
+      // ────────────────────────────────────────────────────────────
+
+      registerApiRoute("/visual-qa/run", {
+        method: "POST",
+        handler: async (c) => {
+          try {
+            const body = await c.req.json();
+            const { presentationId, interactionId } = body as {
+              presentationId: string;
+              interactionId: string;
+            };
+
+            if (!presentationId || !interactionId) {
+              return c.json(
+                { error: "Missing presentationId or interactionId" },
+                400,
+              );
+            }
+
+            // Load modification plans from interaction stageContent
+            const interaction = await prisma.interactionRecord.findUniqueOrThrow({
+              where: { id: interactionId },
+            });
+            const stageContent = JSON.parse(interaction.stageContent ?? "{}");
+            const modifiedPlans = stageContent.modificationPlans ?? [];
+
+            // Get pooled auth
+            const pooled = await getPooledGoogleAuth();
+            const authOptions = pooled.accessToken
+              ? { accessToken: pooled.accessToken }
+              : undefined;
+
+            // Create SSE stream
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+              async start(controller) {
+                const send = (event: string, data: unknown) => {
+                  controller.enqueue(
+                    encoder.encode(
+                      `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+                    ),
+                  );
+                };
+
+                try {
+                  const result = await performVisualQA(
+                    { presentationId, modifiedPlans, authOptions },
+                    (type, detail) =>
+                      send("log", { type, detail, timestamp: Date.now() }),
+                  );
+                  send("complete", result);
+                } catch (err) {
+                  send("error", {
+                    message:
+                      err instanceof Error ? err.message : String(err),
+                  });
+                } finally {
+                  controller.close();
+                }
+              },
+            });
+
+            return new Response(stream, {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                Connection: "keep-alive",
+              },
+            });
+          } catch (err) {
+            console.error("[visual-qa/run] Error:", err);
+            return c.json(
+              {
+                error: "Visual QA failed",
+                details: String(err),
+              },
+              500,
             );
           }
         },

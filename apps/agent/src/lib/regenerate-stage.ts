@@ -246,6 +246,7 @@ export async function regenerateStage(
         stageContent: JSON.stringify({
           presentationId: result.presentationId,
           driveUrl: result.driveUrl,
+          modificationPlans: result.modificationPlans,
         }),
         generatedContent: JSON.stringify(draftContent),
         driveFileId: result.presentationId,
@@ -275,7 +276,6 @@ export async function regenerateStage(
  */
 export async function retryGeneration(
   interactionId: string,
-  enableVisualQA?: boolean,
 ): Promise<{ success: boolean; runId: string; interactionId: string }> {
   const interaction = await prisma.interactionRecord.findUniqueOrThrow({
     where: { id: interactionId },
@@ -379,7 +379,6 @@ export async function retryGeneration(
       deckName,
       dealContext,
       ownerEmail: deal.ownerEmail ?? undefined,
-      enableVisualQA: enableVisualQA ?? inputs.enableVisualQA,
       logKey,
     });
 
@@ -399,6 +398,7 @@ export async function retryGeneration(
         stageContent: JSON.stringify({
           presentationId: result.presentationId,
           driveUrl: result.driveUrl,
+          modificationPlans: result.modificationPlans,
         }),
         generatedContent: JSON.stringify({
           selectedSlideIds,

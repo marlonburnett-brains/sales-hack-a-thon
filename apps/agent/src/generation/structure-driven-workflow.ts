@@ -726,7 +726,7 @@ export const executeAndRecordFinalStep = createStep({
 
     logger.log("Recording final interaction state...");
 
-    // Update InteractionRecord to final state
+    // Update InteractionRecord to final state (persist modificationPlans for on-demand visual QA)
     await prisma.interactionRecord.update({
       where: { id: inputData.interactionId },
       data: {
@@ -735,6 +735,11 @@ export const executeAndRecordFinalStep = createStep({
         hitlStage: "ready",
         driveFileId: inputData.presentationId,
         outputRefs: JSON.stringify([inputData.driveUrl]),
+        stageContent: JSON.stringify({
+          presentationId: inputData.presentationId,
+          driveUrl: inputData.driveUrl,
+          modificationPlans: plans,
+        }),
       },
     });
 

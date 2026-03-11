@@ -275,6 +275,7 @@ export async function performVisualQA(
   );
 
   // Step 1: Apply autofit
+  onLog?.("autofit", `Applying autofit to ${modifiedElementIds.length} elements`);
   await applyAutofitToModifiedShapes(
     presentationId,
     modifiedElementIds,
@@ -295,6 +296,7 @@ export async function performVisualQA(
     const allIssues: string[] = [];
 
     for (const slideObjectId of slideObjectIds) {
+      onLog?.("checking", `Checking slide ${slideObjectId} for issues`);
       const result = await checkSlideForOverlap(
         presentationId,
         slideObjectId,
@@ -302,6 +304,7 @@ export async function performVisualQA(
       );
       if (result.hasIssues) {
         allIssues.push(...result.issues);
+        onLog?.("issue_found", JSON.stringify(result.issues));
       }
     }
 
@@ -310,7 +313,9 @@ export async function performVisualQA(
       console.log(
         `${LOG_PREFIX} Visual QA complete: status=${status}, iterations=${iteration}`,
       );
-      return { status, iterations: iteration };
+      const qaResult: VisualQAResult = { status, iterations: iteration };
+      onLog?.("complete", JSON.stringify(qaResult));
+      return qaResult;
     }
 
     console.log(
@@ -318,6 +323,7 @@ export async function performVisualQA(
     );
 
     // Apply corrections
+    onLog?.("correcting", `Applying corrections to ${allIssues.length} issues`);
     await applyCorrectionPass(
       presentationId,
       modifiedPlans,
@@ -343,9 +349,12 @@ export async function performVisualQA(
     `${LOG_PREFIX} Visual QA warning: ${remainingIssues.length} issues remain after 2 correction attempts`,
   );
 
-  return {
+  const warningResult: VisualQAResult = {
     status: "warning",
     iterations: 2,
     issues: remainingIssues.length > 0 ? remainingIssues : undefined,
   };
+  onLog?.("complete", JSON.stringify(warningResult));
+
+  return warningResult;
 }

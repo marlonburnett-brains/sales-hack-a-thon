@@ -31,7 +31,7 @@ import {
 } from "./multi-source-assembler";
 import { planSlideModifications } from "./modification-planner";
 import { executeModifications } from "./modification-executor";
-import { performVisualQA } from "./visual-qa";
+import type { ModificationPlan } from "./modification-plan-schema";
 import type { AssembleDeckResult } from "../lib/deck-customizer";
 import { buildLogKey, createStepLogger, type StepLogger } from "./generation-logger";
 
@@ -134,7 +134,6 @@ export interface ExecutePipelineParams {
   dealContext: DealContext;
   draftContent?: DraftContent;
   ownerEmail?: string;
-  enableVisualQA?: boolean;
   /** Optional key for real-time log streaming (dealId:touchType). */
   logKey?: string;
 }
@@ -151,8 +150,8 @@ export interface ExecutePipelineParams {
  */
 export async function executeStructureDrivenPipeline(
   params: ExecutePipelineParams,
-): Promise<AssembleDeckResult> {
-  const { blueprint, targetFolderId, deckName, dealContext, ownerEmail, enableVisualQA, logKey } = params;
+): Promise<AssembleDeckResult & { modificationPlans: ModificationPlan[] }> {
+  const { blueprint, targetFolderId, deckName, dealContext, ownerEmail, logKey } = params;
   const logger = createStepLogger("structure-pipeline", logKey);
 
   logger.log("Initializing generation pipeline...");
@@ -304,27 +303,6 @@ export async function executeStructureDrivenPipeline(
       console.log(`[structure-pipeline]   Slide ${r.slideObjectId}: status=${r.status}, applied=${r.modificationsApplied}${r.error ? `, error=${r.error}` : ''}`);
     }
 
-    // Step 7: Post-modification visual QA — autofit + vision-based overlap detection
-    if (enableVisualQA === false) {
-      logger.log("Visual QA skipped (opted out)");
-      console.log('[structure-pipeline] Step 7: Visual QA skipped (user opted out)');
-    } else if (execResult.totalApplied > 0) {
-      logger.log("Running visual quality check on modified slides...");
-      console.log(`[structure-pipeline] Step 7: Running visual QA on ${activePlans.length} modified slides`);
-      const qaResult = await performVisualQA({
-        presentationId: assemblyResult.presentationId,
-        modifiedPlans: activePlans,
-        authOptions,
-      });
-      logger.log(`Visual QA ${qaResult.status === "clean" ? "passed" : `completed with ${qaResult.issues?.length ?? 0} warnings`}`);
-      console.log(`[structure-pipeline] Step 7 result: status=${qaResult.status}, iterations=${qaResult.iterations}${qaResult.issues ? `, issues=${qaResult.issues.length}` : ''}`);
-      if (qaResult.status === "warning" && qaResult.issues) {
-        console.warn(`[structure-pipeline] Visual QA warnings after ${qaResult.iterations} correction attempts:`);
-        for (const issue of qaResult.issues) {
-          console.warn(`[structure-pipeline]   - ${issue}`);
-        }
-      }
-    }
   } else {
     logger.log("No text modifications needed — deck is ready as-is");
     console.warn(`[structure-pipeline] WARNING: No active modification plans! All plans either used fallback or had 0 modifications.`);
@@ -332,7 +310,7 @@ export async function executeStructureDrivenPipeline(
 
   logger.log("Generation complete!");
 
-  return assemblyResult;
+  return { ...assemblyResult, modificationPlans: activePlans };
 }
 
 // ────────────────────────────────────────────────────────────
