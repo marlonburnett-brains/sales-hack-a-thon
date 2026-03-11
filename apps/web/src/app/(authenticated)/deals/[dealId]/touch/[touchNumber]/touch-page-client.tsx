@@ -680,20 +680,7 @@ export function TouchPageClient({
               content={stageContent}
             />
 
-            {/* Generate Another button */}
-            <div className="flex justify-center pt-4">
-              <Button
-                onClick={handleGenerate}
-                variant="outline"
-                className="cursor-pointer gap-2"
-                disabled={isGenerating}
-              >
-                <Plus className="h-4 w-4" />
-                Generate Another
-              </Button>
-            </div>
-
-            {/* Visual QA overlay — on-demand post-generation */}
+            {/* Visual QA — on-demand post-generation */}
             {(() => {
               const parsed = stageContent as Record<string, unknown> | null;
               const pid = typeof parsed?.presentationId === "string" ? parsed.presentationId : null;
@@ -706,6 +693,19 @@ export function TouchPageClient({
                 />
               );
             })()}
+
+            {/* Generate Another button */}
+            <div className="flex justify-center pt-4">
+              <Button
+                onClick={handleGenerate}
+                variant="outline"
+                className="cursor-pointer gap-2"
+                disabled={isGenerating}
+              >
+                <Plus className="h-4 w-4" />
+                Generate Another
+              </Button>
+            </div>
           </div>
         </TouchPageShell>
       </TouchContextProvider>

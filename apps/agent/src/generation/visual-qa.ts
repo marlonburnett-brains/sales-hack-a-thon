@@ -274,18 +274,36 @@ export async function performVisualQA(
       `(${modifiedPlans.length} plans, ${modifiedElementIds.length} modified elements)`,
   );
 
-  // Step 1: Apply autofit
-  onLog?.("autofit", `Applying autofit to ${modifiedElementIds.length} elements`);
-  await applyAutofitToModifiedShapes(
-    presentationId,
-    modifiedElementIds,
-    authOptions,
-  );
+  // Step 1: Apply autofit (only if there are modified elements)
+  if (modifiedElementIds.length > 0) {
+    onLog?.("autofit", `Applying autofit to ${modifiedElementIds.length} elements`);
+    await applyAutofitToModifiedShapes(
+      presentationId,
+      modifiedElementIds,
+      authOptions,
+    );
+  }
 
-  // Step 2: Get unique slide object IDs
-  const slideObjectIds = [
-    ...new Set(modifiedPlans.map((p) => p.slideObjectId)),
-  ];
+  // Step 2: Get slide object IDs to check.
+  // If we have modification plans, check only those slides.
+  // Otherwise, fetch ALL slides from the presentation so QA can run standalone.
+  let slideObjectIds: string[];
+  if (modifiedPlans.length > 0) {
+    slideObjectIds = [...new Set(modifiedPlans.map((p) => p.slideObjectId))];
+  } else {
+    onLog?.("info", "No modification plans found — scanning all slides in the presentation");
+    const slides = getSlidesClient(authOptions);
+    const pres = await slides.presentations.get({ presentationId });
+    slideObjectIds = (pres.data.slides ?? [])
+      .map((s) => s.objectId)
+      .filter((id): id is string => !!id);
+    console.log(`${LOG_PREFIX} Fetched ${slideObjectIds.length} slides from presentation`);
+  }
+
+  if (slideObjectIds.length === 0) {
+    onLog?.("complete", JSON.stringify({ status: "clean", iterations: 0 }));
+    return { status: "clean", iterations: 0 };
+  }
 
   // Step 3: Vision check + correction loop (max 2 iterations)
   for (let iteration = 1; iteration <= 2; iteration++) {
