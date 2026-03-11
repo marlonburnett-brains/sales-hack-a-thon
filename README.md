@@ -1,243 +1,344 @@
-# Lumenalta Agentic Sales Orchestration
+# AtlusDeck
 
-An AI-powered sales enablement platform that covers all four touch points in Lumenalta's 2026 GTM strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals. The system eliminates the 24-hour to 5-day bottleneck between discovery calls and polished, brand-compliant collateral by orchestrating LLM-powered AI, Google Workspace APIs, and the AtlusAI knowledge base through automated workflows with human-in-the-loop checkpoints.
+AtlusDeck is Lumenalta's agentic sales orchestration workspace. It combines a Next.js seller UI, a Mastra-based workflow service, Prisma/Postgres persistence, Google Workspace generation, and AtlusAI-backed retrieval to help teams move from deal context to reviewable sales assets.
 
-## Architecture
+The product centers on five GTM workflows:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Turborepo Monorepo                       │
-│                                                                 │
-│  ┌──────────────────┐         ┌──────────────────────────────┐  │
-│  │   apps/web        │  REST  │   apps/agent                  │  │
-│  │   Next.js 15      │───────▶│   Mastra AI Workflows         │  │
-│  │   Port 3000       │        │   Port 4111                   │  │
-│  │                   │        │                               │  │
-│  │  - Deal dashboard │        │  - Touch 1-4 workflows        │  │
-│  │  - Touch forms    │        │  - Pre-call workflow          │  │
-│  │  - HITL review UI │        │  - Prisma ORM (PostgreSQL)    │  │
-│  │  - Timeline view  │        │  - Schema validation          │  │
-│  └──────────────────┘         └───────┬───────┬───────┬───────┘  │
-│                                       │       │       │          │
-│  ┌────────────────────────────────────┐│       │       │          │
-│  │  packages/schemas                  ││       │       │          │
-│  │  Shared Zod schemas + constants    ││       │       │          │
-│  └────────────────────────────────────┘│       │       │          │
-└────────────────────────────────────────┼───────┼───────┼──────────┘
-                                         │       │       │
-                              ┌──────────┘       │       └──────────┐
-                              ▼                  ▼                  ▼
-                    ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-                    │  LLM Service │   │   Google      │   │   AtlusAI    │
-                    │  (Vertex AI) │   │   Workspace   │   │   Knowledge  │
-                    │              │   │   (Slides,    │   │   Base (MCP) │
-                    │  Structured  │   │    Docs,      │   │              │
-                    │  outputs     │   │    Drive)     │   │  Semantic &  │
-                    │              │   │               │   │  structured  │
-                    │              │   │  Service acct │   │  search      │
-                    └──────────────┘   └──────────────┘   └──────────────┘
-```
+- `pre_call`: company research, value hypotheses, discovery questions, and a Google Doc briefing
+- `touch_1`: first-contact one-pager generation with staged human review
+- `touch_2`: intro deck generation for "Meet Lumenalta" conversations
+- `touch_3`: capability-alignment deck generation
+- `touch_4`: transcript-to-proposal generation, including a proposal deck, talk track, and buyer FAQ
 
-**Communication flow:** The Next.js frontend calls the Mastra agent service over REST via a typed fetch wrapper. The agent service orchestrates AI generation (LLM via Vertex AI), document creation (Google Workspace APIs), and content retrieval (AtlusAI MCP). Workflows support suspend/resume for human-in-the-loop checkpoints.
+## Documentation Map
 
-## Tech Stack
+- `README.md`: repo overview, setup, commands, and navigation
+- `docs/architecture.md`: monorepo architecture, runtime boundaries, auth, integrations, and background jobs
+- `docs/workflows.md`: detailed product workflows, HITL checkpoints, and seller-facing capabilities
+- `docs/backend-api.md`: backend route families, workflow endpoints, and service behavior
+- `docs/data-model.md`: Prisma schema and persistence model
 
-| Category | Technology |
-|---|---|
-| **Language** | TypeScript 5.7 |
-| **Frontend** | Next.js 15 (App Router), React 19, TailwindCSS, shadcn/ui, Radix UI |
-| **AI orchestration** | Mastra 1.3 |
-| **LLM** | LLM via Vertex AI (`@google/genai`) |
-| **Knowledge base** | AtlusAI (MCP-connected semantic search) |
-| **Database** | Supabase PostgreSQL via Prisma ORM |
-| **Document generation** | Google Slides API, Google Docs API, Google Drive API |
-| **Validation** | Zod v4, `@t3-oss/env-nextjs` / `@t3-oss/env-core` |
-| **Forms** | React Hook Form + `@hookform/resolvers` |
-| **Build** | Turborepo, pnpm workspaces |
+## Monorepo Overview
 
-## Project Structure
+This repo is a pnpm workspace managed by Turborepo.
 
-```
+```text
 lumenalta-hackathon/
-├── apps/
-│   ├── web/                          # Next.js 15 frontend
-│   │   ├── src/
-│   │   │   ├── app/                  # App Router pages & API routes
-│   │   │   │   ├── deals/            # Deal dashboard, detail, review pages
-│   │   │   │   └── api/              # File upload route handler
-│   │   │   ├── components/           # React components
-│   │   │   │   ├── deals/            # Deal cards, forms, dashboard
-│   │   │   │   ├── pre-call/         # Pre-call briefing UI
-│   │   │   │   ├── timeline/         # Interaction timeline
-│   │   │   │   ├── touch/            # Touch 1-4 forms and review UIs
-│   │   │   │   └── ui/              # shadcn/ui primitives
-│   │   │   └── lib/                  # API client, server actions, utilities
-│   │   └── package.json
-│   │
-│   └── agent/                        # Mastra AI orchestration service
-│       ├── src/
-│       │   ├── mastra/               # Mastra agent + workflow definitions
-│       │   │   └── workflows/        # Touch 1-4 + pre-call workflows
-│       │   ├── lib/                  # Core business logic
-│       │   │   ├── atlusai-client.ts # AtlusAI MCP integration
-│       │   │   ├── deck-assembly.ts  # Google Slides assembly
-│       │   │   ├── doc-builder.ts    # Google Docs generation
-│       │   │   ├── drive-folders.ts  # Google Drive management
-│       │   │   ├── google-auth.ts    # Service account auth
-│       │   │   └── brand-compliance.ts
-│       │   ├── ingestion/            # Content library ingestion
-│       │   └── validation/           # Schema validation scripts
-│       ├── prisma/
-│       │   └── schema.prisma         # Database schema
-│       └── package.json
-│
-├── packages/
-│   ├── schemas/                      # Shared Zod schemas & domain constants
-│   │   ├── constants.ts              # 11 industries, 62 subsectors, pillars
-│   │   ├── llm/                      # LLM structured output schemas
-│   │   └── app/                      # Application-level schemas
-│   ├── tsconfig/                     # Shared TypeScript configs
-│   └── eslint-config/                # Shared ESLint config
-│
-├── turbo.json                        # Turborepo task config
-├── pnpm-workspace.yaml               # pnpm workspace definition
-└── package.json
+|- apps/
+|  |- web/                     Next.js 15 seller workspace
+|  \- agent/                  Mastra workflow and API service
+|- packages/
+|  |- schemas/                Shared Zod schemas, constants, agent catalog, generation types
+|  |- eslint-config/          Shared lint config
+|  \- tsconfig/               Shared TypeScript config
+|- deploy/                    Agent container and compose setup
+|- docs/                      Project documentation
+|- Makefile                   Common local workflows
+|- secrets.yml                Encrypted secret file manifest
+|- turbo.json                 Turborepo task graph
+\- pnpm-workspace.yaml        Workspace definition
 ```
 
-## Key Features
+## System Summary
 
-### Touch 1 — First Contact (1-2 Pager)
-Seller inputs company name, industry, and context. LLM generates a branded pager (headline, value prop, capabilities, CTA). Seller approves or overrides — overrides are captured as learning signals.
+- `apps/web` is the authenticated UI. It uses Supabase Auth, server actions, and typed wrappers in `apps/web/src/lib/api-client.ts` to talk to the agent service.
+- `apps/agent` is the orchestration backend. It exposes REST routes from `apps/agent/src/mastra/index.ts` and registers Mastra workflows for pre-call and touch generation.
+- `packages/schemas` is the contract layer shared by both apps: touch constants, subsectors, solution pillars, structured-output schemas, deal chat contracts, and agent metadata.
+- PostgreSQL stores business data through Prisma, while Mastra uses its own Postgres-backed workflow state.
+- Google Drive, Slides, and Docs handle generated assets and source presentations.
+- AtlusAI is used for content discovery and retrieval, with MCP support and encrypted per-user token storage.
 
-### Touch 2 — Intro Conversation (Meet Lumenalta Deck)
-AI selects the most relevant slides from a pre-made "Meet Lumenalta" deck based on industry and context, then assembles them into a Google Slides presentation with salesperson and customer customizations.
+## Core Product Capabilities
 
-### Touch 3 — Capability & Use Case Alignment
-Seller selects 1-2 capability areas. AI retrieves and assembles relevant slides from AtlusAI and capability decks into a customized Google Slides presentation.
+- Deal workspace with companies, deals, owners, collaborators, statuses, and interaction history
+- Persistent deal chat with contextual suggestions, transcript upload, note capture, and binding notes back to a deal or touch
+- Template library for registering Google Slides sources, checking access, classifying them as templates or examples, and queuing ingestion
+- Slide library with thumbnails, extracted slide elements, reviewable metadata, and similar-slide search through pgvector embeddings
+- Deck intelligence that infers deck structures from examples, stores confidence scores, and supports refinement via chat
+- Agent prompt management with a stable agent catalog, draft/publish/rollback flow, and a shared baseline prompt
+- Action center for integration issues such as Google re-auth, sharing presentations with the service account, and AtlusAI setup gaps
 
-### Touch 4 — Solution Proposal (Transcript-to-Deck)
-The heaviest workflow — a multi-step pipeline:
-1. Seller pastes a raw meeting transcript and selects industry/subsector
-2. LLM extracts structured fields (Customer Context, Business Outcomes, Constraints, Stakeholders, Timeline, Budget)
-3. **HITL Checkpoint 1:** Seller reviews and approves the generated brief
-4. System retrieves relevant content from AtlusAI, assembles slide JSON, and generates a Google Slides deck + Talk Track (Google Doc) + Buyer FAQ (Google Doc)
-5. **HITL Checkpoint 2:** Seller reviews final assets before delivery
+For detailed workflow behavior, see `docs/workflows.md`.
 
-### Pre-Call Briefing
-Seller inputs company name, buyer role, and meeting context. System generates a company research snapshot, role-specific hypotheses, and 5-10 prioritized discovery questions — delivered as a formatted Google Doc.
+## Architecture At A Glance
 
-## Getting Started
+```text
+Next.js web app
+  -> Supabase session and Google OAuth token
+  -> typed server-side API client
+  -> Mastra agent service
+      -> Prisma + Postgres
+      -> Mastra workflow store (Postgres)
+      -> Google Drive / Slides / Docs APIs
+      -> AtlusAI search and MCP tools
+      -> Gemini / Google GenAI model calls
+```
+
+More detail: `docs/architecture.md`
+
+## Key Apps And Packages
+
+### `apps/web`
+
+Seller-facing UI built with Next.js App Router, React 19, Tailwind, and Radix UI.
+
+Important route groups:
+
+- `/login`: Google-only sign-in for `@lumenalta.com` accounts
+- `/deals`: deal dashboard with grid/table views, status filters, and assignee filters
+- `/deals/[dealId]`: deal workspace with overview, briefing, touch flows, reviews, and persistent chat
+- `/templates`: template registry and ingestion operations
+- `/slides`: cross-template slide library
+- `/discovery`: AtlusAI browse/search and ingestion entrypoint
+- `/actions`: required user or admin follow-ups
+- `/settings/deck-structures`: deck intelligence review and refinement
+- `/settings/agents`: agent prompt/version management
+- `/settings/integrations`: external integration status
+- `/settings/drive`: per-user Drive root folder override
+
+### `apps/agent`
+
+Mastra service responsible for workflows, REST endpoints, and integration orchestration.
+
+Major areas:
+
+- `src/mastra/workflows`: pre-call, touch 1-4, and structure-driven workflows
+- `src/mastra/index.ts`: REST route registration, auth integration, startup hooks, timers, and workflow wiring
+- `src/generation`: blueprint resolution, slide matching, multi-source assembly, modification planning, and execution
+- `src/ingestion`: template ingestion, auto-classification, queueing, and backfill logic
+- `src/deal-chat`: persistent chat orchestration and persistence
+- `src/deck-intelligence`: structure inference, chat refinement, and inference cron
+- `prisma/schema.prisma`: business data model
+
+### `packages/schemas`
+
+Shared package used by both apps.
+
+Contains:
+
+- GTM constants such as touch types, subsectors, personas, funnel stages, and solution pillars
+- LLM structured-output schemas for research, pager content, transcript extraction, briefs, proposal copy, slide metadata, and more
+- deal-chat request/response schemas
+- agent catalog definitions and IDs
+- generation pipeline types
+
+## Auth And Access Model
+
+- The web app uses Supabase Auth and middleware to protect all authenticated routes.
+- Sign-in is Google OAuth only and is intended for `@lumenalta.com` users.
+- The web app forwards the Supabase JWT to the agent service in the `Authorization` header.
+- The agent verifies JWTs against Supabase JWKS in `apps/agent/src/lib/supabase-jwt-auth.ts`.
+- Google API access can come from a live user access token, a stored refresh token resolved server-side, or the service account for operations that do not require user-delegated template access. Structure-driven deck generation requires a connected user Google token.
+- AtlusAI access primarily uses encrypted per-user tokens in the database, with optional `ATLUS_API_TOKEN` env fallback for pooled/background use.
+
+## Data Model Highlights
+
+The Prisma schema tracks both workflow state and knowledge assets.
+
+Primary models:
+
+- `Company`, `Deal`, `InteractionRecord`
+- `Transcript`, `Brief`, `FeedbackSignal`
+- `DealChatThread`, `DealChatMessage`, `DealContextSource`
+- `Template`, `SlideEmbedding`, `SlideElement`
+- `DeckStructure`, `DeckChatMessage`
+- `UserGoogleToken`, `UserAtlusToken`, `UserSetting`, `ActionRequired`
+- `AgentConfig`, `AgentConfigVersion`
+
+Full breakdown: `docs/data-model.md`
+
+## Local Development
 
 ### Prerequisites
 
-- **Node.js** 18+
-- **pnpm** 9.12.0 (required — not npm or yarn)
+- Node.js 22 recommended
+- `pnpm@9.12.0`
+- PostgreSQL compatible with Prisma and pgvector
+- Supabase project for auth and database access
+- Google Cloud / Workspace credentials
 
-### Installation
+### Install
 
 ```bash
 pnpm install
 ```
 
-### Environment Variables
+### Secrets And Env Files
 
-Environment files are encrypted and committed to the repo. To set up locally:
+This repo uses encrypted environment files managed by `scripts/secrets.sh` and `secrets.yml`.
 
-1. Get the `SECRETS_KEY` from a team member
-2. Add it to the root `.env.local`:
-   ```
-   SECRETS_KEY=<key-from-team>
-   ```
-3. Decrypt all environment files:
-   ```bash
-   make pull env
-   ```
+Managed secret files:
 
-If you're setting up the project for the first time (no existing key):
+- `apps/agent/vertex-service-account.json`
+- `apps/agent/.env.dev`
+- `apps/agent/.env.prod`
+- `apps/web/.env.dev`
+- `apps/web/.env.prod`
+
+To decrypt existing files locally:
 
 ```bash
-make set-new env   # Generates a new key in .env.local
-make push env      # Encrypts all secret files (commit the .enc files)
+printf 'SECRETS_KEY=your-key\n' > .env.local
+make pull env
 ```
 
-The list of managed secret files is defined in `secrets.yml`.
-
-#### Agent (`apps/agent/.env`)
-
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | Yes | Supabase PostgreSQL pooled connection string |
-| `GOOGLE_SERVICE_ACCOUNT_KEY` | Yes | Google service account credentials JSON string |
-| `GOOGLE_DRIVE_FOLDER_ID` | Yes | Google Drive folder ID for generated assets |
-| `GOOGLE_TEMPLATE_PRESENTATION_ID` | Yes | Lumenalta branded Google Slides template ID |
-| `GOOGLE_CLOUD_PROJECT` | Yes | Google Cloud project ID for Vertex AI |
-| `GOOGLE_CLOUD_LOCATION` | No | Google Cloud region for Vertex AI (default: `us-central1`) |
-| `MEET_LUMENALTA_PRESENTATION_ID` | No | Source presentation ID for Touch 2 intro decks |
-| `CAPABILITY_DECK_PRESENTATION_ID` | No | Source presentation ID for Touch 3 capability decks |
-| `MASTRA_PORT` | No | Mastra HTTP server port (default: `4111`) |
-| `NODE_ENV` | No | `development` / `production` / `test` |
-
-#### Web (`apps/web/.env`)
-
-| Variable | Required | Description |
-|---|---|---|
-| `AGENT_SERVICE_URL` | No | Agent service URL (default: `http://localhost:4111`) |
-| `NODE_ENV` | No | `development` / `production` / `test` |
-
-### Database Setup
+To create a new key and re-encrypt:
 
 ```bash
-pnpm --filter agent db:push
+make set-new env
+make push env
 ```
 
-This pushes the Prisma schema to the PostgreSQL database. For subsequent schema changes:
+### Required Environment Variables
+
+#### Agent service (`apps/agent/.env.*`)
+
+Required in code:
+
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `GOOGLE_SERVICE_ACCOUNT_KEY`
+- `GOOGLE_CLOUD_PROJECT`
+- `GOOGLE_CLOUD_LOCATION`
+- `VERTEX_SERVICE_ACCOUNT_KEY`
+- `SUPABASE_URL`
+- `WEB_APP_URL` (defaults to `http://localhost:3000` if omitted)
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_AI_STUDIO_API_KEY`
+
+Common optional or conditional values:
+
+- `GOOGLE_DRIVE_FOLDER_ID`
+- `GOOGLE_TOKEN_ENCRYPTION_KEY`
+- `GCS_THUMBNAIL_BUCKET`
+- `TAVILY_API_KEY`
+- `ATLUS_USE_MCP`
+- `ATLUS_API_TOKEN`
+- `ATLUS_PROJECT_ID`
+- `ATLUS_MCP_MAX_LIFETIME_MS`
+- legacy compatibility vars: `GOOGLE_TEMPLATE_PRESENTATION_ID`, `MEET_LUMENALTA_PRESENTATION_ID`, `CAPABILITY_DECK_PRESENTATION_ID`
+
+#### Web app (`apps/web/.env.*`)
+
+- `AGENT_SERVICE_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Optional:
+
+- `NEXT_PUBLIC_GOOGLE_API_KEY`
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+
+## Running The Apps
+
+Run both apps with the repo Makefile:
 
 ```bash
-pnpm --filter agent db:generate   # Regenerate Prisma client
-pnpm --filter agent db:migrate    # Run migrations
+make run dev
 ```
 
-### Running the App
+This copies `apps/web/.env.dev` to `apps/web/.env.local`, copies `apps/agent/.env.dev` to `apps/agent/.env`, clears stale Mastra output, and starts the workspace dev processes.
 
-Start both the web app and agent service with environment switching:
+Default local URLs:
+
+- web: `http://localhost:3000`
+- agent: `http://localhost:4111`
+
+Run apps individually if needed:
 
 ```bash
-make run dev    # Uses .env.dev files (default)
-make run prod   # Uses .env.prod files
+pnpm --filter web dev
+pnpm --filter agent dev
 ```
 
-This copies the appropriate env files into place and starts both services.
+## Database Workflow
 
-- **Web app:** http://localhost:3000
-- **Agent service:** http://localhost:4111
+Use Prisma migrations only.
 
-To run them individually:
+Generate client:
 
 ```bash
-pnpm --filter web dev      # Next.js only
-pnpm --filter agent dev    # Mastra agent only
+pnpm --filter agent db:generate
 ```
 
-## Scripts
+Create and apply a migration:
 
-| Command | Description |
-|---|---|
-| `make run dev` | Start all apps with dev environment |
-| `make run prod` | Start all apps with prod environment |
-| `make install` | Install dependencies |
-| `make build` | Build all apps and packages |
-| `make lint` | Lint all apps and packages |
-| `make set-new env` | Generate a new secrets encryption key |
-| `make push env` | Encrypt secret files (commit the `.enc` files) |
-| `make pull env` | Decrypt secret files from `.enc` to local |
-| `make db-generate` | Regenerate Prisma client |
-| `make db-migrate` | Run database migrations |
-| `make seed` | Seed the database |
+```bash
+pnpm --filter agent db:migrate -- --name your_change_name
+```
 
-## Shared Packages
+Seed data:
 
-| Package | Description |
-|---|---|
-| `@lumenalta/schemas` | Zod validation schemas for LLM structured outputs and app data, plus domain constants (industries, subsectors, solution pillars) |
-| `@lumenalta/tsconfig` | Base, Next.js, and Node.js TypeScript configurations |
-| `@lumenalta/eslint-config` | Shared ESLint rules with TypeScript parser |
+```bash
+pnpm --filter agent seed
+```
+
+Do not use `prisma db push` for schema changes in this project. Repository rules require forward-only migrations.
+
+## Commands
+
+### Root
+
+- `pnpm dev`: run workspace dev tasks through Turborepo
+- `pnpm build`: build all apps/packages
+- `pnpm lint`: lint all apps/packages
+
+### Makefile helpers
+
+- `make run dev`
+- `make run prod`
+- `make install`
+- `make build`
+- `make lint`
+- `make db-generate`
+- `make db-migrate`
+- `make seed`
+- `make set-new env`
+- `make push env`
+- `make pull env`
+
+### Agent-specific
+
+- `pnpm --filter agent build`
+- `pnpm --filter agent validate-schemas`
+
+## Background Jobs And Startup Behavior
+
+The agent service starts several recurring or startup-time tasks:
+
+- template staleness polling every 24 hours
+- automatic ingest and auto-classification every 10 minutes
+- deck structure inference cron every 24 hours
+- stale-ingestion recovery on startup
+- slide description and element backfill detection on startup
+- MCP initialization on startup
+
+These are documented in more detail in `docs/architecture.md` and `docs/backend-api.md`.
+
+## Deployment
+
+- `deploy/Dockerfile` builds a production image for the agent service only
+- `deploy/docker-compose.yml` runs the agent with a `/health` check on port `4111`
+- the repo does not include an equivalent web deployment manifest
+
+## Testing
+
+- `apps/agent` uses Vitest for route, workflow, auth, ingestion, deck-intelligence, and deal-chat tests
+- `apps/web` uses Vitest plus Testing Library for component, route, and API-client tests
+- there is no root `test` script today
+
+## Notes And Caveats
+
+- the current codebase contains a `db:push` script in `apps/agent/package.json`, but contributors should still use migrations only
+- `/health` is intentionally public
+- `/generation-logs/:dealId/:touchType` is currently unauthenticated
+- some user-scoped agent routes rely on caller behavior and should be treated as internal-app APIs, not public APIs
+- the repo currently has richer deployment artifacts for the agent service than for the web app
+
+## Where To Read Next
+
+1. Start with `docs/architecture.md` for the full system picture.
+2. Read `docs/workflows.md` for seller flows and HITL checkpoints.
+3. Read `docs/backend-api.md` for route coverage and service responsibilities.
+4. Read `docs/data-model.md` for persistence details.
