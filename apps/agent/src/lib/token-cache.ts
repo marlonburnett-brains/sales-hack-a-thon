@@ -5,6 +5,13 @@ import { env } from "../env";
 
 // ────────────────────────────────────────────────────────────
 // In-memory token cache for user Google access tokens
+//
+// Simple model: cache a valid access token for 50 min. When it
+// expires, do ONE refresh attempt. If it fails, cache a negative
+// result so we don't retry until the next cycle. The token is
+// only permanently invalidated after sustained failures over a
+// long window (10 min), ensuring transient errors or ingestion
+// bursts never prematurely burn a token.
 // ────────────────────────────────────────────────────────────
 
 interface CachedToken {
@@ -12,50 +19,75 @@ interface CachedToken {
   expiresAt: number;
 }
 
-const TOKEN_TTL_MS = 50 * 60 * 1000; // 50 minutes (Google tokens last 60min)
+/** How long a successful access token is cached (Google tokens last 60 min). */
+const TOKEN_TTL_MS = 50 * 60 * 1000;
+
+/** After a failed refresh, wait this long before trying again. */
+const RETRY_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+
+/**
+ * Only permanently invalidate a token if definitive errors persist for
+ * longer than this window. This protects against hot-reload bursts,
+ * transient Google outages, and client-ID mismatches.
+ */
+const INVALIDATION_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
 const MAX_CACHE_SIZE = 100;
+
+// ── In-memory state ──────────────────────────────────────────
 
 const cache = new Map<string, CachedToken>();
 
-// Per-userId promise dedup to prevent concurrent refresh races
+/** Per-user promise dedup to prevent concurrent refresh races. */
 const inflightRefreshes = new Map<string, Promise<string | null>>();
 
 /**
- * Sweep expired entries when cache exceeds MAX_CACHE_SIZE.
- * Called on each cache access to keep memory bounded.
+ * Negative cache: timestamp of last definitive failure per user.
+ * While active, getAccessTokenForUser returns null immediately
+ * (caller falls back to service account). This is the key mechanism
+ * that prevents the ingestion queue from hammering doRefresh
+ * on every template and accumulating failures.
  */
-function sweepExpiredIfNeeded(): void {
-  if (cache.size <= MAX_CACHE_SIZE) return;
-  const now = Date.now();
-  for (const [key, entry] of cache) {
-    if (entry.expiresAt <= now) {
-      cache.delete(key);
-    }
-  }
-}
+const lastFailedAt = new Map<string, number>();
+
+/**
+ * Timestamp of the FIRST definitive failure in the current failure
+ * streak. Cleared on success or resetTokenState. Used to decide
+ * when a token is truly dead (failure streak > INVALIDATION_WINDOW_MS).
+ */
+const firstFailureAt = new Map<string, number>();
+
+// ── Public API ───────────────────────────────────────────────
 
 /**
  * Get a valid Google access token for a user.
  *
- * 1. Check in-memory cache (50min TTL)
- * 2. If expired/missing, look up encrypted refresh token from DB
- * 3. Exchange refresh token for new access token via Google OAuth
- * 4. Cache the result and update lastUsedAt in DB
- *
- * Returns null if no valid token exists or refresh fails.
+ * Flow per cycle:
+ *   1. Return cached access token if still valid (50 min TTL)
+ *   2. If in negative-cache window (recent failure), return null
+ *   3. Otherwise, attempt ONE refresh
+ *   4. On success → cache for 50 min, clear failure state
+ *   5. On failure → negative-cache for 2 min, track failure streak
+ *   6. If failure streak exceeds 10 min → permanently invalidate
  */
 export async function getAccessTokenForUser(
   userId: string
 ): Promise<string | null> {
   sweepExpiredIfNeeded();
 
-  // Check cache first
+  // 1. Valid cache hit
   const cached = cache.get(userId);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.accessToken;
   }
 
-  // Dedup concurrent refresh requests for the same user
+  // 2. Negative cache — recent failure, don't retry yet
+  const failTs = lastFailedAt.get(userId);
+  if (failTs && Date.now() - failTs < RETRY_INTERVAL_MS) {
+    return null;
+  }
+
+  // 3. One refresh attempt (dedup concurrent calls)
   const inflight = inflightRefreshes.get(userId);
   if (inflight) {
     return inflight;
@@ -71,41 +103,31 @@ export async function getAccessTokenForUser(
   }
 }
 
-// Track first failure timestamp per user. A token is only permanently
-// invalidated if definitive errors persist for longer than this window.
-// This prevents hot-reload (server restart) from immediately burning tokens
-// on the first refresh attempt — the second attempt after the cooldown
-// window will invalidate if the token is truly expired/revoked.
-const firstFailureAt = new Map<string, number>();
-const FAILURE_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-
-// Track consecutive definitive failures per user. Require multiple failures
-// AFTER the cooldown window before invalidating, to protect against transient
-// Google errors that happen to match definitive patterns.
-const consecutiveFailures = new Map<string, number>();
-const REQUIRED_CONSECUTIVE_FAILURES = 3;
-
 /**
  * Reset all in-memory state for a user's token.
  *
  * MUST be called when a new refresh token is stored (POST /tokens)
- * to prevent stale failure tracking from prematurely invalidating
- * the freshly stored token.
- *
- * Without this, the following bug occurs:
- * 1. doRefresh fails at T=0 -> firstFailureAt set
- * 2. User re-authenticates at T=3min -> new token stored in DB
- * 3. firstFailureAt is NOT cleared (it's in-memory, POST /tokens doesn't know about it)
- * 4. At T=5min, doRefresh is called -> fails for any reason -> cooldown check:
- *    5min - 0min >= 5min -> TOKEN INVALIDATED immediately, despite being freshly stored
- *
- * This function breaks that chain by clearing all failure state.
+ * so that stale failure tracking never carries over to the freshly
+ * stored token.
  */
 export function resetTokenState(userId: string): void {
   cache.delete(userId);
+  lastFailedAt.delete(userId);
   firstFailureAt.delete(userId);
-  consecutiveFailures.delete(userId);
+  inflightRefreshes.delete(userId);
   console.log(`[token-cache] Reset all in-memory state for userId=${userId} (new token stored)`);
+}
+
+// ── Internals ────────────────────────────────────────────────
+
+function sweepExpiredIfNeeded(): void {
+  if (cache.size <= MAX_CACHE_SIZE) return;
+  const now = Date.now();
+  for (const [key, entry] of cache) {
+    if (entry.expiresAt <= now) {
+      cache.delete(key);
+    }
+  }
 }
 
 async function doRefresh(userId: string): Promise<string | null> {
@@ -121,7 +143,7 @@ async function doRefresh(userId: string): Promise<string | null> {
       return null;
     }
 
-    console.log(`[token-cache] Found token record for userId=${userId}, email=${record.email}, lastUsedAt=${record.lastUsedAt?.toISOString()}`);
+    console.log(`[token-cache] Found token record for userId=${userId}, email=${record.email}`);
 
     // Decrypt the stored refresh token
     let decryptedRefresh: string;
@@ -131,7 +153,6 @@ async function doRefresh(userId: string): Promise<string | null> {
         record.iv,
         record.authTag
       );
-      console.log(`[token-cache] Decryption OK for userId=${userId}, refresh token length=${decryptedRefresh.length}`);
     } catch (decryptErr) {
       console.error(`[token-cache] DECRYPTION FAILED for userId=${userId}:`, decryptErr instanceof Error ? decryptErr.message : String(decryptErr));
       throw decryptErr;
@@ -159,22 +180,20 @@ async function doRefresh(userId: string): Promise<string | null> {
       }
     });
 
-    console.log(`[token-cache] Calling Google OAuth2 getAccessToken for userId=${userId}...`);
     const tokenResponse = await oauth2Client.getAccessToken();
     const accessToken = tokenResponse.token;
 
     if (!accessToken) {
-      console.warn(`[token-cache] No access token returned for ${userId} (no error thrown). HTTP status: ${tokenResponse.res?.status}`);
+      console.warn(`[token-cache] No access token returned for ${userId} (no error thrown)`);
       return null;
     }
 
     console.log(`[token-cache] doRefresh SUCCESS for userId=${userId}`);
 
-    // Reset ALL failure tracking on success
+    // ── Success: cache token, clear all failure state ──
     firstFailureAt.delete(userId);
-    consecutiveFailures.delete(userId);
+    lastFailedAt.delete(userId);
 
-    // Cache the new access token
     cache.set(userId, {
       accessToken,
       expiresAt: Date.now() + TOKEN_TTL_MS,
@@ -186,9 +205,7 @@ async function doRefresh(userId: string): Promise<string | null> {
         where: { userId },
         data: { lastUsedAt: new Date() },
       })
-      .catch(() => {
-        // Non-critical -- log and continue
-      });
+      .catch(() => {});
 
     return accessToken;
   } catch (err) {
@@ -199,53 +216,44 @@ async function doRefresh(userId: string): Promise<string | null> {
       `[token-cache] doRefresh FAILED for userId=${userId}: "${errorMessage}" code=${errorCode} status=${errorStatus}`
     );
 
-    // Classify the error
     const errorClass = classifyTokenError(err);
 
     if (errorClass === 'config') {
-      // Configuration error — never invalidate, just log loudly
+      // Wrong client ID/secret — NEVER invalidate, loud log
       console.error(
-        `[token-cache] CLIENT CONFIGURATION ERROR for userId=${userId}: "${errorMessage}". ` +
-        `Check that GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET match the Supabase Google provider config. ` +
-        `NOT invalidating user token — this is a server-side configuration issue.`
+        `[token-cache] CONFIG ERROR for userId=${userId}: "${errorMessage}". ` +
+        `Check GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET. NOT invalidating.`
       );
     } else if (errorClass === 'definitive') {
-      // Definitive token error — use cooldown + consecutive failure guard
+      // Refresh token is expired/revoked (or looks like it).
+      // Set negative cache so we don't retry for RETRY_INTERVAL_MS.
       const now = Date.now();
-      const existingFirst = firstFailureAt.get(userId);
-      const failures = (consecutiveFailures.get(userId) ?? 0) + 1;
-      consecutiveFailures.set(userId, failures);
+      lastFailedAt.set(userId, now);
 
-      if (!existingFirst) {
-        // First failure — record timestamp, don't invalidate yet
+      const streakStart = firstFailureAt.get(userId);
+      if (!streakStart) {
+        // First failure in this streak
         firstFailureAt.set(userId, now);
         console.warn(
-          `[token-cache] Definitive error for ${userId} — first occurrence (failure #${failures}), ` +
-          `will invalidate after ${FAILURE_COOLDOWN_MS / 1000}s AND ${REQUIRED_CONSECUTIVE_FAILURES} consecutive failures. ` +
+          `[token-cache] Definitive error for ${userId} — first failure, ` +
+          `will retry in ${RETRY_INTERVAL_MS / 1000}s. ` +
+          `Will only invalidate if failures persist for ${INVALIDATION_WINDOW_MS / 1000}s. ` +
           `Error: "${errorMessage}"`
         );
-      } else if (now - existingFirst < FAILURE_COOLDOWN_MS) {
-        // Within cooldown window — keep token valid
+      } else if (now - streakStart < INVALIDATION_WINDOW_MS) {
+        // Streak ongoing but not long enough to invalidate
         console.warn(
-          `[token-cache] Definitive error for ${userId} — within cooldown window ` +
-          `(${Math.round((now - existingFirst) / 1000)}s / ${FAILURE_COOLDOWN_MS / 1000}s), ` +
-          `failure #${failures}/${REQUIRED_CONSECUTIVE_FAILURES}, ` +
-          `keeping token valid. Error: "${errorMessage}"`
-        );
-      } else if (failures < REQUIRED_CONSECUTIVE_FAILURES) {
-        // Past cooldown but not enough consecutive failures
-        console.warn(
-          `[token-cache] Definitive error for ${userId} — past cooldown but only ${failures}/${REQUIRED_CONSECUTIVE_FAILURES} ` +
-          `consecutive failures, keeping token valid. Error: "${errorMessage}"`
+          `[token-cache] Definitive error for ${userId} — streak ${Math.round((now - streakStart) / 1000)}s / ` +
+          `${INVALIDATION_WINDOW_MS / 1000}s, keeping token valid. Error: "${errorMessage}"`
         );
       } else {
-        // Past cooldown AND enough consecutive failures — token is truly bad
+        // Streak exceeded window — token is truly dead
         console.warn(
-          `[token-cache] Definitive error for ${userId} — persisted for ${Math.round((now - existingFirst) / 1000)}s ` +
-          `with ${failures} consecutive failures, marking token invalid. Error: "${errorMessage}"`
+          `[token-cache] Definitive error for ${userId} — streak ${Math.round((now - streakStart) / 1000)}s ` +
+          `exceeds ${INVALIDATION_WINDOW_MS / 1000}s window, marking token INVALID. Error: "${errorMessage}"`
         );
         firstFailureAt.delete(userId);
-        consecutiveFailures.delete(userId);
+
         await prisma.userGoogleToken
           .update({
             where: { userId },
@@ -277,8 +285,10 @@ async function doRefresh(userId: string): Promise<string | null> {
         }
       }
     } else {
-      // Transient error — never invalidate
-      console.warn(`[token-cache] Transient error for ${userId} — keeping token valid for retry. Error: "${errorMessage}"`);
+      // Transient (network, timeout, server error) — never invalidate
+      // Set negative cache so we don't hammer Google
+      lastFailedAt.set(userId, Date.now());
+      console.warn(`[token-cache] Transient error for ${userId} — retry in ${RETRY_INTERVAL_MS / 1000}s. Error: "${errorMessage}"`);
     }
 
     cache.delete(userId);
@@ -287,32 +297,19 @@ async function doRefresh(userId: string): Promise<string | null> {
 }
 
 /**
- * Classify a token refresh error into one of three categories:
- * - 'config': Server configuration problem (wrong client ID/secret). NEVER invalidate.
- * - 'definitive': The refresh token itself is expired/revoked. Invalidate after safeguards.
- * - 'transient': Network error, timeout, server error. NEVER invalidate.
- *
- * IMPORTANT: 'invalid_grant' can mean EITHER:
- * (a) The refresh token was truly revoked/expired (user-facing issue)
- * (b) The refresh token was issued by a different OAuth client than GOOGLE_CLIENT_ID
- *     (server configuration issue — same symptom as invalid_client but different error code)
- *
- * We treat invalid_grant as definitive but require multiple consecutive failures
- * plus a cooldown window before invalidating, which protects against case (b)
- * because the admin/developer will see the repeated error logs and fix the config.
+ * Classify a token refresh error:
+ * - 'config': Wrong client ID/secret. NEVER invalidate.
+ * - 'definitive': Refresh token expired/revoked. Invalidate after sustained streak.
+ * - 'transient': Network/timeout/server error. NEVER invalidate.
  */
 function classifyTokenError(err: unknown): 'config' | 'definitive' | 'transient' {
   const message = err instanceof Error ? err.message : String(err);
   const lower = message.toLowerCase();
 
-  // Configuration errors — wrong client ID/secret. This is a deployment problem,
-  // NOT the user's fault. Don't burn their token.
   if (lower.includes('invalid_client') || lower.includes('unauthorized_client')) {
     return 'config';
   }
 
-  // Definitive token errors — the refresh token itself is truly expired/revoked
-  // (or possibly a client ID mismatch, which also returns invalid_grant).
   const definitivePatterns = [
     'invalid_grant',
     'token has been expired or revoked',
@@ -322,6 +319,5 @@ function classifyTokenError(err: unknown): 'config' | 'definitive' | 'transient'
     return 'definitive';
   }
 
-  // Everything else is transient
   return 'transient';
 }

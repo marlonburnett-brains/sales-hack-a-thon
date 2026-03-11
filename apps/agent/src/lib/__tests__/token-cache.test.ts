@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ────────────────────────────────────────────────────────────
-// Mocks — same env pitfall as google-auth
+// Mocks
 // ────────────────────────────────────────────────────────────
 
-// 1. Env mock
 vi.mock("../../env", () => ({
   env: {
     GOOGLE_CLIENT_ID: "test-client-id",
@@ -12,7 +11,6 @@ vi.mock("../../env", () => ({
   },
 }));
 
-// 2. @prisma/client mock
 const mockFindUnique = vi.fn();
 const mockFindFirst = vi.fn();
 const mockUpdate = vi.fn();
@@ -35,7 +33,6 @@ vi.mock("@prisma/client", () => {
   };
 });
 
-// 3. google-auth-library mock
 const mockSetCredentials = vi.fn();
 const mockGetAccessToken = vi.fn();
 const mockOn = vi.fn();
@@ -50,7 +47,6 @@ vi.mock("google-auth-library", () => {
   };
 });
 
-// 4. token-encryption mock
 const mockDecryptToken = vi.fn().mockReturnValue("decrypted-refresh");
 
 vi.mock("../token-encryption", () => ({
@@ -65,9 +61,23 @@ vi.mock("../token-encryption", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
-
-  // Re-set return values after clearAllMocks
   mockDecryptToken.mockReturnValue("decrypted-refresh");
+});
+
+// ────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────
+
+const makeRecord = (overrides = {}) => ({
+  id: "token-1",
+  userId: "user-123",
+  email: "test@example.com",
+  encryptedRefresh: "enc-refresh",
+  iv: "enc-iv",
+  authTag: "enc-tag",
+  isValid: true,
+  lastUsedAt: new Date(),
+  ...overrides,
 });
 
 // ────────────────────────────────────────────────────────────
@@ -75,38 +85,23 @@ beforeEach(() => {
 // ────────────────────────────────────────────────────────────
 
 describe("getAccessTokenForUser", () => {
-  const makeRecord = (overrides = {}) => ({
-    id: "token-1",
-    userId: "user-123",
-    email: "test@example.com",
-    encryptedRefresh: "enc-refresh",
-    iv: "enc-iv",
-    authTag: "enc-tag",
-    isValid: true,
-    lastUsedAt: new Date(),
-    ...overrides,
-  });
-
-  it("returns cached token on cache hit (no DB query on second call)", async () => {
-    // First call: DB lookup + refresh
+  it("returns cached token on second call (no DB query)", async () => {
     mockFindUnique.mockResolvedValue(makeRecord());
     mockGetAccessToken.mockResolvedValue({ token: "access-token-1" });
     mockUpdate.mockResolvedValue({});
 
     const { getAccessTokenForUser } = await import("../token-cache");
 
-    // First call populates cache
     const first = await getAccessTokenForUser("user-123");
     expect(first).toBe("access-token-1");
     expect(mockFindUnique).toHaveBeenCalledTimes(1);
 
-    // Second call should hit cache -- no additional DB query
     const second = await getAccessTokenForUser("user-123");
     expect(second).toBe("access-token-1");
     expect(mockFindUnique).toHaveBeenCalledTimes(1); // Still 1
   });
 
-  it("refreshes from DB on cache miss, returns new access token", async () => {
+  it("refreshes from DB on cache miss", async () => {
     mockFindUnique.mockResolvedValue(makeRecord());
     mockGetAccessToken.mockResolvedValue({ token: "fresh-access-token" });
     mockUpdate.mockResolvedValue({});
@@ -116,9 +111,7 @@ describe("getAccessTokenForUser", () => {
 
     expect(result).toBe("fresh-access-token");
     expect(mockFindUnique).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: "user-123", isValid: true },
-      })
+      expect.objectContaining({ where: { userId: "user-123", isValid: true } })
     );
     expect(mockSetCredentials).toHaveBeenCalledWith({
       refresh_token: "decrypted-refresh",
@@ -129,31 +122,59 @@ describe("getAccessTokenForUser", () => {
     mockFindUnique.mockResolvedValue(null);
 
     const { getAccessTokenForUser } = await import("../token-cache");
-    const result = await getAccessTokenForUser("user-123");
-
-    expect(result).toBeNull();
+    expect(await getAccessTokenForUser("user-123")).toBeNull();
   });
 
-  it("returns null but does NOT immediately mark token invalid on first definitive error (cooldown)", async () => {
+  it("does NOT invalidate on first definitive error", async () => {
     mockFindUnique.mockResolvedValue(makeRecord());
     mockGetAccessToken.mockRejectedValue(new Error("invalid_grant: Token has been expired or revoked"));
     mockUpdate.mockResolvedValue({});
 
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const { getAccessTokenForUser } = await import("../token-cache");
-    const result = await getAccessTokenForUser("user-123");
+    expect(await getAccessTokenForUser("user-123")).toBeNull();
 
-    expect(result).toBeNull();
-    // Should NOT have called update with isValid: false on first failure
     const invalidateCall = mockUpdate.mock.calls.find(
       (call) => call[0]?.data?.isValid === false
     );
     expect(invalidateCall).toBeUndefined();
+  });
 
-    errorSpy.mockRestore();
-    warnSpy.mockRestore();
+  it("negative-caches after failure — second call returns null without hitting Google", async () => {
+    mockFindUnique.mockResolvedValue(makeRecord());
+    mockGetAccessToken.mockRejectedValue(new Error("invalid_grant: Token has been expired or revoked"));
+    mockUpdate.mockResolvedValue({});
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { getAccessTokenForUser } = await import("../token-cache");
+
+    // First call: hits Google, fails
+    await getAccessTokenForUser("user-123");
+    expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
+
+    // Second call: negative cache, returns null immediately
+    await getAccessTokenForUser("user-123");
+    expect(mockGetAccessToken).toHaveBeenCalledTimes(1); // Still 1
+  });
+
+  it("does not treat invalid_client as definitive (config error)", async () => {
+    mockFindUnique.mockResolvedValue(makeRecord());
+    mockGetAccessToken.mockRejectedValue(new Error("invalid_client: The OAuth client was not found"));
+    mockUpdate.mockResolvedValue({});
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { getAccessTokenForUser } = await import("../token-cache");
+    expect(await getAccessTokenForUser("user-123")).toBeNull();
+
+    const invalidateCall = mockUpdate.mock.calls.find(
+      (call) => call[0]?.data?.isValid === false
+    );
+    expect(invalidateCall).toBeUndefined();
   });
 
   it("returns null when getAccessToken returns no token (does not invalidate)", async () => {
@@ -161,57 +182,26 @@ describe("getAccessTokenForUser", () => {
     mockGetAccessToken.mockResolvedValue({ token: null });
     mockUpdate.mockResolvedValue({});
 
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const { getAccessTokenForUser } = await import("../token-cache");
-    const result = await getAccessTokenForUser("user-123");
+    expect(await getAccessTokenForUser("user-123")).toBeNull();
 
-    expect(result).toBeNull();
-    // Token should NOT be invalidated for null response (no error thrown)
     const invalidateCall = mockUpdate.mock.calls.find(
       (call) => call[0]?.data?.isValid === false
     );
     expect(invalidateCall).toBeUndefined();
-
-    warnSpy.mockRestore();
   });
 
-  it("does not treat invalid_client as definitive (configuration error)", async () => {
-    mockFindUnique.mockResolvedValue(makeRecord());
-    mockGetAccessToken.mockRejectedValue(new Error("invalid_client: The OAuth client was not found"));
-    mockUpdate.mockResolvedValue({});
-
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const { getAccessTokenForUser } = await import("../token-cache");
-    const result = await getAccessTokenForUser("user-123");
-
-    expect(result).toBeNull();
-    // Should NOT mark token invalid — this is a config error
-    const invalidateCall = mockUpdate.mock.calls.find(
-      (call) => call[0]?.data?.isValid === false
-    );
-    expect(invalidateCall).toBeUndefined();
-
-    errorSpy.mockRestore();
-    warnSpy.mockRestore();
-  });
-
-  it("deduplicates concurrent refresh requests for the same userId", async () => {
-    // Simulate a slow DB lookup
+  it("deduplicates concurrent refresh requests", async () => {
     mockFindUnique.mockImplementation(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve(makeRecord()), 50)
-        )
+      () => new Promise((resolve) => setTimeout(() => resolve(makeRecord()), 50))
     );
     mockGetAccessToken.mockResolvedValue({ token: "deduped-token" });
     mockUpdate.mockResolvedValue({});
 
     const { getAccessTokenForUser } = await import("../token-cache");
 
-    // Start two concurrent requests for the same user
     const [result1, result2] = await Promise.all([
       getAccessTokenForUser("user-123"),
       getAccessTokenForUser("user-123"),
@@ -219,7 +209,6 @@ describe("getAccessTokenForUser", () => {
 
     expect(result1).toBe("deduped-token");
     expect(result2).toBe("deduped-token");
-    // DB should only be queried ONCE despite two concurrent calls
     expect(mockFindUnique).toHaveBeenCalledTimes(1);
   });
 });
@@ -229,84 +218,52 @@ describe("getAccessTokenForUser", () => {
 // ────────────────────────────────────────────────────────────
 
 describe("resetTokenState", () => {
-  it("clears cached access token so next call triggers fresh refresh", async () => {
-    mockFindUnique.mockResolvedValue({
-      id: "token-1",
-      userId: "user-reset",
-      email: "test@example.com",
-      encryptedRefresh: "enc",
-      iv: "iv",
-      authTag: "tag",
-      isValid: true,
-      lastUsedAt: new Date(),
-    });
+  it("clears cache so next call does a fresh refresh", async () => {
+    mockFindUnique.mockResolvedValue(makeRecord({ userId: "user-reset" }));
     mockGetAccessToken.mockResolvedValue({ token: "first-token" });
     mockUpdate.mockResolvedValue({});
 
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
 
     const { getAccessTokenForUser, resetTokenState } = await import("../token-cache");
 
-    // First call: populate cache
-    const first = await getAccessTokenForUser("user-reset");
-    expect(first).toBe("first-token");
+    expect(await getAccessTokenForUser("user-reset")).toBe("first-token");
     expect(mockFindUnique).toHaveBeenCalledTimes(1);
 
-    // Reset state (simulates new token stored via POST /tokens)
     resetTokenState("user-reset");
-
-    // Change what the mock returns for the fresh refresh
     mockGetAccessToken.mockResolvedValue({ token: "second-token" });
 
-    // Second call: should NOT hit cache, should do fresh refresh
-    const second = await getAccessTokenForUser("user-reset");
-    expect(second).toBe("second-token");
-    expect(mockFindUnique).toHaveBeenCalledTimes(2); // New DB lookup
-
-    logSpy.mockRestore();
+    expect(await getAccessTokenForUser("user-reset")).toBe("second-token");
+    expect(mockFindUnique).toHaveBeenCalledTimes(2);
   });
 
-  it("clears failure tracking so re-auth gets a fresh cooldown window", async () => {
-    mockFindUnique.mockResolvedValue({
-      id: "token-1",
-      userId: "user-cooldown",
-      email: "test@example.com",
-      encryptedRefresh: "enc",
-      iv: "iv",
-      authTag: "tag",
-      isValid: true,
-      lastUsedAt: new Date(),
-    });
-    // Simulate definitive error
+  it("clears negative cache so re-auth can refresh immediately", async () => {
+    mockFindUnique.mockResolvedValue(makeRecord({ userId: "user-neg" }));
     mockGetAccessToken.mockRejectedValue(new Error("invalid_grant: Token has been expired or revoked"));
     mockUpdate.mockResolvedValue({});
 
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
 
     const { getAccessTokenForUser, resetTokenState } = await import("../token-cache");
 
-    // First failure: sets firstFailureAt
-    await getAccessTokenForUser("user-cooldown");
+    // Fail once → negative cache active
+    await getAccessTokenForUser("user-neg");
+    expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
 
-    // Simulate re-authentication (clears failure state)
-    resetTokenState("user-cooldown");
+    // Would normally be negative-cached, but reset clears it
+    resetTokenState("user-neg");
+    mockGetAccessToken.mockResolvedValue({ token: "fresh-token" });
 
-    // Now simulate that refresh works with new token
-    mockGetAccessToken.mockResolvedValue({ token: "new-good-token" });
+    const result = await getAccessTokenForUser("user-neg");
+    expect(result).toBe("fresh-token");
+    expect(mockGetAccessToken).toHaveBeenCalledTimes(2); // Actually tried again
 
-    const result = await getAccessTokenForUser("user-cooldown");
-    expect(result).toBe("new-good-token");
-
-    // Verify no invalidation happened
+    // No invalidation happened
     const invalidateCall = mockUpdate.mock.calls.find(
       (call) => call[0]?.data?.isValid === false
     );
     expect(invalidateCall).toBeUndefined();
-
-    errorSpy.mockRestore();
-    warnSpy.mockRestore();
-    logSpy.mockRestore();
   });
 });
