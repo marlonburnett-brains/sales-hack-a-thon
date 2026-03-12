@@ -85,6 +85,7 @@ const dealContext: DealContext = {
   persona: "CTO",
   funnelStage: "Discovery",
   priorTouchSlideIds: [],
+  transcriptInsights: [],
 };
 
 const candidate1: ResolvedCandidate = {

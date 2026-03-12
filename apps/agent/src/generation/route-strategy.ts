@@ -11,7 +11,7 @@
  *   - executeStructureDrivenPipeline: Full 6-step pipeline orchestration
  */
 
-import type { ArtifactType, DealContext, SlideSelectionPlan } from "@lumenalta/schemas";
+import type { ArtifactType, DealContext, SlideSelectionPlan, TranscriptInsight } from "@lumenalta/schemas";
 
 import { prisma } from "../lib/db";
 import { getPooledGoogleAuth } from "../lib/google-auth";
@@ -93,15 +93,22 @@ const FUNNEL_STAGE_MAP: Record<string, string> = {
   touch_4: "Solution Proposal",
 };
 
+/** Maximum number of transcript insights to include (most recent first). */
+const MAX_TRANSCRIPT_INSIGHTS = 3;
+
 /**
  * Constructs a DealContext from touch workflow inputs with sensible defaults.
+ * Queries the database for transcript insights from DealContextSource and Transcript records.
  */
-export function buildDealContext(
+export async function buildDealContext(
   touchType: string,
   input: { dealId: string; companyName: string; industry: string; [key: string]: unknown },
-): DealContext {
+): Promise<DealContext> {
   const capabilityAreas = input.capabilityAreas;
   const priorTouchOutputs = input.priorTouchOutputs;
+
+  // Query transcript insights in parallel
+  const transcriptInsights = await queryTranscriptInsights(input.dealId);
 
   return {
     dealId: input.dealId,
@@ -111,7 +118,104 @@ export function buildDealContext(
     persona: "General",
     funnelStage: FUNNEL_STAGE_MAP[touchType] ?? "General",
     priorTouchSlideIds: Array.isArray(priorTouchOutputs) ? (priorTouchOutputs as string[]) : [],
+    transcriptInsights,
   };
+}
+
+/**
+ * Queries transcript insights from two sources:
+ * 1. Transcript records (from touch 4 pipeline) — have structured extracted fields
+ * 2. DealContextSource records (from deal chat) — raw/refined text as customerContext
+ *
+ * Returns combined insights sorted newest first, limited to MAX_TRANSCRIPT_INSIGHTS.
+ */
+async function queryTranscriptInsights(dealId: string): Promise<TranscriptInsight[]> {
+  try {
+    const [transcripts, contextSources] = await Promise.all([
+      // Touch 4 transcripts with structured fields (via InteractionRecord)
+      prisma.transcript.findMany({
+        where: {
+          interaction: { dealId },
+          OR: [
+            { customerContext: { not: "" } },
+            { businessOutcomes: { not: "" } },
+            { constraints: { not: "" } },
+            { stakeholders: { not: "" } },
+            { timeline: { not: "" } },
+            { budget: { not: "" } },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: MAX_TRANSCRIPT_INSIGHTS,
+        select: {
+          customerContext: true,
+          businessOutcomes: true,
+          constraints: true,
+          stakeholders: true,
+          timeline: true,
+          budget: true,
+          createdAt: true,
+        },
+      }),
+
+      // Deal chat context sources (raw transcripts)
+      prisma.dealContextSource.findMany({
+        where: {
+          dealId,
+          sourceType: "transcript",
+          status: "confirmed",
+        },
+        orderBy: { createdAt: "desc" },
+        take: MAX_TRANSCRIPT_INSIGHTS,
+        select: {
+          refinedText: true,
+          rawText: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    const insights: (TranscriptInsight & { _createdAt: Date })[] = [];
+
+    // Map structured Transcript records
+    for (const t of transcripts) {
+      insights.push({
+        source: "transcript",
+        customerContext: t.customerContext,
+        businessOutcomes: t.businessOutcomes,
+        constraints: t.constraints,
+        stakeholders: t.stakeholders,
+        timeline: t.timeline,
+        budget: t.budget,
+        _createdAt: t.createdAt,
+      });
+    }
+
+    // Map DealContextSource records (raw text as customerContext)
+    for (const cs of contextSources) {
+      insights.push({
+        source: "context_source",
+        customerContext: cs.refinedText || cs.rawText,
+        businessOutcomes: "",
+        constraints: "",
+        stakeholders: "",
+        timeline: "",
+        budget: "",
+        _createdAt: cs.createdAt,
+      });
+    }
+
+    // Sort newest first, limit to MAX
+    insights.sort((a, b) => b._createdAt.getTime() - a._createdAt.getTime());
+    const limited = insights.slice(0, MAX_TRANSCRIPT_INSIGHTS);
+
+    // Strip internal _createdAt field
+    return limited.map(({ _createdAt, ...rest }) => rest);
+  } catch (error) {
+    // Graceful fallback: if query fails, return empty array (no transcript insights)
+    console.warn("[buildDealContext] Failed to query transcript insights:", error);
+    return [];
+  }
 }
 
 // ────────────────────────────────────────────────────────────

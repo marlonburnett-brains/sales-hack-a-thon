@@ -48,6 +48,7 @@ function makeDealContext(overrides?: Partial<DealContext>): DealContext {
     persona: "CTO",
     funnelStage: "Intro Conversation",
     priorTouchSlideIds: [],
+    transcriptInsights: [],
     ...overrides,
   };
 }

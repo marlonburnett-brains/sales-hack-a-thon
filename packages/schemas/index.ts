@@ -131,6 +131,7 @@ export {
   type SlideSelectionPlan,
   type SlideSelectionEntry,
   type DealContext,
+  type TranscriptInsight,
 } from "./generation/types.ts";
 
 // App schemas (internal, may use transforms/optionals)

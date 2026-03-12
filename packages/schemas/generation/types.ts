@@ -13,6 +13,25 @@
 import { TOUCH_TYPES, type ArtifactType } from "../constants.ts";
 
 // ────────────────────────────────────────────────────────────
+// TranscriptInsight
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Extracted insight from a meeting transcript or deal context source.
+ * Used to ground modification planning in real customer conversation data.
+ */
+export interface TranscriptInsight {
+  /** Source of insight: "transcript" (from touch 4 pipeline) or "context_source" (from deal chat) */
+  source: "transcript" | "context_source";
+  customerContext: string;
+  businessOutcomes: string;
+  constraints: string;
+  stakeholders: string;
+  timeline: string;
+  budget: string;
+}
+
+// ────────────────────────────────────────────────────────────
 // DealContext (FR-1.6)
 // ────────────────────────────────────────────────────────────
 
@@ -36,6 +55,8 @@ export interface DealContext {
   funnelStage: string;
   /** Slide IDs from prior touch points for continuity tracking */
   priorTouchSlideIds: string[];
+  /** Extracted insights from meeting transcripts, ordered newest first. Empty array if none. */
+  transcriptInsights: TranscriptInsight[];
 }
 
 // ────────────────────────────────────────────────────────────

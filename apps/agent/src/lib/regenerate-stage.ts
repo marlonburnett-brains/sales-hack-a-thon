@@ -219,7 +219,7 @@ export async function regenerateStage(
     const deckName = `Touch 1 Pager - ${companyName} - ${new Date().toISOString().split("T")[0]}`;
 
     // Route via structure-driven pipeline (no legacy fallback)
-    const dealContext = buildDealContext("touch_1", {
+    const dealContext = await buildDealContext("touch_1", {
       dealId: interaction.dealId,
       companyName,
       industry,
@@ -360,7 +360,7 @@ export async function retryGeneration(
     const deckLabel = touchType === "touch_2" ? "Meet Lumenalta" : "Capabilities Deep Dive";
     const deckName = `${companyName} - ${deckLabel} - ${dateStr}`;
 
-    const dealContext = buildDealContext(touchType, {
+    const dealContext = await buildDealContext(touchType, {
       dealId: interaction.dealId,
       companyName,
       industry,

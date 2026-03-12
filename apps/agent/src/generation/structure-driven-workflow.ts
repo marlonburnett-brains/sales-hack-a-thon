@@ -96,6 +96,7 @@ export const resolveAndSelectSlidesStep = createStep({
       persona: "",
       funnelStage: "",
       priorTouchSlideIds: [],
+      transcriptInsights: [],
     };
 
     logger.log(`Resolving deck blueprint for ${inputData.touchType}...`);

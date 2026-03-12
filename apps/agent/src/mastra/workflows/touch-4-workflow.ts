@@ -1198,7 +1198,7 @@ const createSlidesDeck = createStep({
     }
 
     // Route: structure-driven pipeline or legacy SlideJSON assembly
-    const dealContext = buildDealContext("touch_4", {
+    const dealContext = await buildDealContext("touch_4", {
       dealId: deal.id,
       companyName: company.name,
       industry: deal.company.industry ?? "Technology",

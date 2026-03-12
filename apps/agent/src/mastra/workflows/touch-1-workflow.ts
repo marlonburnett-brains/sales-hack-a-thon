@@ -479,7 +479,7 @@ const assembleDeck = createStep({
     const deckName = `Touch 1 Pager - ${inputData.companyName} - ${new Date().toISOString().split("T")[0]}`;
 
     // Route: structure-driven pipeline or legacy template assembly
-    const dealContext = buildDealContext("touch_1", {
+    const dealContext = await buildDealContext("touch_1", {
       dealId: inputData.dealId,
       companyName: inputData.companyName,
       industry: inputData.industry,

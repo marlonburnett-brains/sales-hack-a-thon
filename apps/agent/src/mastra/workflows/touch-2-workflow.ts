@@ -113,7 +113,7 @@ const selectSlides = createStep({
     });
 
     // Build DealContext and resolve blueprint for structure-driven selection
-    const dealContext = buildDealContext("touch_2", {
+    const dealContext = await buildDealContext("touch_2", {
       dealId: inputData.dealId,
       companyName: inputData.companyName,
       industry: inputData.industry,
@@ -456,7 +456,7 @@ const assembleDeck = createStep({
     const deckName = `${inputData.companyName} - Meet Lumenalta - ${dateStr}`;
 
     // Route: structure-driven pipeline or legacy slide assembly
-    const dealContext = buildDealContext("touch_2", {
+    const dealContext = await buildDealContext("touch_2", {
       dealId: inputData.dealId,
       companyName: inputData.companyName,
       industry: inputData.industry,

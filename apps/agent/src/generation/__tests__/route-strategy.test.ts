@@ -17,6 +17,8 @@ const {
 vi.mock("../../lib/db", () => ({
   prisma: {
     deckStructure: { findFirst: mockDeckStructureFindFirst },
+    transcript: { findMany: vi.fn().mockResolvedValue([]) },
+    dealContextSource: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -69,6 +71,7 @@ function makeDealContext(overrides: Partial<DealContext> = {}): DealContext {
     persona: "General",
     funnelStage: "First Contact",
     priorTouchSlideIds: [],
+    transcriptInsights: [],
     ...overrides,
   };
 }
@@ -205,8 +208,8 @@ describe("resolveGenerationStrategy", () => {
 // ────────────────────────────────────────────────────────────
 
 describe("buildDealContext", () => {
-  it("builds context for touch_1 with defaults", () => {
-    const ctx = buildDealContext("touch_1", {
+  it("builds context for touch_1 with defaults", async () => {
+    const ctx = await buildDealContext("touch_1", {
       dealId: "deal-1",
       companyName: "Acme Corp",
       industry: "Technology",
@@ -220,11 +223,12 @@ describe("buildDealContext", () => {
       persona: "General",
       funnelStage: "First Contact",
       priorTouchSlideIds: [],
+      transcriptInsights: [],
     });
   });
 
-  it("maps touch_2 to Intro Conversation funnel stage", () => {
-    const ctx = buildDealContext("touch_2", {
+  it("maps touch_2 to Intro Conversation funnel stage", async () => {
+    const ctx = await buildDealContext("touch_2", {
       dealId: "deal-2",
       companyName: "Beta Inc",
       industry: "Finance",
@@ -233,8 +237,8 @@ describe("buildDealContext", () => {
     expect(ctx.funnelStage).toBe("Intro Conversation");
   });
 
-  it("maps touch_3 to Capability Alignment funnel stage with capabilityAreas as pillars", () => {
-    const ctx = buildDealContext("touch_3", {
+  it("maps touch_3 to Capability Alignment funnel stage with capabilityAreas as pillars", async () => {
+    const ctx = await buildDealContext("touch_3", {
       dealId: "deal-3",
       companyName: "Gamma LLC",
       industry: "Healthcare",
@@ -245,8 +249,8 @@ describe("buildDealContext", () => {
     expect(ctx.pillars).toEqual(["Data", "AI"]);
   });
 
-  it("maps touch_4 to Solution Proposal funnel stage", () => {
-    const ctx = buildDealContext("touch_4", {
+  it("maps touch_4 to Solution Proposal funnel stage", async () => {
+    const ctx = await buildDealContext("touch_4", {
       dealId: "deal-4",
       companyName: "Delta Corp",
       industry: "Retail",
@@ -255,8 +259,8 @@ describe("buildDealContext", () => {
     expect(ctx.funnelStage).toBe("Solution Proposal");
   });
 
-  it("uses priorTouchOutputs as priorTouchSlideIds when present", () => {
-    const ctx = buildDealContext("touch_2", {
+  it("uses priorTouchOutputs as priorTouchSlideIds when present", async () => {
+    const ctx = await buildDealContext("touch_2", {
       dealId: "deal-2",
       companyName: "Beta Inc",
       industry: "Finance",
@@ -266,8 +270,8 @@ describe("buildDealContext", () => {
     expect(ctx.priorTouchSlideIds).toEqual(["slide-a", "slide-b"]);
   });
 
-  it("defaults pillars and priorTouchSlideIds to empty arrays", () => {
-    const ctx = buildDealContext("touch_1", {
+  it("defaults pillars, priorTouchSlideIds, and transcriptInsights to empty arrays", async () => {
+    const ctx = await buildDealContext("touch_1", {
       dealId: "deal-1",
       companyName: "Test",
       industry: "Tech",
@@ -275,5 +279,6 @@ describe("buildDealContext", () => {
 
     expect(ctx.pillars).toEqual([]);
     expect(ctx.priorTouchSlideIds).toEqual([]);
+    expect(ctx.transcriptInsights).toEqual([]);
   });
 });
