@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { TouchPageShell } from "@/components/touch/touch-page-shell";
 import { TouchGuidedStart } from "@/components/touch/touch-guided-start";
 import { TouchStageContent } from "@/components/touch/touch-stage-content";
+import { Touch4Form } from "@/components/touch/touch-4-form";
 import { TouchGenerationHistory } from "@/components/touch/touch-generation-history";
 import { GenerationProgress } from "@/components/touch/generation-progress";
 import type { GenerationLogEntry } from "@/components/touch/generation-log-feed";
@@ -618,7 +619,7 @@ export function TouchPageClient({
     );
   }
 
-  // No interactions: guided start
+  // No interactions: guided start (or Touch4Form for touch 4)
   if (!activeInteraction) {
     return (
       <TouchContextProvider value={touchContext}>
@@ -626,15 +627,24 @@ export function TouchPageClient({
           <h1 className="text-xl font-bold text-slate-900">
             Touch {touchNumber}: {touchName}
           </h1>
-          <TouchGuidedStart
-            touchNumber={touchNumber}
-            touchType={touchType}
-            dealId={dealId}
-            companyName={companyName}
-            industry={industry}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
-          />
+          {touchType === "touch_4" ? (
+            <Touch4Form
+              dealId={dealId}
+              companyName={companyName}
+              industry={industry}
+              onClose={() => router.refresh()}
+            />
+          ) : (
+            <TouchGuidedStart
+              touchNumber={touchNumber}
+              touchType={touchType}
+              dealId={dealId}
+              companyName={companyName}
+              industry={industry}
+              onGenerate={handleGenerate}
+              isGenerating={isGenerating}
+            />
+          )}
         </div>
       </TouchContextProvider>
     );

@@ -240,14 +240,16 @@ export async function assembleMultiSourceDeck(
       .map((slide) => slide.objectId)
       .filter((slideId): slideId is string => Boolean(slideId));
 
-    const reorderRequests = currentOrder
-      .filter((slideId) => translatedOrder.includes(slideId))
-      .map((slideId) => ({
-        updateSlidesPosition: {
-          slideObjectIds: [slideId],
-          insertionIndex: translatedOrder.indexOf(slideId),
-        },
-      }));
+    // Only reorder slides that exist in both the plan and the actual presentation.
+    // Cap insertionIndex to the total slide count to avoid Google API errors.
+    const totalSlides = currentOrder.length;
+    const slidesInPlan = currentOrder.filter((slideId) => translatedOrder.includes(slideId));
+    const reorderRequests = slidesInPlan.map((slideId) => ({
+      updateSlidesPosition: {
+        slideObjectIds: [slideId],
+        insertionIndex: Math.min(translatedOrder.indexOf(slideId), totalSlides - 1),
+      },
+    }));
 
     if (reorderRequests.length > 0) {
       await slides.presentations.batchUpdate({
