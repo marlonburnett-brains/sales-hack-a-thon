@@ -13,7 +13,7 @@
  *   - Post-validates LLM response against known element IDs (hallucination guard)
  */
 
-import type { DealContext } from "@lumenalta/schemas";
+import type { DealContext, TranscriptInsight } from "@lumenalta/schemas";
 
 import {
   type ModificationPlan,
@@ -186,6 +186,39 @@ The user approved the following draft content. You MUST use this content when mo
 IMPORTANT: The draft content above was approved by the user. Prioritize using this exact content over generating new text. Match each slide element to the most relevant piece of draft content.`;
 }
 
+const MAX_INSIGHT_FIELD_LENGTH = 300;
+
+function truncateInsightField(value: string): string {
+  if (!value || value.length <= MAX_INSIGHT_FIELD_LENGTH) return value;
+  return value.slice(0, MAX_INSIGHT_FIELD_LENGTH) + "...";
+}
+
+function formatTranscriptInsights(insights: TranscriptInsight[]): string {
+  if (!insights || insights.length === 0) return "";
+
+  const sections: string[] = [];
+  for (const insight of insights) {
+    const parts: string[] = [];
+    if (insight.customerContext) parts.push(`- **Customer Context:** ${truncateInsightField(insight.customerContext)}`);
+    if (insight.businessOutcomes) parts.push(`- **Business Outcomes:** ${truncateInsightField(insight.businessOutcomes)}`);
+    if (insight.constraints) parts.push(`- **Constraints:** ${truncateInsightField(insight.constraints)}`);
+    if (insight.stakeholders) parts.push(`- **Stakeholders:** ${truncateInsightField(insight.stakeholders)}`);
+    if (insight.timeline) parts.push(`- **Timeline:** ${truncateInsightField(insight.timeline)}`);
+    if (insight.budget) parts.push(`- **Budget:** ${truncateInsightField(insight.budget)}`);
+    if (parts.length > 0) sections.push(parts.join("\n"));
+  }
+
+  if (sections.length === 0) return "";
+
+  return `
+
+## Transcript Insights (from customer meetings)
+
+Use these real customer insights to ground your modifications in actual deal context. Reference specific pain points, outcomes, and stakeholders when tailoring slide content.
+
+${sections.join("\n\n---\n\n")}`;
+}
+
 function buildPrompt(
   slideId: string,
   slideObjectId: string,
@@ -213,7 +246,7 @@ Your default action for EVERY text element should be to MODIFY it with deal-rele
 - **Solution Pillars:** ${dealContext.pillars.join(", ")}
 - **Persona:** ${dealContext.persona}
 - **Funnel Stage:** ${dealContext.funnelStage}
-${formatDraftContent(draftContent)}
+${formatTranscriptInsights(dealContext.transcriptInsights)}${formatDraftContent(draftContent)}
 
 ## Slide Identification
 
