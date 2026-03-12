@@ -5,7 +5,7 @@ milestone_name: Structure-Driven Deck Generation
 status: completed
 stopped_at: Completed quick task 24
 last_updated: "2026-03-10T02:23:38.000Z"
-last_activity: "2026-03-12 - Completed quick task 29: Add transcript ingestion to deck generation"
+last_activity: "2026-03-12 - Completed quick task 30: Remove transcript form from Touch 4, use standard guided-start flow"
 progress:
   total_phases: 8
   completed_phases: 8
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 Phase: 57 of 57 (Touch Routing & Fallback)
 Plan: 01 of 01 (complete)
 Status: Phase 57 complete -- v1.8 milestone complete
-Last activity: 2026-03-12 - Completed quick task 29: Add transcript ingestion to deck generation
+Last activity: 2026-03-12 - Completed quick task 30: Remove transcript form from Touch 4, use standard guided-start flow
 
 Progress: [██████████] 100%
 
@@ -83,6 +83,7 @@ None.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 30 | Remove transcript form from Touch 4, use guided-start flow | 2026-03-12 | 3f4ad0d | [30-remove-transcript-form-from-touch-4-use-](./quick/30-remove-transcript-form-from-touch-4-use-/) |
 | 29 | Add transcript ingestion to deck generation | 2026-03-12 | e1c8cee | [29-add-transcript-ingestion-to-extract-insi](./quick/29-add-transcript-ingestion-to-extract-insi/) |
 | 28 | Decouple visual QA from slide generation | 2026-03-11 | 754a640 | [28-decouple-visual-qa-from-slide-generation](./quick/28-decouple-visual-qa-from-slide-generation/) |
 | 27 | Stream detailed generation status logs to UI | 2026-03-10 | a306be0 | [27-stream-detailed-generation-status-logs-t](./quick/27-stream-detailed-generation-status-logs-t/) |
@@ -120,5 +121,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-11T13:50:36Z
-Stopped at: Completed quick task 29: Add transcript ingestion to deck generation
+Stopped at: Completed quick task 30: Remove transcript form from Touch 4
 Next action: v1.8 milestone complete
