@@ -634,11 +634,9 @@ export async function startTouch4Workflow(
 export async function getTouch4WorkflowStatus(
   runId: string
 ): Promise<WorkflowRunResult> {
-  // Query the workflow snapshot table directly, bypassing the agent API.
-  // This works around the Mastra framework limitation where custom
-  // registerApiRoute routes are unreachable after JWT auth.
-  const { getTouch4Snapshot } = await import("@/lib/touch4-snapshot");
-  return getTouch4Snapshot(runId);
+  return fetchJSON<WorkflowRunResult>(
+    `/api/workflows/touch-4-workflow/runs/${encodeURIComponent(runId)}`
+  );
 }
 
 export async function resumeTouch4Workflow(

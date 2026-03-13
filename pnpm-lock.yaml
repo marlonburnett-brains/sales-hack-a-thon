@@ -174,9 +174,6 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      pg:
-        specifier: ^8.20.0
-        version: 8.20.0
       postcss:
         specifier: ^8.4.49
         version: 8.5.8
@@ -226,9 +223,6 @@ importers:
       '@types/node':
         specifier: ^20.17.14
         version: 20.19.35
-      '@types/pg':
-        specifier: ^8.18.0
-        version: 8.18.0
       '@types/react':
         specifier: ^19.0.7
         version: 19.2.14
@@ -2238,9 +2232,6 @@ packages:
 
   '@types/node@20.19.35':
     resolution: {integrity: sha512-Uarfe6J91b9HAUXxjvSOdiO2UPOKLm07Q1oh0JHxoZ1y8HoqxDAu3gVrsrOHeiio0kSsoVBt4wFrKOm0dKxVPQ==}
-
-  '@types/pg@8.18.0':
-    resolution: {integrity: sha512-gT+oueVQkqnj6ajGJXblFR4iavIXWsGAFCk3dP4Kki5+a9R4NMt0JARdk6s8cUKcfUoqP5dAtDSLU8xYUTFV+Q==}
 
   '@types/phoenix@1.6.7':
     resolution: {integrity: sha512-oN9ive//QSBkf19rfDv45M7eZPi0eEXylht2OLEXicu5b4KoQ1OzXIw+xDSGWxSxe1JmepRR/ZH283vsu518/Q==}
@@ -6771,12 +6762,6 @@ snapshots:
   '@types/node@20.19.35':
     dependencies:
       undici-types: 6.21.0
-
-  '@types/pg@8.18.0':
-    dependencies:
-      '@types/node': 20.19.35
-      pg-protocol: 1.13.0
-      pg-types: 2.2.0
 
   '@types/phoenix@1.6.7': {}
 
