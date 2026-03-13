@@ -209,21 +209,31 @@ export async function assembleMultiSourceDeck(
           }
 
           const targetSlideId = `generated-${slideId}`;
-          slideIdMap.set(slideId, targetSlideId);
 
-          const requests = buildSecondarySlideRequests(
-            sourceSlide,
-            targetSlideId,
-            (primaryPresentation.data.slides ?? []).length,
-            elementIdMap,
-          );
+          try {
+            const requests = buildSecondarySlideRequests(
+              sourceSlide,
+              targetSlideId,
+              (primaryPresentation.data.slides ?? []).length,
+              elementIdMap,
+            );
 
-          await slides.presentations.batchUpdate({
-            presentationId,
-            requestBody: { requests },
-          });
+            await slides.presentations.batchUpdate({
+              presentationId,
+              requestBody: { requests },
+            });
 
-          primaryPresentation = await slides.presentations.get({ presentationId });
+            slideIdMap.set(slideId, targetSlideId);
+            primaryPresentation = await slides.presentations.get({ presentationId });
+            console.log(
+              `[multi-source-assembler] Copied secondary slide ${slideId} → ${targetSlideId}`,
+            );
+          } catch (slideError) {
+            console.error(
+              `[multi-source-assembler] Failed to copy slide ${slideId} from ${secondarySource.presentationId}: ${slideError instanceof Error ? slideError.message : String(slideError)}`,
+            );
+            // Continue with next slide — don't let one slide failure kill all slides
+          }
         }
       } catch (error) {
         console.error(
@@ -302,17 +312,10 @@ function buildSecondarySlideRequests(
     },
   ];
 
-  if (slide.pageProperties?.pageBackgroundFill) {
-    requests.push({
-      updatePageProperties: {
-        objectId: targetSlideId,
-        pageProperties: {
-          pageBackgroundFill: slide.pageProperties.pageBackgroundFill,
-        },
-        fields: "pageBackgroundFill",
-      },
-    });
-  }
+  // NOTE: Do NOT include updatePageProperties in the same batch as createSlide.
+  // Google Slides API rejects updatePageProperties on freshly created slides
+  // within the same batchUpdate request, causing the entire secondary source copy to fail.
+  // Background fills are cosmetic and not critical for content assembly.
 
   requests.push(...buildPageElementRequests(slide.pageElements ?? [], context));
 
@@ -516,15 +519,12 @@ function buildShapeRequests(
     },
   ];
 
-  if (element.shape?.shapeProperties) {
-    requests.push({
-      updateShapeProperties: {
-        objectId: shapeId,
-        shapeProperties: element.shape.shapeProperties,
-        fields: "*",
-      },
-    });
-  }
+  // Skip updateShapeProperties for secondary slide rebuilds entirely.
+  // The Google Slides API rejects many shape property updates on non-placeholder
+  // shapes (INHERIT propertyState, read-only sub-fields in outline/shadow/fill).
+  // Since we're rebuilding slides for content (text), cosmetic properties like
+  // fill colors, outlines, and shadows are not critical. The slide's overall
+  // visual style comes from the source template layout, not per-shape styling.
 
   requests.push(...buildTextRequests(shapeId, element.shape?.text?.textElements));
 

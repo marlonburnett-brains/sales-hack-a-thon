@@ -18,7 +18,7 @@ import { getOrCreateDealFolder, resolveRootFolderId, shareWithOrg, archiveExisti
 import { ingestGeneratedDeck } from "../../lib/ingestion-pipeline";
 import { prisma } from "../../lib/db";
 import { env } from "../../env";
-import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext } from "../../generation/route-strategy";
+import { resolveGenerationStrategy, executeStructureDrivenPipeline, buildDealContext, buildApprovedSelections } from "../../generation/route-strategy";
 import { selectSlidesForBlueprint } from "../../generation/section-matcher";
 import { createStepLogger, buildLogKey, clearLogs } from "../../generation/generation-logger";
 
@@ -104,6 +104,21 @@ const selectSlides = createStep({
         }),
       },
     });
+
+    // Persist context as DealContextSource so it flows into later touches
+    if (inputData.context && inputData.context.trim().length > 0) {
+      await prisma.dealContextSource.create({
+        data: {
+          dealId: inputData.dealId,
+          sourceType: "note",
+          touchType: "touch_3",
+          interactionId: interaction.id,
+          originPage: "touch-3-workflow",
+          rawText: inputData.context,
+          status: "saved",
+        },
+      });
+    }
 
     // Build DealContext and resolve blueprint for structure-driven selection
     const dealContext = await buildDealContext("touch_3", {
@@ -450,6 +465,12 @@ const assembleDeck = createStep({
       throw new Error("[touch-3-workflow] No DeckStructure/blueprint found for touch_3. Register an example presentation first.");
     }
 
+    // Reconstruct approved selections from HITL-approved slide order
+    const approvedSlideOrder = inputData.approvedLowfi.slideOrder;
+    logger.log("Building approved slide selection plan from HITL approvals...");
+    const approvedSelections = await buildApprovedSelections(approvedSlideOrder);
+    console.log(`[touch-3-workflow] Passing ${approvedSelections.selections.length} HITL-approved slides to pipeline`);
+
     logger.log("Starting structure-driven pipeline...");
     const result = await executeStructureDrivenPipeline({
       blueprint: strategy.blueprint,
@@ -459,6 +480,7 @@ const assembleDeck = createStep({
       ownerEmail: deal.ownerEmail ?? undefined,
       enableVisualQA: inputData.enableVisualQA,
       logKey,
+      approvedSelections,
     });
 
     // Share with deal owner as editor

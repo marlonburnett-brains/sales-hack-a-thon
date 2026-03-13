@@ -163,7 +163,7 @@ async function queryTranscriptInsights(dealId: string): Promise<TranscriptInsigh
         where: {
           dealId,
           sourceType: "transcript",
-          status: "confirmed",
+          status: "saved",
         },
         orderBy: { createdAt: "desc" },
         take: MAX_TRANSCRIPT_INSIGHTS,
@@ -240,6 +240,14 @@ export interface ExecutePipelineParams {
   ownerEmail?: string;
   /** Optional key for real-time log streaming (dealId:touchType). */
   logKey?: string;
+  /** Enable visual QA post-assembly. */
+  enableVisualQA?: boolean;
+  /**
+   * Pre-approved slide selections from HITL stages (skeleton + lowfi approval).
+   * When provided, skips the AI slide selection step and uses these selections directly.
+   * This ensures the final deck matches what the user approved during the HITL flow.
+   */
+  approvedSelections?: SlideSelectionPlan;
 }
 
 /**
@@ -275,10 +283,20 @@ export async function executeStructureDrivenPipeline(
   }
 
   // Step 1: Select slides for blueprint sections
-  logger.log("Selecting best slides for each section...");
-  const { plan } = await selectSlidesForBlueprint(blueprint);
-  const uniqueSources = new Set(plan.selections.map((s) => s.sourcePresentationId));
-  logger.log(`Selected ${plan.selections.length} slides from ${uniqueSources.size} source presentations`);
+  // If pre-approved selections exist (from HITL flow), use them directly
+  let plan: SlideSelectionPlan;
+  if (params.approvedSelections && params.approvedSelections.selections.length > 0) {
+    plan = params.approvedSelections;
+    const uniqueSources = new Set(plan.selections.map((s) => s.sourcePresentationId));
+    logger.log(`Using ${plan.selections.length} HITL-approved slides from ${uniqueSources.size} source presentations`);
+    console.log(`[structure-pipeline] Step 1: Using HITL-approved selections (${plan.selections.length} slides)`);
+  } else {
+    logger.log("Selecting best slides for each section...");
+    const result = await selectSlidesForBlueprint(blueprint);
+    plan = result.plan;
+    const uniqueSources = new Set(plan.selections.map((s) => s.sourcePresentationId));
+    logger.log(`Selected ${plan.selections.length} slides from ${uniqueSources.size} source presentations`);
+  }
 
   // Step 2: Get all slides per involved presentation
   logger.log("Fetching slide data from source presentations...");
@@ -415,6 +433,73 @@ export async function executeStructureDrivenPipeline(
   logger.log("Generation complete!");
 
   return { ...assemblyResult, modificationPlans: activePlans };
+}
+
+// ────────────────────────────────────────────────────────────
+// buildApprovedSelections — Reconstruct SlideSelectionPlan from HITL data
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Reconstructs a SlideSelectionPlan from HITL-approved slide IDs.
+ * Looks up slideObjectId, sourcePresentationId, and templateId from the database.
+ *
+ * @param approvedSlideIds - Ordered list of SlideEmbedding IDs approved during HITL
+ * @param sections - Optional section metadata from skeleton approval
+ */
+export async function buildApprovedSelections(
+  approvedSlideIds: string[],
+  sections?: Array<{ sectionName: string; purpose: string; selectedSlideId: string | null; rationale: string }>,
+): Promise<SlideSelectionPlan> {
+  if (approvedSlideIds.length === 0) {
+    return { selections: [] };
+  }
+
+  // Query all slide metadata in one batch
+  const slides = await prisma.slideEmbedding.findMany({
+    where: { id: { in: approvedSlideIds } },
+    select: {
+      id: true,
+      slideObjectId: true,
+      templateId: true,
+      template: { select: { presentationId: true } },
+    },
+  });
+
+  type SlideRow = typeof slides[number];
+  const slideMap = new Map<string, SlideRow>(slides.map((s: SlideRow) => [s.id, s]));
+
+  // Build selections in the approved order
+  const selections: Array<{
+    sectionName: string;
+    slideId: string;
+    slideObjectId: string;
+    sourcePresentationId: string;
+    templateId: string;
+    matchRationale: string;
+  }> = [];
+
+  for (const slideId of approvedSlideIds) {
+    const slide = slideMap.get(slideId);
+    if (!slide) {
+      console.warn(`[buildApprovedSelections] Slide ${slideId} not found in DB, skipping`);
+      continue;
+    }
+
+    // Find matching section from skeleton approval
+    const section = sections?.find((s) => s.selectedSlideId === slideId);
+
+    selections.push({
+      sectionName: section?.sectionName ?? `Slide ${slideId}`,
+      slideId: slide.id,
+      slideObjectId: slide.slideObjectId ?? slide.id,
+      sourcePresentationId: slide.template.presentationId,
+      templateId: slide.templateId,
+      matchRationale: section?.rationale ?? "HITL-approved selection",
+    });
+  }
+
+  console.log(`[buildApprovedSelections] Reconstructed ${selections.length}/${approvedSlideIds.length} selections`);
+  return { selections };
 }
 
 // ────────────────────────────────────────────────────────────

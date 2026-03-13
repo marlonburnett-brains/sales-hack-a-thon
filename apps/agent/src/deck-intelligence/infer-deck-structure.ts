@@ -286,7 +286,7 @@ Your goal is to identify the common section flow pattern across all provided exa
 2. Name each section clearly (e.g., "Title Slide", "Company Overview", "Case Studies", "Solution Architecture", "Team & Approach", "Pricing & Timeline").
 3. Mark sections as optional if they only appear in some examples, required if they appear in all or nearly all.
 4. For each section, count distinct slide variations across all examples AND templates.
-5. Map specific Slide IDs to each section. Include slides from both examples and templates.
+5. Map specific Slide IDs to each section. ONLY include Slide IDs from the PRIMARY EXAMPLES — do NOT include Slide IDs from secondary templates. The templates are shown for context and inspiration, but only example slides should be mapped as candidates.
 6. Explain the sequencing rationale: WHY are the sections in this order? What narrative flow does it create?
 7. Order sections by their natural position in the deck flow (1-based).
 
@@ -484,6 +484,22 @@ export async function inferDeckStructure(
       sections: [],
       sequenceRationale: "Failed to parse AI response. Please retry inference.",
     };
+  }
+
+  // 5b. Filter section slideIds to only include slides from example templates.
+  // Template slides provide context/inspiration during inference but should not
+  // be candidates — the generated deck must match the example structure.
+  const exampleSlideIds = new Set(
+    slideData.filter((s) => s.isPrimary).map((s) => s.slideId),
+  );
+  for (const section of output.sections) {
+    const before = section.slideIds.length;
+    section.slideIds = section.slideIds.filter((id) => exampleSlideIds.has(id));
+    if (section.slideIds.length < before) {
+      console.log(
+        `[deck-inference] Section "${section.name}": filtered ${before - section.slideIds.length} template slides, kept ${section.slideIds.length} example slides`,
+      );
+    }
   }
 
   // 6. Calculate confidence and persist

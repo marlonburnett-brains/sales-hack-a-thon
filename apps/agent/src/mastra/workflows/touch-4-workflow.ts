@@ -868,23 +868,33 @@ const ragRetrieval = createStep({
     const subsector = transcript?.subsector ?? "";
 
     // c. Multi-pass retrieval: primary pillar, secondary pillars, case studies
-    const result = await searchForProposal({
-      industry,
-      subsector,
-      primaryPillar: inputData.briefData.primaryPillar,
-      secondaryPillars: inputData.briefData.secondaryPillars,
-      useCases: inputData.briefData.useCases,
-    });
+    //    AtlusAI search is best-effort — if it fails, continue with empty candidates
+    //    so deck generation can still proceed using synthesized slides.
+    let filtered: ReturnType<typeof filterByMetadata> = [];
+    let retrievalSummary: string;
 
-    // d. Post-retrieval metadata filtering
-    const filtered = filterByMetadata(
-      result.candidates,
-      industry,
-      inputData.briefData.primaryPillar
-    );
+    try {
+      const result = await searchForProposal({
+        industry,
+        subsector,
+        primaryPillar: inputData.briefData.primaryPillar,
+        secondaryPillars: inputData.briefData.secondaryPillars,
+        useCases: inputData.briefData.useCases,
+      });
 
-    // e. Build retrieval summary
-    const retrievalSummary = `Retrieved ${result.candidates.length} candidates (${result.primaryCount} primary, ${result.secondaryCount} secondary, ${result.caseStudyCount} case studies). Post-filter: ${filtered.length} slides.`;
+      // d. Post-retrieval metadata filtering
+      filtered = filterByMetadata(
+        result.candidates,
+        industry,
+        inputData.briefData.primaryPillar
+      );
+
+      // e. Build retrieval summary
+      retrievalSummary = `Retrieved ${result.candidates.length} candidates (${result.primaryCount} primary, ${result.secondaryCount} secondary, ${result.caseStudyCount} case studies). Post-filter: ${filtered.length} slides.`;
+    } catch (err) {
+      console.warn("[rag-retrieval] AtlusAI search failed, continuing with empty candidates:", err);
+      retrievalSummary = "AtlusAI search unavailable — proceeding with synthesized slides only.";
+    }
 
     console.log(`[rag-retrieval] ${retrievalSummary}`);
 
@@ -941,19 +951,23 @@ const assembleSlideJSON = createStep({
       slideObjectId?: string;
     }>;
 
-    // b. Use LLM to select best 8-12 slides from candidates
-    const candidateList = candidates
-      .map(
-        (c, i) =>
-          `${i + 1}. ID: "${c.slideId}" | Title: "${c.documentTitle}" | Content: "${(c.textContent || "").substring(0, 300)}" | Metadata: ${JSON.stringify(c.metadata).substring(0, 200)}`
-      )
-      .join("\n");
+    let selectedSlides = candidates;
+    let selectorVersionId: string | undefined;
 
-    const useCaseNames = inputData.briefData.useCases
-      .map((uc) => uc.name)
-      .join(", ");
+    // b. Use LLM to select best 8-12 slides from candidates (skip if no candidates)
+    if (candidates.length > 0) {
+      const candidateList = candidates
+        .map(
+          (c, i) =>
+            `${i + 1}. ID: "${c.slideId}" | Title: "${c.documentTitle}" | Content: "${(c.textContent || "").substring(0, 300)}" | Metadata: ${JSON.stringify(c.metadata).substring(0, 200)}`
+        )
+        .join("\n");
 
-    const selectionPrompt = `You are selecting slides for a solution proposal deck.
+      const useCaseNames = inputData.briefData.useCases
+        .map((uc) => uc.name)
+        .join(", ");
+
+      const selectionPrompt = `You are selecting slides for a solution proposal deck.
 
 BRIEF CONTEXT:
 - Industry: ${inputData.briefData.industry}
@@ -974,39 +988,44 @@ Select 8-12 slides for a solution proposal deck. Follow this allocation:
 
 Provide the selected slide IDs and brief reasoning for your selection.`;
 
-    const selectionSchema = z.object({
-      selectedSlideIds: z.array(z.string()).meta({
-        description: "Array of slideId values selected from the candidate list.",
-      }),
-      reasoning: z.string().meta({
-        description: "Brief explanation of the selection rationale.",
-      }),
-    });
+      const selectionSchema = z.object({
+        selectedSlideIds: z.array(z.string()).meta({
+          description: "Array of slideId values selected from the candidate list.",
+        }),
+        reasoning: z.string().meta({
+          description: "Brief explanation of the selection rationale.",
+        }),
+      });
 
-    const selectionResponse = await executeNamedAgent<z.infer<typeof selectionSchema>>({
-      agentId: "proposal-slide-selector",
-      pinnedVersionId: inputData.agentVersions.proposalSlideSelector || undefined,
-      messages: [{ role: "user", content: selectionPrompt }],
-      options: {
-        structuredOutput: {
-          schema: zodToLlmJsonSchema(selectionSchema) as Record<string, unknown>,
+      const selectionResponse = await executeNamedAgent<z.infer<typeof selectionSchema>>({
+        agentId: "proposal-slide-selector",
+        pinnedVersionId: inputData.agentVersions.proposalSlideSelector || undefined,
+        messages: [{ role: "user", content: selectionPrompt }],
+        options: {
+          structuredOutput: {
+            schema: zodToLlmJsonSchema(selectionSchema) as Record<string, unknown>,
+          },
         },
-      },
-    });
+      });
 
-    const selection = selectionSchema.parse(
-      selectionResponse.object ?? JSON.parse(selectionResponse.text ?? "{}")
-    );
+      const selection = selectionSchema.parse(
+        selectionResponse.object ?? JSON.parse(selectionResponse.text ?? "{}")
+      );
 
-    console.log(
-      `[assemble-slide-json] Selected ${selection.selectedSlideIds.length} slides: ${selection.reasoning}`
-    );
+      console.log(
+        `[assemble-slide-json] Selected ${selection.selectedSlideIds.length} slides: ${selection.reasoning}`
+      );
 
-    // c. Filter candidates to only selected slides
-    const selectedIdSet = new Set(selection.selectedSlideIds);
-    const selectedSlides = candidates.filter((c) =>
-      selectedIdSet.has(c.slideId)
-    );
+      selectorVersionId = selectionResponse.promptVersion.id;
+
+      // c. Filter candidates to only selected slides
+      const selectedIdSet = new Set(selection.selectedSlideIds);
+      selectedSlides = candidates.filter((c) =>
+        selectedIdSet.has(c.slideId)
+      );
+    } else {
+      console.log("[assemble-slide-json] No candidates from retrieval — building deck from brief only");
+    }
 
     // d. Build SlideJSON using the assembly function
     const slideAssembly = buildSlideJSON({
@@ -1027,8 +1046,7 @@ Provide the selected slide IDs and brief reasoning for your selection.`;
       retrievalSummary: inputData.retrievalSummary,
       agentVersions: {
         ...inputData.agentVersions,
-        proposalSlideSelector:
-          inputData.agentVersions.proposalSlideSelector || selectionResponse.promptVersion.id,
+        ...(selectorVersionId ? { proposalSlideSelector: selectorVersionId } : {}),
       },
     };
   },

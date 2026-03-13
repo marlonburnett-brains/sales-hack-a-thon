@@ -169,6 +169,7 @@ export async function resolveBlueprint(
         selectedSlideId: null,
         sourcePresentationId: null,
         hasModificationPlan: false,
+        typicalSlideCount: section.typicalSlideCount ?? 1,
       }),
     );
 

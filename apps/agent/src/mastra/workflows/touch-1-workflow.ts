@@ -95,6 +95,21 @@ const generateContent = createStep({
       },
     });
 
+    // Persist context as DealContextSource so it flows into later touches
+    if (inputData.context && inputData.context.trim().length > 0) {
+      await prisma.dealContextSource.create({
+        data: {
+          dealId: inputData.dealId,
+          sourceType: "note",
+          touchType: "touch_1",
+          interactionId: interaction.id,
+          originPage: "touch-1-workflow",
+          rawText: inputData.context,
+          status: "saved",
+        },
+      });
+    }
+
     const prompt = `You are creating a first-contact one-pager for Lumenalta, a technology consulting and software development company. Generate a CONTENT OUTLINE (skeleton) for a pager targeting this company.
 
 Company: ${inputData.companyName}

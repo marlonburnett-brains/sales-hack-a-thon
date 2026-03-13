@@ -24,6 +24,12 @@ export interface DeckSection {
   variationCount: number;
   /** SlideEmbedding IDs that map to this section */
   slideIds: string[];
+  /**
+   * How many slides this section typically uses in example decks.
+   * Default 1. Sections like "Case Studies" or "Capabilities" often span 2-5 slides.
+   * The section matcher will select this many distinct slides for this section.
+   */
+  typicalSlideCount?: number;
 }
 
 export interface DeckStructureOutput {
@@ -74,10 +80,17 @@ export const DECK_STRUCTURE_SCHEMA = {
             type: Type.ARRAY,
             items: { type: Type.STRING },
             description:
-              "Array of SlideEmbedding IDs (from the provided slide data) that map to this section. Include slides from both examples and templates.",
+              "Array of SlideEmbedding IDs (from the provided slide data) that map to this section. ONLY include Slide IDs from PRIMARY EXAMPLES, not from secondary templates.",
+          },
+          typicalSlideCount: {
+            type: Type.NUMBER,
+            description:
+              "How many slides this section typically spans in the example decks. Count the average number of slides used for this section across examples. " +
+              "Title slides = 1, Agenda = 1, but sections like Case Studies may use 2-4 slides, Capabilities may use 3-6 slides, " +
+              "Methodology may use 2-3 slides. Be accurate based on what you observe in the examples.",
           },
         },
-        required: ["order", "name", "purpose", "isOptional", "variationCount", "slideIds"],
+        required: ["order", "name", "purpose", "isOptional", "variationCount", "slideIds", "typicalSlideCount"],
       },
       description:
         "Ordered list of deck sections representing the common structure pattern found across all provided example decks.",

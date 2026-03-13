@@ -86,6 +86,11 @@ export interface SectionSlot {
   sourcePresentationId: string | null;
   /** Whether a modification plan has been generated for this slot */
   hasModificationPlan: boolean;
+  /**
+   * How many slides this section should use in the generated deck.
+   * Default 1. Allows sections like "Case Studies" to span multiple slides.
+   */
+  typicalSlideCount?: number;
 }
 
 // ────────────────────────────────────────────────────────────
