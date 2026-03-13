@@ -461,7 +461,6 @@ export async function buildApprovedSelections(
       id: true,
       slideObjectId: true,
       templateId: true,
-      template: { select: { presentationId: true } },
     },
   });
 
@@ -492,7 +491,7 @@ export async function buildApprovedSelections(
       sectionName: section?.sectionName ?? `Slide ${slideId}`,
       slideId: slide.id,
       slideObjectId: slide.slideObjectId ?? slide.id,
-      sourcePresentationId: slide.template.presentationId,
+      sourcePresentationId: slide.templateId,
       templateId: slide.templateId,
       matchRationale: section?.rationale ?? "HITL-approved selection",
     });

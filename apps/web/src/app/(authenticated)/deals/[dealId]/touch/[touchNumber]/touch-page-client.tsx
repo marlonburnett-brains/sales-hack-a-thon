@@ -105,8 +105,13 @@ function DriveStatusBadge({
     }
   })();
 
-  if (driveFileId) {
-    const driveUrl = `https://drive.google.com/file/d/${driveFileId}/view`;
+  // Touch 4 may have outputRefs with artifact URLs but no driveFileId
+  const hasTouchFourArtifacts = touchType === "touch_4" && parsedRefs && typeof parsedRefs === "object" && !Array.isArray(parsedRefs) && parsedRefs.deckUrl;
+
+  if (driveFileId || hasTouchFourArtifacts) {
+    const driveUrl = driveFileId
+      ? `https://drive.google.com/file/d/${driveFileId}/view`
+      : (parsedRefs?.deckUrl as string) ?? "";
 
     return (
       <div className="space-y-2">
