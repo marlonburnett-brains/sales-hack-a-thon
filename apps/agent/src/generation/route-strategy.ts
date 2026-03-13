@@ -94,7 +94,7 @@ const FUNNEL_STAGE_MAP: Record<string, string> = {
 };
 
 /** Maximum number of transcript insights to include (most recent first). */
-const MAX_TRANSCRIPT_INSIGHTS = 3;
+const MAX_TRANSCRIPT_INSIGHTS = 5;
 
 /**
  * Constructs a DealContext from touch workflow inputs with sensible defaults.
@@ -162,7 +162,7 @@ async function queryTranscriptInsights(dealId: string): Promise<TranscriptInsigh
       prisma.dealContextSource.findMany({
         where: {
           dealId,
-          sourceType: "transcript",
+          sourceType: { in: ["transcript", "note", "upload"] },
           status: "saved",
         },
         orderBy: { createdAt: "desc" },
