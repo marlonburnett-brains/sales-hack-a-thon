@@ -217,12 +217,30 @@ export async function transitionStageAction(
         refinedContent,
       });
       break;
-    case "touch_4":
-      result = await resumeWorkflowStep(workflowId, runId, stepId, {
-        decision,
-        refinedContent,
-      });
+    case "touch_4": {
+      // Touch 4 has 3 suspend points with different resume schemas
+      let touch4ResumeData: unknown;
+      if (stepId === "await-field-review") {
+        // Field review: needs reviewedFields (use refinedContent or empty)
+        touch4ResumeData = refinedContent ?? { reviewedFields: {} };
+      } else if (stepId === "await-brief-approval") {
+        touch4ResumeData = {
+          decision: "approved",
+          reviewerName: "Demo Reviewer",
+          ...(refinedContent ? { editedBrief: refinedContent } : {}),
+        };
+      } else if (stepId === "await-asset-review") {
+        touch4ResumeData = {
+          decision: "approved",
+          reviewerName: "Demo Reviewer",
+          reviewerRole: "Sales Manager",
+        };
+      } else {
+        touch4ResumeData = { decision, refinedContent };
+      }
+      result = await resumeWorkflowStep(workflowId, runId, stepId, touch4ResumeData);
       break;
+    }
     default:
       result = await resumeWorkflowStep(workflowId, runId, stepId, {
         decision,

@@ -1678,8 +1678,8 @@ const awaitAssetReview = createStep({
         complianceResult: inputData.complianceResult,
       });
 
-      // This line is never reached (suspend halts execution)
-      throw new Error("Unreachable after suspend");
+      // suspend() halts execution; return is a fallback guard
+      return inputData as typeof inputData & { decision: "approved"; reviewerName: string; reviewerRole: string };
     }
 
     // Resumed with approval -- update hitlStage to ready

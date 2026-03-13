@@ -1114,6 +1114,28 @@ export const mastra = new Mastra({
         },
       }),
       // ────────────────────────────────────────────────────────────
+      // Touch 4 Workflow Status (persistent store fallback)
+      // ────────────────────────────────────────────────────────────
+      registerApiRoute("/touch-4-workflow/status/:runId", {
+        method: "GET",
+        handler: async (c) => {
+          const runId = c.req.param("runId");
+          try {
+            const wf = mastra.getWorkflow("touch-4-workflow");
+            const run = wf.createRun({ runId });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const status = await (run as any).get();
+            return c.json(status);
+          } catch (err) {
+            return c.json(
+              { error: "Workflow run not found", details: String(err) },
+              404,
+            );
+          }
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
       // Brief Approval API (Phase 6 -- HITL Checkpoint 1)
       // ────────────────────────────────────────────────────────────
 

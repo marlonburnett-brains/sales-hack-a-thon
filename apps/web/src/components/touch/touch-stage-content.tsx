@@ -562,6 +562,110 @@ function Touch4ArtifactContent({
   content: unknown;
 }) {
   const data = content as Record<string, unknown> | null;
+
+  // Touch 4 workflow stores different shapes at each HITL stage.
+  // Detect the actual shape and render accordingly.
+
+  // Skeleton stage: workflow stores { extractedFields, fieldSeverity, hasErrors }
+  // (field review suspend point -- not artifact outlines)
+  if (stage === "skeleton" && data?.extractedFields) {
+    const fields = data.extractedFields as Record<string, string>;
+    const severity = (data.fieldSeverity as Record<string, string>) ?? {};
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Extracted Transcript Fields</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          {Object.entries(fields).map(([key, value]) => (
+            <div
+              key={key}
+              className={`rounded-lg border px-3 py-2 ${
+                severity[key] === "error"
+                  ? "border-red-200 bg-red-50"
+                  : severity[key] === "warning"
+                    ? "border-amber-200 bg-amber-50"
+                    : "border-slate-200"
+              }`}
+            >
+              <p className="font-medium text-slate-800 capitalize">
+                {key.replace(/([A-Z])/g, " $1").trim()}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-600">
+                {value || <span className="italic text-slate-400">Not provided</span>}
+              </p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Lowfi stage: workflow stores { briefData, roiFramingData }
+  // (brief approval suspend point)
+  if (stage === "lowfi" && data?.briefData) {
+    const brief = data.briefData as Record<string, unknown>;
+    const roi = data.roiFramingData as Record<string, unknown> | null;
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Sales Brief</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          {typeof brief.executiveSummary === "string" && brief.executiveSummary && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase text-slate-500">Executive Summary</p>
+              <p className="whitespace-pre-wrap leading-relaxed text-slate-700">
+                {brief.executiveSummary}
+              </p>
+            </div>
+          )}
+          {Array.isArray(brief.solutionPillars) && brief.solutionPillars.length > 0 && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase text-slate-500">Solution Pillars</p>
+              <div className="space-y-2">
+                {(brief.solutionPillars as Array<{ name?: string; description?: string }>).map((pillar, i) => (
+                  <div key={i} className="rounded-lg border border-slate-200 px-3 py-2">
+                    <p className="font-medium text-slate-800">{pillar.name ?? `Pillar ${i + 1}`}</p>
+                    {pillar.description && (
+                      <p className="mt-0.5 text-xs text-slate-500">{pillar.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {roi && Array.isArray(roi.outcomes) && roi.outcomes.length > 0 && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase text-slate-500">ROI Outcomes</p>
+              <ul className="list-disc space-y-1 pl-4 text-slate-700">
+                {(roi.outcomes as Array<{ outcome?: string }>).map((item, i) => (
+                  <li key={i}>{item.outcome ?? JSON.stringify(item)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Highfi stage: workflow stores { deckUrl, talkTrackUrl, faqUrl, complianceResult }
+  // (asset review suspend point)
+  if (stage === "highfi" && (data?.deckUrl || data?.talkTrackUrl || data?.faqUrl)) {
+    return (
+      <Touch4ArtifactTabs
+        stage={stage}
+        content={{
+          proposal: data.deckUrl ? { url: data.deckUrl, driveUrl: data.deckUrl } : undefined,
+          talkTrack: data.talkTrackUrl ? { url: data.talkTrackUrl, driveUrl: data.talkTrackUrl } : undefined,
+          faq: data.faqUrl ? { url: data.faqUrl, driveUrl: data.faqUrl } : undefined,
+        }}
+      />
+    );
+  }
+
+  // Default: original artifact tabs shape (proposal, talkTrack, faq)
   return (
     <Touch4ArtifactTabs
       stage={stage}

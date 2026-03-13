@@ -28,34 +28,6 @@
         }
       },
       {
-        "createImage": {
-          "objectId": "generated-s4-ima-s4-image-1-1-42a31bacc0b7",
-          "url": "https://example.com/image.png",
-          "elementProperties": {
-            "pageObjectId": "generated-s4",
-            "size": {
-              "height": {
-                "magnitude": 100,
-                "unit": "PT"
-              },
-              "width": {
-                "magnitude": 200,
-                "unit": "PT"
-              }
-            },
-            "transform": {
-              "scaleX": 1,
-              "scaleY": 1,
-              "shearX": 0,
-              "shearY": 0,
-              "translateX": 10,
-              "translateY": 20,
-              "unit": "PT"
-            }
-          }
-        }
-      },
-      {
         "createShape": {
           "objectId": "generated-s4-sha-s4-shape-1-1-92c42adeca25",
           "shapeType": "RECTANGLE",
@@ -429,34 +401,6 @@
             "endIndex": 12
           },
           "fields": "*"
-        }
-      },
-      {
-        "createImage": {
-          "objectId": "generated-s4-ima-s4-group-c-2-d7dcb427e603",
-          "url": "https://example.com/group.png",
-          "elementProperties": {
-            "pageObjectId": "generated-s4",
-            "size": {
-              "height": {
-                "magnitude": 100,
-                "unit": "PT"
-              },
-              "width": {
-                "magnitude": 200,
-                "unit": "PT"
-              }
-            },
-            "transform": {
-              "scaleX": 1,
-              "scaleY": 1,
-              "shearX": 0,
-              "shearY": 0,
-              "translateX": 14,
-              "translateY": 24,
-              "unit": "PT"
-            }
-          }
         }
       },
       {

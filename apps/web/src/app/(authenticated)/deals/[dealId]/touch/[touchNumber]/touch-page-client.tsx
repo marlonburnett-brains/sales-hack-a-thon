@@ -7,6 +7,7 @@ import { Plus, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TouchPageShell } from "@/components/touch/touch-page-shell";
 import { TouchGuidedStart } from "@/components/touch/touch-guided-start";
+import { Touch4Form } from "@/components/touch/touch-4-form";
 import { TouchStageContent } from "@/components/touch/touch-stage-content";
 import { TouchGenerationHistory } from "@/components/touch/touch-generation-history";
 import { GenerationProgress } from "@/components/touch/generation-progress";
@@ -618,7 +619,7 @@ export function TouchPageClient({
     );
   }
 
-  // No interactions: guided start
+  // No interactions: guided start (or Touch4Form for touch 4)
   if (!activeInteraction) {
     return (
       <TouchContextProvider value={touchContext}>
@@ -626,15 +627,24 @@ export function TouchPageClient({
           <h1 className="text-xl font-bold text-slate-900">
             Touch {touchNumber}: {touchName}
           </h1>
-          <TouchGuidedStart
-            touchNumber={touchNumber}
-            touchType={touchType}
-            dealId={dealId}
-            companyName={companyName}
-            industry={industry}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
-          />
+          {touchType === "touch_4" ? (
+            <Touch4Form
+              dealId={dealId}
+              companyName={companyName}
+              industry={industry}
+              onClose={() => router.refresh()}
+            />
+          ) : (
+            <TouchGuidedStart
+              touchNumber={touchNumber}
+              touchType={touchType}
+              dealId={dealId}
+              companyName={companyName}
+              industry={industry}
+              onGenerate={handleGenerate}
+              isGenerating={isGenerating}
+            />
+          )}
         </div>
       </TouchContextProvider>
     );
@@ -784,15 +794,24 @@ export function TouchPageClient({
               <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 A previous generation did not complete. You can start a new generation below.
               </div>
-              <TouchGuidedStart
-                touchNumber={touchNumber}
-                touchType={touchType}
-                dealId={dealId}
-                companyName={companyName}
-                industry={industry}
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-              />
+              {touchType === "touch_4" ? (
+                <Touch4Form
+                  dealId={dealId}
+                  companyName={companyName}
+                  industry={industry}
+                  onClose={() => router.refresh()}
+                />
+              ) : (
+                <TouchGuidedStart
+                  touchNumber={touchNumber}
+                  touchType={touchType}
+                  dealId={dealId}
+                  companyName={companyName}
+                  industry={industry}
+                  onGenerate={handleGenerate}
+                  isGenerating={isGenerating}
+                />
+              )}
             </>
           )}
           {interactions.length > 1 && historySection}

@@ -609,8 +609,11 @@ export async function startTouch4Workflow(
     additionalNotes?: string;
   }
 ): Promise<WorkflowStartResult> {
+  // Generate a known runId upfront so we can poll for status via direct DB query.
+  // Mastra's start-async doesn't return runId in the response for suspended workflows.
+  const runId = crypto.randomUUID();
   const result = await fetchWithGoogleAuth<WorkflowStartResult>(
-    `/api/workflows/touch-4-workflow/start-async`,
+    `/api/workflows/touch-4-workflow/start-async?runId=${encodeURIComponent(runId)}`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -621,15 +624,21 @@ export async function startTouch4Workflow(
       }),
     }
   );
+  // Ensure runId is always present in the response
+  if (!result.runId) {
+    result.runId = runId;
+  }
   return result;
 }
 
 export async function getTouch4WorkflowStatus(
   runId: string
 ): Promise<WorkflowRunResult> {
-  return fetchJSON<WorkflowRunResult>(
-    `/api/workflows/touch-4-workflow/runs/${encodeURIComponent(runId)}`
-  );
+  // Query the workflow snapshot table directly, bypassing the agent API.
+  // This works around the Mastra framework limitation where custom
+  // registerApiRoute routes are unreachable after JWT auth.
+  const { getTouch4Snapshot } = await import("@/lib/touch4-snapshot");
+  return getTouch4Snapshot(runId);
 }
 
 export async function resumeTouch4Workflow(

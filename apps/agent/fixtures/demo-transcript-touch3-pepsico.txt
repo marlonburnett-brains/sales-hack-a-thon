@@ -1,0 +1,131 @@
+Capability Alignment Call Transcript
+Client: PepsiCo, Inc.
+Date: March 5, 2026
+Participants: Rachel Torres (Lumenalta, Senior Solutions Architect), Marcus Webb (Lumenalta, Sales Director), Priya Sharma (VP of Data & Analytics, PepsiCo), Derek Huang (Director of Supply Chain Technology, PepsiCo)
+
+---
+
+Marcus Webb: Priya, Derek, thanks for making time for this deeper dive. Last time we met, we walked through who Lumenalta is and some of our cross-industry work. Today, Rachel and I want to get much more specific about how our capabilities map to the challenges you described around supply chain visibility and demand forecasting.
+
+Priya Sharma: That's exactly what we need. After our last conversation, I briefed our SVP of Global Supply Chain, and she's very interested in seeing how your data engineering and AI/ML capabilities could accelerate what we're trying to do. We've been spinning our wheels internally for almost a year.
+
+Marcus Webb: That's great to hear there's executive interest. Rachel, why don't you kick things off?
+
+Rachel Torres: Absolutely. Priya, in our last session you mentioned PepsiCo is dealing with fragmented data across 23 manufacturing plants and roughly 400 distribution centers. Can you walk us through what that looks like day to day for your team?
+
+Priya Sharma: Sure. So the core problem is that we have data sitting in at least five different systems that don't talk to each other well. Our SAP ERP handles production planning. We've got a legacy warehouse management system -- it's an on-prem Oracle system that's been customized heavily over the past decade. Then there's our transportation management platform, which is a SaaS tool we adopted three years ago. On top of that, we have point-of-sale data flowing in from major retailers like Walmart, Kroger, and Target through EDI feeds. And finally, our demand planning team uses a separate forecasting tool that was built by an internal team five years ago.
+
+Rachel Torres: So five major data sources, each with its own schema, update cadence, and quality characteristics. What's the current state of integration between them?
+
+Priya Sharma: Honestly? It's a mess. We have a combination of batch ETL jobs -- most running nightly, some weekly -- and a handful of point-to-point API integrations that were built ad hoc over the years. The result is that on any given morning, our supply chain leaders are looking at data that's anywhere from 12 to 36 hours stale. For a company moving 500 million cases of product annually, that latency is painful.
+
+Derek Huang: I can add some color there. On the distribution side, I have 14 regional logistics managers who each start their day by manually pulling reports from three different systems and reconciling them in Excel. We estimated last quarter that our team spends roughly 2,000 person-hours per month just on data reconciliation. That's not analysis -- that's just getting the numbers to agree.
+
+Rachel Torres: Two thousand hours a month on reconciliation. That's effectively 12 full-time employees doing nothing but making data consistent. That's a significant cost and a massive opportunity.
+
+Derek Huang: Exactly. And the worst part is, by the time they've reconciled everything, the data is another few hours older. So our logistics decisions are being made on information that could be up to two days old during peak periods.
+
+Rachel Torres: This is a pattern we see frequently in large CPG organizations, and it's one where our data engineering capability is particularly strong. Let me share what we've done in similar situations.
+
+We recently completed a data platform modernization for a top-five global food manufacturer -- I can't name them due to NDA, but similar scale to PepsiCo's North American operations. They had a comparable challenge: seven source systems, batch-only integration, and a 24-hour data lag that was costing them roughly $40 million annually in suboptimal inventory positioning.
+
+What we built was a real-time streaming data platform on top of Apache Kafka and a cloud-native lakehouse architecture. The key design principle was what we call "schema-on-read with governed contracts" -- meaning each source system publishes events in its native format, and we handle transformation and harmonization at the consumption layer. This let us onboard new data sources in days instead of months.
+
+Priya Sharma: That's interesting. How did you handle the legacy systems? Our Oracle WMS, for example -- it wasn't designed to emit events. It's very much a batch-oriented system.
+
+Rachel Torres: Great question, and this is where the implementation gets practical. For legacy systems like that, we deploy what we call "change data capture" adapters -- lightweight agents that sit alongside the database and capture row-level changes in near real-time. For Oracle specifically, we've used Debezium with custom connectors. The legacy system doesn't need to change at all. We're reading the transaction log, not modifying the application.
+
+For your SAP environment, we'd take a different approach. SAP has native event capabilities through its Integration Suite, so we'd configure RFC/BAPI event publishing to push production order changes, material movements, and inventory snapshots to the streaming layer. Again, minimal disruption to the core ERP.
+
+Derek Huang: What about the SaaS transportation platform? That's a vendor-managed system -- we don't control the infrastructure.
+
+Rachel Torres: For SaaS systems, we typically use a combination of webhook subscriptions and polling-based connectors. Most modern TMS platforms expose webhook APIs for shipment status changes, delivery confirmations, and exception events. We'd build a connector service that normalizes those events into your unified schema. We've done this exact pattern with FourKites, project44, and Blue Yonder, so the integration playbook is well-established.
+
+Priya Sharma: OK, so that addresses the data integration side. But the bigger strategic question for us is demand forecasting. We currently run our demand models weekly, and the accuracy has been declining over the past two years. Our MAPE -- mean absolute percentage error -- is sitting at about 28% at the SKU-location level. Industry best practice for CPG is closer to 15-18%. That gap is costing us real money in both overstock and stockouts.
+
+Rachel Torres: A 28% MAPE at SKU-location level -- that's significant, but it's also very addressable with modern ML approaches. Can you tell me more about your current forecasting methodology?
+
+Priya Sharma: It's primarily statistical -- exponential smoothing and ARIMA models, run in that custom-built forecasting tool I mentioned. The models use 24 months of historical shipment data and some basic seasonality adjustments. But they don't incorporate external signals at all -- no weather data, no promotional lift modeling, no real-time POS signals from retailers.
+
+Rachel Torres: That's where our AI/ML capability comes in, and it ties directly to the data engineering work. Once you have a real-time data foundation, you can build ML models that consume a much richer feature set.
+
+For demand forecasting specifically, we've developed an approach we call "hierarchical ensemble forecasting." Instead of one model trying to predict everything, we train specialized models at different levels of the product-geography hierarchy and then use an ensemble layer to reconcile them. At the top level, you might have a gradient-boosted model looking at category trends and macroeconomic signals. At the SKU-location level, you'd have neural network models -- typically temporal fusion transformers -- that can capture complex seasonal patterns and promotional effects.
+
+The key differentiator is the feature engineering. In the project I mentioned earlier, we incorporated over 200 external signal sources: weather forecasts at the ZIP code level, social media sentiment around product categories, competitor pricing scraped from public sources, and real-time POS velocity data. The result was a reduction in MAPE from 26% to 14% at the SKU-location level.
+
+Priya Sharma: From 26 to 14? That's almost cutting the error in half. What was the timeline for that?
+
+Rachel Torres: The full deployment was eight months from kickoff to production. But we structured it in phases. Phase 1 was the data platform -- getting real-time data flowing -- which took about three months. Phase 2 was the initial ML models using just the historical and internal data, which got them from 26% to about 20% MAPE in two months. Phase 3 was incorporating external signals and fine-tuning, which pushed it down to 14% over the remaining three months.
+
+The important thing is that each phase delivered measurable value. They didn't have to wait eight months to see results.
+
+Derek Huang: This is compelling. Let me bring it back to the supply chain execution side. If we had demand forecasts that were that much more accurate, plus real-time visibility into inventory and shipment status, what does that enable operationally?
+
+Rachel Torres: Excellent question. This is where the data engineering and AI/ML capabilities converge into what we call "intelligent supply chain orchestration." With accurate demand signals and real-time visibility, you can move from reactive to predictive operations.
+
+Concretely, that means: automated replenishment triggers based on predicted demand rather than reorder points. Dynamic routing optimization that considers real-time traffic, weather, and facility capacity. Proactive exception management -- the system identifies potential stockouts or delays 48 to 72 hours before they happen and recommends corrective actions.
+
+For one of our retail clients -- a large grocery chain -- this approach reduced stockouts by 35% and cut excess inventory carrying costs by $28 million annually.
+
+Derek Huang: The proactive exception management is particularly interesting. Right now, we find out about problems when a store calls to ask where their delivery is. By then, we're already in firefighting mode.
+
+Marcus Webb: Derek, that reactive-to-proactive shift is one of the most impactful transformations we see. And it compounds over time -- as the ML models learn from more data, the predictions get better, and the system catches problems earlier.
+
+Priya Sharma: I want to talk about scale for a moment. PepsiCo processes somewhere in the range of 2.5 million transactions per day across our supply chain -- purchase orders, shipment updates, inventory adjustments, production completions. Can your platform handle that volume?
+
+Rachel Torres: Absolutely. The streaming architecture we build on Kafka is designed for exactly that scale. Our largest deployment processes over 10 million events per day with sub-second latency. At 2.5 million transactions per day, you'd be well within the comfort zone.
+
+That said, the challenge at PepsiCo's scale isn't just throughput -- it's the complexity of the data relationships. You have products that exist in multiple packaging configurations, ship through multiple distribution tiers, and are subject to different demand patterns by region and channel. Our data modeling approach handles this through what we call "dimensional streaming" -- events carry their full dimensional context so that downstream consumers can aggregate and slice the data without additional joins.
+
+Priya Sharma: What about our team's ability to support this? We have a data engineering team of about 20, but they're mostly SQL-focused. They know our current batch ETL pipelines inside and out, but streaming architectures and ML ops are new territory.
+
+Rachel Torres: That's a common and valid concern. Our engagement model is designed around knowledge transfer. We don't build something and hand over the keys -- we build it alongside your team. Typically, for a program of this scope, we'd embed a team of six to eight engineers who pair with your people from day one. By the end of the engagement, your team owns the platform and has the skills to extend it.
+
+We also provide structured training modules -- we've developed a curriculum specifically for teams transitioning from batch to streaming paradigms. It covers Kafka fundamentals, stream processing with Flink, lakehouse architecture patterns, and ML ops with MLflow. We've delivered this curriculum to over 300 engineers across our client base.
+
+Derek Huang: That knowledge transfer piece is important. We've been burned before by consultancies that build black boxes and then charge us forever for maintenance.
+
+Marcus Webb: Derek, that's exactly the model we want to avoid. Lumenalta's success metric isn't billable hours -- it's client self-sufficiency. We measure ourselves on how quickly your team can operate independently.
+
+Priya Sharma: Let's talk timeline and budget, at least directionally. We have a board planning cycle coming up in Q2, and I need to present a credible plan. What are we looking at for something like this?
+
+Rachel Torres: Based on what we've discussed, I'd frame this as a three-phase program. Phase 1: Data Foundation -- standing up the streaming platform, onboarding the five core data sources, and building the unified data layer. That's typically a 12 to 14 week effort with a team of eight, and I'd budget in the range of $1.5 to $2 million.
+
+Phase 2: Intelligent Forecasting -- building and deploying the ML-based demand forecasting models, integrating external signals, and standing up the ML ops infrastructure. Another 10 to 12 weeks, $1.2 to $1.5 million.
+
+Phase 3: Supply Chain Orchestration -- the real-time visibility dashboards, automated replenishment, and proactive exception management. 8 to 10 weeks, $800K to $1 million.
+
+Total program: roughly 30 to 36 weeks, $3.5 to $4.5 million. But each phase delivers standalone value, so you'd see ROI before the full program completes.
+
+Priya Sharma: That's in the range I was expecting. The phased approach helps -- I can make the case for Phase 1 more easily if it stands on its own. What kind of ROI should I model for the board?
+
+Rachel Torres: Based on comparable engagements, I'd model three primary value drivers. First, the 2,000 person-hours per month in manual reconciliation that Derek mentioned -- at fully loaded cost, that's roughly $3.5 to $4 million annually that can be largely automated. Second, improved forecast accuracy driving a 20-30% reduction in safety stock -- for a company of PepsiCo's scale, that could mean $50 to $80 million in working capital freed up. Third, stockout reduction of 25-35%, which typically translates to 1-2% revenue recovery on affected SKUs.
+
+Priya Sharma: Those are compelling numbers. Even if we discount them by half for conservatism, the payback period is well under a year.
+
+Marcus Webb: And those are just the quantifiable benefits. The strategic value -- being able to respond to demand shifts in hours instead of days, having a data platform that can support future AI initiatives -- that's harder to quantify but arguably more important.
+
+Derek Huang: I have one more question. How do you handle data security and compliance? PepsiCo has strict data governance requirements, especially around retailer data. Our agreements with Walmart and Target have specific clauses about how their POS data can be used.
+
+Rachel Torres: Data governance is built into our architecture from the ground up. We implement fine-grained access controls at the data layer -- you can define policies that restrict which teams, models, or applications can access specific data domains. For retailer data specifically, we'd configure data classification tags and retention policies that align with your contractual obligations.
+
+We're also SOC 2 Type II certified and have experience working within the data governance frameworks of several Fortune 100 companies. We'd do a data classification workshop early in Phase 1 to map all sensitivity requirements and build the guardrails before any data starts flowing.
+
+Priya Sharma: That's reassuring. OK, I think we have a solid understanding of your capabilities and how they map to our needs. What are the next steps from your side?
+
+Marcus Webb: We'd like to put together a detailed capability alignment document -- essentially a deck that maps your specific challenges to our proven solutions, with relevant case studies and a proposed phased roadmap. We can have that ready within a week.
+
+Beyond that, I'd recommend we schedule a technical proof-of-concept scoping session. We'd bring our lead data architect and ML engineering lead to sit down with your team and design a focused POC -- maybe taking one plant and one distribution center, connecting two data sources in real-time, and running a basic demand model. Something you could show the board as tangible evidence.
+
+Priya Sharma: I like that. A focused POC would go a long way with our leadership. Let's plan for that scoping session in the next two weeks.
+
+Derek Huang: Agreed. I'll loop in my lead architect for the distribution systems -- he'll want to be part of the technical discussion.
+
+Marcus Webb: Perfect. We'll send over a formal agenda and pre-read materials by end of week. Priya, Derek -- thank you both for the depth of this conversation. It's clear you have a strong vision for where PepsiCo's supply chain needs to go, and we're confident we can help you get there.
+
+Priya Sharma: Thanks, Marcus. Thanks, Rachel. This was exactly the kind of detailed capability discussion we needed. Looking forward to the next step.
+
+Derek Huang: Agreed. Really helpful to see how the technical pieces fit together. Talk soon.
+
+---
+End of Transcript

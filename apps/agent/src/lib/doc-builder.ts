@@ -12,6 +12,7 @@
 import type { docs_v1 } from "googleapis";
 import { getDocsClient } from "./google-auth";
 import { getDriveClient } from "./google-auth";
+import { getPooledGoogleAuth } from "./google-auth";
 import { shareWithOrg } from "./drive-folders";
 
 export interface DocSection {
@@ -126,8 +127,14 @@ export async function createGoogleDoc(params: {
   dealFolderId: string;
   sections: DocSection[];
 }): Promise<{ documentId: string; docUrl: string }> {
-  const docs = getDocsClient();
-  const drive = getDriveClient();
+  // Use the token pool (user OAuth tokens) for Docs API.
+  // The service account may not have Google Docs API permission.
+  const poolAuth = await getPooledGoogleAuth();
+  const authOpts = poolAuth.accessToken
+    ? { accessToken: poolAuth.accessToken }
+    : undefined;
+  const docs = getDocsClient(authOpts);
+  const drive = getDriveClient(authOpts);
 
   // 1. Create the document
   const doc = await docs.documents.create({
