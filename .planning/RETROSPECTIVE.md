@@ -2,6 +2,57 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.8 — Structure-Driven Deck Generation
+
+**Shipped:** 2026-03-18
+**Phases:** 8 completed (4 deferred) | **Plans:** 12 | **Quick Tasks:** 19 | **Commits:** 75
+
+### What Was Built
+- Shared generation pipeline types with dual Zod/GenAI schema pattern for Gemini structured output compatibility
+- Blueprint resolver consuming DeckStructure to produce GenerationBlueprint with resolved candidates from SlideEmbedding records
+- Multi-source slide assembler with primary copy-and-prune, secondary element reconstruction with exhaustive style mapping, and Drive cleanup
+- Modification planner via named LLM agent with element-map analysis, hallucination guard post-validation, and graceful fallback
+- Section matcher with weighted metadata scoring (industry/pillar/persona/funnel stage) and lazy pgvector cosine tiebreaker
+- Modification executor with element-scoped delete/insert, sequential slide re-reads, and slide-level error isolation
+- 7-step HITL workflow (3 suspend points) wired to generation pipeline with Mastra suspend/resume
+- Three-way touch routing (structure-driven/legacy/low-confidence) for all 4 touch types
+- 19 quick tasks: LLM model switch (Gemini 3 Flash), visual QA with auto-correction, section-aware draft generation, transcript insights, JWT auth, UI polish
+
+### What Worked
+- **Wave-based parallelization:** 3 independent tracks (blueprint resolver, multi-source assembler, modification planner) executed in parallel during Wave 2
+- **TDD for assembly helpers:** Red-green cycle for groupSlidesBySource and buildMultiSourcePlan caught edge cases early (tie-breaking, single-source fast path)
+- **Hallucination guard post-validation:** Overriding LLM-returned slideId/slideObjectId prevents ID drift from corrupting execution
+- **Quick task velocity:** 19 quick tasks shipped in 4 days covering model switch, visual QA, draft redesign, transcript insights, JWT auth, and UI polish
+- **Dual schema pattern:** Zod for Mastra + GenAI Type.OBJECT for Gemini covers both validation surfaces without duplication
+
+### What Was Inefficient
+- **Phase 52 required 5 plans:** Multi-source assembly needed 3 attempts at secondary slide reconstruction (element-by-element failed twice before exhaustive style mapping worked)
+- **4 gap-closure phases never executed:** Phases 58-61 planned after audit but deprioritized in favor of quick tasks — audit-driven phases only work if they actually get executed
+- **SUMMARY frontmatter still empty:** 9th milestone with `requirements_completed` and `one_liner` not populated — persistent tooling gap
+- **Progress table drift:** Phases 50-57 had inconsistent milestone column formatting in the progress table
+
+### Patterns Established
+- **Dual Zod/GenAI schema pattern:** Separate validation schemas for Mastra (Zod) and Gemini (GenAI Type.OBJECT) from same source types
+- **BlueprintWithCandidates wrapper:** Return compound result (blueprint + candidates Map) to avoid re-querying between resolver and matcher
+- **Hallucination guard post-validation:** Override LLM-returned IDs with known-good values from input context
+- **Weighted metadata scoring:** Deterministic scoring with configurable weights per axis before falling back to vector similarity
+- **Lazy embedding generation:** Only generate deal-context embedding when metadata ties require pgvector tiebreaking
+- **RESTART_REQUIRED error protocol:** Low-fi rejection throws typed error for routing layer to catch and re-invoke pipeline
+
+### Key Lessons
+1. **Secondary slide reconstruction is a hard problem:** Element-by-element recreation via Google Slides API has fundamental fidelity limitations — Apps Script or native copy would be better.
+2. **Quick tasks can outpace planned phases:** 19 quick tasks delivered more user-facing value than the 4 deferred gap-closure phases would have.
+3. **Gap-closure phases need execution commitment:** Planning phases after audit without committing to execute them creates false confidence in coverage.
+4. **LLM hallucination on IDs is predictable:** Always post-validate and override structured output fields that must match input context exactly.
+5. **Wave-based parallelization scales to complex pipelines:** 8 phases with 6 waves completed core pipeline in 1 day.
+
+### Cost Observations
+- Model mix: ~55% sonnet (executors), ~30% haiku (researchers, quick tasks), ~15% opus (orchestration, milestone)
+- Sessions: ~12 sessions across 5 days
+- Notable: Quick tasks dominated the latter half of the milestone — more sessions spent on polish than on pipeline phases
+
+---
+
 ## Milestone: v1.7 — Deals & HITL Pipeline
 
 **Shipped:** 2026-03-09
@@ -403,6 +454,7 @@
 | v1.5 | 49 | 3 | UX polish, slide intelligence v2, content classification, deck intelligence |
 | v1.6 | 110 | 6 | Touch 4 artifact intelligence, live proof closure, contract hardening, and agent baseline cleanup |
 | v1.7 | 114 | 9 | Deal management platform, named agents, persistent chat, 3-stage HITL, Drive integration |
+| v1.8 | 75 | 12 | Structure-driven deck generation pipeline, multi-source assembly, modification planning/execution, 19 quick tasks |
 
 ### Cumulative Quality
 
@@ -416,16 +468,17 @@
 | v1.5 | 3 | 1 | 2 (phases 32, 33 — UI-heavy, human verification) |
 | v1.6 | 6 | 6 | 0 (all in-scope verifications passed after audit rerun) |
 | v1.7 | 9 | 9 | 0 (38/38 requirements, all E2E flows verified) |
+| v1.8 | 8 | 8 | 0 (42/62 requirements complete, 20 deferred to gap-closure phases) |
 
 ### Cumulative Stats
 
-| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | v1.6 | v1.7 | Total |
-|--------|------|------|------|------|------|------|------|------|-------|
-| Phases | 13 | 4 | 4 | 5 | 5 | 3 | 6 | 9 | 49 |
-| Plans | 27 | 6 | 10 | 10 | 12 | 8 | 20 | 30 | 123 |
-| Commits | 169 | 55 | 37 | 17 | ~60 | 49 | 110 | 114 | ~611 |
-| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~40,833 | ~50,876 | ~61,245 | ~61,245 |
-| Days | 2 | 1 | 2 | 1 | 2 | 1 | 2 | 2 | 7 |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | v1.6 | v1.7 | v1.8 | Total |
+|--------|------|------|------|------|------|------|------|------|------|-------|
+| Phases | 13 | 4 | 4 | 5 | 5 | 3 | 6 | 9 | 12 | 61 |
+| Plans | 27 | 6 | 10 | 10 | 12 | 8 | 20 | 30 | 12 | 135 |
+| Commits | 169 | 55 | 37 | 17 | ~60 | 49 | 110 | 114 | 75 | ~686 |
+| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~40,833 | ~50,876 | ~61,245 | ~74,111 | ~74,111 |
+| Days | 2 | 1 | 2 | 1 | 2 | 1 | 2 | 2 | 5 | 11 |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -451,3 +504,8 @@
 20. Forward-only migration discipline scales to 49 phases without reset — the pattern works even as schema complexity grows significantly (v1.7)
 21. HITL stage revert should be a first-class requirement, not discovered during audit — users always expect to go back (v1.7)
 22. 4-tier parallelization enables 30 plans in 2 days — running independent phases concurrently is the key velocity multiplier (v1.7)
+23. Secondary slide reconstruction via Google Slides API has fundamental fidelity limitations — Apps Script or native copy is the right long-term approach (v1.8)
+24. Quick tasks can outpace planned phases for user-facing value — 19 quick tasks delivered more polish than 4 deferred gap-closure phases would have (v1.8)
+25. LLM hallucination on structured output IDs is predictable — always post-validate and override fields that must match input context exactly (v1.8)
+26. Gap-closure phases need execution commitment — planning them after audit without executing creates false confidence in coverage (v1.8)
+27. Dual schema pattern (Zod + GenAI) covers both Mastra and Gemini validation surfaces without duplication (v1.8)

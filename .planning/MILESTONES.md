@@ -1,5 +1,35 @@
 # Milestones
 
+## v1.8 Structure-Driven Deck Generation (Shipped: 2026-03-18)
+
+**Phases:** 8 completed (50-57), 4 deferred (58-61) | **Plans:** 12 | **Quick Tasks:** 19 | **Commits:** 75 | **LOC:** ~74,111 TypeScript/TSX/Prisma (total)
+**Timeline:** 5 days (2026-03-09 -> 2026-03-13)
+
+**Key accomplishments:**
+- Shared generation pipeline types with dual Zod/GenAI schema pattern for Gemini structured output compatibility
+- Blueprint resolver consuming DeckStructure to produce GenerationBlueprint with resolved candidates from SlideEmbedding records
+- Multi-source slide assembler with primary copy-and-prune, secondary element reconstruction, exhaustive style mapping, and Drive cleanup
+- Modification planner with named agent, element-map analysis, hallucination guard post-validation, and graceful LLM fallback
+- Section matcher with weighted metadata scoring (industry/pillar/persona/funnel stage) and pgvector cosine tiebreaker
+- Modification executor with element-scoped delete/insert, sequential slide re-reads, and slide-level error isolation
+- 3-stage HITL workflow (Skeleton/Low-fi/High-fi) wired to structure-driven generation pipeline with Mastra suspend/resume
+- Touch routing with three-way strategy (legacy/structure-driven/low-confidence) and preserved legacy fallback paths
+
+**Known Gaps (deferred to v1.9):**
+- FR-4.4, FR-6.1-6.4, NFR-7, NFR-8: Secondary-slide personalization with assembled slide IDs (Phase 58)
+- FR-5.2, FR-5.4, FR-8.1: Touch 1 approved draft content through modification planning (Phase 59)
+- FR-7.1-7.7, FR-8.6: Live HITL wiring and confidence gating in real UX (Phase 60)
+- FR-8.5, FR-9.4: Runtime legacy fallback routing for Touch 1-3 (Phase 61)
+
+**Tech debt (accepted):**
+- Element-by-element secondary slide reconstruction has visual fidelity limitations vs native Slides API copy
+- Multi-source assembly untested with real multi-template presentations at scale
+- Low-confidence routing surfaces warning via HITL but still uses structure-driven path (no actual legacy branch)
+
+**Archives:** [v1.8-ROADMAP.md](milestones/v1.8-ROADMAP.md) | [v1.8-REQUIREMENTS.md](milestones/v1.8-REQUIREMENTS.md)
+
+---
+
 ## v1.7 Deals & HITL Pipeline (Shipped: 2026-03-09)
 
 **Phases:** 9 (41-49) | **Plans:** 30 | **Commits:** 114 | **Files changed:** 145 | **LOC:** ~61,245 TypeScript/TSX/Prisma (total)

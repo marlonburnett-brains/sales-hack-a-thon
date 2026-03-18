@@ -10,19 +10,9 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ## Current State
 
-Shipped `v1.7 Deals & HITL Pipeline` on 2026-03-09. The app is now a full deal-management platform with pipeline views (card/table toggle, status lifecycle, assignment filtering), deal detail navigation (breadcrumbs, sidebar, overview dashboard, briefing page), persistent AI chat across all deal pages, 3-stage HITL artifact generation for all 4 touches with stage revert, Google Drive integration with folder selection and org sharing, named agent architecture with 20+ DB-backed versioned agents, and agent management UI with draft/publish and version rollback.
+Shipped `v1.8 Structure-Driven Deck Generation` on 2026-03-18. The generation pipeline now uses DeckStructure blueprints to resolve sections, select best-fit slides via metadata scoring with pgvector tiebreaking, assemble slides from multiple source presentations (primary copy-and-prune + secondary element reconstruction), plan per-slide modifications using element maps via a named LLM agent, and execute surgical text replacements scoped to individual page elements. A 7-step Mastra workflow with 3 HITL suspend points (Skeleton/Low-fi/High-fi) orchestrates the pipeline, and three-way touch routing (structure-driven/legacy/low-confidence) gates all 4 touch types. 19 quick tasks shipped post-pipeline including LLM model switch (Gemini 3 Flash), visual QA with auto-correction, section-aware draft generation, transcript insights integration, and JWT auth replacement.
 
-## Current Milestone: v1.8 Structure-Driven Deck Generation
-
-**Goal:** Close the 5 gaps between the intelligence layer (DeckStructure + element maps) and the generation layer so all touches (1-4) produce visually diverse, design-preserved decks assembled from multiple source presentations using DeckStructure blueprints, context-aware slide selection, and element-map-guided surgical modifications.
-
-**Target features:**
-- DeckStructure consumed as generation blueprint for all touches
-- Multi-source slide assembly (cherry-pick slides from different source presentations)
-- Design-preserved output (each slide retains its original layout)
-- Per-slide modification planning using element maps
-- Context-aware section-to-slide matching (industry, pillar, persona, funnel stage)
-- 3-stage HITL integration (Skeleton=blueprint+selections, Low-fi=assembled deck, High-fi=surgical modifications)
+Four gap-closure phases (58-61) were deferred: secondary-slide ID handoff, Touch 1 draft preservation, live HITL wiring, and legacy fallback routing.
 
 ## Requirements
 
@@ -171,14 +161,21 @@ Shipped `v1.7 Deals & HITL Pipeline` on 2026-03-09. The app is now a full deal-m
 - ✓ Named agent architecture with DB-backed versioned system prompts -- v1.7
 - ✓ Agent management UI with draft/publish, version history, and rollback -- v1.7
 
+**Structure-Driven Deck Generation** -- v1.8
+- ✓ DeckStructure serves as generation blueprint for all touches -- v1.8
+- ✓ Multi-source slide assembly from multiple source presentations -- v1.8
+- ✓ Design-preserved slides (each retains original layout via copy-and-prune + element reconstruction) -- v1.8
+- ✓ Per-slide modification planning via element maps with named LLM agent -- v1.8
+- ✓ Context-aware section-to-slide matching (industry/pillar/persona/funnel stage scoring + pgvector tiebreaker) -- v1.8
+- ✓ 3-stage HITL: Skeleton (blueprint+selections), Low-fi (assembled deck), High-fi (surgical mods) -- v1.8
+- ✓ Three-way touch routing (structure-driven/legacy/low-confidence) for all 4 touch types -- v1.8
+
 ### Active
 
-- [ ] DeckStructure serves as generation blueprint for all touches
-- [ ] Multi-source slide assembly from multiple source presentations
-- [ ] Design-preserved slides (each retains original layout)
-- [ ] Per-slide modification planning via element maps
-- [ ] Context-aware section-to-slide matching
-- [ ] 3-stage HITL: Skeleton (blueprint+selections), Low-fi (assembled deck), High-fi (surgical mods)
+- [ ] Secondary-slide modification with assembled slide IDs (deferred from v1.8 Phase 58)
+- [ ] Touch 1 approved draft content through modification planning (deferred from v1.8 Phase 59)
+- [ ] Live HITL wiring with confidence gating in real UX (deferred from v1.8 Phase 60)
+- [ ] Runtime legacy fallback routing for Touch 1-3 (deferred from v1.8 Phase 61)
 
 ### Out of Scope
 
@@ -198,7 +195,7 @@ Shipped `v1.7 Deals & HITL Pipeline` on 2026-03-09. The app is now a full deal-m
 
 ## Context
 
-**Current state:** v1.7 shipped. ~61,245 LOC TypeScript/TSX/Prisma. 49 phases, 123 plans across 8 milestones over 7 days (2026-03-03 -> 2026-03-09). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI).
+**Current state:** v1.8 shipped. ~74,111 LOC TypeScript/TSX/Prisma. 61 phases, 135 plans across 9 milestones over 11 days (2026-03-03 -> 2026-03-13). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI). LLM switched from GPT-OSS 120b to Gemini 3 Flash during v1.8 quick tasks.
 
 **Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification fallback), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI via Mastra MCP client (RAG + knowledge base + semantic search), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications), @mastra/mcp (MCP SSE transport).
 
@@ -288,6 +285,20 @@ Shipped `v1.7 Deals & HITL Pipeline` on 2026-03-09. The app is now a full deal-m
 | 3-stage HITL workflow with stage revert | Skeleton → Low-fi → High-fi with ability to go back and regenerate | ✓ Good — revert route registered and wired E2E |
 | Google Picker for Drive folder selection | Native Google UI for folder browsing vs custom file tree | ✓ Good — familiar UX, handles permissions natively |
 | Archive-on-regeneration as non-blocking | try/catch around archive to avoid failing workflows on archive errors | ✓ Good — resilient workflow execution |
+| Dual Zod/GenAI schema pattern | Zod for Mastra structured output, GenAI Type.OBJECT for Gemini responseSchema | ✓ Good — both validation surfaces covered without duplication |
+| T\|null over optional ? for nullable fields | Research recommended explicit null for generation pipeline types | ✓ Good — clearer intent, no accidental undefined |
+| BlueprintWithCandidates wrapper | Return blueprint + candidates Map together to avoid re-querying in Phase 54 | ✓ Good — single query, two consumers |
+| Override slideId/slideObjectId in post-validation | Prevent LLM from returning wrong IDs in modification plans | ✓ Good — hallucination guard eliminates ID drift |
+| Primary copy-and-prune + secondary element reconstruction | Primary source retains 100% fidelity; secondary slides reconstructed element-by-element | ⚠️ Revisit — secondary reconstruction has visual fidelity limitations |
+| Weighted metadata scoring for section matching | industry=3, pillar=3 (capped at 2), persona=2, funnel=2; vector tiebreaker on ties | ✓ Good — deterministic scoring with sparse-context fallback |
+| Lazy deal-context embedding | Generate and cache embedding only when metadata ties require pgvector tiebreaking | ✓ Good — avoids unnecessary Vertex AI calls |
+| Route only in assembly steps (not selectSlides) | Keep HITL skeleton flow unchanged by routing after selection | ✓ Good — minimal disruption to existing HITL contract |
+| Low-confidence strategy still uses structure-driven pipeline | Confidence warning surfaced via HITL rather than falling back to legacy | ✓ Good — consistent pipeline, user decides |
+| Switch from GPT-OSS 120b to Gemini 3 Flash | Cost reduction and faster inference; Gemini structured output already proven | ✓ Good — significant cost savings, comparable quality |
+| Visual QA as optional post-modification step | Decoupled from pipeline, triggered on-demand via SSE endpoint | ✓ Good — doesn't block generation, adds quality assurance when desired |
+| JWT auth replacing API key | Supabase JWT tokens forwarded from web to agent for user identity | ✓ Good — eliminates shared secret, enables per-user tracking |
+| Section-aware draft generation | Drafts structured by DeckStructure sections with element samples | ✓ Good — drafts match final deck structure |
+| Transcript insights integration | Extract insights from transcripts and inject into modification planner context | ✓ Good — modifications informed by actual conversation content |
 
 ---
-*Last updated: 2026-03-09 after v1.8 milestone start*
+*Last updated: 2026-03-18 after v1.8 milestone*
