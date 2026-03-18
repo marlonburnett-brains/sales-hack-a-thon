@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
-status: defining_requirements
-stopped_at: "Defining requirements for v1.9"
-last_updated: "2026-03-18T23:00:00.000Z"
-last_activity: "2026-03-18 - Milestone v1.9 started"
+status: ready_to_plan
+stopped_at: "Roadmap created, ready to plan Phase 62"
+last_updated: "2026-03-18T23:30:00.000Z"
+last_activity: "2026-03-18 - v1.9 roadmap created (9 phases, 30 requirements)"
 progress:
-  total_phases: 0
+  total_phases: 9
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos — defining requirements
+**Current focus:** v1.9 Tutorial Videos -- Phase 62: Workspace & Mock Infrastructure
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-18 — Milestone v1.9 started
+Phase: 62 (1 of 9 in v1.9) (Workspace & Mock Infrastructure)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-03-18 -- v1.9 roadmap created (9 phases, 30 requirements)
+
+Progress: [░░░░░░░░░░] 0% (v1.9)
 
 ## Performance Metrics
 
@@ -43,6 +45,11 @@ Last activity: 2026-03-18 — Milestone v1.9 started
 ### Decisions
 
 All decisions logged in PROJECT.md Key Decisions table.
+Recent decisions for v1.9:
+- Playwright + Remotion + local TTS over live recording or cloud TTS
+- Mock agent server required (page.route() cannot intercept Server Actions)
+- Dual TTS: Kokoro (draft/CPU) + Chatterbox-Turbo (production/MPS)
+- apps/tutorials workspace isolated from web/agent
 
 ### Pending Todos
 
@@ -50,6 +57,7 @@ None.
 
 ### Blockers/Concerns
 
+- Chatterbox-Turbo MPS stability on M1 Pro 16GB -- community-documented, not officially supported (validate Phase 64)
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
 - 4 deferred gap-closure phases (58-61) carry forward as Active requirements
@@ -57,5 +65,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-18
-Stopped at: Defining requirements for v1.9 Tutorial Videos
-Next action: Complete requirements definition and roadmap creation
+Stopped at: v1.9 roadmap created, ready to plan Phase 62
+Next action: `/gsd:plan-phase 62`

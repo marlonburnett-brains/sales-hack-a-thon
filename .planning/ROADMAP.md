@@ -11,6 +11,7 @@
 - ✅ v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (shipped 2026-03-08) -- [Archive](milestones/v1.6-ROADMAP.md)
 - ✅ v1.7 **Deals & HITL Pipeline** -- Phases 41-49 (shipped 2026-03-09) -- [Archive](milestones/v1.7-ROADMAP.md)
 - ✅ v1.8 **Structure-Driven Deck Generation** -- Phases 50-61 (shipped 2026-03-18) -- [Archive](milestones/v1.8-ROADMAP.md)
+- 🚧 v1.9 **Tutorial Videos** -- Phases 62-70 (in progress) -- [Detail](milestones/v1.9-ROADMAP.md)
 
 ## Phases
 
@@ -129,6 +130,20 @@
 
 </details>
 
+### 🚧 v1.9 Tutorial Videos (In Progress)
+
+**Milestone Goal:** Produce automated, deterministic tutorial videos for every AtlusDeck feature using Playwright-driven UI capture, Remotion video composition, and local TTS narration.
+
+- [ ] **Phase 62: Workspace & Mock Infrastructure** - Scaffold apps/tutorials workspace with mock agent server, page.route() helpers, auth bypass, fixture factories, and deterministic screenshot capture
+- [ ] **Phase 63: HITL & Async Mock Capture** - Add mock patterns for multi-stage HITL workflows and polling/async status sequences
+- [ ] **Phase 64: TTS Pipeline** - Integrate Kokoro (draft) and Chatterbox-Turbo (production) TTS engines with timing manifest generation
+- [ ] **Phase 65: Remotion Composition Core** - Build shared TutorialStep component, per-tutorial Remotion compositions, and MP4 render pipeline
+- [ ] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates
+- [ ] **Phase 67: Low-Complexity Tutorials** - Author scripts, fixtures, and captures for Getting Started, Google Drive Settings, and Action Center tutorials
+- [ ] **Phase 68: Medium-Complexity Tutorials (Deals & Briefing)** - Author scripts, fixtures, and captures for Deals, Deal Overview, Deal Chat, and Pre-Call Briefing tutorials
+- [ ] **Phase 69: Medium-Complexity Tutorials (Library & Settings)** - Author scripts, fixtures, and captures for Template Library, Slide Library, Deck Structures, Agent Prompts, and AtlusAI Integration tutorials
+- [ ] **Phase 70: High-Complexity Tutorials** - Author scripts, fixtures, and captures for Touch 1-4 HITL workflows and Asset Review tutorial
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -142,3 +157,12 @@
 | 35-40 | v1.6 | 20/20 | Complete | 2026-03-08 |
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
+| 62. Workspace & Mock Infrastructure | v1.9 | 0/TBD | Not started | - |
+| 63. HITL & Async Mock Capture | v1.9 | 0/TBD | Not started | - |
+| 64. TTS Pipeline | v1.9 | 0/TBD | Not started | - |
+| 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |
+| 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
+| 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
+| 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
+| 69. Medium-Complexity Tutorials (Library & Settings) | v1.9 | 0/TBD | Not started | - |
+| 70. High-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |

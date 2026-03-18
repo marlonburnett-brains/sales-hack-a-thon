@@ -105,13 +105,52 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| — | — | — |
+| INFRA-01 | Phase 62 | Pending |
+| INFRA-02 | Phase 62 | Pending |
+| INFRA-03 | Phase 62 | Pending |
+| INFRA-04 | Phase 62 | Pending |
+| INFRA-05 | Phase 62 | Pending |
+| INFRA-06 | Phase 62 | Pending |
+| INFRA-07 | Phase 62 | Pending |
+| CAPT-01 | Phase 62 | Pending |
+| CAPT-02 | Phase 62 | Pending |
+| CAPT-03 | Phase 63 | Pending |
+| CAPT-04 | Phase 63 | Pending |
+| TTS-01 | Phase 64 | Pending |
+| TTS-02 | Phase 64 | Pending |
+| TTS-03 | Phase 64 | Pending |
+| TTS-04 | Phase 64 | Pending |
+| COMP-01 | Phase 65 | Pending |
+| COMP-02 | Phase 65 | Pending |
+| COMP-03 | Phase 65 | Pending |
+| COMP-04 | Phase 66 | Pending |
+| COMP-05 | Phase 66 | Pending |
+| COMP-06 | Phase 66 | Pending |
+| COMP-07 | Phase 66 | Pending |
+| COMP-08 | Phase 66 | Pending |
+| TUT-01 | Phase 67 | Pending |
+| TUT-02 | Phase 67 | Pending |
+| TUT-03 | Phase 67 | Pending |
+| TUT-04 | Phase 68 | Pending |
+| TUT-05 | Phase 68 | Pending |
+| TUT-06 | Phase 68 | Pending |
+| TUT-07 | Phase 68 | Pending |
+| TUT-08 | Phase 69 | Pending |
+| TUT-09 | Phase 69 | Pending |
+| TUT-10 | Phase 69 | Pending |
+| TUT-11 | Phase 69 | Pending |
+| TUT-12 | Phase 69 | Pending |
+| TUT-13 | Phase 70 | Pending |
+| TUT-14 | Phase 70 | Pending |
+| TUT-15 | Phase 70 | Pending |
+| TUT-16 | Phase 70 | Pending |
+| TUT-17 | Phase 70 | Pending |
 
 **Coverage:**
 - v1.9 requirements: 30 total
-- Mapped to phases: 0
-- Unmapped: 30 ⚠️
+- Mapped to phases: 30
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-18*
-*Last updated: 2026-03-18 after initial definition*
+*Last updated: 2026-03-18 after roadmap creation*
