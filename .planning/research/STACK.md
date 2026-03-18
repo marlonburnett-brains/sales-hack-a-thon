@@ -1,327 +1,322 @@
 # Stack Research
 
-**Domain:** Structure-driven deck generation -- multi-source slide assembly, element-map-guided modifications, DeckStructure as blueprint
-**Researched:** 2026-03-09
-**Confidence:** HIGH
+**Domain:** Automated tutorial video production pipeline for existing Next.js/React monorepo
+**Researched:** 2026-03-18
+**Confidence:** HIGH (Remotion, Playwright) / MEDIUM (kokoro-js Node.js) / MEDIUM (Chatterbox MPS)
 
 ## Scope
 
-This covers only NEW additions/changes for v1.8 (Structure-Driven Deck Generation). The existing stack is validated and unchanged. See v1.7 STACK.md for prior research.
+This covers only NEW additions/changes for v1.9 (Tutorial Video Production). The existing stack (Next.js 15, Mastra, Prisma, shadcn/ui, etc.) is validated and unchanged. See prior STACK.md entries for existing stack research.
 
 **Focus areas:**
-1. DeckStructure consumed as generation blueprint for all touches
-2. Multi-source slide assembly (cherry-pick slides from different source presentations)
-3. Design-preserved output (each slide retains its original layout)
-4. Per-slide modification planning using element maps
-5. Context-aware section-to-slide matching
-6. 3-stage HITL integration (Skeleton=blueprint+selections, Low-fi=assembled deck, High-fi=surgical modifications)
+1. Remotion -- React-based programmatic video composition and MP4 rendering
+2. Playwright -- UI capture with fully mocked API responses (already installed)
+3. kokoro-js -- JavaScript TTS for fast draft narration iteration
+4. Chatterbox-Turbo -- Python TTS for production-quality narration
+5. Glue libraries for audio encoding and monorepo integration
 
 ---
 
 ## Executive Summary
 
-v1.8 requires **zero new npm dependencies**. Every capability needed for multi-source assembly, element-map-guided modification, and structure-driven generation is achievable with the existing `googleapis`, `@google/genai`, `openai`, Prisma, and Mastra packages. The work is entirely new TypeScript modules, Prisma schema evolution, and workflow step additions.
+v1.9 requires **four new npm packages** (Remotion core + renderer + bundler + CLI), **one npm TTS package** (kokoro-js), **one audio encoding utility** (wav-encoder), and **one Python package** (chatterbox-tts) installed in a separate venv. Playwright is already installed at the root level (`^1.58.2`).
 
-The defining technical constraint: the Google Slides REST API has **no cross-presentation slide copy** method. Apps Script has `appendSlide()` but the REST API does not (confirmed via Google Issue Tracker #167977584). Multi-source assembly must use a "sequential copy-and-prune" strategy where each source presentation is copied independently and unwanted slides are deleted, then the results are combined.
+The key architectural decision: create a new `apps/video` workspace in the Turborepo monorepo. Remotion has its own Webpack bundler that conflicts with Next.js, video dependencies are heavy and should never deploy to Vercel/Railway, and video rendering runs exclusively on local dev machines.
 
----
-
-## Recommended Stack (No Changes to Dependencies)
-
-### Core Technologies (Already In Place)
-
-| Technology | Current Version | Purpose for v1.8 | Status |
-|------------|----------------|-------------------|--------|
-| `googleapis` | ^144.0.0 | Drive `files.copy`, Slides `batchUpdate` (`replaceAllText`, `deleteObject`, `updateSlidesPosition`, `insertText`) | Sufficient. Latest is 171.x but upgrade adds no new Slides API methods relevant to v1.8. No cross-presentation copy exists in ANY version. |
-| `@google/genai` | ^1.43.0 | Gemini 2.5 Flash for modification planning (structured output), section-to-slide scoring | Sufficient. New structured output schemas needed but library handles them. |
-| `openai` | ^6.27.0 | GPT-OSS 120b on Vertex AI for per-slide custom copy generation | Sufficient. Same generate-text pattern as current `proposal-assembly.ts`. |
-| `@prisma/client` + `prisma` | ^6.3.1 | Schema additions for assembly manifest storage | Stay on 6.x per constraint (Prisma 7.x has vector regression #28867). Forward-only migrations only. |
-| `@mastra/core` | ^1.8.0 | New workflow steps for structure-driven generation pipeline | Sufficient. Existing suspend/resume pattern handles HITL stages. |
-| `pgvector` | 0.2.0 | Cosine similarity for initial slide candidate filtering | Sufficient. Same raw SQL pattern as existing slide search. |
-| `zod` | ^4.3.6 | New schemas for assembly params, modification plans, resolved blueprints | Sufficient. Same workflow I/O validation pattern. |
-
-### Supporting Libraries (Already In Place)
-
-| Library | Version | v1.8 Usage |
-|---------|---------|------------|
-| `google-auth-library` | ^9.15.1 | Same auth chain. Multi-source assembly uses same Drive/Slides clients. |
-| `@mastra/pg` | ^1.7.1 | Workflow state persistence for new generation steps. |
-| `@t3-oss/env-core` | ^0.13.10 | No new env vars needed. |
+The TTS strategy uses a two-tier approach: kokoro-js (JavaScript, CPU, fast) for draft iteration, and Chatterbox-Turbo (Python, MPS/GPU, high quality) for final production narration. Chatterbox runs as a Python sidecar process invoked via `child_process.execSync` from Node.js scripts.
 
 ---
 
-## What's Actually New (Code, Not Dependencies)
+## Recommended Stack
 
-### New Agent Modules
+### Core Technologies (New)
 
-| Module | Purpose | Existing Deps Used |
-|--------|---------|-------------------|
-| `structure-blueprint-resolver.ts` | Consume DeckStructure as generation blueprint: load sections, resolve slideIds to SlideEmbedding records with element maps, produce ordered assembly plan | Prisma (DeckStructure, SlideEmbedding, SlideElement) |
-| `section-slide-matcher.ts` | For each DeckStructure section, score candidate slides against deal context (industry, pillar, persona, funnel stage) and select the best match | `@google/genai` (Gemini Flash structured scoring), `pgvector` (cosine similarity pre-filter), Prisma |
-| `multi-source-assembler.ts` | Given a resolved blueprint with slides from N source presentations, assemble a single output deck using sequential copy-and-prune | `googleapis` (Drive `files.copy`, Slides `batchUpdate`) |
-| `modification-planner.ts` | Given a copied slide's SlideElement records and deal context, generate a modification plan: which elements to change, what new content to inject | `@google/genai` (Gemini Flash structured output) |
-| `surgical-modifier.ts` | Execute planned modifications on assembled slides via scoped Slides API calls | `googleapis` (Slides `replaceAllText` with `pageObjectIds`, `deleteText`, `insertText`) |
-| `structure-driven-workflow-steps.ts` | Mastra workflow steps that wire the above modules into the touch generation pipelines | `@mastra/core` (createStep with Zod I/O schemas) |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| [Remotion](https://www.remotion.dev/) | 4.0.436 (pin exact) | React-based programmatic video composition and MP4 rendering | React 19 compatible (project uses React 19). Compositions are JSX `<Sequence>` components -- natural fit for a React codebase. Deterministic video from code with no GUI dependency. Actively maintained (daily npm publishes). Uses FFmpeg under the hood for encoding. |
+| [kokoro-js](https://www.npmjs.com/package/kokoro-js) | 1.2.1 | Draft narration TTS -- fast iteration on script timing and pacing | Pure JavaScript via ONNX runtime (Transformers.js). Runs in Node.js with `device: "cpu"`. Stays in the TypeScript/Node ecosystem -- no Python needed for the fast-iteration loop. 82M params, ~128MB ONNX weights, generates ~5s audio in ~3s on CPU. |
+| [Chatterbox-Turbo](https://github.com/resemble-ai/chatterbox) | 0.1.6 (pip) | Production-quality TTS narration with emotion/paralinguistic tags | Sub-200ms inference on GPU. Paralinguistic tags `[laugh]`, `(excited)` add realism. Preferred over ElevenLabs in 63.8% of blind tests. 350M params, single-step diffusion. MIT license. |
+| [Playwright](https://playwright.dev/) | 1.58.x | Browser automation for UI screenshot capture with mocked APIs | **Already installed** in root `package.json` at `^1.58.2`. `page.route()` intercepts all API calls with fixture JSON. `page.screenshot()` captures pixel-perfect UI states. No new install needed. |
 
-### Prisma Schema Evolution
+### Supporting Libraries (New npm)
 
-No new models required. Small field additions to existing models:
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `@remotion/cli` | 4.0.436 (match core) | CLI for `npx remotion render` and `npx remotion studio` | Rendering final MP4s and previewing compositions during development |
+| `@remotion/renderer` | 4.0.436 (match core) | Programmatic Node.js API for `bundle()` + `renderMedia()` | Automating render pipeline in scripts (alternative to CLI for batch rendering) |
+| `@remotion/bundler` | 4.0.436 (match core) | Webpack bundler for Remotion compositions | Required by `@remotion/renderer` -- called before `renderMedia()` |
+| `@remotion/captions` | 4.0.436 (match core) | Caption/subtitle generation and timing | Adding synchronized text overlays that match narration word timing |
+| `wav-encoder` | latest | Encode Float32Array PCM data to WAV files | kokoro-js outputs raw audio data; needs WAV encoding before Remotion can consume it |
 
-| Model | Field | Type | Purpose |
-|-------|-------|------|---------|
-| `InteractionRecord` | `blueprintJson` | `String?` | Store resolved blueprint (sections + selected slides + source presentations) for Skeleton HITL review |
-| `InteractionRecord` | `assemblyManifest` | `String?` | Store multi-source assembly plan (which slides from which sources, in what order) for audit trail |
+### Development Tools
 
-These are nullable String columns added via forward-only migration. No existing data is affected.
-
-### New Zod Schemas (in `packages/schemas`)
-
-| Schema | Purpose | Fields |
-|--------|---------|--------|
-| `ResolvedBlueprint` | Output of blueprint resolution + slide matching | `sections: [{name, purpose, selectedSlide: {slideId, templateId, presentationId, slideObjectId}, alternatives: [...]}]` |
-| `AssemblyManifest` | Input to multi-source assembler | `basePresentationId, slideGroups: [{sourcePresentationId, slideObjectIds: [...]}], outputOrder: [...]` |
-| `ModificationPlan` | Output of modification planner (per-slide) | `slideObjectId, modifications: [{elementId, action, currentText, newText, reason}]` |
-| `ModificationAction` | Flat schema for Gemini structured output | `elementId: string, action: string, newText: string, reason: string` |
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| Remotion Studio (`npx remotion studio`) | Visual preview of video compositions in browser | Hot-reloads JSX changes. Use during development to iterate on layout, timing, and transitions without full renders. |
+| `npx playwright install chromium` | Download Chromium browser binary for UI capture | Run once after install. Only Chromium needed -- skip Firefox and WebKit. |
+| Python 3.11 + venv | Isolated environment for Chatterbox-Turbo PyTorch deps | Completely separate from Node.js. Use `python3.11 -m venv .venv/chatterbox` in project root. |
 
 ---
 
-## Critical Technical Constraints
+## Monorepo Integration
 
-### 1. No Cross-Presentation Slide Copy in Google Slides REST API
+### New Workspace: `apps/video`
 
-**Confidence:** HIGH
-**Sources:** [Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584), [Slides API Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides), [Slides API REST Reference](https://developers.google.com/workspace/slides/api/reference/rest)
-
-`duplicateObject` works within a single presentation only. Apps Script has `appendSlide()` but the REST API has no equivalent. This is a long-standing feature request (filed 2020, still open).
-
-**Required strategy: Sequential Copy-and-Prune**
-
-For a deck needing slides from sources A (3 slides), B (2 slides), C (1 slide):
+Create a new Turborepo workspace for all video production code:
 
 ```
-1. Pick source A as "base" (most slides selected)
-2. Drive files.copy(A) -> outputDeck
-3. Slides batchUpdate: deleteObject for all slides NOT in A's selection
-4. Slides batchUpdate: updateSlidesPosition to reorder A's slides
-5. Drive files.copy(B) -> tempB
-6. Slides batchUpdate: deleteObject for all slides NOT in B's selection
-7. Read tempB's remaining slides via presentations.get
-8. For each slide in tempB: read full element data, create equivalent in outputDeck
-   via createSlide + shape/text insertion (design approximation)
-   OR: accept single-source-per-section constraint (simpler)
-9. Delete tempB
-10. Repeat for C
+apps/video/
+  package.json              # Remotion + kokoro-js deps
+  remotion.config.ts        # Remotion configuration (entry point, codec, etc.)
+  tsconfig.json
+  src/
+    compositions/           # Remotion <Composition> components (one per tutorial)
+      index.ts              # registerRoot with all compositions
+      GettingStarted.tsx    # Example composition
+    scripts/                # Tutorial narration scripts (.txt per step)
+    fixtures/               # Mock API response JSON files (shared with Playwright)
+    capture/                # Playwright screenshot capture scripts
+    tts/                    # TTS generation scripts (kokoro-js + chatterbox wrapper)
+    audio/                  # Generated .wav files (gitignored)
+    screenshots/            # Playwright captures (gitignored)
+    output/                 # Final .mp4 files (gitignored)
+  playwright.config.ts      # Playwright config for capture (NOT testing)
 ```
 
-**Pragmatic recommendation for v1.8:** Use a hybrid approach:
-- **Primary slides** (majority from one source): copy-and-prune preserves 100% design
-- **Secondary slides** (from other sources): use the branded template with content injected from the source slide's element map data (already captured in SlideElement). This trades pixel-perfect layout for API simplicity.
-- **Future enhancement:** If design preservation across ALL sources becomes critical, add an Apps Script bridge via `googleapis` Apps Script API (`script.projects.run`). Defer this complexity.
+### Why a Separate Workspace
 
-### 2. ObjectId Drift After batchUpdate
-
-**Confidence:** HIGH (documented in codebase, already handled in `deck-assembly.ts`)
-
-After any `batchUpdate`, re-read the presentation via `presentations.get()` before referencing any objectIds. Multi-source assembly involves many mutations -- budget for re-reads after each batch.
-
-### 3. replaceAllText Scoping is Mandatory
-
-**Confidence:** HIGH (documented in codebase)
-
-Every `replaceAllText` call must include `pageObjectIds: [targetSlideId]`. Without scoping, text replacement bleeds across all slides. When assembling from multiple sources with potentially overlapping text patterns, scoping prevents cross-contamination.
-
-### 4. Gemini Structured Output: Flat Schemas Only
-
-**Confidence:** HIGH (gap analysis constraint, verified in codebase pattern)
-
-Modification plan schemas for Gemini must be flat objects with no optionals or unions:
-
-```typescript
-// Correct: flat, all required
-{ elementId: string, action: string, newText: string, reason: string }
-
-// Wrong: nested optionals
-{ elementId: string, modifications?: { text?: string } }
-```
-
-The `ModificationAction` schema must be an array of flat objects. The wrapping `ModificationPlan` with its nested structure is for internal use (Zod), not sent to Gemini.
-
-### 5. Element Maps Use EMU Positioning
-
-**Confidence:** HIGH (documented in `extract-elements.ts`)
-
-SlideElement positions are in EMU (English Metric Units, 1 EMU = 1/914400 inch). When planning modifications, element identification should use `elementId` (the Google Slides objectId), not position. Position data is informational for the LLM to understand layout context, not for addressing elements in API calls.
-
-### 6. Forward-Only Prisma Migrations
-
-**Confidence:** HIGH (CLAUDE.md constraint)
-
-All schema changes use `prisma migrate dev --name <name>`. No `db push`, no `migrate reset`. The two new nullable columns (`blueprintJson`, `assemblyManifest`) are safe additive migrations.
-
----
-
-## Alternatives Considered
-
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| Sequential copy-and-prune (REST API only) | Apps Script `appendSlide()` via Apps Script API | Adds deployment complexity (must create/maintain Apps Script project), introduces server-to-server latency, and Apps Script has documented performance issues for batch operations. Copy-and-prune works entirely within the REST API already used. |
-| Sequential copy-and-prune (REST API only) | Element-by-element reconstruction (`createSlide` + shape/text insertion) | Loses visual design (fonts, colors, images, gradients, shapes, positioning). Reconstruction cannot replicate complex layouts. Defeats the "design-preserved" goal. |
-| Gemini Flash for modification planning | Heuristic rules for element matching | LLM understands semantic intent ("this text says 'Acme Corp', replace with deal company"). Rules would miss context and require exhaustive pattern matching. Flash is fast and cheap for structured classification. |
-| Gemini Flash for modification planning | GPT-OSS 120b for modification planning | Flash is faster (sub-second) and cheaper for structured classification tasks. GPT-OSS reserved for creative generation (per-slide custom copy). Division of labor: Flash classifies/plans, GPT-OSS generates. |
-| GPT-OSS 120b for per-slide copy generation | Gemini for copy generation | GPT-OSS produces higher quality long-form marketing copy. Current proposal-assembly already uses GPT-OSS for this exact task. Keep the proven pattern. |
-| Keep `googleapis` at ^144.0.0 | Upgrade to ^171.x | No new Slides API methods for cross-presentation copy. The upgrade would be risk (breaking changes in types) without benefit. If a future Slides API version adds `importSlides`, upgrade then. |
-| Store assembly manifest as JSON String column | New `AssemblySlide` junction model | JSON column is simpler for audit trail storage. The manifest is write-once, read-for-debugging -- not queried relationally. Avoids migration complexity. |
-| Hybrid approach (primary source copy-and-prune + template merge for secondary) | Full design preservation across all sources | Full preservation requires either Apps Script or element-by-element reconstruction, both adding significant complexity. Hybrid gives 80% of the visual diversity benefit with 20% of the implementation complexity. |
-
----
-
-## What NOT to Use
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `pptxgenjs` or any PPTX library | We generate Google Slides natively via API. PPTX would create a parallel format, break Drive integration, and lose real-time collaboration. | `googleapis` Slides API |
-| Apps Script API (`script.projects.run`) | Adds deployment/maintenance of separate Apps Script project, latency, and auth complexity for marginal benefit over copy-and-prune. | Sequential copy-and-prune via REST API |
-| `puppeteer` / `playwright` for slide rendering | Thumbnails already cached via GCS. No need for browser-based rendering. | Existing `gcs-thumbnails.ts` |
-| Any new LLM SDK or provider | GPT-OSS (creative generation) + Gemini Flash (structured classification) cover all v1.8 needs. No gap in capability. | `openai` + `@google/genai` already installed |
-| `diff` / `json-diff` libraries for modification planning | Element maps are flat structures. LLM structured output directly produces modification plans. No need for programmatic diffing. | Gemini Flash structured output |
-| `googleapis` upgrade to 171.x | No new Slides API features relevant to v1.8. Risk of type breakage without benefit. | Stay on ^144.0.0 |
-| Prisma 7.x | Known vector migration regression (#28867). pgvector is critical for slide matching. | Stay on ^6.3.1 |
-| New state management (Redis, message queues) | Assembly is a synchronous pipeline within Mastra workflow steps. No need for external state coordination at ~20 user scale. | Mastra workflow state + Prisma |
-
----
-
-## Stack Patterns by HITL Stage
-
-### Skeleton Stage: Blueprint Resolution + Slide Selection
-
-**Pattern:** DeckStructure query -> slide candidate filtering -> LLM scoring -> resolved blueprint
-
-```
-1. Load DeckStructure for touch type (+ artifact type for Touch 4)
-2. For each section: query SlideEmbedding candidates using section.slideIds
-3. Enrich candidates with classification metadata + element map summary
-4. Score candidates against deal context via Gemini Flash structured output:
-   - Industry match (deal.company.industry vs slide.industry)
-   - Pillar alignment (brief.primaryPillar vs slide.solutionPillar)
-   - Persona fit (deal context vs slide.persona)
-   - Funnel stage (touch type mapping vs slide.funnelStage)
-5. Select top candidate per section, store as ResolvedBlueprint
-6. Suspend workflow for HITL review (seller sees blueprint + selections)
-```
-
-**Libraries used:** Prisma, `pgvector` (raw SQL cosine similarity), `@google/genai` (Gemini Flash), `@mastra/core` (suspend)
-
-### Low-fi Stage: Multi-Source Assembly
-
-**Pattern:** Group slides by source -> sequential copy-and-prune -> merge -> reorder
-
-```
-1. Resume workflow with approved/modified blueprint
-2. Group selected slides by source presentation ID
-3. Pick source with most slides as "base" -> Drive files.copy to deal folder
-4. Delete unwanted slides from base copy (batchUpdate deleteObject)
-5. For secondary sources: copy-and-prune each, then either:
-   a. Use branded template slide + inject content from element map (pragmatic)
-   b. OR read elements and approximate in base deck (complex, deferred)
-6. Reorder all slides via updateSlidesPosition to match blueprint order
-7. Apply deal-level customizations (company name, salesperson) via replaceAllText
-8. Suspend for HITL review (seller sees assembled deck in Google Slides)
-```
-
-**Libraries used:** `googleapis` (Drive + Slides APIs), Prisma, `@mastra/core` (suspend)
-
-### High-fi Stage: Element-Map-Guided Surgical Modifications
-
-**Pattern:** Load element map per slide -> LLM modification planning -> scoped API execution
-
-```
-1. Resume workflow with approved/modified assembled deck
-2. For each slide in the deck:
-   a. Load SlideElement records (elementId, type, position, content, styling)
-   b. Send to Gemini Flash: "Given this element map and deal context, which elements
-      need modification? Return flat array of {elementId, action, newText, reason}"
-   c. For elements needing new creative copy: send to GPT-OSS for generation
-   d. Execute modifications via scoped replaceAllText (pageObjectIds per slide)
-3. Re-read presentation after each batch of modifications (objectId drift)
-4. Share final deck with org
-5. Complete workflow (HITL approved state)
-```
-
-**Libraries used:** Prisma (SlideElement), `@google/genai` (Gemini Flash), `openai` (GPT-OSS), `googleapis` (Slides API), `@mastra/core` (resume/complete)
-
----
-
-## Version Compatibility
-
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `prisma@^6.3.1` | `pgvector@0.2.0` | Prisma 7.x breaks vector migrations. Stay on 6.x. |
-| `@mastra/core@^1.8.0` | `zod@^4.3.6` | Mastra 1.8 requires Zod v4 for workflow step schemas. New steps follow same pattern. |
-| `googleapis@^144.0.0` | `google-auth-library@^9.15.1` | Stable pairing. Drive v3 + Slides v1 APIs unchanged. |
-| `@google/genai@^1.43.0` | Gemini 2.5 Flash | Structured output with `responseSchema` works for flat schemas. |
-| `openai@^6.27.0` | GPT-OSS 120b on Vertex AI | Same API pattern as existing proposal generation. |
-
----
-
-## Integration Points with Existing Code
-
-### Extend (Not Replace)
-
-| Existing Module | Extension for v1.8 | Notes |
-|----------------|---------------------|-------|
-| `deck-assembly.ts` | Refactor to support multi-source input instead of single-template duplication | Currently duplicates one template slide N times. New: copies actual source slides. |
-| `deck-customizer.ts` | Extend `assembleDeckFromSlides` to handle multiple source presentations | Currently single-source copy-and-prune. New: sequential multi-source. |
-| `slide-selection.ts` | Add DeckStructure-aware candidate filtering (section.slideIds as pre-filter) | Currently uses RAG retrieval independently. New: structure-guided selection. |
-| `proposal-assembly.ts` | Consume ResolvedBlueprint instead of building SlideAssembly from scratch | Currently generates flat JSON. New: uses blueprint sections as scaffold. |
-| `touch-4-workflow.ts` | Add new workflow steps for blueprint resolution, assembly, and modification | Currently goes straight from RAG to SlideAssembly JSON. New: 3 explicit stages. |
-| Touch 2/3 workflows | Wire in structure-driven pipeline (same steps, different DeckStructure key) | Currently manual slide selection from single source. New: automated via blueprint. |
-| `extract-elements.ts` | No changes needed | Element extraction already captures everything modification planning needs. |
-| `deck-structure-schema.ts` | No changes needed | DeckSection already has `slideIds` array for candidate mapping. |
-
-### New Files to Create
-
-| File | Purpose |
-|------|---------|
-| `apps/agent/src/generation/structure-blueprint-resolver.ts` | Resolve DeckStructure to concrete slide selections |
-| `apps/agent/src/generation/section-slide-matcher.ts` | Score/rank slide candidates per section |
-| `apps/agent/src/generation/multi-source-assembler.ts` | Assemble slides from N source presentations |
-| `apps/agent/src/generation/modification-planner.ts` | Generate per-slide modification plans from element maps |
-| `apps/agent/src/generation/surgical-modifier.ts` | Execute planned modifications via Slides API |
-| `packages/schemas/generation/resolved-blueprint.ts` | ResolvedBlueprint Zod schema |
-| `packages/schemas/generation/assembly-manifest.ts` | AssemblyManifest Zod schema |
-| `packages/schemas/generation/modification-plan.ts` | ModificationPlan + ModificationAction Zod schemas |
+1. **Remotion uses its own Webpack bundler** -- mixing with Next.js causes config conflicts and build failures.
+2. **Video deps are heavy** -- ONNX models (~128MB), Remotion renderer, PyTorch venv (~2GB) must not bloat the web/agent deploys.
+3. **Different execution target** -- video rendering runs locally on dev machines, never deploys to Vercel or Railway.
+4. **Clean dependency boundary** -- `apps/video` can import types from `@lumenalta/schemas` but has no runtime dependency on web or agent.
 
 ---
 
 ## Installation
 
 ```bash
-# No new packages to install.
-# All capabilities come from existing dependencies.
+# 1. Create video workspace
+mkdir -p apps/video/src/{compositions,scripts,fixtures,capture,tts,audio,screenshots,output}
 
-# Only Prisma migration needed:
-cd apps/agent
-pnpm exec prisma migrate dev --create-only --name add-blueprint-assembly-fields
-# Inspect SQL (adds blueprintJson and assemblyManifest to InteractionRecord)
-pnpm exec prisma migrate dev --name add-blueprint-assembly-fields
+# 2. Initialize package.json
+cd apps/video && pnpm init
+
+# 3. Remotion packages (ALL must be pinned to exact same version -- no ^ prefix)
+pnpm add remotion@4.0.436 @remotion/cli@4.0.436 @remotion/renderer@4.0.436 \
+  @remotion/bundler@4.0.436 @remotion/captions@4.0.436
+
+# 4. React (must match project -- Remotion 4.0.436 supports React 19)
+pnpm add react@^19.0.0 react-dom@^19.0.0
+
+# 5. TTS (kokoro-js for draft narration in Node.js)
+pnpm add kokoro-js@1.2.1
+
+# 6. Audio encoding
+pnpm add wav-encoder
+
+# 7. Dev dependencies
+pnpm add -D typescript@^5.7.3 @types/react@^19.0.7 @types/react-dom@^19.0.3 \
+  @lumenalta/tsconfig@workspace:*
+
+# 8. Playwright browser binaries (Playwright itself already in root)
+npx playwright install chromium
+
+# 9. Chatterbox-Turbo (Python sidecar)
+python3.11 -m venv .venv/chatterbox
+source .venv/chatterbox/bin/activate
+pip install torch==2.5.1 torchaudio==2.5.1          # MPS-compatible PyTorch FIRST
+pip install chatterbox-tts==0.1.6 --no-deps          # Then chatterbox without torch override
+pip install $(python -c "
+import importlib.metadata
+deps = importlib.metadata.requires('chatterbox-tts') or []
+skip = {'torch', 'torchaudio'}
+for d in deps:
+    name = d.split()[0].split('>')[0].split('<')[0].split('=')[0].split('!')[0]
+    if name.lower() not in skip:
+        print(name)
+" | tr '\n' ' ')
+deactivate
 ```
+
+### Gitignore Additions
+
+```gitignore
+# Tutorial video production
+apps/video/src/audio/
+apps/video/src/screenshots/
+apps/video/src/output/
+.venv/
+```
+
+---
+
+## Python Sidecar Pattern for Chatterbox
+
+Chatterbox-Turbo is Python-only with heavy PyTorch dependencies. Do NOT try to bridge via Node.js native modules or WASM. Invoke as a subprocess:
+
+```typescript
+// apps/video/src/tts/chatterbox.ts
+import { execSync } from 'child_process';
+import path from 'path';
+
+const VENV_PYTHON = path.resolve(process.cwd(), '../../.venv/chatterbox/bin/python');
+const GENERATE_SCRIPT = path.resolve(__dirname, 'chatterbox_generate.py');
+
+export function generateProductionAudio(
+  scriptPath: string,
+  outputPath: string,
+  voiceRefPath?: string
+): void {
+  const voiceArg = voiceRefPath ? ` --voice "${voiceRefPath}"` : '';
+  execSync(
+    `${VENV_PYTHON} ${GENERATE_SCRIPT} --input "${scriptPath}" --output "${outputPath}"${voiceArg}`,
+    { stdio: 'inherit', timeout: 120_000 }
+  );
+}
+```
+
+```python
+# apps/video/src/tts/chatterbox_generate.py
+import argparse, torch, torchaudio
+from chatterbox.tts import ChatterboxTTS
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input', required=True, help='Path to .txt script file')
+    parser.add_argument('--output', required=True, help='Path for output .wav file')
+    parser.add_argument('--voice', default=None, help='Optional voice reference .wav')
+    args = parser.parse_args()
+
+    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    model = ChatterboxTTS.from_pretrained(device=device)
+
+    with open(args.input) as f:
+        text = f.read()
+
+    wav = model.generate(text, audio_prompt_path=args.voice)
+    torchaudio.save(args.output, wav, model.sr)
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+## Alternatives Considered
+
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Remotion (React video) | FFmpeg raw CLI | Only if you need frame-level control beyond React composition. Remotion uses FFmpeg internally -- adding raw FFmpeg is redundant. |
+| Remotion (React video) | Motion Canvas | If you want a timeline-based animation editor UI. But Motion Canvas lacks Remotion's rendering pipeline maturity, React ecosystem integration, and active daily maintenance. |
+| kokoro-js (JS TTS drafts) | kokoro-onnx (Python) | If you want an all-Python TTS toolchain. But kokoro-js keeps the fast-iteration draft loop in Node.js, avoiding Python startup overhead for every regeneration. |
+| kokoro-js (JS TTS drafts) | Piper TTS | If Kokoro voice quality is insufficient. Piper has more voice variety but requires separate ONNX models per voice and has no JavaScript SDK. |
+| Chatterbox-Turbo (prod TTS) | ElevenLabs API | If you want zero local setup. But ElevenLabs costs money per character, requires internet, and violates the "fully offline, deterministic" pipeline goal. |
+| Chatterbox-Turbo (prod TTS) | Coqui XTTS | If Chatterbox MPS support proves unreliable on M1. Coqui XTTS also supports MPS but has weaker emotion/paralinguistic tag control. |
+| Separate `apps/video` workspace | Code inside `apps/web` | Never -- Remotion's Webpack bundler conflicts with Next.js, and video deps should never ship to Vercel. |
+| Screenshots (Playwright) | Video recording (Playwright) | Never for final output -- Playwright video recording has variable frame timing. Screenshots give pixel-perfect control over duration in Remotion. |
+
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| ElevenLabs / any cloud TTS | Costs money per character, requires internet, non-deterministic across runs | kokoro-js (draft) + Chatterbox-Turbo (production) -- both fully local |
+| Puppeteer | Playwright already installed at v1.58.2; Puppeteer's API mocking (`page.setRequestInterception`) is weaker than Playwright's `page.route()` | Playwright |
+| `@remotion/player` | Player embeds video preview in web UIs -- not needed for offline batch rendering | `@remotion/renderer` + `@remotion/cli` |
+| Python ONNX runtime for Kokoro drafts | Adds Python dependency to the fast-iteration loop. kokoro-js runs natively in Node.js | kokoro-js npm package |
+| `remotion-skills` (transitions) | Unmaintained community package | Build custom `<Transition>` React components -- they're just JSX |
+| Mixing Remotion config in apps/web | Webpack conflicts with Next.js bundler, bloats production deploy | Separate `apps/video` workspace |
+| Playwright video recording for capture | Variable frame timing, no per-step control | `page.screenshot()` per step, compose in Remotion |
+| System FFmpeg installation | Remotion bundles its own FFmpeg. System FFmpeg may version-conflict | Let Remotion manage FFmpeg |
+
+---
+
+## Version Compatibility
+
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| `remotion@4.0.436` | `react@19.x`, `react-dom@19.x` | React 19 supported since Remotion 4.0.0. Must use >= 4.0.236 for correct React 19 ref types. Project is on React 19.2.4. |
+| `remotion@4.0.x` | All `@remotion/*` packages | **All @remotion packages MUST be pinned to the exact same version.** Remove all `^` prefixes. Version mismatch causes runtime errors. |
+| `kokoro-js@1.2.1` | Node.js 18+ | Uses `@huggingface/transformers` internally. Set `device: "cpu"` for Node.js server-side use (no WebGPU in Node). First model load downloads ~128MB ONNX weights to cache. |
+| `chatterbox-tts@0.1.6` | Python 3.10-3.11, `torch==2.5.1` | Officially tested on Python 3.11 Debian. Pinned torch version -- do NOT upgrade torch independently. |
+| `chatterbox-tts@0.1.6` | Apple Silicon MPS (M1/M2/M3) | MPS works but requires installing PyTorch with MPS support FIRST, then chatterbox-tts with `--no-deps` to avoid torch version override. See installation section. |
+| `@playwright/test@1.58.2` | Chromium (bundled binary) | Run `npx playwright install chromium`. Only Chromium needed for capture. |
+| Remotion renderer | FFmpeg (bundled by Remotion) | Remotion bundles its own FFmpeg binary. Do NOT install system FFmpeg -- version conflicts cause encoding failures. |
+| `wav-encoder` | kokoro-js raw output | kokoro-js generates() returns raw Float32Array PCM. wav-encoder converts to .wav files that Remotion's `<Audio>` component can consume. |
+
+---
+
+## Apple Silicon (M1 Pro, 16GB) Specific Notes
+
+### Chatterbox-Turbo MPS
+
+The pinned `torch==2.5.1` in chatterbox-tts can conflict with MPS-compatible PyTorch builds if installed in the wrong order. The installation section above handles this correctly.
+
+**Verification command:**
+```bash
+source .venv/chatterbox/bin/activate
+python -c "import torch; print('MPS available:', torch.backends.mps.is_available())"
+```
+
+If MPS is unavailable (rare with correct install order), Chatterbox falls back to CPU. CPU inference is slower (~10-30s per utterance vs sub-200ms on MPS) but functional for batch production of ~16 tutorials.
+
+### kokoro-js on M1
+
+ONNX Runtime has native ARM64 (Apple Silicon) support. The `device: "cpu"` codepath works efficiently on M1 without special configuration. Expect ~3s generation time for ~5s of audio output.
+
+### Remotion Rendering on M1
+
+Remotion rendering is CPU-bound (headless Chromium screenshot + FFmpeg encoding). M1 Pro handles tutorial-length videos (2-5 min each) comfortably. Expect ~1-2 min render time per minute of output video. 16GB RAM is sufficient -- Remotion's peak usage is ~2-4GB during rendering.
+
+---
+
+## Stack Patterns
+
+### Draft Iteration (Script Timing)
+- Use kokoro-js directly in Node.js scripts
+- Generate .wav, preview in Remotion Studio with `npx remotion studio`
+- Fast feedback: change script text, regenerate audio, hot-reload video preview
+- **Why:** kokoro-js has no Python dependency, ~3s generation, instant iteration loop
+
+### Production Rendering (Final Videos)
+- Generate final narration with Chatterbox-Turbo Python sidecar
+- Render MP4 with `npx remotion render` or `renderMedia()` API
+- **Why:** Chatterbox produces higher quality, more natural speech with emotion tags
+
+### UI Capture (Playwright Screenshots)
+- Start Next.js dev server: `pnpm --filter web dev`
+- Run Playwright scripts that navigate the real app with all API calls intercepted via `page.route()` returning fixture JSON
+- Capture `page.screenshot()` at each workflow step (NOT video recording)
+- **Why:** Screenshots give pixel-perfect timing control in Remotion. Playwright video recording has variable frame timing that makes synchronizing narration difficult.
+
+### Fixture Sharing
+- Mock API response JSON files live in `apps/video/src/fixtures/`
+- Playwright capture scripts and Remotion compositions both reference fixtures
+- **Why:** Same mocked data ensures captures match what the video composition expects
 
 ---
 
 ## Sources
 
-### HIGH Confidence (Official docs + codebase verified)
-- [Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584) -- confirmed no REST API cross-presentation slide copy
-- [Google Slides API - Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides) -- `duplicateObject` is intra-presentation only
-- [Google Slides API REST Reference](https://developers.google.com/workspace/slides/api/reference/rest) -- verified available batchUpdate request types
-- [Google Slides Merge Guide](https://developers.google.com/workspace/slides/api/guides/merge) -- template merge patterns via replaceAllText
-- [googleapis npm](https://www.npmjs.com/package/googleapis) -- latest 171.x, no new Slides methods relevant to v1.8
-- Codebase: `deck-assembly.ts`, `deck-customizer.ts`, `extract-elements.ts`, `schema.prisma`, `deck-structure-schema.ts` -- verified existing patterns and capabilities
+### HIGH Confidence
+- [Remotion official site](https://www.remotion.dev/) -- framework capabilities, rendering pipeline
+- [Remotion React 19 docs](https://www.remotion.dev/docs/react-19) -- confirmed React 19 compatibility from v4.0.0
+- [Remotion npm](https://www.npmjs.com/package/remotion) -- version 4.0.436 current as of 2026-03-18
+- [@remotion/renderer docs](https://www.remotion.dev/docs/renderer) -- Node.js rendering API
+- [Playwright Mock APIs docs](https://playwright.dev/docs/mock) -- `page.route()` API documentation
+- [Chatterbox GitHub](https://github.com/resemble-ai/chatterbox) -- official repo, architecture details
+- [Chatterbox PyPI](https://pypi.org/project/chatterbox-tts/) -- version 0.1.6, Python 3.10+ requirement
 
-### MEDIUM Confidence (Multiple sources agree)
-- Apps Script `appendSlide()` exists but REST API equivalent does not -- confirmed across Google docs, Issue Tracker, and developer forums
-- Sequential copy-and-prune as standard workaround -- multiple developer blog posts and Stack Overflow answers describe this pattern
+### MEDIUM Confidence
+- [kokoro-js npm](https://www.npmjs.com/package/kokoro-js) -- version 1.2.1; Node.js server-side use is secondary to browser use but documented with `device: "cpu"` option
+- [Kokoro-82M ONNX on HuggingFace](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX) -- model weights and capabilities
+- [Chatterbox Apple Silicon adaptation](https://huggingface.co/Jimmi42/chatterbox-tts-apple-silicon-code) -- MPS compatibility (community fork, not official Resemble AI)
+- [avr-tts-kokoro Express.js server](https://github.com/agentvoiceresponse/avr-tts-kokoro) -- confirms kokoro TTS works in Node.js server context
+
+### LOW Confidence (Validate During Implementation)
+- kokoro-js `device: "cpu"` performance on M1 -- based on general ONNX ARM64 support claims, not specific benchmarks
+- Chatterbox MPS install order -- based on community adaptation, not official Resemble AI docs
+- Remotion render time estimates (~1-2 min per minute of output) -- based on general community reports, varies with composition complexity
 
 ---
-*Stack research for: v1.8 Structure-Driven Deck Generation*
-*Researched: 2026-03-09*
+*Stack research for: AtlusDeck v1.9 Tutorial Video Production Pipeline*
+*Researched: 2026-03-18*

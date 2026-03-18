@@ -1,165 +1,172 @@
 # Project Research Summary
 
-**Project:** v1.8 Structure-Driven Deck Generation
-**Domain:** Multi-source slide assembly with element-map-guided modifications for agentic sales platform
-**Researched:** 2026-03-09
+**Project:** Lumenalta Agentic Sales Orchestration -- v1.9 Tutorial Video Production
+**Domain:** Automated tutorial video production pipeline (Playwright capture + Remotion composition + local TTS)
+**Researched:** 2026-03-18
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v1.8 bridges the gap between the intelligence layer (DeckStructure blueprints, slide classification, element maps) and the generation layer (Google Slides deck assembly). The core challenge is consuming DeckStructure as a generation blueprint, selecting context-appropriate slides from multiple source presentations, assembling them into a single output deck while preserving original designs, and applying surgical per-element text modifications using stored element maps. All of this must flow through the existing 3-stage HITL pipeline (Skeleton/Low-fi/High-fi) with enriched data payloads at each checkpoint.
+v1.9 adds a fully offline, deterministic tutorial video production pipeline to the existing AtlusDeck monorepo. The pipeline captures pixel-perfect screenshots of the real Next.js app using Playwright with mocked APIs, generates narration audio from human-authored scripts using local TTS models, and composes final MP4 videos using Remotion (React-based programmatic video). The approach is well-supported by mature, actively maintained tools and avoids any cloud TTS costs or live infrastructure dependencies. All 16+ tutorials covering the platform's deal management, touch workflows, template/slide library, and integrations can be produced from a single developer's M1 Pro laptop.
 
-The recommended approach requires zero new dependencies -- every capability is achievable with the existing `googleapis`, `@google/genai`, `openai`, Prisma, and Mastra packages. The work is 6 new TypeScript modules in a `generation/` directory, 2 nullable column additions to `InteractionRecord`, and new Zod schemas for the pipeline data contracts. The architecture follows a blueprint-first pattern: every generation starts by resolving DeckStructure into an ordered list of section slots, matching slides to sections using deal context, assembling from source presentations, and then applying element-map-guided modifications.
+The recommended approach creates a new `apps/tutorials` Turborepo workspace that isolates Remotion's Webpack bundler, heavy TTS model weights, and video rendering dependencies from the deployed web and agent apps. A two-tier TTS strategy uses kokoro-js (pure JavaScript, CPU) for fast draft iteration and Chatterbox-Turbo (Python sidecar, MPS/GPU) for production-quality narration. The pipeline follows a strict four-stage flow: author scripts, capture screenshots (Playwright) and generate audio (TTS) in parallel, then compose and render with Remotion.
 
-The dominant technical risk is Google Slides API's lack of cross-presentation slide copy (confirmed via Google Issue Tracker #167977584, open since 2020). The mitigation is a "sequential copy-and-prune" strategy where the primary source presentation is copied and pruned, and secondary source slides use content injection from element maps into branded template slides. This hybrid approach trades pixel-perfect layout for secondary slides in exchange for API simplicity, with a future path to Apps Script `appendSlide()` if visual fidelity becomes critical. Secondary risks include objectId collisions during multi-source merge, element map staleness between ingestion and generation, and HITL state payload bloat -- all have clear prevention strategies documented in the research.
+The two critical risks are: (1) Playwright's `page.route()` cannot intercept Next.js Server Actions or server-side fetches -- a lightweight mock agent server is required alongside browser-level route interception, and (2) Chatterbox-Turbo's CUDA-trained weights require careful MPS adaptation on Apple Silicon with CPU-first loading and component-by-component GPU migration. Both risks have documented mitigations and should be addressed in the first two phases. Mock fixture data management across 16 tutorials is the largest sustained effort and must be architected with factories and schema validation from the start.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No dependency changes. All capabilities come from existing packages. Stay on `googleapis@^144.0.0` (no new Slides methods in 171.x), `prisma@^6.3.1` (Prisma 7.x has vector regression), and `@mastra/core@^1.8.0` (suspend/resume handles HITL stages). See [STACK.md](./STACK.md) for full details.
+The pipeline adds four new npm package groups (Remotion core/renderer/bundler/CLI, kokoro-js, wav-encoder) and one Python package (chatterbox-tts) to the monorepo. Playwright is already installed at v1.58.2. All Remotion packages must be pinned to the exact same version (4.0.436) -- version mismatch causes runtime errors. See [STACK.md](./STACK.md) for full details.
 
-**Core technologies (all existing):**
-- `googleapis` (^144.0.0): Drive `files.copy` for multi-source assembly, Slides `batchUpdate` for modifications -- no upgrade needed
-- `@google/genai` (^1.43.0): Gemini 2.5 Flash for modification planning and section-to-slide scoring -- flat structured output schemas only
-- `openai` (^6.27.0): GPT-OSS 120b for per-slide creative copy generation -- same pattern as existing proposal assembly
-- `@prisma/client` (^6.3.1): 2 new nullable columns on InteractionRecord via forward-only migration -- no new models
-- `@mastra/core` (^1.8.0): New workflow steps using existing suspend/resume for enriched HITL checkpoints
+**Core technologies:**
+- **Remotion 4.0.436**: React-based programmatic video composition -- natural fit for the existing React 19 codebase, deterministic frame-by-frame control, bundled FFmpeg
+- **Playwright 1.58.x**: UI capture with `page.route()` API mocking -- already installed, pixel-perfect screenshots, no new dependencies
+- **kokoro-js 1.2.1**: Draft TTS in pure JavaScript via ONNX Runtime -- fast iteration loop (~3s generation), no Python needed
+- **Chatterbox-Turbo 0.1.6**: Production TTS via Python sidecar -- near-human narration quality, paralinguistic tags, MIT licensed, beats ElevenLabs in blind tests
+
+**Critical version constraints:** React 19 compatibility requires Remotion >= 4.0.236. Chatterbox requires Python 3.11 and torch==2.5.1 installed before chatterbox-tts (with `--no-deps`) to avoid MPS conflicts on Apple Silicon.
 
 ### Expected Features
 
 See [FEATURES.md](./FEATURES.md) for full analysis.
 
-**Must have (table stakes -- closes 5 identified gaps):**
-- DeckStructure blueprint resolver -- reads structureJson, resolves sections to SlideEmbedding records with classification and element metadata
-- Context-aware section-to-slide matching -- scores candidates on industry, pillar, persona, funnel stage; cascading fallback for sparse library
-- Multi-source slide assembly -- cherry-picks slides from different source presentations into one deck via copy-and-prune strategy
-- Per-slide modification planning via element maps -- LLM reads element map, produces targeted modification plan, executes via scoped batchUpdate
-- 3-stage HITL data contracts -- Skeleton=blueprint+selections, Low-fi=assembled deck URL, High-fi=modification plan summary
-- Touch-type router with fallbacks -- routes through structure-driven pipeline when DeckStructure exists, falls back to existing paths otherwise
+**Must have (table stakes):**
+- Structured tutorial script format (JSON) as single source of truth for the entire pipeline
+- Playwright mock harness with `page.route()` interception + mock agent server for server-side calls
+- Auth/session mocking (Google OAuth bypass via cookies)
+- Mock fixture corpus for all 16 tutorials (biggest single effort)
+- Per-step screenshot capture with animation disabling and network idle waits
+- kokoro-js TTS draft narration with per-step .wav output
+- Remotion `<Sequence>` composition with `<Audio>` narration sync
+- Final MP4 render via Remotion CLI
 
-**Should have (differentiators for v1.8.x):**
-- Variation preview in Skeleton stage -- show all candidate slides per section with thumbnails and match scores
-- Cross-touch slide exclusion -- prevent repeated slides across touch decks for same deal
-- Fallback synthesis for missing sections -- branded template injection when no good candidate exists
-- Confidence-gated generation -- gate auto-generation on DeckStructure confidence level
+**Should have (differentiators):**
+- Chatterbox-Turbo production narration (significant quality upgrade)
+- Zoom/pan effects on UI regions via CSS transforms and `interpolate()`
+- Text overlays and callout annotations
+- Cursor animation showing click targets
+- `<TransitionSeries>` cross-fades between steps
 
 **Defer (v2+):**
-- Custom section insertion, template-level theme enforcement, generation analytics, smart modification learning
+- Automated UI drift detection / CI re-recording
+- Multi-language narration
+- Tutorial versioning per app version
+- Interactive in-app walkthroughs
 
 ### Architecture Approach
 
-The architecture adds a `generation/` module layer between the existing intelligence layer (DeckStructure, SlideEmbedding, SlideElement) and the existing HITL/workflow layer. Six new components form a linear pipeline: Blueprint Resolver -> Section Matcher -> Multi-Source Assembler (with Slide Copier) -> Modification Planner -> Element-Map Executor. Each component has a graceful degradation fallback to existing code paths. See [ARCHITECTURE.md](./ARCHITECTURE.md) for full details.
+The pipeline lives in a new `apps/tutorials` Turborepo workspace with a step-indexed data model: narration scripts, screenshots, audio files, and Remotion sequences all share the same step numbering. Playwright launches the real `apps/web` dev server via its `webServer` config, intercepts all API calls with fixtures, and captures screenshots. TTS runs independently. Remotion compositions consume both outputs. No modifications to `apps/web` or `apps/agent` are required. See [ARCHITECTURE.md](./ARCHITECTURE.md) for full details.
 
 **Major components:**
-1. **Blueprint Resolver** -- reads DeckStructure, produces GenerationBlueprint with ordered SectionSlots and candidate slideIds
-2. **Section Matcher** -- scores candidate slides per section using classification metadata + vector similarity against deal context
-3. **Multi-Source Assembler + Slide Copier** -- groups slides by source presentation, executes copy-and-prune for primary source, content injection for secondary sources
-4. **Modification Planner** -- loads SlideElement records per assembled slide, LLM produces per-element modification actions (flat schema for Gemini compatibility)
-5. **Element-Map Executor** -- executes planned modifications via scoped Slides API batchUpdate; re-reads presentation between slides for objectId stability
+1. **Narration Scripts** (`scripts/`) -- human-authored JSON defining steps, narration text, timing, zoom targets
+2. **Mock Fixtures** (`fixtures/`) -- JSON responses mirroring real API route structure, with shared base entities and tutorial-specific overrides
+3. **Playwright Captures** (`captures/`) -- test specs that navigate the mocked app and take per-step screenshots
+4. **TTS Generator** (`audio/`) -- dual-engine (kokoro-js draft / Chatterbox production) producing .wav per step
+5. **Remotion Compositions** (`src/`) -- one composition per tutorial, shared components for TutorialStep, ZoomEffect, TextOverlay
+6. **Pipeline Orchestration** (`pipeline/`) -- scripts chaining capture, TTS, and render with per-tutorial or batch execution
 
 ### Critical Pitfalls
 
-See [PITFALLS.md](./PITFALLS.md) for all 10 pitfalls with full recovery strategies.
+See [PITFALLS.md](./PITFALLS.md) for all 6 critical pitfalls with full recovery strategies.
 
-1. **No cross-presentation slide copy in Google Slides REST API** -- use sequential copy-and-prune with hybrid approach (primary source preserves design, secondary sources use content injection). Prototype with real API integration test before building full pipeline.
-2. **ObjectId collisions when merging from multiple presentations** -- never reuse source objectIds; generate new IDs; maintain source-to-output ID mapping; always re-read presentation after batchUpdate.
-3. **Element map staleness between ingestion and generation** -- re-fetch source slide elements via `presentations.get` at generation time; lock source data for workflow duration; suppress auto-re-ingestion during active generation.
-4. **DeckStructure slideIds becoming dangling references** -- validate every slideId against DB at generation time; filter archived/deleted slides; fall back to vector similarity search when sections have zero valid candidates.
-5. **replaceAllText cross-contamination in multi-source decks** -- use element-targeted `deleteText`+`insertText` instead of `replaceAllText` for content modifications; always scope with `pageObjectIds` for placeholder replacements.
+1. **Server Actions not interceptable by `page.route()`** -- AtlusDeck uses 13 server action files and multiple API routes making server-to-server fetches. Must build a lightweight mock agent server and point `AGENT_SERVICE_URL` to it during capture. This is the single most important thing to get right in Phase 1.
+
+2. **Remotion memory exhaustion on 16GB M1 Pro** -- Default concurrency assumes it owns the machine. Cap at `--concurrency=2`, never run capture and render simultaneously, close other apps during final renders.
+
+3. **Audio-visual desynchronization** -- TTS audio duration is unpredictable. Never hardcode `durationInFrames`. Generate all audio first, measure with `getAudioDurationInSeconds()`, build a timing manifest, and use `<Series>` for automatic chaining.
+
+4. **Chatterbox CUDA-to-MPS loading failure** -- Model weights contain CUDA references. Must load to CPU first, then move components (t3, s3gen, ve) to MPS individually. Fall back to CPU if MPS proves unstable.
+
+5. **Fixture data explosion** -- 16 tutorials x 10-30 steps x 3-5 endpoints = potentially 2,400 fixture files. Use fixture factories, shared base entities, and Zod schema validation from day one.
 
 ## Implications for Roadmap
 
-Based on dependency analysis from architecture research and pitfall-to-phase mapping:
+Based on research, suggested phase structure:
 
-### Phase 1: Foundation Types + Blueprint Resolution + Section Matching
+### Phase 1: Mock Infrastructure and Workspace Setup
+**Rationale:** Everything depends on working mocks. The mock agent server (for server-side fetches) and Playwright capture harness (for browser-side intercepts) are prerequisites for every subsequent phase. The `apps/tutorials` workspace must exist before any Remotion or TTS work begins.
+**Delivers:** New `apps/tutorials` workspace, mock agent server, shared `page.route()` helpers, auth mocking, animation-disabling CSS, screenshot determinism, fixture factory pattern with Zod validation, fixture data for 2-3 pilot tutorials.
+**Addresses:** Tutorial script format, Playwright mock harness, auth bypass, mock fixtures (pilot set), per-step screenshot capture, `.gitignore` for generated artifacts.
+**Avoids:** Server Action interception failure (Pitfall 1), fixture data explosion (Pitfall 5), screenshot timing instability (Pitfall 6).
 
-**Rationale:** Blueprint Resolver is the foundation -- every downstream component depends on GenerationBlueprint and SectionSlot types. Section Matcher fills the selected slideId per section, which is required before assembly can begin. These are pure data transforms and DB queries with no Google API mutations, making them low-risk to build first.
-**Delivers:** `generation/types.ts`, `generation/blueprint-resolver.ts`, `generation/section-matcher.ts`, new Zod schemas (ResolvedBlueprint, ModificationAction)
-**Addresses:** DeckStructure blueprint consumption, context-aware section-to-slide matching (Features P1)
-**Avoids:** Context matching over-fitting (Pitfall 8) -- build cascading fallback from day one; dangling slideId references (Pitfall 4) -- validate slideIds at resolution time
-**Uses:** Prisma (DeckStructure, SlideEmbedding, SlideElement), pgvector (cosine similarity pre-filter), Gemini Flash (structured scoring)
+### Phase 2: TTS Pipeline (Draft and Production Audio)
+**Rationale:** Audio must exist before Remotion compositions can be built, because `durationInFrames` depends on actual audio file lengths. Validating Chatterbox on M1 hardware early de-risks the production narration path.
+**Delivers:** kokoro-js integration for draft .wav generation, Chatterbox-Turbo Python sidecar with MPS validation, timing manifest generation, dual-engine TTS pipeline with `--engine` flag.
+**Uses:** kokoro-js 1.2.1 (npm), chatterbox-tts 0.1.6 (pip), wav-encoder, Python 3.11 venv.
+**Implements:** TTS Generator component, timing manifest that feeds Remotion compositions.
+**Avoids:** Audio-visual desync (Pitfall 3), Chatterbox CUDA/MPS failure (Pitfall 4).
 
-### Phase 2: Multi-Source Slide Assembly
+### Phase 3: Remotion Composition and Render Pipeline
+**Rationale:** With screenshots and audio available from Phases 1-2, compositions can now be built. Memory-safe render configuration must be established before scaling to all 16 tutorials.
+**Delivers:** Remotion workspace config, shared TutorialStep component, first complete tutorial video ("Getting Started"), `--concurrency=2` render config, Turborepo task integration (capture/tts/render).
+**Implements:** Remotion Compositions and Pipeline Orchestration components.
+**Avoids:** Remotion memory exhaustion (Pitfall 2), Remotion/Next.js bundler conflict (Anti-Pattern 4).
 
-**Rationale:** Most complex component and highest technical risk due to Google API limitations. Must be built and validated before modification planning, because Low-fi HITL (assembled deck review) is useful even without surgical modifications. Needs an integration test proving the cross-presentation merge strategy works before building downstream.
-**Delivers:** `generation/multi-source-assembler.ts`, `generation/slide-copier.ts`, AssemblyManifest schema, Prisma migration for `blueprintJson` and `assemblyManifest` columns
-**Addresses:** Multi-source slide assembly, design-preserved output (Features P1)
-**Avoids:** No cross-presentation copy API (Pitfall 1) -- prototype early; objectId collisions (Pitfall 2) -- generate new IDs with mapping; theme conflicts (Pitfall 6) -- verify theme compatibility before assembly
-**Uses:** googleapis (Drive files.copy, Slides batchUpdate), existing deck-customizer.ts copy-and-prune patterns
+### Phase 4: Full Tutorial Corpus (All 16 Tutorials)
+**Rationale:** With the pipeline proven end-to-end on 1-3 tutorials, scale to all 16 by expanding fixture data, scripts, and capture specs. This is primarily an authoring effort, not an engineering effort.
+**Delivers:** Complete fixture sets for all 16 tutorials (prioritized by mock complexity: low first, then medium, then high HITL workflows), narration scripts, capture specs, and rendered MP4s.
+**Addresses:** All remaining mock fixture data, HITL stage mocking for Touch 1-4, remaining tutorial scripts.
 
-### Phase 3: Modification Planning + Execution
-
-**Rationale:** Can be developed in parallel with Phase 2 once types are defined (Phase 1 complete). Depends on assembled slides existing in the target presentation for elementId resolution. The modification planner and executor form a tight pair.
-**Delivers:** `generation/modification-planner.ts`, `generation/element-map-executor.ts`, ModificationPlan schema, new named agent "modification-planner"
-**Addresses:** Per-slide modification planning via element maps (Features P1)
-**Avoids:** Element map staleness (Pitfall 3) -- re-fetch live data at generation time; element type assumptions (Pitfall 9) -- build type-specific executors; replaceAllText cross-contamination (Pitfall 5) -- use element-targeted operations
-**Uses:** Prisma (SlideElement), Gemini Flash (modification planning), GPT-OSS 120b (creative copy generation), googleapis (Slides batchUpdate)
-
-### Phase 4: Workflow Integration + HITL Wiring
-
-**Rationale:** Integrates the full pipeline into existing touch workflows with HITL checkpoints. Must come last because it depends on all pipeline components. Each touch can be migrated independently with fallback to existing behavior.
-**Delivers:** Modified touch 1-4 workflows, HITL stage data contracts, touch-type router with fallbacks, modified proposal-assembly.ts
-**Addresses:** 3-stage HITL alignment, touch-type router with fallbacks (Features P1)
-**Avoids:** HITL state explosion (Pitfall 7) -- store heavy data in DB, keep suspend payloads under 5KB with IDs only; concurrent modification between stages (Pitfall 10) -- check revisionId before High-fi modifications
-**Uses:** @mastra/core (suspend/resume), all Phase 1-3 components
-
-### Phase 5: Polish + Differentiators (v1.8.x)
-
-**Rationale:** Only after core pipeline works end-to-end. These improve quality and seller experience but are not required to close the 5 gaps.
-**Delivers:** Variation preview UI, cross-touch slide exclusion, fallback synthesis for missing sections, confidence-gated generation
+### Phase 5: Visual Polish and Production Quality
+**Rationale:** Only after all tutorials exist in basic form should visual enhancements be added. These are additive and do not require re-recording.
+**Delivers:** Chatterbox production narration for all tutorials (replacing Kokoro drafts), zoom/pan effects, text overlays, cursor animations, `<TransitionSeries>` transitions, intro/outro slates.
+**Addresses:** All P2 differentiator features from FEATURES.md.
 
 ### Phase Ordering Rationale
 
-- **Dependency chain:** Blueprint resolution (P1) -> section matching (P1) -> assembly (P2) -> modifications (P3) -> integration (P4). This mirrors the data flow: you cannot assemble slides you have not selected, and you cannot modify slides you have not assembled.
-- **Risk front-loading:** Phase 2 (multi-source assembly) is the highest-risk component due to Google API constraints. Building it in Phase 2 (not Phase 4) means the hardest problem is solved early, and downstream phases can adapt to whatever assembly strategy proves viable.
-- **Parallel opportunity:** Phase 3 (modification) can run in parallel with Phase 2 after Phase 1 types are defined. This compresses the timeline.
-- **Graceful degradation:** Each phase adds value independently. After Phase 1-2, the system can produce assembled decks from DeckStructure without surgical modifications. After Phase 3, modifications work but are not yet wired into HITL. Phase 4 connects everything.
+- **Phases 1-3 are strictly sequential** due to hard dependencies: mocks before screenshots, audio before compositions, both before rendering.
+- **Phase 4 is the longest phase** (fixture authoring for 16 tutorials) but is parallelizable across tutorials and requires minimal engineering decisions.
+- **Phase 5 is fully decoupled** from Phase 4 content authoring and can even overlap with late Phase 4 work on complex tutorials.
+- **The mock agent server (Phase 1) is the single highest-risk item.** If it proves harder than expected (complex server action mocking), it gates everything. Budget extra time here.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 2 (Multi-Source Assembly):** Highest technical risk. Needs a spike/prototype proving the Drive copy-and-prune merge strategy works with real Google Slides API calls. The hybrid approach (primary source copy-and-prune + secondary source content injection) must be validated with actual presentations to determine visual fidelity.
-- **Phase 4 (HITL Wiring):** The suspend/resume payload contracts need careful schema design. The Skeleton stage UI rendering complexity (12+ sections with thumbnails and alternatives) needs frontend prototyping.
+- **Phase 1:** Mock agent server design needs careful analysis of all 13 server action files and API route handlers to ensure complete coverage. Recommend `/gsd:research-phase` to catalog every endpoint that makes server-side fetches.
+- **Phase 2:** Chatterbox MPS stability on M1 Pro is community-documented, not officially supported. Validate early with a 60-second continuous narration test before committing to Chatterbox for production.
+- **Phase 4:** Touch 4 tutorial has "Very High" mock complexity (6-phase pipeline with 3 output artifacts). May need dedicated research to map all fixture requirements.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (Blueprint + Matching):** Well-documented patterns -- Prisma queries, vector similarity, LLM structured output. All patterns exist in the current codebase.
-- **Phase 3 (Modification):** Element map consumption is a new application of existing patterns (SlideElement queries + Gemini structured output + Slides batchUpdate). The type-specific executor pattern is standard.
+- **Phase 3:** Remotion composition patterns are thoroughly documented. Standard `<Sequence>` + `<Audio>` + `staticFile()` patterns apply directly.
+- **Phase 5:** Visual enhancements (zoom, overlays, transitions) use standard Remotion APIs with extensive examples in official docs.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Zero new dependencies. All existing packages verified sufficient. Version constraints documented with rationale. |
-| Features | HIGH | 5 gaps clearly identified from gap analysis. Feature dependency chain validated against codebase. MVP vs. defer boundary is clear. |
-| Architecture | HIGH | Full codebase analysis (61,245 LOC). Component boundaries, data joins, and existing code extensions all verified against actual source files. |
-| Pitfalls | HIGH | All 10 pitfalls verified against Google Slides API documentation and existing codebase patterns. Cross-presentation copy limitation confirmed via Google Issue Tracker. |
+| Stack | HIGH | Remotion and Playwright are mature, well-documented. kokoro-js is newer but ONNX-based with clear Node.js API. |
+| Features | HIGH | Feature landscape is well-defined by the existing app's 16 tutorial topics. MVP vs. polish boundary is clear. |
+| Architecture | HIGH | Turborepo workspace pattern is established in the codebase. Remotion monorepo integration has community templates. |
+| Pitfalls | HIGH | Server Action limitation verified against Next.js GitHub discussions. Remotion OOM documented in official docs. Chatterbox MPS issues confirmed by GitHub issues. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Multi-source assembly visual fidelity:** The hybrid approach (primary source copy-and-prune + secondary source content injection) has not been tested with real presentations. A spike in Phase 2 must validate that content injection into branded template slides produces acceptable output quality. If not, the fallback is single-source assembly per deck (simpler but less visually diverse).
-- **Table cell modification support:** Current element map extraction concatenates table cell text into a single `contentText` string. If table modifications are in scope for v1.8, the element map schema needs extension to capture `{rowIndex, columnIndex}` per cell. This can be deferred if table content is treated as "preserve as-is."
-- **Sparse library matching quality:** With only 38 slides from 5 presentations, the cascading fallback matcher may frequently fall through to the lowest tier (any available slide). Actual match quality will only be measurable after Phase 1 is built against real deal contexts.
-- **Apps Script migration path:** If the hybrid multi-source approach proves insufficient for visual fidelity, migration to Apps Script `appendSlide()` via the Apps Script API is the documented escape hatch. This adds infrastructure complexity (Apps Script project deployment, execution permissions) and should only be pursued if seller feedback demands it.
+- **Chatterbox MPS stability on M1 Pro 16GB:** Community adaptation exists but is not officially supported by Resemble AI. Validate with a real 60-second narration test in Phase 2 before committing. If unstable, Kokoro provides acceptable fallback quality.
+- **Mock agent server completeness:** The exact list of server-side endpoints that need mocking (beyond the 13 known server action files) requires a full audit of `apps/web` API routes during Phase 1 planning.
+- **Render time estimates:** "1-2 min per minute of output" is based on community reports, not benchmarked on this project's composition complexity. Run `npx remotion benchmark` in Phase 3.
+- **kokoro-js CPU performance on M1:** Claimed ~3s for ~5s of audio, but no specific M1 benchmarks. Low risk since it is only used for drafts.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584) -- confirmed no REST API cross-presentation slide copy
-- [Google Slides API Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides) -- `duplicateObject` is single-presentation only
-- [Google Slides API REST Reference](https://developers.google.com/workspace/slides/api/reference/rest) -- verified batchUpdate request types
-- [Google Slides API Merge Guide](https://developers.google.com/workspace/slides/api/guides/merge) -- template merge via replaceAllText
-- [Google Slides API Batch Requests](https://developers.google.com/slides/api/guides/batch) -- all-or-nothing batchUpdate semantics
-- [Google Apps Script Presentation.appendSlides](https://developers.google.com/apps-script/reference/slides/presentation) -- cross-presentation copy exists in Apps Script only
-- [googleapis npm](https://www.npmjs.com/package/googleapis) -- latest 171.x has no new Slides methods for v1.8
-- Codebase analysis: `deck-assembly.ts`, `deck-customizer.ts`, `extract-elements.ts`, `slide-selection.ts`, `proposal-assembly.ts`, `deck-structure-schema.ts`, `schema.prisma`, touch workflows
+- [Remotion official docs](https://www.remotion.dev/) -- framework capabilities, rendering, audio sync, performance, memory
+- [Playwright Mock APIs](https://playwright.dev/docs/mock) -- `page.route()` capabilities and limitations
+- [Chatterbox GitHub](https://github.com/resemble-ai/chatterbox) -- official repo, architecture, version requirements
+- [Next.js Server Action mocking discussion #67136](https://github.com/vercel/next.js/discussions/67136) -- confirms `page.route()` limitation
 
 ### Secondary (MEDIUM confidence)
-- [Experiments with Google Slides API to recreate slides](https://www.bentumbleson.com/experiments-with-the-google-slides-api-to-recreate-slides/) -- confirms element reconstruction is lossy
-- Sequential copy-and-prune as standard multi-source workaround -- multiple developer blog posts and Stack Overflow answers
+- [kokoro-js npm](https://www.npmjs.com/package/kokoro-js) -- v1.2.1, Node.js server-side usage with `device: "cpu"`
+- [Chatterbox Apple Silicon adaptation](https://huggingface.co/Jimmi42/chatterbox-tts-apple-silicon-code) -- MPS fixes (community, not official)
+- [Remotion monorepo template](https://github.com/Takamasa045/remotion-studio-monorepo) -- pnpm workspace pattern
+
+### Tertiary (LOW confidence, validate during implementation)
+- kokoro-js CPU performance on M1 ARM64 -- inferred from general ONNX support, not benchmarked
+- Chatterbox MPS install order -- community-documented, not official Resemble AI guidance
+- Remotion render time estimates -- community reports, varies by composition complexity
 
 ---
-*Research completed: 2026-03-09*
+*Research completed: 2026-03-18*
 *Ready for roadmap: yes*

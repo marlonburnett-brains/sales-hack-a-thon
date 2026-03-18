@@ -1,206 +1,210 @@
 # Feature Research
 
-**Domain:** Structure-driven deck generation for agentic sales platform (v1.8)
-**Researched:** 2026-03-09
-**Confidence:** HIGH
+**Domain:** Automated tutorial video production pipeline for SaaS platform (v1.9)
+**Researched:** 2026-03-18
+**Confidence:** HIGH (Playwright, Remotion well-documented; MEDIUM for TTS models on M1 hardware)
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Features that close the 5 identified gaps between the intelligence layer (DeckStructure + element maps) and the generation layer. Without these, the DeckStructure intelligence layer produces blueprints that no generation code reads.
+Features that make the pipeline functional. Without these, you cannot produce a single tutorial video.
 
-| Feature | Why Expected | Complexity | Dependencies | Notes |
-|---------|--------------|------------|--------------|-------|
-| **DeckStructure as generation blueprint** | DeckStructure already exists with ordered sections and mapped slideIds; users see it in Settings UI but generation ignores it entirely. The intelligence-to-generation bridge does not exist. | MEDIUM | Existing `DeckStructure` model, `deck-structure-schema.ts`, `structureJson` column | Resolver reads `structureJson`, iterates sections in order, resolves each section's `slideIds` to full `SlideEmbedding` records with classification metadata. All 7 logical keys (touch_1 through touch_4 x artifact) must route through this. Replaces the current independent RAG retrieval in Touch 4 and manual selection in Touch 2-3. |
-| **Context-aware section-to-slide matching** | Each DeckStructure section maps to multiple candidate slideIds (variations). Without context-aware scoring, the system picks arbitrarily. Sellers expect industry-relevant, persona-appropriate slides. | MEDIUM | Blueprint consumption, `SlideEmbedding.classificationJson` (industry, pillar, persona, stage arrays), deal context | LLM-scored or vector-similarity-scored selection from candidates per section. Similar to existing `slide-selection.ts` but scoped per-section rather than whole-deck. Scores candidates on: industry match, pillar alignment, persona fit, funnel stage appropriateness. Falls back to highest-confidence candidate when deal context is sparse. |
-| **Multi-source slide assembly** | The vision requires cherry-picking slides from different source presentations into one deck. Current system copies ONE source and prunes. A typical deck draws from 3-5 different templates. | HIGH | Google Slides API constraints, `Template.presentationId` for source resolution, section-to-slide matching output | **Critical API constraint:** Google Slides API `duplicateObject` works within a single presentation only. No native cross-presentation slide copy exists ([Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584)). Requires copy-per-source-group strategy (see "Multi-Source Assembly" section below). |
-| **Design-preserved output** | Current Touch 4 duplicates one template slide N times -- every output slide looks identical. Users expect each slide to retain its original layout (charts, images, branded designs preserved). | HIGH | Multi-source assembly (slides must come from their original source decks to preserve design) | Design preservation IS multi-source assembly. When you copy a slide from its source presentation, you automatically get its original layout. The constraint is NOT generating new layouts but copying existing ones and modifying only text content. |
-| **Per-slide modification planning via element maps** | Element maps exist in the DB (`SlideElement` model with elementId, position, size, type, contentText per element) but are never consumed during generation. Surgical text replacement requires knowing WHICH text boxes to modify and HOW. | MEDIUM | `SlideElement` table data, multi-source assembly (need the actual copied slide), deal context for content decisions | LLM reads element map for a copied slide, receives deal context (company name, industry, desired outcomes), and produces a modification plan: `[{elementId, action: "replace"|"keep", newContent}]`. Only text/shape elements get modified; images, tables, groups are preserved. Executes via Google Slides `replaceAllText` scoped to `pageObjectIds` or individual `deleteText` + `insertText` requests per element. |
-| **3-stage HITL alignment with new pipeline** | Existing HITL has Skeleton/Low-fi/High-fi stages from v1.7. These must map to the new generation pipeline data flow. | MEDIUM | All above features, existing Mastra suspend/resume pattern | **Skeleton** = DeckStructure blueprint with selected slide candidates (thumbnails, scores, section assignments). Seller reviews/swaps selections. **Low-fi** = assembled multi-source deck in Google Slides. Seller reviews in Google Slides, confirms or requests changes. **High-fi** = element-map-guided modification plan applied. Seller reviews final deck. Each uses existing suspend/resume -- only the data payloads change. |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Playwright mock harness with `page.route()` interception** | Every tutorial needs deterministic UI behavior without live backends | HIGH | ~16 tutorials x multiple API endpoints each = large fixture corpus. Must mock auth, agent API, Google APIs, AtlusAI, polling/async workflows. Register routes before `page.goto()`. |
+| **Per-step screenshot capture** | Screenshots are the visual atoms of every tutorial video | LOW | `page.screenshot({ path })` at each workflow step. Playwright 1.58.2 already installed in project. |
+| **Remotion `<Sequence>` composition per tutorial step** | Each tutorial step needs its screenshot + narration + timing aligned in the timeline | MEDIUM | One `<Sequence>` per step. Duration derived from narration audio length. `<Audio>` component syncs narration to visual. |
+| **Remotion `<Audio>` narration sync** | Narration must play in time with the visual it describes | MEDIUM | Place `<Audio src={narrationClip}>` inside each `<Sequence>`. Generate narration per-step (not one giant file) for precise alignment. |
+| **TTS script-to-audio generation (Kokoro for drafts)** | Need audio narration from written scripts without manual recording | MEDIUM | Python dependency: `kokoro-onnx`. 82M params, ~128MB ONNX model. Runs on CPU on M1. ~3s to generate 5s of audio. 54 English voices. |
+| **Final MP4 render via Remotion CLI** | Must produce distributable video files | LOW | `npx remotion render` outputs MP4. FFmpeg auto-downloaded to node_modules on first run. |
+| **Tutorial script authoring format** | Scripts drive TTS, timing, and visual sequencing -- need a structured format | MEDIUM | JSON or YAML per tutorial: array of steps, each with `narration` text, `action` description, `mockRoute` references, and `screenshotId`. This is the single source of truth for the entire pipeline. |
+| **Mock fixture data for all 16+ workflows** | Tutorials show realistic data (deals, templates, slides, briefings, chat) | HIGH | Must create fixture JSON for: deal CRUD, pipeline views, Touch 1-4 HITL stages, template ingestion, slide library, deck structures, agent prompts, AtlusAI discovery, Drive integration, pre-call briefing. Biggest single effort in the milestone. |
+| **Auth state mocking (Google OAuth bypass)** | Every tutorial starts from a logged-in state | LOW | Mock Supabase auth cookies/session. Playwright can set cookies before navigation. |
+| **HITL workflow stage mocking** | Touch workflows have 3 HITL stages with suspend/resume -- must mock progression | MEDIUM | Mock the agent API endpoints that return stage status. Pre-author skeleton, low-fi, and high-fi stage responses for each touch type. |
 
 ### Differentiators (Competitive Advantage)
 
-Features beyond closing the 5 gaps. Not required for v1.8 but create significant seller value.
+Features that elevate tutorial quality beyond basic screen recordings.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Variation preview in Skeleton stage** | Show all candidate slides per section with thumbnails, classification badges, and match scores. Seller can swap candidates before committing to assembly. | MEDIUM | Thumbnails already cached per slide via `thumbnailUrl`. Classification data exists in `classificationJson`. Requires UI component showing N candidates per section with select/swap interaction. |
-| **Cross-touch slide exclusion** | Slides selected for Touch 2 (intro) inform Touch 3 (capability) and Touch 4 (proposal) to avoid repeating content. Prior touch history already tracked in `InteractionRecord`. | LOW | `priorTouchOutputs` already passed to `slide-selection.ts`. Extend to structure-driven selection by including previously-used slideIds as an exclusion set in the scoring function. |
-| **Fallback synthesis for missing sections** | When DeckStructure has a required section but no good candidate slides exist (low similarity scores, wrong industry), fall back to the branded-template content injection approach. | LOW | Existing `deck-assembly.ts` placeholder injection works for this. Use as fallback when no retrieved slide scores above a configurable threshold. Prevents empty sections in the output deck. |
-| **Confidence-gated generation** | Only auto-generate with DeckStructure when confidence is green (6+ examples). Yellow/red confidence shows a warning and offers manual section selection instead. | LOW | `calculateConfidence()` already returns color tier. Gate the generation entry point on confidence level. Prevents poor-quality auto-generation from under-trained structures. |
-| **Modification diff preview** | In High-fi stage, show before/after text diffs for each element the LLM plans to modify. Seller approves or edits the modification plan before execution. | MEDIUM | Requires rendering element map contents alongside proposed changes. SlideElement positions enable approximate visual placement in a preview layout. |
-| **Section-level regeneration** | In Low-fi or High-fi stage, seller can mark a single section for re-generation (pick a different candidate slide or re-run modifications) without rebuilding the entire deck. | MEDIUM | Requires tracking which slides map to which sections in the assembled deck. Delete the section's slides, re-run assembly for just that section, insert at the correct position. |
+| **Chatterbox-Turbo production narration** | Natural, expressive voice with paralinguistic tags (`[laugh]`, `(excited)`) -- sounds human, not robotic | MEDIUM | 350M params, MIT license. ONNX version on HuggingFace. Sub-200ms inference on GPU. Needs MPS/Metal on M1 Pro. Beats ElevenLabs in 63.8% of blind tests. Significant quality jump over Kokoro. |
+| **Remotion `<TransitionSeries>` between steps** | Professional cross-fades, slides, and wipes between tutorial steps instead of hard cuts | LOW | Built-in Remotion component. Transition duration overlaps sequences. Small duration budget impact. |
+| **Zoom/pan effects on UI regions** | Draw attention to specific buttons, fields, or panels being discussed | MEDIUM | Remotion supports CSS transforms and `interpolate()` for smooth zoom animations. Define zoom target as `{x, y, width, height}` per step in the script format. |
+| **Text overlays and callout annotations** | Label UI elements, show keyboard shortcuts, display step numbers | LOW | Standard React components rendered in Remotion composition. Position absolutely over screenshot. |
+| **Cursor animation showing click targets** | Visual indicator of where the user would click, making tutorials easier to follow | MEDIUM | Render animated cursor SVG moving to click coordinates. Playwright can capture element bounding boxes for coordinates during capture. |
+| **Two-pass TTS workflow (Kokoro draft, Chatterbox final)** | Iterate on script timing cheaply with Kokoro CPU, then produce polished audio with Chatterbox GPU only for locked scripts | LOW | Architectural pattern, not a feature to build separately. Kokoro generates draft audio in seconds for timing validation. Chatterbox runs only once per final script. |
+| **Deterministic fixture seeding from real app data** | Fixtures mirror actual app state shapes exactly, reducing maintenance drift | MEDIUM | Export Zod schemas from `packages/schemas` to generate fixture type stubs. Validate fixtures against schemas at build time. |
+| **Chapter markers / table of contents** | Allow viewers to jump to specific steps within longer tutorials | LOW | Remotion metadata or simple overlay at video start listing timestamps. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Real-time in-browser slide preview rendering** | Sellers want to see assembled slides in the app without opening Google Slides. | Google Slides API has no render-to-image endpoint for arbitrary slides. Thumbnails are only available via `presentations.pages.getThumbnail` after the presentation exists. Building a PPTX/Slides renderer is a multi-month effort. | Use cached ingestion thumbnails in Skeleton stage. Link to Google Slides for Low-fi and High-fi review. Already works this way for existing preview flows. |
-| **Drag-and-drop slide reordering in browser** | Intuitive UX for adjusting slide order after assembly. | Explicitly out of scope in PROJECT.md. Google Slides has a better editor for this. Building a partial Slides editor in-browser creates maintenance burden without matching Google's capability. | Show ordered list with move-up/move-down in Skeleton stage for section reordering. Sellers use Google Slides for fine-grained slide reordering. |
-| **AI-generated slide layouts** | Create novel layouts that don't exist in any source template. | Violates brand compliance constraint: "AI may only assemble pre-approved Lumenalta building blocks -- no generated layouts." Generated layouts look amateur compared to professionally designed templates. | Select from existing slide variations in the template library. Library grows as more templates are ingested via the Discovery UI. |
-| **Full element-level content generation** | Replace ALL text on every slide with fresh AI-generated content. | Destroys the original slide's information architecture. Case study slides contain specific data points (client names, metrics, timelines) that shouldn't be hallucinated. Methodology slides describe real Lumenalta processes. | Surgical modification: only replace deal-specific content (company names, industry references, customizable summary bullets). Preserve structural content (methodology descriptions, capability definitions, case study specifics). |
-| **Cross-presentation theme harmonization** | Auto-reconcile visual themes when mixing slides from different source presentations. | Google Slides API has no theme merge capability. Each slide retains its source presentation's theme. Forcing a theme change via API is destructive -- it can break custom layouts, color schemes, and font stacks. | Standardize on consistent Lumenalta branding across all source templates (already the case since templates are professionally designed to Lumenalta brand). Flag visually inconsistent slides in HITL review for seller awareness. |
-| **Automated deck length optimization** | AI decides how many slides the deck should have. | Sellers have strong opinions on deck length based on meeting context (15-min call vs. 1-hour workshop vs. written leave-behind). Auto-sizing often over-generates. | DeckStructure's `isOptional` flag lets the system include/exclude optional sections. Seller confirms section selection in Skeleton stage. Section count drives slide count naturally. |
+| **Live backend recording (real API calls)** | "More authentic" | Non-deterministic. Requires full infra running. AI responses vary per run. Google API rate limits. Flaky recordings. | Mock everything via `page.route()`. Fixtures produce identical results every time. |
+| **Full-motion video capture (Playwright video mode)** | "Just record the whole browser" | Produces huge files, variable frame rates, no control over timing/pacing. Cannot add narration sync, overlays, or transitions. Hard to edit after capture. | Screenshot-per-step + Remotion composition. Full control over every frame. |
+| **Cloud TTS (ElevenLabs, Google Cloud TTS)** | "Better voice quality" | Per-character costs add up across 16+ tutorials with iteration cycles. Requires API keys and internet. Chatterbox-Turbo beats ElevenLabs in blind tests (63.8%). | Local Chatterbox-Turbo. Free, offline, MIT licensed, comparable or better quality. |
+| **Real-time voice cloning for narration** | "Use a specific person's voice" | Ethical concerns. Voice consent requirements. Quality inconsistent with short reference clips. Adds complexity without clear user value for tutorials. | Use one of Kokoro's 54 built-in voices or Chatterbox's default voice. Consistent, professional. |
+| **AI-generated tutorial scripts** | "Let AI write the narration" | Scripts need domain expertise about AtlusDeck workflows. AI hallucinations in step descriptions would produce wrong tutorials. QA burden increases significantly. | Human-authored scripts. Each script is ~1 page of step descriptions. 16 scripts is manageable work. |
+| **Automated screenshot diffing for regression** | "Detect when UI changes break tutorials" | Pixel-perfect comparison is brittle (font rendering, timing). False positives waste time. | Run Playwright capture suite manually when UI changes. Review visually. Update fixtures as needed. |
+| **Background music / sound effects** | "More engaging" | Competes with narration audio. Accessibility concern. Professional tutorial videos rarely use background music. | Clean narration only. Add subtle transition sounds at most. |
+| **Webcam overlay / talking head** | "More personal" | Adds recording complexity, requires consistent lighting/setup, face occludes UI content. Not standard for SaaS product tutorials. | Professional narration voice is sufficient. Keep focus on the UI. |
 
 ## Feature Dependencies
 
 ```
-DeckStructure Blueprint Consumption
+[Tutorial Script Format]
+    |-- drives --> [TTS Audio Generation (Kokoro/Chatterbox)]
+    |-- drives --> [Playwright Step Definitions]
+    |                   |
+    |                   |-- requires --> [Mock Fixture Data]
+    |                   |-- requires --> [Auth State Mocking]
+    |                   |-- requires --> [HITL Stage Mocking]
+    |                   |
+    |                   |-- produces --> [Per-Step Screenshots]
     |
-    +--requires--> Context-Aware Section-to-Slide Matching
-    |                  |
-    |                  +--requires--> SlideEmbedding classification data (EXISTS)
-    |                  +--requires--> Deal context: industry, pillar, persona (EXISTS)
-    |
-    +--feeds-------> Multi-Source Slide Assembly
-                         |
-                         +--requires--> Source presentation resolution via Template.presentationId (EXISTS)
-                         +--requires--> Copy-per-source-group strategy (NEW)
-                         +--enables---> Design-Preserved Output (automatic consequence of source copying)
-                         |
-                         +--feeds-------> Per-Slide Modification Planning
-                                             |
-                                             +--requires--> SlideElement data per slide (EXISTS)
-                                             +--requires--> Copied slide with resolvable elementIds (from assembly)
-                                             +--enables---> Surgical text replacement via batchUpdate
+    |-- drives --> [Remotion Composition]
+                        |-- requires --> [Per-Step Screenshots]
+                        |-- requires --> [TTS Audio Files (.wav)]
+                        |-- optional --> [Zoom/Pan Definitions]
+                        |-- optional --> [Text Overlay Definitions]
+                        |-- optional --> [Cursor Animation Data]
+                        |
+                        |-- produces --> [Final MP4]
 
-3-Stage HITL Integration
-    |
-    +--Skeleton stage--requires--> Blueprint consumption + section-to-slide matching
-    +--Low-fi stage---requires--> Multi-source assembly
-    +--High-fi stage--requires--> Per-slide modification planning
+[Mock Fixture Data]
+    |-- requires --> [Understanding of all API response shapes]
+    |-- benefits from --> [Zod schemas from packages/schemas]
+
+[Chatterbox-Turbo] -- enhances --> [TTS Audio Generation]
+    (replaces Kokoro draft audio with production-quality narration)
 ```
 
 ### Dependency Notes
 
-- **Blueprint consumption is the foundation.** Everything else depends on the system reading DeckStructure and iterating its sections. Must be built first.
-- **Section-to-slide matching enables assembly.** Cannot assemble slides from multiple sources until you know WHICH slides to pick for each section.
-- **Multi-source assembly enables design preservation.** Design preservation is not a separate implementation -- it is the natural consequence of copying slides from their original source presentations rather than injecting content into a generic template.
-- **Modification planning requires assembled slides.** Element-level modifications can only be planned on slides that exist in the target presentation (elementIds must be resolvable in the target context after copy).
-- **HITL stages map cleanly to the pipeline.** Skeleton = blueprint + selections, Low-fi = assembled deck, High-fi = modifications. No changes needed to the suspend/resume pattern -- only the data passed at each checkpoint changes.
-- **Fallback synthesis is independent.** Can be added at any point since it uses the existing branded-template injection path as a safety net.
+- **Tutorial Script Format is the root dependency.** Everything flows from scripts. Scripts define what steps to capture, what to narrate, and how to compose. Must be designed first.
+- **Mock Fixture Data is the biggest bottleneck.** 16+ tutorials touching deals, templates, slides, touches, briefings, chat, settings, integrations. Each endpoint needs realistic fixture JSON. This is where most implementation time goes.
+- **Playwright capture requires mock fixtures.** Cannot capture steps without mocked API responses returning appropriate data for each screen.
+- **Remotion composition requires both screenshots and audio.** These can be produced in parallel (Playwright captures + TTS generation) but both must exist before composition begins.
+- **Zoom/pan/overlays are additive, not blocking.** Can produce basic tutorials first, then enhance with visual effects in a second pass without re-recording.
+- **Chatterbox-Turbo is a drop-in replacement for Kokoro.** Same input (text), same output (.wav). Can swap at any time without changing the composition pipeline.
 
 ## MVP Definition
 
-### Launch With (v1.8 Core)
+### Launch With (v1)
 
-The minimum set that closes all 5 gaps from the gap analysis.
+Minimum to produce one complete tutorial video end-to-end, then scale to all 16.
 
-- [ ] **DeckStructure blueprint resolver** -- Reads `structureJson`, iterates sections in order, resolves slideIds to `SlideEmbedding` records with full classification and element metadata. Returns a `ResolvedBlueprint` with section-level candidate lists.
-- [ ] **Section-to-slide scorer** -- For each section, scores candidate slides against deal context (industry, pillar, persona, stage) using classification metadata comparison and optional vector similarity. Selects the best match per section. Produces a `SlideSelectionPlan` mapping section -> chosen slideId + source presentationId.
-- [ ] **Multi-source slide assembler** -- Groups selected slides by source `presentationId`. Copies source presentations to temp files, prunes to only needed slides, merges into a single target presentation. Cleans up temp files. Handles the primary-source optimization (largest group becomes the base).
-- [ ] **Element-map modification planner** -- For each assembled slide: loads `SlideElement` records, LLM produces a modification plan with per-element actions, executes via Google Slides `batchUpdate` with element-scoped text operations.
-- [ ] **HITL stage data contracts** -- Skeleton checkpoint sends blueprint + slide selections (with thumbnails and scores) for review. Low-fi checkpoint sends assembled presentation URL. High-fi checkpoint sends modification plan summary for approval.
-- [ ] **Touch-type router** -- Routes all touch types through the structure-driven pipeline when a DeckStructure exists with sufficient confidence. Falls back to existing generation paths (copy-and-prune for Touch 2-3, template injection for Touch 1, RAG-to-JSON for Touch 4) when DeckStructure is unavailable.
+- [ ] **Structured tutorial script format** (JSON/YAML) -- defines steps, narration text, actions, mock route references
+- [ ] **Playwright mock harness** -- shared `page.route()` interception layer with fixture loading helpers
+- [ ] **Auth bypass** -- mocked Google OAuth/Supabase session for all tutorials
+- [ ] **Mock fixtures for 2-3 pilot tutorials** -- start with "Getting Started" and "Creating & Managing Deals"
+- [ ] **Per-step screenshot capture** -- Playwright automation that walks through mocked workflows, captures each step
+- [ ] **Kokoro TTS integration** -- Python script that reads narration text from tutorial scripts, outputs .wav per step
+- [ ] **Remotion composition scaffold** -- `<Sequence>` per step with screenshot + audio, basic cut transitions
+- [ ] **MP4 render pipeline** -- `npx remotion render` producing final output files
+- [ ] **One complete tutorial** ("Getting Started") as proof-of-concept of the full pipeline
 
-### Add After Validation (v1.8.x)
+### Add After Validation (v1.x)
 
-Features to add once the core pipeline works end to end.
+Features to add once the first tutorial proves the pipeline works end-to-end.
 
-- [ ] **Variation preview UI** -- Trigger: sellers want to see alternative slide candidates before committing to assembly
-- [ ] **Cross-touch slide exclusion** -- Trigger: sellers notice repeated slides across touch decks for the same deal
-- [ ] **Modification diff preview** -- Trigger: sellers want to review AI text changes before they hit the deck
-- [ ] **Confidence-gated generation** -- Trigger: low-confidence structures produce poor results that need gating
-- [ ] **Section-level regeneration** -- Trigger: sellers want to fix one section without rebuilding the entire deck
+- [ ] **Remaining 15+ tutorial fixture sets** -- expand mock data for all workflows (especially Touch 1-4 HITL)
+- [ ] **Chatterbox-Turbo production narration** -- replace Kokoro draft audio with polished Chatterbox output for final videos
+- [ ] **Zoom/pan effects** -- highlight specific UI regions during narration
+- [ ] **Text overlays and callouts** -- label buttons, fields, show step numbers
+- [ ] **Cursor animation** -- visual click indicators showing where user would interact
+- [ ] **`<TransitionSeries>` polish** -- smooth cross-fades and slides between tutorial steps
+- [ ] **Chapter markers** -- navigable sections for longer tutorial videos
 
 ### Future Consideration (v2+)
 
-- [ ] **Custom section insertion** -- Allow sellers to add ad-hoc sections not in the DeckStructure blueprint. Requires UI for section creation and slide library browsing.
-- [ ] **Template-level theme enforcement** -- Ensure all slides in a multi-source deck conform to a single theme. Requires Google Slides theme API research (currently no viable approach).
-- [ ] **Generation analytics** -- Track which slides are most frequently selected, modified, or rejected. Feed back into DeckStructure refinement and confidence scoring.
-- [ ] **Smart modification learning** -- Track which element modifications sellers approve vs. override. Use patterns to improve future modification plans.
+- [ ] **Automated re-recording on UI changes** -- CI integration that detects UI drift and flags stale tutorials
+- [ ] **Multi-language narration** -- Kokoro supports French, Japanese, Korean, Mandarin (Chatterbox is English-only currently)
+- [ ] **Tutorial versioning** -- maintain tutorial versions per app version for changelog-style updates
+- [ ] **Interactive tutorials** -- web-based walkthrough using the same script definitions (not video, in-app)
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority | Phase Suggestion |
-|---------|------------|---------------------|----------|------------------|
-| DeckStructure blueprint resolver | HIGH | LOW | P1 | Phase 1 -- unlocks everything |
-| Section-to-slide scorer | HIGH | MEDIUM | P1 | Phase 1 -- paired with resolver |
-| Multi-source slide assembler | HIGH | HIGH | P1 | Phase 2 -- most complex, core capability |
-| Fallback synthesis for missing sections | MEDIUM | LOW | P1 | Phase 2 -- safety net during assembly |
-| Element-map modification planner | HIGH | MEDIUM | P1 | Phase 3 -- post-assembly refinement |
-| HITL stage data contracts | HIGH | MEDIUM | P1 | Phase 4 -- wires into existing workflow |
-| Touch-type router with fallbacks | HIGH | LOW | P1 | Phase 4 -- integration layer |
-| Variation preview UI | MEDIUM | MEDIUM | P2 | v1.8.x |
-| Cross-touch slide exclusion | MEDIUM | LOW | P2 | v1.8.x |
-| Confidence-gated generation | LOW | LOW | P3 | v1.8.x |
-| Modification diff preview | MEDIUM | MEDIUM | P3 | v1.8.x |
-| Section-level regeneration | MEDIUM | MEDIUM | P3 | v1.8.x |
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Tutorial script format | HIGH | MEDIUM | P1 |
+| Playwright mock harness | HIGH | HIGH | P1 |
+| Auth/session mocking | HIGH | LOW | P1 |
+| Mock fixture corpus (all 16 tutorials) | HIGH | HIGH | P1 |
+| HITL stage mocking | HIGH | MEDIUM | P1 |
+| Per-step screenshot capture | HIGH | LOW | P1 |
+| Kokoro TTS draft narration | HIGH | MEDIUM | P1 |
+| Remotion sequence composition | HIGH | MEDIUM | P1 |
+| MP4 render pipeline | HIGH | LOW | P1 |
+| Chatterbox-Turbo final narration | MEDIUM | MEDIUM | P2 |
+| Zoom/pan effects | MEDIUM | MEDIUM | P2 |
+| Text overlays/callouts | MEDIUM | LOW | P2 |
+| Cursor animation | MEDIUM | MEDIUM | P2 |
+| TransitionSeries polish | LOW | LOW | P2 |
+| Chapter markers | LOW | LOW | P3 |
+| Automated UI drift detection | LOW | HIGH | P3 |
 
 **Priority key:**
-- P1: Must have -- closes one of the 5 identified gaps
-- P2: Should have -- improves quality or seller experience
-- P3: Nice to have -- polish and advanced UX
+- P1: Must have -- required to produce any tutorial video
+- P2: Should have -- elevates quality from "functional" to "professional"
+- P3: Nice to have -- future enhancement
 
-## Multi-Source Assembly: The Hard Problem
+## Existing App Features Requiring Tutorial Coverage
 
-The single most complex feature in v1.8. Requires careful strategy due to Google Slides API limitations.
+Each feature below needs its own mock fixture set and tutorial script. Grouped by mocking complexity.
 
-### Why It's Hard
+### Low Mock Complexity (few API endpoints, simple state)
 
-Google Slides API `duplicateObject` only works within a single presentation. There is no `importSlide` or `appendSlide` in the REST API ([Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584)). Apps Script has `appendSlides()` but it has documented performance issues and is not available via REST API.
+| Tutorial | Key Mocks Needed | Est. Fixture Effort |
+|----------|-----------------|---------------------|
+| Getting Started | Auth session, basic navigation state | Low |
+| Google Drive Settings | Drive folder list, access verification | Low |
+| Action Center | Integration status checks | Low |
 
-### Recommended Strategy: Copy-and-Prune Per Source Group
+### Medium Mock Complexity (multiple endpoints, some state transitions)
 
-1. **Group** selected slides by source `presentationId` (typically 2-5 groups)
-2. **Identify the largest group** as the "base" source
-3. **Copy the base source** to the deal folder via `drive.files.copy` -- these slides get perfect design preservation
-4. **Delete unneeded slides** from the base copy (reuse existing copy-and-prune pattern from `deck-customizer.ts`)
-5. **For each additional source group:**
-   a. Copy the additional source to a temp file via `drive.files.copy`
-   b. Read all slides via `presentations.get`
-   c. For each needed slide: read its `pageElements` structure
-   d. In the target presentation: `createSlide` then recreate elements via `createShape`, `createImage`, `insertText`, and styling requests
-   e. Delete the temp copy
-6. **Reorder** all slides in the target to match the DeckStructure section order via `updateSlidesPosition`
-7. **Share** with org via existing `shareWithOrg`
+| Tutorial | Key Mocks Needed | Est. Fixture Effort |
+|----------|-----------------|---------------------|
+| Creating & Managing Deals | Deal CRUD, pipeline list, status transitions, grid/table data | Medium |
+| Deal Overview | Deal detail, metrics, activity timeline, collaborators | Medium |
+| Deal Chat | Chat messages, transcript upload, note binding, streaming AI responses | Medium |
+| Template Library | Template CRUD, Drive access, ingestion progress polling | Medium |
+| Slide Library | Slide list with metadata, search results, classification updates | Medium |
+| Deck Structures | Structure inference results, confidence scores, streaming chat refinement | Medium |
+| Agent Prompts | Agent list, prompt versions, draft/publish state transitions | Medium |
+| AtlusAI Integration | MCP auth state, discovery browse/search results, batch ingestion | Medium |
+| Pre-Call Briefing | Briefing generation polling, company data, question list | Medium |
 
-### Design Preservation Tiers
+### High Mock Complexity (multi-stage HITL, polling, multiple artifacts)
 
-| Tier | Method | Fidelity | When Used |
-|------|--------|----------|-----------|
-| **Perfect** | Copy-and-prune from source | 100% -- identical to original | Slides from the base (largest) source group |
-| **High** | Element-level reconstruction | ~90% -- text, images, basic shapes preserved; complex SmartArt/charts may lose formatting | Slides from secondary source groups |
-| **Fallback** | Branded template injection | ~60% -- content preserved, layout is generic | When source presentation is inaccessible or reconstruction fails |
-
-### API Call Budget
-
-For a 12-slide deck drawing from 3 source presentations (6 + 4 + 2 distribution):
-- 3 `drive.files.copy` (base + 2 additional sources)
-- 1 `presentations.get` per source (3 total)
-- 1 `presentations.batchUpdate` for deleting unneeded slides from base
-- N `presentations.batchUpdate` for element reconstruction (2-4 per secondary slide, ~12-24 total)
-- 1 `presentations.batchUpdate` for final reordering
-- 2 `drive.files.delete` for temp copies
-- 1 permission update for sharing
-- **Total: ~25-35 API calls** (well within Google Slides API quotas of 60 requests/minute/project)
-
-## Existing Infrastructure to Leverage
-
-| Existing Asset | New Feature It Enables | Gap to Fill |
-|----------------|----------------------|-------------|
-| `DeckStructure.structureJson` with sections + slideIds | Blueprint resolver | Parse JSON, resolve slideIds to SlideEmbedding records |
-| `SlideEmbedding.classificationJson` (8-axis) | Section-to-slide scoring | Build scoring function using classification match against deal context |
-| `SlideElement` table (elementId, type, position, content) | Modification planning | LLM-driven modification plan generator + batchUpdate executor |
-| `deck-customizer.ts` (copy-and-prune) | Multi-source assembly base group | Extend to handle multiple source groups, not just one |
-| `deck-assembly.ts` (template duplication + injection) | Fallback synthesis | Use as fallback when no candidate slide meets quality threshold |
-| `slide-selection.ts` (LLM-driven selection) | Section-to-slide scoring | Refactor to per-section scoring instead of whole-deck selection |
-| `proposal-assembly.ts` (buildSlideJSON) | Blueprint-driven assembly | Replace fixed section template with DeckStructure sections |
-| `Template.presentationId` | Source presentation resolution | Map slideId -> SlideEmbedding.templateId -> Template.presentationId |
-| `thumbnailUrl` on SlideEmbedding | Skeleton stage preview | Display candidate thumbnails in HITL review UI |
-| Mastra suspend/resume in workflows | HITL stage checkpoints | Reuse pattern, change checkpoint data payloads |
-| `calculateConfidence()` in deck-structure-schema.ts | Confidence gating | Gate auto-generation on confidence color tier |
-| `extractElements()` in extract-elements.ts | Element map reading | Already extracts what's needed; just need to consume it downstream |
+| Tutorial | Key Mocks Needed | Est. Fixture Effort |
+|----------|-----------------|---------------------|
+| Touch 1: First-Contact Pager | 3-stage HITL (skeleton/low-fi/high-fi), route strategy, slide selection, approval, Drive save | High |
+| Touch 2: Intro Deck | Strategy resolution, slide selection/ordering, assembly polling, Drive save | High |
+| Touch 3: Capability Deck | Capability selection, structure-driven assembly, HITL approval, Drive save | High |
+| Touch 4: Transcript-to-Proposal | 6-phase pipeline: extraction, field review, brief gen, brief approval, retrieval/assembly, asset review. 3 output artifacts (proposal, talk track, FAQ). Polling at multiple stages. | Very High |
+| Asset Review & Approval | Generated artifacts, brand compliance state, approve/reject flow | High |
 
 ## Sources
 
-- [Google Slides API - Slide Operations](https://developers.google.com/workspace/slides/api/samples/slides) -- official API samples for slide duplication (HIGH confidence)
-- [Google Issue Tracker #167977584](https://issuetracker.google.com/issues/167977584) -- feature request for cross-presentation slide import, unresolved as of 2026 (HIGH confidence)
-- [Google Slides API batchUpdate Reference](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations/batchUpdate) -- full request type documentation (HIGH confidence)
-- [Google Slides API presentations.pages.getThumbnail](https://developers.google.com/workspace/slides/api/reference/rest/v1/presentations.pages/getThumbnail) -- thumbnail generation (HIGH confidence)
-- Existing codebase: `deck-assembly.ts`, `deck-customizer.ts`, `slide-selection.ts`, `proposal-assembly.ts`, `extract-elements.ts`, `deck-structure-schema.ts`, `schema.prisma` (HIGH confidence -- direct code review)
+- [Remotion Sequence docs](https://www.remotion.dev/docs/sequence)
+- [Remotion TransitionSeries docs](https://www.remotion.dev/docs/transitions/transitionseries)
+- [Remotion Audio docs](https://www.remotion.dev/docs/using-audio)
+- [Remotion Overlay docs](https://www.remotion.dev/docs/overlay)
+- [Remotion CLI render](https://www.remotion.dev/docs/cli/render)
+- [Remotion encoding guide](https://www.remotion.dev/docs/encoding)
+- [Remotion order of audio operations](https://www.remotion.dev/docs/audio/order-of-operations)
+- [Playwright Mock APIs](https://playwright.dev/docs/mock)
+- [Playwright Screenshots](https://playwright.dev/docs/screenshots)
+- [Kokoro-82M ONNX on HuggingFace](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)
+- [Kokoro ONNX GitHub](https://github.com/thewh1teagle/kokoro-onnx)
+- [Chatterbox-Turbo (Resemble AI)](https://www.resemble.ai/chatterbox-turbo/)
+- [Chatterbox-Turbo ONNX on HuggingFace](https://huggingface.co/ResembleAI/chatterbox-turbo-ONNX)
+- [Chatterbox GitHub](https://github.com/resemble-ai/chatterbox)
+- [2Slides + Remotion narration best practices](https://2slides.com/blog/slides-narration-video-best-practices)
 
 ---
-*Feature research for: Structure-driven deck generation (v1.8)*
-*Researched: 2026-03-09*
+*Feature research for: Automated tutorial video production pipeline (v1.9)*
+*Researched: 2026-03-18*
