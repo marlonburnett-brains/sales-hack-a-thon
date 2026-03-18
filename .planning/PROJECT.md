@@ -172,6 +172,17 @@ Four gap-closure phases (58-61) were deferred: secondary-slide ID handoff, Touch
 
 ### Active
 
+#### Current Milestone: v1.9 Tutorial Videos
+
+**Goal:** Produce automated, deterministic tutorial videos for every AtlusDeck feature using Playwright-driven UI capture, Remotion video composition, and local TTS narration.
+
+**Target features:**
+- Playwright test harness with fully mocked API responses for all backend/agent calls
+- Remotion video composition pipeline with narration, overlays, zoom effects, and transitions
+- Local TTS integration (Kokoro for drafting, Chatterbox-Turbo for production)
+- ~16 tutorial scripts covering all platform features and workflows
+
+#### Deferred from v1.8
 - [ ] Secondary-slide modification with assembled slide IDs (deferred from v1.8 Phase 58)
 - [ ] Touch 1 approved draft content through modification planning (deferred from v1.8 Phase 59)
 - [ ] Live HITL wiring with confidence gating in real UX (deferred from v1.8 Phase 60)
@@ -301,4 +312,4 @@ Four gap-closure phases (58-61) were deferred: secondary-slide ID handoff, Touch
 | Transcript insights integration | Extract insights from transcripts and inject into modification planner context | ✓ Good — modifications informed by actual conversation content |
 
 ---
-*Last updated: 2026-03-18 after v1.8 milestone*
+*Last updated: 2026-03-18 after v1.9 milestone start*

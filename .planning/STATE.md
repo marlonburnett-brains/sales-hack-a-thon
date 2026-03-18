@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.8
-milestone_name: Structure-Driven Deck Generation
-status: archived
-stopped_at: "Milestone v1.8 archived"
-last_updated: "2026-03-18T22:30:00.000Z"
-last_activity: "2026-03-18 - Archived v1.8 milestone"
+milestone: v1.9
+milestone_name: Tutorial Videos
+status: defining_requirements
+stopped_at: "Defining requirements for v1.9"
+last_updated: "2026-03-18T23:00:00.000Z"
+last_activity: "2026-03-18 - Milestone v1.9 started"
 progress:
-  total_phases: 12
-  completed_phases: 8
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,15 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** Planning next milestone
+**Current focus:** v1.9 Tutorial Videos — defining requirements
 
 ## Current Position
 
-Phase: v1.8 complete (8/12 phases shipped, 4 deferred)
-Status: Milestone archived -- ready for next milestone
-Last activity: 2026-03-18 - Archived v1.8 milestone
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-18 — Milestone v1.9 started
 
 ## Performance Metrics
 
@@ -58,5 +57,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-18
-Stopped at: Milestone v1.8 archived
-Next action: `/gsd:new-milestone` to start next milestone
+Stopped at: Defining requirements for v1.9 Tutorial Videos
+Next action: Complete requirements definition and roadmap creation
