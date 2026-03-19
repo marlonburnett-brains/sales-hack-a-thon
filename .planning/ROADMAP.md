@@ -173,7 +173,7 @@ Plans:
 **Goal**: Developer can generate narration audio files from script text using either draft or production TTS engine
 **Depends on**: Phase 62 (needs tutorial script format from INFRA-02)
 **Requirements**: TTS-01, TTS-02, TTS-03, TTS-04
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
 - [ ] 64-01-PLAN.md -- Type contracts, Kokoro draft engine, ffmpeg post-processing, timing manifest module
 - [ ] 64-02-PLAN.md -- Chatterbox-Turbo Python sidecar setup and TypeScript wrapper
@@ -230,7 +230,7 @@ Plans:
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
 | 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
-| 64. TTS Pipeline | v1.9 | 0/3 | Planned | - |
+| 64. TTS Pipeline | 2/3 | In Progress|  | - |
 | 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |
 | 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
 | 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |

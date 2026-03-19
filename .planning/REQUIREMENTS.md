@@ -26,9 +26,9 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 
 ### TTS Audio
 
-- [ ] **TTS-01**: Developer can generate draft narration .wav files per tutorial step using kokoro-js on CPU with no Python dependency
-- [ ] **TTS-02**: Developer can generate production narration .wav files per tutorial step using Chatterbox-Turbo on M1 MPS/GPU via Python sidecar
-- [ ] **TTS-03**: Pipeline generates a timing manifest from audio file durations that feeds Remotion composition frame counts
+- [x] **TTS-01**: Developer can generate draft narration .wav files per tutorial step using kokoro-js on CPU with no Python dependency
+- [x] **TTS-02**: Developer can generate production narration .wav files per tutorial step using Chatterbox-Turbo on M1 MPS/GPU via Python sidecar
+- [x] **TTS-03**: Pipeline generates a timing manifest from audio file durations that feeds Remotion composition frame counts
 - [ ] **TTS-04**: Developer can switch between draft (Kokoro) and production (Chatterbox) TTS with a single `--engine` flag
 
 ### Video Composition
@@ -116,9 +116,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CAPT-02 | Phase 62 | Complete |
 | CAPT-03 | Phase 63 | Complete |
 | CAPT-04 | Phase 63 | Complete |
-| TTS-01 | Phase 64 | Pending |
-| TTS-02 | Phase 64 | Pending |
-| TTS-03 | Phase 64 | Pending |
+| TTS-01 | Phase 64 | Complete |
+| TTS-02 | Phase 64 | Complete |
+| TTS-03 | Phase 64 | Complete |
 | TTS-04 | Phase 64 | Pending |
 | COMP-01 | Phase 65 | Pending |
 | COMP-02 | Phase 65 | Pending |

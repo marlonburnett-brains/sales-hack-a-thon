@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: completed
-stopped_at: Phase 64 context gathered
-last_updated: "2026-03-19T11:45:22.372Z"
-last_activity: "2026-03-19 -- Phase 63 Plan 02 complete: Touch 4 HITL pilot fixtures and capture validated end-to-end"
+stopped_at: Completed 64-02-PLAN.md
+last_updated: "2026-03-19T12:19:48.101Z"
+last_activity: "2026-03-19 -- Phase 64 Plan 02 complete: Chatterbox engine with Python sidecar and MPS support"
 progress:
   total_phases: 9
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 7
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos -- Phase 63: HITL & Async Mock Capture
+**Current focus:** v1.9 Tutorial Videos -- Phase 64: TTS Pipeline (Plan 01 complete)
 
 ## Current Position
 
-Phase: 63 (2 of 9 in v1.9) (HITL & Async Mock Capture) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase 63 complete -- all plans executed
-Last activity: 2026-03-19 -- Phase 63 Plan 02 complete: Touch 4 HITL pilot fixtures and capture validated end-to-end
+Phase: 64 (3 of 9 in v1.9) (TTS Pipeline)
+Plan: 2 of 3 in current phase
+Status: Plan 02 complete -- Chatterbox-Turbo production TTS engine with Python sidecar
+Last activity: 2026-03-19 -- Phase 64 Plan 02 complete: Chatterbox engine with Python sidecar and MPS support
 
 Progress: [██████████] 100% (v1.9)
 
@@ -63,6 +63,11 @@ Recent decisions for v1.9:
 - [Phase 63]: Playwright outputDir separated from screenshot output to prevent cross-tutorial cleanup
 - [Phase 63]: Catch-all API route registered first in mockBrowserAPIs for correct Playwright reverse-order priority
 - [Phase 63]: Idle stage returns empty interactions array to avoid false fallback UI triggers
+- [Phase 64]: Python sidecar pattern -- TypeScript spawns venv Python with CLI args, captures stderr for errors
+- [Phase 64]: Chatterbox CPU-first loading -- model loaded to CPU then components moved to MPS individually
+- [Phase 64]: q8 ONNX quantization for Kokoro model (quality vs download size balance)
+- [Phase 64]: af_heart voice preset for warm female narrator brand consistency
+- [Phase 64]: Two-pass ffmpeg loudnorm for accurate -16 LUFS normalization
 
 ### Pending Todos
 
@@ -77,6 +82,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T11:45:22.363Z
-Stopped at: Phase 64 context gathered
-Next action: Proceed to Phase 64 (next phase in v1.9)
+Last session: 2026-03-19T12:18:56.493Z
+Stopped at: Completed 64-02-PLAN.md
+Next action: Execute Phase 64 Plan 03 (TTS orchestrator)
