@@ -23,6 +23,12 @@ export function createMockServer(tutorialName: string): Express {
 
   app.use(express.json());
 
+  // Request logging — helps debug connectivity issues
+  app.use((req: Request, _res: Response, next: Function) => {
+    console.log(`[mock] ${req.method} ${req.url}`);
+    next();
+  });
+
   // ════════════════════════════════════════════════════════════
   // Supabase Auth API (fully mocked — no real Supabase needed)
   // The Next.js app is started with NEXT_PUBLIC_SUPABASE_URL

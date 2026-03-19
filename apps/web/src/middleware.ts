@@ -4,18 +4,25 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  // SUPABASE_URL / SUPABASE_ANON_KEY are runtime env vars (non-NEXT_PUBLIC)
-  // that override the compile-time inlined NEXT_PUBLIC_* values. This allows
-  // the tutorial capture pipeline to point auth at a mock server without
-  // needing to rebuild the app.
-  const supabaseUrl =
-    process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabaseAnonKey =
-    process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  // ── Tutorial mode (MOCK_AUTH=true) ──────────────────────────
+  // When running under the tutorial capture pipeline, skip all
+  // real Supabase auth and inject a synthetic user. The Edge
+  // Runtime sandbox cannot make HTTP requests to localhost, so
+  // real auth against a mock server is not possible.
+  if (process.env.MOCK_AUTH === "true") {
+    // Set google-token-status cookie to prevent token check
+    supabaseResponse.cookies.set("google-token-status", "valid", {
+      httpOnly: false,
+      maxAge: 86400,
+      sameSite: "lax",
+      path: "/",
+    });
+    return supabaseResponse;
+  }
 
   const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
