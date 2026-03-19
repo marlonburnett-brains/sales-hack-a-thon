@@ -164,7 +164,10 @@ Plans:
 **Goal**: Playwright can capture multi-stage HITL workflows and polling-based async flows with pre-authored fixture sequences
 **Depends on**: Phase 62
 **Requirements**: CAPT-03, CAPT-04
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 63-01-PLAN.md -- Stage/sequence infrastructure for mock server, schema extensions, fixture loader
+- [ ] 63-02-PLAN.md -- Pilot Touch 4 HITL tutorial fixtures, capture spec, and end-to-end verification
 
 ### Phase 64: TTS Pipeline
 **Goal**: Developer can generate narration audio files from script text using either draft or production TTS engine
