@@ -136,7 +136,7 @@
 
 - [x] **Phase 62: Workspace & Mock Infrastructure** - Scaffold apps/tutorials workspace with mock agent server, page.route() helpers, auth bypass, fixture factories, and deterministic screenshot capture (completed 2026-03-19)
 - [x] **Phase 63: HITL & Async Mock Capture** - Add mock patterns for multi-stage HITL workflows and polling/async status sequences (completed 2026-03-19)
-- [ ] **Phase 64: TTS Pipeline** - Integrate Kokoro (draft) and Chatterbox-Turbo (production) TTS engines with timing manifest generation
+- [x] **Phase 64: TTS Pipeline** - Integrate Kokoro (draft) and Chatterbox-Turbo (production) TTS engines with timing manifest generation (completed 2026-03-19)
 - [ ] **Phase 65: Remotion Composition Core** - Build shared TutorialStep component, per-tutorial Remotion compositions, and MP4 render pipeline
 - [ ] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates
 - [ ] **Phase 67: Low-Complexity Tutorials** - Author scripts, fixtures, and captures for Getting Started, Google Drive Settings, and Action Center tutorials
@@ -173,7 +173,7 @@ Plans:
 **Goal**: Developer can generate narration audio files from script text using either draft or production TTS engine
 **Depends on**: Phase 62 (needs tutorial script format from INFRA-02)
 **Requirements**: TTS-01, TTS-02, TTS-03, TTS-04
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 64-01-PLAN.md -- Type contracts, Kokoro draft engine, ffmpeg post-processing, timing manifest module
 - [ ] 64-02-PLAN.md -- Chatterbox-Turbo Python sidecar setup and TypeScript wrapper
@@ -230,7 +230,7 @@ Plans:
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
 | 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
-| 64. TTS Pipeline | 2/3 | In Progress|  | - |
+| 64. TTS Pipeline | 3/3 | Complete   | 2026-03-19 | - |
 | 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |
 | 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
 | 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
