@@ -11,26 +11,14 @@
       "mockStage": "errors",
       "waitFor": "main",
       "delayMs": 1500,
-      "emotion": "professional",
-      "zoomTarget": {
-        "selector": "nav",
-        "scale": 1.5,
-        "x": 0.5,
-        "y": 0.7
-      }
+      "emotion": "professional"
     },
     {
       "id": "step-002",
       "url": "/actions",
       "narration": "The Action Center shows all issues that need your attention. Each item tells you exactly what's wrong and how to fix it. Right now there are three issues to resolve.",
       "waitFor": "main",
-      "delayMs": 1000,
-      "zoomTarget": {
-        "selector": "main",
-        "scale": 1.4,
-        "x": 0.5,
-        "y": 0.4
-      }
+      "delayMs": 1000
     },
     {
       "id": "step-003",
