@@ -77,9 +77,9 @@
       "waitFor": "main"
     },
     {
-      "id": "step-006",
+      "id": "step-006", 
       "url": "/settings",
-      "narration": "Now let's look at your settings. This is where you manage your account preferences, team members, and integrations.",
+      "narration": "Now let's look at your settings. This is where you manage your deck structures for each touch type, configure integrations, set your Drive folder, and manage your agents.",
       "waitFor": "main"
     },
     {
