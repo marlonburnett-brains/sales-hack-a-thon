@@ -80,6 +80,10 @@ export const StepSchema = z.object({
   resetSequences: z.array(z.string()).optional(),
   /** Pause in milliseconds before screenshot for UI settling */
   delayMs: z.number().optional(),
+  /** Emotion hint for TTS narration (e.g. cheerful intro, encouraging completion) */
+  emotion: z
+    .enum(["cheerful", "encouraging", "calm", "professional", "excited"])
+    .optional(),
 });
 
 export const TutorialScriptSchema = z.object({
