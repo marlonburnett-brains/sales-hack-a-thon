@@ -50,10 +50,10 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 
 ### Tutorial Content — Medium Complexity
 
-- [ ] **TUT-04**: "Creating & Managing Deals" tutorial — create deal, assign team, status lifecycle, grid/table views, filtering
-- [ ] **TUT-05**: "Deal Overview" tutorial — metrics cards, activity timeline, collaborator management
-- [ ] **TUT-06**: "Deal Chat" tutorial — context-aware questions, transcript upload, saving notes, binding notes to touches
-- [ ] **TUT-07**: "Pre-Call Briefing" tutorial — generate company research, value hypotheses, discovery questions, view history
+- [x] **TUT-04**: "Creating & Managing Deals" tutorial — create deal, assign team, status lifecycle, grid/table views, filtering
+- [x] **TUT-05**: "Deal Overview" tutorial — metrics cards, activity timeline, collaborator management
+- [x] **TUT-06**: "Deal Chat" tutorial — context-aware questions, transcript upload, saving notes, binding notes to touches
+- [x] **TUT-07**: "Pre-Call Briefing" tutorial — generate company research, value hypotheses, discovery questions, view history
 - [ ] **TUT-08**: "Template Library" tutorial — register templates from Drive, classify by touch type, trigger ingestion, monitor progress
 - [ ] **TUT-09**: "Slide Library" tutorial — browse slides, view details/metadata, search by content, update classifications
 - [ ] **TUT-10**: "Deck Structures" tutorial — view inferred structures, confidence scores, section flow, chat-based refinement
@@ -131,10 +131,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TUT-01 | Phase 67 | Complete |
 | TUT-02 | Phase 67 | Complete |
 | TUT-03 | Phase 67 | Complete |
-| TUT-04 | Phase 68 | Pending |
-| TUT-05 | Phase 68 | Pending |
-| TUT-06 | Phase 68 | Pending |
-| TUT-07 | Phase 68 | Pending |
+| TUT-04 | Phase 68 | Complete |
+| TUT-05 | Phase 68 | Complete |
+| TUT-06 | Phase 68 | Complete |
+| TUT-07 | Phase 68 | Complete |
 | TUT-08 | Phase 69 | Pending |
 | TUT-09 | Phase 69 | Pending |
 | TUT-10 | Phase 69 | Pending |

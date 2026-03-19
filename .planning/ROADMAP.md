@@ -212,7 +212,7 @@ Plans:
 **Goal**: Four tutorials covering deal management and pre-call briefing workflows are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
 **Requirements**: TUT-04, TUT-05, TUT-06, TUT-07
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 68-01-PLAN.md -- Scripts, fixtures, mock server extensions, and capture specs for all 4 tutorials
 - [ ] 68-02-PLAN.md -- TTS audio generation and MP4 rendering for all 4 tutorials
@@ -254,6 +254,6 @@ Plans:
 | 65. Remotion Composition Core | 2/2 | Complete    | 2026-03-19 | - |
 | 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
 | 67. Low-Complexity Tutorials | 3/3 | Complete   | 2026-03-19 | - |
-| 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
+| 68. Medium-Complexity Tutorials (Deals & Briefing) | 1/2 | In Progress|  | - |
 | 69. Medium-Complexity Tutorials (Library & Settings) | v1.9 | 0/TBD | Not started | - |
 | 70. High-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |

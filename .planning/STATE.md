@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: completed
-stopped_at: Phase 68 context gathered
-last_updated: "2026-03-19T23:24:44.833Z"
-last_activity: "2026-03-19 -- Phase 67 Plan 03 complete: TTS audio + MP4 renders for Google Drive Settings and Action Center tutorials"
+stopped_at: Phase 68 Plan 01 complete
+last_updated: "2026-03-19T23:57:23.000Z"
+last_activity: "2026-03-19 -- Phase 68 Plan 01 complete: 44 screenshots captured across 4 medium-complexity tutorials"
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 16
+  total_plans: 17
   completed_plans: 16
-  percent: 100
+  percent: 94
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos -- Phase 67: Low-Complexity Tutorials (complete, all 3 MP4s rendered)
+**Current focus:** v1.9 Tutorial Videos -- Phase 68: Medium-Complexity Tutorials (Deals & Briefing)
 
 ## Current Position
 
-Phase: 67 (6 of 9 in v1.9) (Low-Complexity Tutorials)
-Plan: 3 of 3 in current phase (phase complete)
-Status: Phase 67 complete -- All 3 low-complexity tutorials authored, captured, TTS narrated, and rendered as MP4
-Last activity: 2026-03-19 -- Phase 67 Plan 03 complete: TTS audio + MP4 renders for Google Drive Settings and Action Center tutorials
+Phase: 68 (7 of 9 in v1.9) (Medium-Complexity Tutorials - Deals & Briefing)
+Plan: 1 of 2 in current phase
+Status: Phase 68 Plan 01 complete -- scripts, fixtures, capture specs for 4 tutorials (deals, deal-overview, deal-chat, briefing)
+Last activity: 2026-03-19 -- Phase 68 Plan 01 complete: 44 screenshots captured across 4 medium-complexity tutorials
 
-Progress: [██████████] 100% (15/15 planned tutorial-video plans on disk)
+Progress: [████████░░] 80% (16/17 plans completed so far)
 
 ## Performance Metrics
 
@@ -88,6 +88,11 @@ Recent decisions for v1.9:
 - [Phase 67]: Non-HITL tutorials use custom stage names (unconfigured/configured) with matching stage fixture files
 - [Phase 67]: Action Center errors stage set on dashboard (step 1) not /actions page -- SSR requires stage before navigation
 - [Phase 67]: Gap-closure plans producing only gitignored artifacts (audio/video) have no source commits per task
+- [Phase 68]: Chat GET route made stage-aware via chatBootstrap field in stage fixtures
+- [Phase 68]: Browser-side chat GET proxies to mock server (same pattern as actions/count)
+- [Phase 68]: All deal fixtures use mock user ID as ownerId so SSR userId filter matches
+- [Phase 68]: URL-based view/filter switching (?view=table, ?status=won) instead of clicking UI buttons
+- [Phase 68]: All 4 medium-complexity tutorials use deal-001 (Meridian Dynamics) for narrative continuity
 
 ### Pending Todos
 
@@ -102,6 +107,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T23:24:44.827Z
-Stopped at: Phase 68 context gathered
-Next action: Continue Phase 67 if more plans exist, or advance to Phase 68.
+Last session: 2026-03-19T23:57:23.000Z
+Stopped at: Completed 68-01-PLAN.md
+Next action: Execute 68-02-PLAN.md (TTS audio + MP4 rendering for 4 medium-complexity tutorials).
