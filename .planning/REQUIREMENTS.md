@@ -21,8 +21,8 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 
 - [x] **CAPT-01**: Playwright captures a per-step screenshot at each workflow point defined in the tutorial script
 - [x] **CAPT-02**: Playwright disables CSS animations and waits for network idle before each screenshot for deterministic output
-- [ ] **CAPT-03**: Playwright can mock HITL workflow stages (Skeleton → Low-fi → High-fi) with pre-authored stage responses for each touch type
-- [ ] **CAPT-04**: Playwright can mock polling/async workflows (generation progress, ingestion status) with pre-sequenced status updates
+- [x] **CAPT-03**: Playwright can mock HITL workflow stages (Skeleton → Low-fi → High-fi) with pre-authored stage responses for each touch type
+- [x] **CAPT-04**: Playwright can mock polling/async workflows (generation progress, ingestion status) with pre-sequenced status updates
 
 ### TTS Audio
 
@@ -114,8 +114,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-07 | Phase 62 | Complete |
 | CAPT-01 | Phase 62 | Complete |
 | CAPT-02 | Phase 62 | Complete |
-| CAPT-03 | Phase 63 | Pending |
-| CAPT-04 | Phase 63 | Pending |
+| CAPT-03 | Phase 63 | Complete |
+| CAPT-04 | Phase 63 | Complete |
 | TTS-01 | Phase 64 | Pending |
 | TTS-02 | Phase 64 | Pending |
 | TTS-03 | Phase 64 | Pending |

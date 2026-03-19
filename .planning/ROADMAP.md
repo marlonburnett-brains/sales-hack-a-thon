@@ -164,7 +164,7 @@ Plans:
 **Goal**: Playwright can capture multi-stage HITL workflows and polling-based async flows with pre-authored fixture sequences
 **Depends on**: Phase 62
 **Requirements**: CAPT-03, CAPT-04
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 63-01-PLAN.md -- Stage/sequence infrastructure for mock server, schema extensions, fixture loader
 - [ ] 63-02-PLAN.md -- Pilot Touch 4 HITL tutorial fixtures, capture spec, and end-to-end verification
@@ -225,7 +225,7 @@ Plans:
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
-| 63. HITL & Async Mock Capture | v1.9 | 0/TBD | Not started | - |
+| 63. HITL & Async Mock Capture | 1/2 | In Progress|  | - |
 | 64. TTS Pipeline | v1.9 | 0/TBD | Not started | - |
 | 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |
 | 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
