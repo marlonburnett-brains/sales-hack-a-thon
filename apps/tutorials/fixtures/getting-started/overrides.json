@@ -1,0 +1,55 @@
+{
+  "templates": [
+    {
+      "id": "tmpl-001",
+      "name": "Enterprise Proposal Template",
+      "presentationId": "mock-presentation-001",
+      "googleSlidesUrl": "https://docs.google.com/presentation/d/mock-001",
+      "touchTypes": "[\"touch-1\", \"touch-2\"]",
+      "artifactType": null,
+      "accessStatus": "accessible",
+      "lastIngestedAt": "2026-02-20T10:00:00.000Z",
+      "sourceModifiedAt": "2026-02-18T08:00:00.000Z",
+      "slideCount": 24,
+      "ingestionStatus": "completed",
+      "ingestionProgress": null,
+      "contentClassification": "{\"industry\":\"Technology\",\"persona\":\"CTO\"}",
+      "createdAt": "2026-01-15T09:00:00.000Z",
+      "updatedAt": "2026-02-20T10:00:00.000Z"
+    },
+    {
+      "id": "tmpl-002",
+      "name": "Healthcare Solutions Deck",
+      "presentationId": "mock-presentation-002",
+      "googleSlidesUrl": "https://docs.google.com/presentation/d/mock-002",
+      "touchTypes": "[\"touch-1\"]",
+      "artifactType": null,
+      "accessStatus": "accessible",
+      "lastIngestedAt": "2026-03-01T14:00:00.000Z",
+      "sourceModifiedAt": "2026-02-28T16:00:00.000Z",
+      "slideCount": 18,
+      "ingestionStatus": "completed",
+      "ingestionProgress": null,
+      "contentClassification": "{\"industry\":\"Healthcare\",\"persona\":\"VP Engineering\"}",
+      "createdAt": "2026-02-01T11:00:00.000Z",
+      "updatedAt": "2026-03-01T14:00:00.000Z"
+    }
+  ],
+  "interactions": [
+    {
+      "id": "int-001",
+      "dealId": "deal-001",
+      "touchType": "touch-1",
+      "status": "completed",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology\"}",
+      "decision": null,
+      "generatedContent": null,
+      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-deck\",\"talkTrackUrl\":\"https://docs.google.com/document/d/mock-talk\"}",
+      "driveFileId": "mock-drive-file-001",
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-02-20T15:00:00.000Z",
+      "updatedAt": "2026-03-05T09:00:00.000Z"
+    }
+  ]
+}
