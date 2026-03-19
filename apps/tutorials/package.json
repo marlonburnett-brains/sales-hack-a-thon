@@ -8,6 +8,7 @@
   "dependencies": {
     "@lumenalta/schemas": "workspace:*",
     "express": "^4.21.0",
+    "kokoro-js": "^1.2.1",
     "tsx": "^4.19.0",
     "zod": "^3.24.0"
   },
