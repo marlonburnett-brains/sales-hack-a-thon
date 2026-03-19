@@ -1,0 +1,18 @@
+{
+  "name": "tutorials",
+  "private": true,
+  "scripts": {
+    "capture": "tsx scripts/capture.ts",
+    "generate": "tsx scripts/generate-script.ts"
+  },
+  "dependencies": {
+    "@lumenalta/schemas": "workspace:*",
+    "express": "^4.21.0",
+    "tsx": "^4.19.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

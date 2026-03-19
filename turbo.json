@@ -24,6 +24,13 @@
     },
     "db:migrate": {
       "cache": false
+    },
+    "capture": {
+      "cache": false,
+      "persistent": false
+    },
+    "generate": {
+      "cache": false
     }
   }
 }
