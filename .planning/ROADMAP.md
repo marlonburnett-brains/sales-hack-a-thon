@@ -130,7 +130,7 @@
 
 </details>
 
-### 🚧 v1.9 Tutorial Videos (In Progress)
+### v1.9 Tutorial Videos (In Progress)
 
 **Milestone Goal:** Produce automated, deterministic tutorial videos for every AtlusDeck feature using Playwright-driven UI capture, Remotion video composition, and local TTS narration.
 
@@ -173,7 +173,11 @@ Plans:
 **Goal**: Developer can generate narration audio files from script text using either draft or production TTS engine
 **Depends on**: Phase 62 (needs tutorial script format from INFRA-02)
 **Requirements**: TTS-01, TTS-02, TTS-03, TTS-04
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 64-01-PLAN.md -- Type contracts, Kokoro draft engine, ffmpeg post-processing, timing manifest module
+- [ ] 64-02-PLAN.md -- Chatterbox-Turbo Python sidecar setup and TypeScript wrapper
+- [ ] 64-03-PLAN.md -- TTS orchestrator CLI, package.json scripts, turbo.json task, end-to-end verification
 
 ### Phase 65: Remotion Composition Core
 **Goal**: Developer can render a complete tutorial MP4 from screenshots and narration audio with synchronized playback
@@ -226,7 +230,7 @@ Plans:
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
 | 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
-| 64. TTS Pipeline | v1.9 | 0/TBD | Not started | - |
+| 64. TTS Pipeline | v1.9 | 0/3 | Planned | - |
 | 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |
 | 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
 | 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
