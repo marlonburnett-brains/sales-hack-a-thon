@@ -9,12 +9,12 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Developer can scaffold `apps/tutorials` as a Turborepo workspace with Remotion 4.0.x, Playwright, and kokoro-js dependencies isolated from web/agent apps
-- [ ] **INFRA-02**: Developer can define tutorial scripts in a structured JSON format specifying steps, narration text, actions, mock route references, and zoom targets
+- [x] **INFRA-01**: Developer can scaffold `apps/tutorials` as a Turborepo workspace with Remotion 4.0.x, Playwright, and kokoro-js dependencies isolated from web/agent apps
+- [x] **INFRA-02**: Developer can define tutorial scripts in a structured JSON format specifying steps, narration text, actions, mock route references, and zoom targets
 - [ ] **INFRA-03**: Developer can run a mock agent server that intercepts all server-side API calls (Server Actions, agent routes) with fixture responses during Playwright capture
 - [ ] **INFRA-04**: Developer can use shared `page.route()` helpers to mock all browser-side API calls with fixture JSON
 - [ ] **INFRA-05**: Developer can bypass Google OAuth/Supabase auth by setting mocked session cookies before navigation
-- [ ] **INFRA-06**: Developer can create and validate fixture data using factory functions with Zod schema validation against real API response shapes
+- [x] **INFRA-06**: Developer can create and validate fixture data using factory functions with Zod schema validation against real API response shapes
 - [ ] **INFRA-07**: Developer can run `pnpm --filter tutorials capture <tutorial-name>` to execute a single tutorial's Playwright capture
 
 ### Capture
@@ -105,12 +105,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 62 | Pending |
-| INFRA-02 | Phase 62 | Pending |
+| INFRA-01 | Phase 62 | Complete |
+| INFRA-02 | Phase 62 | Complete |
 | INFRA-03 | Phase 62 | Pending |
 | INFRA-04 | Phase 62 | Pending |
 | INFRA-05 | Phase 62 | Pending |
-| INFRA-06 | Phase 62 | Pending |
+| INFRA-06 | Phase 62 | Complete |
 | INFRA-07 | Phase 62 | Pending |
 | CAPT-01 | Phase 62 | Pending |
 | CAPT-02 | Phase 62 | Pending |
