@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
-status: verifying
-stopped_at: Completed 67-02-PLAN.md
-last_updated: "2026-03-19T22:22:04.932Z"
-last_activity: "2026-03-19 -- Phase 67 Plan 02 complete: Action Center tutorial authored, all 3 low-complexity tutorials capture-verified"
+status: completed
+stopped_at: Completed 67-03-PLAN.md
+last_updated: "2026-03-19T22:39:19.107Z"
+last_activity: "2026-03-19 -- Phase 67 Plan 03 complete: TTS audio + MP4 renders for Google Drive Settings and Action Center tutorials"
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 16
+  completed_plans: 16
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos -- Phase 67: Low-Complexity Tutorials (complete)
+**Current focus:** v1.9 Tutorial Videos -- Phase 67: Low-Complexity Tutorials (complete, all 3 MP4s rendered)
 
 ## Current Position
 
 Phase: 67 (6 of 9 in v1.9) (Low-Complexity Tutorials)
-Plan: 2 of 2 in current phase (phase complete)
-Status: Phase 67 complete -- All 3 low-complexity tutorials authored and capture-verified
-Last activity: 2026-03-19 -- Phase 67 Plan 02 complete: Action Center tutorial authored, all 3 low-complexity tutorials capture-verified
+Plan: 3 of 3 in current phase (phase complete)
+Status: Phase 67 complete -- All 3 low-complexity tutorials authored, captured, TTS narrated, and rendered as MP4
+Last activity: 2026-03-19 -- Phase 67 Plan 03 complete: TTS audio + MP4 renders for Google Drive Settings and Action Center tutorials
 
 Progress: [██████████] 100% (15/15 planned tutorial-video plans on disk)
 
@@ -87,6 +87,7 @@ Recent decisions for v1.9:
 - [Phase 67]: Google Drive Settings uses stage switching instead of clicking the Drive picker (Google iframe incompatible with mock)
 - [Phase 67]: Non-HITL tutorials use custom stage names (unconfigured/configured) with matching stage fixture files
 - [Phase 67]: Action Center errors stage set on dashboard (step 1) not /actions page -- SSR requires stage before navigation
+- [Phase 67]: Gap-closure plans producing only gitignored artifacts (audio/video) have no source commits per task
 
 ### Pending Todos
 
@@ -101,6 +102,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T22:22:04.928Z
-Stopped at: Completed 67-02-PLAN.md
+Last session: 2026-03-19T22:39:07.494Z
+Stopped at: Completed 67-03-PLAN.md
 Next action: Continue Phase 67 if more plans exist, or advance to Phase 68.
