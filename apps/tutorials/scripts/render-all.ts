@@ -57,9 +57,14 @@ function discoverTutorials(): string[] {
     const name = entry.name;
     const timingPath = path.join(audioDir, name, "timing.json");
     const screenshotDir = path.join(cwd, "output", name);
+    const scriptPath = path.join(cwd, "fixtures", name, "script.json");
 
-    // Must have both timing.json AND screenshot directory
-    if (fs.existsSync(timingPath) && fs.existsSync(screenshotDir)) {
+    // Must have timing, screenshots, and a corresponding script.
+    if (
+      fs.existsSync(timingPath) &&
+      fs.existsSync(screenshotDir) &&
+      fs.existsSync(scriptPath)
+    ) {
       tutorials.push(name);
     }
   }
