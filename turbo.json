@@ -31,6 +31,10 @@
     },
     "generate": {
       "cache": false
+    },
+    "tts": {
+      "cache": false,
+      "persistent": false
     }
   }
 }
