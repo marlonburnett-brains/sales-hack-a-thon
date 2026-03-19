@@ -1,6 +1,5 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { FixtureSet } from "./types.js";
 
 /**
@@ -11,9 +10,9 @@ import type { FixtureSet } from "./types.js";
  * if that file exists. Returns a typed FixtureSet object.
  */
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const FIXTURES_DIR = path.join(__dirname, ".");
+// Use process.cwd() + "fixtures" to work in both ESM and CJS contexts
+// (Playwright runs specs via tsx which may use CJS interop)
+const FIXTURES_DIR = path.join(process.cwd(), "fixtures");
 
 /**
  * Deep merge source into target. Arrays are replaced (not concatenated).
