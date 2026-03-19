@@ -8,43 +8,106 @@
       "id": "step-001",
       "url": "/",
       "narration": "Welcome to AtlusDeck! This is your command center -- the dashboard gives you a quick overview of your active deals, recent activity, and actions that need your attention.",
-      "waitFor": "[data-testid='dashboard'], main"
+      "waitFor": "[data-testid='dashboard'], main",
+      "zoomTarget": {
+        "selector": "[data-testid='dashboard']",
+        "scale": 1.35,
+        "x": 0.49,
+        "y": 0.34
+      },
+      "callout": {
+        "text": "Start on the dashboard for your active pipeline snapshot.",
+        "x": 0.5,
+        "y": 0.27
+      }
     },
     {
       "id": "step-002",
       "url": "/deals",
       "narration": "Now let's explore the deals pipeline. Here you can see all your active deals organized by status. Each card shows the company name, deal value, and current stage.",
-      "waitFor": "[data-testid='deals-list'], main"
+      "waitFor": "[data-testid='deals-list'], main",
+      "actions": [
+        {
+          "type": "hover",
+          "selector": "[data-testid='deals-list']"
+        }
+      ],
+      "cursorTarget": {
+        "x": 0.42,
+        "y": 0.47
+      }
     },
     {
       "id": "step-003",
       "url": "/deals/deal-001",
       "narration": "Click on a deal to see its full details. The deal view shows you everything about this opportunity -- the company, your contacts, the proposal timeline, and all generated assets.",
-      "waitFor": "[data-testid='deal-detail'], main"
+      "waitFor": "[data-testid='deal-detail'], main",
+      "actions": [
+        {
+          "type": "click",
+          "selector": "[data-testid='deal-detail']"
+        }
+      ],
+      "cursorTarget": {
+        "x": 0.33,
+        "y": 0.36
+      },
+      "callout": {
+        "text": "Open a deal to review the company, contacts, and assets in one place.",
+        "x": 0.35,
+        "y": 0.31
+      }
     },
     {
       "id": "step-004",
       "url": "/deals/deal-001",
       "narration": "Notice the activity timeline on this page. It tracks every interaction with the deal -- from initial research to deck generation. You'll see status updates for each workflow step.",
-      "waitFor": "main"
+      "waitFor": "main",
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.45,
+        "x": 0.73,
+        "y": 0.52
+      }
     },
     {
       "id": "step-005",
       "url": "/templates",
       "narration": "Let's check out the template library. Templates are the building blocks for your proposal decks. You can connect Google Slides templates and AtlusDeck will analyze their structure.",
-      "waitFor": "main"
+      "waitFor": "main",
+      "shortcutKey": "G then T"
     },
     {
       "id": "step-006",
       "url": "/settings",
       "narration": "Now let's look at your settings. This is where you manage your account preferences, team members, and integrations.",
-      "waitFor": "main"
+      "waitFor": "main",
+      "callout": {
+        "text": "Settings centralize team, account, and integration controls.",
+        "x": 0.21,
+        "y": 0.18
+      }
     },
     {
       "id": "step-007",
       "url": "/settings/integrations",
       "narration": "The integrations page lets you connect your Google Drive and other services. Once connected, AtlusDeck can automatically store generated decks in your Drive.",
-      "waitFor": "main"
+      "waitFor": "main",
+      "actions": [
+        {
+          "type": "hover",
+          "selector": "main"
+        }
+      ],
+      "cursorTarget": {
+        "x": 0.63,
+        "y": 0.42
+      },
+      "callout": {
+        "text": "Connect Google Drive here so exported decks land in the right folder.",
+        "x": 0.62,
+        "y": 0.36
+      }
     },
     {
       "id": "step-008",
