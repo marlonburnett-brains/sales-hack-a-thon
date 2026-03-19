@@ -16,6 +16,7 @@
     "@remotion/cli": "4.0.436",
     "@remotion/media": "4.0.436",
     "@remotion/renderer": "4.0.436",
+    "@remotion/transitions": "4.0.436",
     "express": "^4.21.0",
     "kokoro-js": "^1.2.1",
     "react": "18",

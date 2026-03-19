@@ -66,6 +66,33 @@ export const StepSchema = z.object({
     .object({
       selector: z.string(),
       scale: z.number().default(1.5),
+      /**
+       * Normalized horizontal target position in the screenshot (0-1).
+       * 0 = left edge, 1 = right edge.
+       */
+      x: z.number().min(0).max(1).optional(),
+      /**
+       * Normalized vertical target position in the screenshot (0-1).
+       * 0 = top edge, 1 = bottom edge.
+       */
+      y: z.number().min(0).max(1).optional(),
+    })
+    .optional(),
+  /** Optional annotation overlay positioned by normalized screenshot coordinates */
+  callout: z
+    .object({
+      text: z.string(),
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
+    })
+    .optional(),
+  /** Optional keyboard shortcut hint rendered as an overlay badge */
+  shortcutKey: z.string().optional(),
+  /** Optional cursor destination positioned by normalized screenshot coordinates */
+  cursorTarget: z
+    .object({
+      x: z.number().min(0).max(1),
+      y: z.number().min(0).max(1),
     })
     .optional(),
   /** Step-specific fixture overrides merged onto shared fixtures */
