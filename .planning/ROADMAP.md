@@ -154,7 +154,7 @@
   3. All browser-side API calls return fixture JSON via page.route() helpers with no external network requests
   4. Playwright navigates past the Google OAuth login wall using mocked session cookies without any real authentication
   5. Screenshots are visually deterministic across repeated runs (CSS animations disabled, network idle waits enforced)
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [ ] 62-01-PLAN.md -- Scaffold workspace, tutorial script schema, and fixture factories
 - [ ] 62-02-PLAN.md -- Mock agent server, auth bypass, route mocks, and determinism utilities
@@ -221,7 +221,7 @@ Plans:
 | 35-40 | v1.6 | 20/20 | Complete | 2026-03-08 |
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
-| 62. Workspace & Mock Infrastructure | 1/3 | In Progress|  | - |
+| 62. Workspace & Mock Infrastructure | 2/3 | In Progress|  | - |
 | 63. HITL & Async Mock Capture | v1.9 | 0/TBD | Not started | - |
 | 64. TTS Pipeline | v1.9 | 0/TBD | Not started | - |
 | 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |

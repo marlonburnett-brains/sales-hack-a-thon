@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: executing
-stopped_at: Completed 62-01-PLAN.md
-last_updated: "2026-03-19T00:12:18.346Z"
-last_activity: 2026-03-19 -- Completed 62-01 workspace foundation
+stopped_at: Completed 62-02-PLAN.md
+last_updated: "2026-03-19T00:18:22.000Z"
+last_activity: 2026-03-19 -- Completed 62-02 mock layers and helpers
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 89
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 62 (1 of 9 in v1.9) (Workspace & Mock Infrastructure)
-Plan: 1 of 3 in current phase (62-01 complete)
+Plan: 2 of 3 in current phase (62-02 complete)
 Status: Executing phase 62
-Last activity: 2026-03-19 -- Completed 62-01 workspace foundation
+Last activity: 2026-03-19 -- Completed 62-02 mock layers and helpers
 
 Progress: [█████████░] 89% (v1.9)
 
@@ -51,6 +51,8 @@ Recent decisions for v1.9:
 - Dual TTS: Kokoro (draft/CPU) + Chatterbox-Turbo (production/MPS)
 - apps/tutorials workspace isolated from web/agent
 - [Phase 62]: Fixture validation schemas mirror api-client.ts response shapes (independent of Prisma)
+- [Phase 62]: Mock server covers all 40+ api-client.ts routes upfront for any future tutorial
+- [Phase 62]: Auth bypass injects both localStorage + SSR cookies to satisfy both middleware auth paths
 
 ### Pending Todos
 
@@ -65,6 +67,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T00:12:18.343Z
-Stopped at: Completed 62-01-PLAN.md
-Next action: Execute 62-02-PLAN.md
+Last session: 2026-03-19T00:18:22.000Z
+Stopped at: Completed 62-02-PLAN.md
+Next action: Execute 62-03-PLAN.md
