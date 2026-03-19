@@ -17,8 +17,8 @@
       },
       "callout": {
         "text": "Start on the dashboard for your active pipeline snapshot.",
-        "x": 0.5,
-        "y": 0.27
+        "x": 0.52,
+        "y": 0.42
       }
     },
     {
@@ -33,8 +33,8 @@
         }
       ],
       "cursorTarget": {
-        "x": 0.42,
-        "y": 0.47
+        "x": 0.52,
+        "y": 0.42
       }
     },
     {
@@ -49,13 +49,13 @@
         }
       ],
       "cursorTarget": {
-        "x": 0.33,
-        "y": 0.36
+        "x": 0.55,
+        "y": 0.3
       },
       "callout": {
         "text": "Open a deal to review the company, contacts, and assets in one place.",
-        "x": 0.35,
-        "y": 0.31
+        "x": 0.56,
+        "y": 0.24
       }
     },
     {
@@ -84,8 +84,8 @@
       "waitFor": "main",
       "callout": {
         "text": "Settings centralize team, account, and integration controls.",
-        "x": 0.21,
-        "y": 0.18
+        "x": 0.35,
+        "y": 0.22
       }
     },
     {
@@ -100,13 +100,13 @@
         }
       ],
       "cursorTarget": {
-        "x": 0.63,
-        "y": 0.42
+        "x": 0.53,
+        "y": 0.44
       },
       "callout": {
         "text": "Connect Google Drive here so exported decks land in the right folder.",
-        "x": 0.62,
-        "y": 0.36
+        "x": 0.53,
+        "y": 0.33
       }
     },
     {

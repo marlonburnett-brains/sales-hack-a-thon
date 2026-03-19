@@ -63,15 +63,21 @@ export const TutorialStep: React.FC<TutorialStepProps> = ({
         y={zoomTarget?.y}
         durationInFrames={durationInFrames}
       >
-        <Img
-          src={screenshotSrc}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
+        <AbsoluteFill>
+          <Img
+            src={screenshotSrc}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        </AbsoluteFill>
       </ZoomPan>
 
-      <StepBadge current={stepIndex} total={totalSteps} />
-
       {callout ? <Callout text={callout.text} x={callout.x} y={callout.y} /> : null}
+
+      {hasCursorAction && cursorTarget ? (
+        <AnimatedCursor from={cursorFrom} to={cursorTarget} showClickRipple />
+      ) : null}
+
+      <StepBadge current={stepIndex} total={totalSteps} />
 
       {shortcutKey ? (
         <div
@@ -83,10 +89,6 @@ export const TutorialStep: React.FC<TutorialStepProps> = ({
         >
           <ShortcutBadge shortcut={shortcutKey} />
         </div>
-      ) : null}
-
-      {hasCursorAction && cursorTarget ? (
-        <AnimatedCursor from={cursorFrom} to={cursorTarget} showClickRipple />
       ) : null}
 
       {hasAudio && <Audio src={audioSrc} />}
