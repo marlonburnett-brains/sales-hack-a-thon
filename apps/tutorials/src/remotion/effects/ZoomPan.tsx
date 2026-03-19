@@ -61,14 +61,11 @@ export const ZoomPan: React.FC<ZoomPanProps> = ({
     return <>{children}</>;
   }
 
-  const originX = `${(x ?? 0.5) * 100}%`;
-  const originY = `${(y ?? 0.5) * 100}%`;
-
   return (
     <AbsoluteFill
       style={{
         transform: `translate(${translate.x}px, ${translate.y}px) scale(${animatedScale})`,
-        transformOrigin: `${originX} ${originY}`,
+        transformOrigin: "50% 50%",
       }}
     >
       {children}
