@@ -7,65 +7,51 @@ type CalloutProps = {
   y: number;
 };
 
-export const Callout: React.FC<CalloutProps> = ({ text, x, y }) => {
+/**
+ * Subtitle-style callout anchored at the bottom of the viewport.
+ * No arrows or positioning math — the cursor guides attention,
+ * the callout provides annotation text.
+ */
+export const Callout: React.FC<CalloutProps> = ({ text }) => {
   const frame = useCurrentFrame();
-  const { width, height } = useVideoConfig();
+  const { width } = useVideoConfig();
 
-  const opacity = interpolate(frame, [0, 9], [0, 1], {
+  const opacity = interpolate(frame, [0, 10], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  const translateY = interpolate(frame, [0, 9], [12, 0], {
+  const slideY = interpolate(frame, [0, 10], [12, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  const pointX = x * width;
-  const pointY = y * height;
-  const labelWidth = 420;
-  const labelHeight = 84;
-  const left = Math.min(Math.max(pointX - labelWidth / 2, 24), width - labelWidth - 24);
-  const preferredTop = pointY - 132;
-  const top = preferredTop < 32 ? pointY + 42 : preferredTop;
-  const arrowLeft = Math.min(Math.max(pointX - left - 14, 32), labelWidth - 32);
-  const arrowPointsUp = preferredTop < 32;
+  const maxWidth = Math.min(720, width * 0.6);
 
   return (
     <AbsoluteFill>
       <div
         style={{
           position: "absolute",
-          left,
-          top,
-          width: labelWidth,
-          minHeight: labelHeight,
-          padding: "18px 20px",
-          borderRadius: 22,
-          backgroundColor: "rgba(15, 23, 42, 0.82)",
+          bottom: 80,
+          left: "50%",
+          transform: `translateX(-50%) translateY(${slideY}px)`,
+          maxWidth,
+          padding: "14px 24px",
+          borderRadius: 12,
+          backgroundColor: "rgba(15, 23, 42, 0.85)",
+          backdropFilter: "blur(12px)",
           color: "#FFFFFF",
           fontFamily: "Inter, Arial, sans-serif",
-          fontSize: 30,
+          fontSize: 24,
           fontWeight: 500,
-          lineHeight: 1.35,
-          boxShadow: "0 24px 48px rgba(15, 23, 42, 0.32)",
+          lineHeight: 1.4,
+          textAlign: "center",
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
           opacity,
-          transform: `translateY(${translateY}px)`,
         }}
       >
         {text}
-        <div
-          style={{
-            position: "absolute",
-            left: arrowLeft,
-            [arrowPointsUp ? "top" : "bottom"]: -14,
-            width: 28,
-            height: 28,
-            backgroundColor: "rgba(15, 23, 42, 0.82)",
-            transform: "rotate(45deg)",
-            borderRadius: 4,
-          }}
-        />
       </div>
     </AbsoluteFill>
   );

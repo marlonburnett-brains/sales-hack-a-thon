@@ -7,6 +7,8 @@ import { ShortcutBadge } from "./effects/ShortcutBadge";
 import { StepBadge } from "./effects/StepBadge";
 import { ZoomPan } from "./effects/ZoomPan";
 
+type Point = { x: number; y: number };
+
 type TutorialStepProps = {
   tutorialName: string;
   stepId: string;
@@ -24,18 +26,28 @@ type TutorialStepProps = {
     y: number;
   };
   shortcutKey?: string;
-  cursorTarget?: {
-    x: number;
-    y: number;
-  };
-  cursorFrom?: {
-    x: number;
-    y: number;
-  };
+  cursorTarget?: Point;
+  cursorFrom?: Point;
   hasCursorAction: boolean;
   stepIndex: number;
   totalSteps: number;
 };
+
+/**
+ * Transform a normalized screenshot-space coordinate to viewport-space,
+ * accounting for the active zoom/pan transform.
+ * When no zoom is active, returns the coordinate unchanged.
+ */
+function toViewport(
+  point: Point,
+  zoom?: { scale: number; x: number; y: number },
+): Point {
+  if (!zoom || zoom.scale <= 1) return point;
+  return {
+    x: (point.x - zoom.x) * zoom.scale + zoom.x,
+    y: (point.y - zoom.y) * zoom.scale + zoom.y,
+  };
+}
 
 export const TutorialStep: React.FC<TutorialStepProps> = ({
   tutorialName,
@@ -55,6 +67,13 @@ export const TutorialStep: React.FC<TutorialStepProps> = ({
   const screenshotSrc = staticFile(`output/${tutorialName}/${stepId}.png`);
   const audioSrc = staticFile(`audio/${tutorialName}/${audioFile}`);
 
+  // Transform overlay coordinates from screenshot-space to viewport-space
+  const viewCallout = callout
+    ? { text: callout.text, ...toViewport({ x: callout.x, y: callout.y }, zoomTarget) }
+    : undefined;
+  const viewCursorTo = cursorTarget ? toViewport(cursorTarget, zoomTarget) : undefined;
+  const viewCursorFrom = cursorFrom ? toViewport(cursorFrom, zoomTarget) : undefined;
+
   return (
     <AbsoluteFill>
       <ZoomPan
@@ -71,10 +90,10 @@ export const TutorialStep: React.FC<TutorialStepProps> = ({
         </AbsoluteFill>
       </ZoomPan>
 
-      {callout ? <Callout text={callout.text} x={callout.x} y={callout.y} /> : null}
+      {viewCallout ? <Callout text={viewCallout.text} x={viewCallout.x} y={viewCallout.y} /> : null}
 
-      {hasCursorAction && cursorTarget ? (
-        <AnimatedCursor from={cursorFrom} to={cursorTarget} showClickRipple />
+      {hasCursorAction && viewCursorTo ? (
+        <AnimatedCursor from={viewCursorFrom} to={viewCursorTo} showClickRipple />
       ) : null}
 
       <StepBadge current={stepIndex} total={totalSteps} />
