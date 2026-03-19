@@ -645,15 +645,55 @@ export function createMockServer(tutorialName: string): Express {
   });
 
   // ────────────────────────────────────────────────────────────
-  // Actions Required
+  // User Settings (needed for Drive Settings page)
+  // ────────────────────────────────────────────────────────────
+
+  const userSettings: Record<string, Record<string, string | null>> = {};
+
+  app.get("/user-settings/:userId/:key", (req: Request, res: Response) => {
+    const userId = req.params.userId as string;
+    const key = req.params.key as string;
+    // Stage-aware: check stage fixtures first
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const stageSettings = (stageFixtures as Record<string, unknown>)?.userSettings as Record<string, string | null> | undefined;
+    if (stageSettings && key in stageSettings) {
+      res.json({ value: stageSettings[key] });
+      return;
+    }
+    const val = userSettings[userId]?.[key] ?? null;
+    res.json({ value: val });
+  });
+
+  app.put("/user-settings/:userId/:key", (req: Request, res: Response) => {
+    const userId = req.params.userId as string;
+    const key = req.params.key as string;
+    if (!userSettings[userId]) userSettings[userId] = {};
+    userSettings[userId][key] = req.body?.value ?? null;
+    res.json({ value: userSettings[userId][key] });
+  });
+
+  // ────────────────────────────────────────────────────────────
+  // Actions Required (stage-aware)
   // ────────────────────────────────────────────────────────────
 
   app.get("/actions", (_req: Request, res: Response) => {
-    res.json([]);
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    if (stageFixtures && (stageFixtures as Record<string, unknown>).actions) {
+      res.json((stageFixtures as Record<string, unknown>).actions);
+    } else {
+      res.json((fixtures as Record<string, unknown>).actions ?? []);
+    }
   });
 
   app.get("/actions/count", (_req: Request, res: Response) => {
-    res.json({ count: 0 });
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const stageActions = (stageFixtures as Record<string, unknown>)?.actions;
+    if (Array.isArray(stageActions)) {
+      res.json({ count: stageActions.length });
+    } else {
+      const baseActions = (fixtures as Record<string, unknown>).actions;
+      res.json({ count: Array.isArray(baseActions) ? baseActions.length : 0 });
+    }
   });
 
   app.patch("/actions/:id/resolve", (req: Request, res: Response) => {

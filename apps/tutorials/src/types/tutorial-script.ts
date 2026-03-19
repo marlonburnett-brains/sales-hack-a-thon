@@ -97,10 +97,13 @@ export const StepSchema = z.object({
     .optional(),
   /** Step-specific fixture overrides merged onto shared fixtures */
   mockOverrides: z.record(z.string(), z.unknown()).optional(),
-  /** HITL stage to set on mock server before this step executes */
-  mockStage: z
-    .enum(["idle", "generating", "skeleton", "lowfi", "hifi", "completed"])
-    .optional(),
+  /**
+   * Stage to set on mock server before this step executes.
+   * Accepts any stage name that has a matching stages/{name}.json fixture file.
+   * Common stages: "idle", "generating", "skeleton", "lowfi", "hifi", "completed",
+   * "unconfigured", "configured", "errors", "resolved".
+   */
+  mockStage: z.string().optional(),
   /** Text to wait for on screen before taking screenshot (full-page text search) */
   waitForText: z.string().optional(),
   /** Sequence keys to reset on mock server before this step executes */
