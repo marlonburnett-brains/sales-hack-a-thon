@@ -1,0 +1,50 @@
+[
+  {
+    "id": "comp-meridian-001",
+    "name": "Meridian Dynamics",
+    "industry": "Technology Consulting",
+    "logoUrl": null,
+    "createdAt": "2026-01-15T10:00:00.000Z",
+    "updatedAt": "2026-01-15T10:00:00.000Z"
+  },
+  {
+    "id": "comp-nexus-002",
+    "name": "Nexus Health Systems",
+    "industry": "Healthcare",
+    "logoUrl": null,
+    "createdAt": "2026-01-20T08:00:00.000Z",
+    "updatedAt": "2026-01-20T08:00:00.000Z"
+  },
+  {
+    "id": "comp-atlas-003",
+    "name": "Atlas Financial Group",
+    "industry": "Financial Services",
+    "logoUrl": null,
+    "createdAt": "2026-01-22T11:30:00.000Z",
+    "updatedAt": "2026-01-22T11:30:00.000Z"
+  },
+  {
+    "id": "comp-verde-004",
+    "name": "Verde Energy Solutions",
+    "industry": "Energy",
+    "logoUrl": null,
+    "createdAt": "2026-02-01T09:15:00.000Z",
+    "updatedAt": "2026-02-01T09:15:00.000Z"
+  },
+  {
+    "id": "comp-pinnacle-005",
+    "name": "Pinnacle Retail Corp",
+    "industry": "Retail",
+    "logoUrl": null,
+    "createdAt": "2026-02-05T14:00:00.000Z",
+    "updatedAt": "2026-02-05T14:00:00.000Z"
+  },
+  {
+    "id": "comp-horizon-006",
+    "name": "Horizon Logistics",
+    "industry": "Supply Chain & Logistics",
+    "logoUrl": null,
+    "createdAt": "2026-02-08T10:45:00.000Z",
+    "updatedAt": "2026-02-08T10:45:00.000Z"
+  }
+]

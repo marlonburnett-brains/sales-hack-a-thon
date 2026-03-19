@@ -1,0 +1,22 @@
+[
+  {
+    "id": "user-tutorial-001",
+    "email": "sarah.chen@lumenalta.com",
+    "name": "Sarah Chen"
+  },
+  {
+    "id": "user-tutorial-002",
+    "email": "james.mitchell@lumenalta.com",
+    "name": "James Mitchell"
+  },
+  {
+    "id": "user-tutorial-003",
+    "email": "priya.sharma@lumenalta.com",
+    "name": "Priya Sharma"
+  },
+  {
+    "id": "user-tutorial-004",
+    "email": "marcus.rodriguez@lumenalta.com",
+    "name": "Marcus Rodriguez"
+  }
+]
