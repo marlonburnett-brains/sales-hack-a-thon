@@ -1,4 +1,66 @@
 {
+  "deals": [
+    {
+      "id": "deal-001",
+      "companyId": "comp-meridian-001",
+      "name": "Q2 Digital Transformation Initiative",
+      "salespersonName": "Sarah Chen",
+      "salespersonPhoto": null,
+      "driveFolderId": null,
+      "status": "open",
+      "ownerId": "00000000-0000-0000-0000-000000000001",
+      "ownerEmail": "tutorial@example.com",
+      "ownerName": "Tutorial User",
+      "collaborators": "[{\"id\":\"user-tutorial-002\",\"email\":\"james.mitchell@lumenalta.com\",\"name\":\"James Mitchell\"}]",
+      "createdAt": "2026-02-10T14:30:00.000Z",
+      "updatedAt": "2026-03-05T09:00:00.000Z"
+    },
+    {
+      "id": "deal-002",
+      "companyId": "comp-nexus-002",
+      "name": "Patient Portal Modernization",
+      "salespersonName": "James Mitchell",
+      "salespersonPhoto": null,
+      "driveFolderId": null,
+      "status": "open",
+      "ownerId": "00000000-0000-0000-0000-000000000001",
+      "ownerEmail": "tutorial@example.com",
+      "ownerName": "Tutorial User",
+      "collaborators": "[]",
+      "createdAt": "2026-02-15T10:00:00.000Z",
+      "updatedAt": "2026-03-01T16:20:00.000Z"
+    },
+    {
+      "id": "deal-003",
+      "companyId": "comp-atlas-003",
+      "name": "Compliance Automation Platform",
+      "salespersonName": "Priya Sharma",
+      "salespersonPhoto": null,
+      "driveFolderId": null,
+      "status": "won",
+      "ownerId": "00000000-0000-0000-0000-000000000001",
+      "ownerEmail": "tutorial@example.com",
+      "ownerName": "Tutorial User",
+      "collaborators": "[]",
+      "createdAt": "2026-01-25T09:00:00.000Z",
+      "updatedAt": "2026-02-28T11:30:00.000Z"
+    },
+    {
+      "id": "deal-004",
+      "companyId": "comp-verde-004",
+      "name": "Smart Grid Analytics Dashboard",
+      "salespersonName": "Marcus Rodriguez",
+      "salespersonPhoto": null,
+      "driveFolderId": null,
+      "status": "open",
+      "ownerId": "00000000-0000-0000-0000-000000000001",
+      "ownerEmail": "tutorial@example.com",
+      "ownerName": "Tutorial User",
+      "collaborators": "[]",
+      "createdAt": "2026-03-01T13:45:00.000Z",
+      "updatedAt": "2026-03-10T08:15:00.000Z"
+    }
+  ],
   "templates": [
     {
       "id": "tmpl-001",

@@ -26,6 +26,27 @@ const MOCK_SERVER_PORT = 4112;
 const WEB_SERVER_PORT = 3099;
 const MONOREPO_ROOT = path.resolve(process.cwd(), "../..");
 
+/**
+ * Kill any existing processes listening on the given ports.
+ * Prevents EADDRINUSE from leftover processes of previous failed runs.
+ */
+async function killExistingPortProcesses(ports: number[]): Promise<void> {
+  const { execSync } = await import("node:child_process");
+  for (const port of ports) {
+    try {
+      const pids = execSync(`lsof -ti :${port}`, { encoding: "utf-8" }).trim();
+      if (pids) {
+        execSync(`kill -9 ${pids.split("\n").join(" ")}`, { stdio: "ignore" });
+        // Brief wait for OS to release the port
+        await new Promise((r) => setTimeout(r, 500));
+        console.log(`Killed existing process(es) on port ${port}`);
+      }
+    } catch {
+      // No process on this port — good
+    }
+  }
+}
+
 async function waitForServer(
   url: string,
   timeoutMs: number = 60_000
@@ -86,6 +107,12 @@ async function main(): Promise<void> {
     console.error("Example: pnpm --filter tutorials capture getting-started");
     process.exit(1);
   }
+
+  // ────────────────────────────────────────────────────────────
+  // 0. Kill leftover processes on required ports (idempotent)
+  // ────────────────────────────────────────────────────────────
+
+  await killExistingPortProcesses([MOCK_SERVER_PORT, WEB_SERVER_PORT]);
 
   // ────────────────────────────────────────────────────────────
   // 1. Load and validate the tutorial script

@@ -251,7 +251,7 @@ Plans:
 | 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
 | 64. TTS Pipeline | 3/3 | Complete    | 2026-03-19 | - |
 | 65. Remotion Composition Core | 2/2 | Complete    | 2026-03-19 | - |
-| 66. Visual Effects & Polish | 3/3 | Complete   | 2026-03-19 | - |
+| 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
 | 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
 | 69. Medium-Complexity Tutorials (Library & Settings) | v1.9 | 0/TBD | Not started | - |
