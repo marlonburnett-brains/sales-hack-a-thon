@@ -15,12 +15,12 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 - [x] **INFRA-04**: Developer can use shared `page.route()` helpers to mock all browser-side API calls with fixture JSON
 - [x] **INFRA-05**: Developer can bypass Google OAuth/Supabase auth by setting mocked session cookies before navigation
 - [x] **INFRA-06**: Developer can create and validate fixture data using factory functions with Zod schema validation against real API response shapes
-- [ ] **INFRA-07**: Developer can run `pnpm --filter tutorials capture <tutorial-name>` to execute a single tutorial's Playwright capture
+- [x] **INFRA-07**: Developer can run `pnpm --filter tutorials capture <tutorial-name>` to execute a single tutorial's Playwright capture
 
 ### Capture
 
-- [ ] **CAPT-01**: Playwright captures a per-step screenshot at each workflow point defined in the tutorial script
-- [ ] **CAPT-02**: Playwright disables CSS animations and waits for network idle before each screenshot for deterministic output
+- [x] **CAPT-01**: Playwright captures a per-step screenshot at each workflow point defined in the tutorial script
+- [x] **CAPT-02**: Playwright disables CSS animations and waits for network idle before each screenshot for deterministic output
 - [ ] **CAPT-03**: Playwright can mock HITL workflow stages (Skeleton → Low-fi → High-fi) with pre-authored stage responses for each touch type
 - [ ] **CAPT-04**: Playwright can mock polling/async workflows (generation progress, ingestion status) with pre-sequenced status updates
 
@@ -111,9 +111,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-04 | Phase 62 | Complete |
 | INFRA-05 | Phase 62 | Complete |
 | INFRA-06 | Phase 62 | Complete |
-| INFRA-07 | Phase 62 | Pending |
-| CAPT-01 | Phase 62 | Pending |
-| CAPT-02 | Phase 62 | Pending |
+| INFRA-07 | Phase 62 | Complete |
+| CAPT-01 | Phase 62 | Complete |
+| CAPT-02 | Phase 62 | Complete |
 | CAPT-03 | Phase 63 | Pending |
 | CAPT-04 | Phase 63 | Pending |
 | TTS-01 | Phase 64 | Pending |
