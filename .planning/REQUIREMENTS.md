@@ -36,11 +36,11 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 - [x] **COMP-01**: Each tutorial step renders as a Remotion `<Sequence>` with its screenshot and narration audio synchronized
 - [x] **COMP-02**: Shared `TutorialStep` component encapsulates screenshot display, audio playback, and timing logic
 - [x] **COMP-03**: Developer can render a final MP4 per tutorial via Remotion CLI with `--concurrency=2` for M1 Pro memory safety
-- [ ] **COMP-04**: Zoom/pan effects highlight specific UI regions defined in the tutorial script via CSS transforms and `interpolate()`
-- [ ] **COMP-05**: Text overlays and callout annotations label UI elements, show step numbers, and display keyboard shortcuts
-- [ ] **COMP-06**: Animated cursor moves to click targets at each step, showing where the user would interact
+- [x] **COMP-04**: Zoom/pan effects highlight specific UI regions defined in the tutorial script via CSS transforms and `interpolate()`
+- [x] **COMP-05**: Text overlays and callout annotations label UI elements, show step numbers, and display keyboard shortcuts
+- [x] **COMP-06**: Animated cursor moves to click targets at each step, showing where the user would interact
 - [ ] **COMP-07**: `<TransitionSeries>` provides smooth cross-fades between tutorial steps instead of hard cuts
-- [ ] **COMP-08**: Intro and outro slates with tutorial title, AtlusDeck branding, and navigation context bookend each video
+- [x] **COMP-08**: Intro and outro slates with tutorial title, AtlusDeck branding, and navigation context bookend each video
 
 ### Tutorial Content — Low Complexity
 
@@ -123,11 +123,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-01 | Phase 65 | Complete |
 | COMP-02 | Phase 65 | Complete |
 | COMP-03 | Phase 65 | Complete |
-| COMP-04 | Phase 66 | Pending |
-| COMP-05 | Phase 66 | Pending |
-| COMP-06 | Phase 66 | Pending |
+| COMP-04 | Phase 66 | Complete |
+| COMP-05 | Phase 66 | Complete |
+| COMP-06 | Phase 66 | Complete |
 | COMP-07 | Phase 66 | Pending |
-| COMP-08 | Phase 66 | Pending |
+| COMP-08 | Phase 66 | Complete |
 | TUT-01 | Phase 67 | Pending |
 | TUT-02 | Phase 67 | Pending |
 | TUT-03 | Phase 67 | Pending |
@@ -153,4 +153,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-18*
-*Last updated: 2026-03-18 after roadmap creation*
+*Last updated: 2026-03-19 after Phase 66 Plan 01 completion*

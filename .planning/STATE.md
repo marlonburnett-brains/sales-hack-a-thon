@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
-status: completed
-stopped_at: Phase 66 context gathered
-last_updated: "2026-03-19T13:46:52.396Z"
-last_activity: "2026-03-19 -- Phase 65 Plan 02 complete: Render CLI pipeline with pre-validation and batch rendering"
+status: executing
+stopped_at: Completed 66-01-PLAN.md
+last_updated: "2026-03-19T15:34:27.609Z"
+last_activity: "2026-03-19 -- Phase 66 Plan 01 complete: Deterministic effect schema and reusable Remotion polish primitives"
 progress:
   total_phases: 9
   completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_plans: 12
+  completed_plans: 11
+  percent: 92
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos -- Phase 65: Remotion Composition Core (complete)
+**Current focus:** v1.9 Tutorial Videos -- Phase 66: Visual Effects & Polish (in progress)
 
 ## Current Position
 
-Phase: 65 (4 of 9 in v1.9) (Remotion Composition Core)
-Plan: 2 of 2 in current phase (phase complete)
-Status: Phase 65 complete -- Remotion composition layer + render pipeline CLI
-Last activity: 2026-03-19 -- Phase 65 Plan 02 complete: Render CLI pipeline with pre-validation and batch rendering
+Phase: 66 (5 of 9 in v1.9) (Visual Effects & Polish)
+Plan: 1 of 2 in current phase
+Status: Phase 66 in progress -- reusable effect primitives complete, composition wiring pending in 66-02
+Last activity: 2026-03-19 -- Phase 66 Plan 01 complete: Deterministic effect schema and reusable Remotion polish primitives
 
-Progress: [██████████] 100% (v1.9)
+Progress: [█████████░] 92% (11/12 planned tutorial-video plans on disk)
 
 ## Performance Metrics
 
@@ -73,6 +73,10 @@ Recent decisions for v1.9:
 - [Phase 65]: Audio from @remotion/media, layout=none on Sequences, 3s fallback for missing audio
 - [Phase 65]: Exported renderTutorial function from render.ts for reuse by render-all.ts
 - [Phase 65]: Sequential batch rendering per Remotion documentation recommendation
+- [Phase 66]: Effect coordinates use normalized 0-1 values for zoom, callout, and cursor targeting
+- [Phase 66]: Intro and outro slates use text-based AtlusDeck wordmarks until a brand asset is introduced
+- [Phase 66]: Effect coordinates use normalized 0-1 values for zoom, callout, and cursor targeting
+- [Phase 66]: Intro and outro slates use text-based AtlusDeck wordmarks until a brand asset is introduced
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T13:46:52.378Z
-Stopped at: Phase 66 context gathered
-Next action: Phase 65 complete. Proceed to Phase 66 (visual enhancements) or next milestone phase.
+Last session: 2026-03-19T15:34:27.535Z
+Stopped at: Completed 66-01-PLAN.md
+Next action: Execute 66-02 to wire TransitionSeries, integrate effect layers, and render the getting-started pilot.
