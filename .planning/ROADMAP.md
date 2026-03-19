@@ -144,6 +144,70 @@
 - [ ] **Phase 69: Medium-Complexity Tutorials (Library & Settings)** - Author scripts, fixtures, and captures for Template Library, Slide Library, Deck Structures, Agent Prompts, and AtlusAI Integration tutorials
 - [ ] **Phase 70: High-Complexity Tutorials** - Author scripts, fixtures, and captures for Touch 1-4 HITL workflows and Asset Review tutorial
 
+### Phase 62: Workspace & Mock Infrastructure
+**Goal**: Developer can run Playwright against the real Next.js app with fully mocked backend and capture deterministic screenshots
+**Depends on**: Nothing (first phase of v1.9)
+**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, INFRA-07, CAPT-01, CAPT-02
+**Success Criteria** (what must be TRUE):
+  1. Running `pnpm --filter tutorials capture <tutorial-name>` produces a set of numbered screenshots in the output directory for a pilot tutorial
+  2. All server-side API calls (Server Actions, agent routes) return fixture data from the mock agent server with no live backend required
+  3. All browser-side API calls return fixture JSON via page.route() helpers with no external network requests
+  4. Playwright navigates past the Google OAuth login wall using mocked session cookies without any real authentication
+  5. Screenshots are visually deterministic across repeated runs (CSS animations disabled, network idle waits enforced)
+**Plans:** 3 plans
+Plans:
+- [ ] 62-01-PLAN.md -- Scaffold workspace, tutorial script schema, and fixture factories
+- [ ] 62-02-PLAN.md -- Mock agent server, auth bypass, route mocks, and determinism utilities
+- [ ] 62-03-PLAN.md -- Capture orchestration, Getting Started pilot tutorial, and end-to-end verification
+
+### Phase 63: HITL & Async Mock Capture
+**Goal**: Playwright can capture multi-stage HITL workflows and polling-based async flows with pre-authored fixture sequences
+**Depends on**: Phase 62
+**Requirements**: CAPT-03, CAPT-04
+**Plans**: TBD
+
+### Phase 64: TTS Pipeline
+**Goal**: Developer can generate narration audio files from script text using either draft or production TTS engine
+**Depends on**: Phase 62 (needs tutorial script format from INFRA-02)
+**Requirements**: TTS-01, TTS-02, TTS-03, TTS-04
+**Plans**: TBD
+
+### Phase 65: Remotion Composition Core
+**Goal**: Developer can render a complete tutorial MP4 from screenshots and narration audio with synchronized playback
+**Depends on**: Phase 62, Phase 64 (needs screenshots and audio)
+**Requirements**: COMP-01, COMP-02, COMP-03
+**Plans**: TBD
+
+### Phase 66: Visual Effects & Polish
+**Goal**: Tutorial videos include professional visual enhancements that guide the viewer's attention and provide context
+**Depends on**: Phase 65
+**Requirements**: COMP-04, COMP-05, COMP-06, COMP-07, COMP-08
+**Plans**: TBD
+
+### Phase 67: Low-Complexity Tutorials
+**Goal**: Three introductory tutorials covering first-time user experience and basic settings are captured, narrated, and rendered as MP4 videos
+**Depends on**: Phase 66 (needs visual effects for production quality)
+**Requirements**: TUT-01, TUT-02, TUT-03
+**Plans**: TBD
+
+### Phase 68: Medium-Complexity Tutorials (Deals & Briefing)
+**Goal**: Four tutorials covering deal management and pre-call briefing workflows are captured, narrated, and rendered as MP4 videos
+**Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
+**Requirements**: TUT-04, TUT-05, TUT-06, TUT-07
+**Plans**: TBD
+
+### Phase 69: Medium-Complexity Tutorials (Library & Settings)
+**Goal**: Five tutorials covering template/slide management, deck intelligence, agent configuration, and AtlusAI integration are captured, narrated, and rendered as MP4 videos
+**Depends on**: Phase 63 (needs async mock patterns for ingestion), Phase 66 (needs visual effects)
+**Requirements**: TUT-08, TUT-09, TUT-10, TUT-11, TUT-12
+**Plans**: TBD
+
+### Phase 70: High-Complexity Tutorials
+**Goal**: Five tutorials covering multi-stage HITL touch workflows and asset review are captured, narrated, and rendered as MP4 videos
+**Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
+**Requirements**: TUT-13, TUT-14, TUT-15, TUT-16, TUT-17
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -157,7 +221,7 @@
 | 35-40 | v1.6 | 20/20 | Complete | 2026-03-08 |
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
-| 62. Workspace & Mock Infrastructure | v1.9 | 0/TBD | Not started | - |
+| 62. Workspace & Mock Infrastructure | v1.9 | 0/3 | Planning complete | - |
 | 63. HITL & Async Mock Capture | v1.9 | 0/TBD | Not started | - |
 | 64. TTS Pipeline | v1.9 | 0/TBD | Not started | - |
 | 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |
