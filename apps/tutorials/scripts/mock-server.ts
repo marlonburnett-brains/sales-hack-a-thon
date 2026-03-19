@@ -194,6 +194,18 @@ export function createMockServer(tutorialName: string): Express {
   // Deals
   // ────────────────────────────────────────────────────────────
 
+  /**
+   * Enrich a deal with joined company and interactions data.
+   * Mirrors the real agent server: prisma.deal.findMany({ include: { company: true, interactions: true } })
+   */
+  function enrichDeal(deal: (typeof fixtures.deals)[number]) {
+    const company = fixtures.companies.find((c) => c.id === deal.companyId) ?? null;
+    const interactions = (fixtures.interactions ?? []).filter(
+      (i) => i.dealId === deal.id
+    );
+    return { ...deal, company, interactions };
+  }
+
   app.get("/deals", (req: Request, res: Response) => {
     let result = [...fixtures.deals];
     const { status, assignee, userId, ownerId } = req.query;
@@ -209,15 +221,16 @@ export function createMockServer(tutorialName: string): Express {
     if (userId && typeof userId === "string") {
       result = result.filter((d) => d.ownerId === userId);
     }
-    res.json(result);
+    res.json(result.map(enrichDeal));
   });
 
   app.get("/deals/:id", (req: Request, res: Response) => {
     const deal = fixtures.deals.find((d) => d.id === req.params.id);
     if (deal) {
-      res.json(deal);
+      res.json(enrichDeal(deal));
     } else {
-      res.json(fixtures.deals[0] ?? { id: req.params.id, name: "Mock Deal" });
+      const fallback = fixtures.deals[0];
+      res.json(fallback ? enrichDeal(fallback) : { id: req.params.id, name: "Mock Deal" });
     }
   });
 
