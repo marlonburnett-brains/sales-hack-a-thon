@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import type { Server } from "node:http";
 import { TutorialScriptSchema } from "../src/types/tutorial-script.js";
 import { startMockServer } from "./mock-server.js";
@@ -13,12 +14,66 @@ import { startMockServer } from "./mock-server.js";
  * Flow:
  * 1. Load and validate tutorial script from fixtures/{name}/script.json
  * 2. Start mock agent server on port 4112
- * 3. Run Playwright spec: capture/{name}.spec.ts
- * 4. Shut down mock server
- * 5. Print summary
+ * 3. Start Next.js dev server on port 3099 with ALL services pointed at mock
+ * 4. Run Playwright spec: capture/{name}.spec.ts
+ * 5. Shut down both servers
+ * 6. Print summary
+ *
+ * Zero external dependencies — everything runs on mocks.
  */
 
 const MOCK_SERVER_PORT = 4112;
+const WEB_SERVER_PORT = 3099;
+const MONOREPO_ROOT = path.resolve(process.cwd(), "../..");
+
+async function waitForServer(
+  url: string,
+  timeoutMs: number = 60_000
+): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
+      if (res.status < 500) return; // Any non-5xx means server is up
+    } catch {
+      // Server not ready yet
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(`Server at ${url} did not start within ${timeoutMs}ms`);
+}
+
+function startNextServer(): ChildProcess {
+  const child = spawn("pnpm", ["--filter", "web", "dev", "--port", String(WEB_SERVER_PORT)], {
+    cwd: MONOREPO_ROOT,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      // Point ALL external services at the mock server — zero real connections
+      AGENT_SERVICE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+      NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
+    },
+  });
+
+  // Pipe server output with prefix for debugging
+  child.stdout?.on("data", (data: Buffer) => {
+    const lines = data.toString().split("\n").filter(Boolean);
+    for (const line of lines) {
+      console.log(`[web] ${line}`);
+    }
+  });
+  child.stderr?.on("data", (data: Buffer) => {
+    const lines = data.toString().split("\n").filter(Boolean);
+    for (const line of lines) {
+      // Filter noisy webpack warnings
+      if (line.includes("PackFileCacheStrategy")) continue;
+      console.error(`[web] ${line}`);
+    }
+  });
+
+  return child;
+}
 
 async function main(): Promise<void> {
   const tutorialName = process.argv[2];
@@ -33,18 +88,10 @@ async function main(): Promise<void> {
   // 1. Load and validate the tutorial script
   // ────────────────────────────────────────────────────────────
 
-  const scriptPath = path.join(
-    process.cwd(),
-    "fixtures",
-    tutorialName,
-    "script.json"
-  );
+  const scriptPath = path.join(process.cwd(), "fixtures", tutorialName, "script.json");
 
   if (!fs.existsSync(scriptPath)) {
     console.error(`Error: Tutorial script not found: ${scriptPath}`);
-    console.error(
-      `\nTo generate it, run: pnpm --filter tutorials generate ${tutorialName}`
-    );
     process.exit(1);
   }
 
@@ -63,27 +110,35 @@ async function main(): Promise<void> {
   console.log(`Output: output/${tutorialName}/\n`);
 
   // ────────────────────────────────────────────────────────────
-  // 2. Start mock agent server
+  // 2. Start mock agent server (handles Supabase auth + agent API)
   // ────────────────────────────────────────────────────────────
 
-  let server: Server | null = null;
+  let mockServer: Server | null = null;
+  let nextProcess: ChildProcess | null = null;
 
   try {
-    console.log(`Starting mock agent server on port ${MOCK_SERVER_PORT}...`);
+    console.log(`Starting mock server on port ${MOCK_SERVER_PORT}...`);
     const result = await startMockServer(tutorialName, MOCK_SERVER_PORT);
-    server = result.server;
+    mockServer = result.server;
     console.log(`Mock server ready on port ${result.port}`);
 
     // ────────────────────────────────────────────────────────────
-    // 3. Run Playwright
+    // 3. Start Next.js dev server with ALL services mocked
+    // ────────────────────────────────────────────────────────────
+
+    console.log(`Starting Next.js dev server on port ${WEB_SERVER_PORT}...`);
+    nextProcess = startNextServer();
+
+    await waitForServer(`http://localhost:${WEB_SERVER_PORT}`, 90_000);
+    console.log(`Next.js dev server ready on port ${WEB_SERVER_PORT}`);
+
+    // ────────────────────────────────────────────────────────────
+    // 4. Run Playwright
     // ────────────────────────────────────────────────────────────
 
     const specPath = path.join("capture", `${tutorialName}.spec.ts`);
     if (!fs.existsSync(path.join(process.cwd(), specPath))) {
       console.error(`Error: Playwright spec not found: ${specPath}`);
-      console.error(
-        "Create it at apps/tutorials/capture/" + tutorialName + ".spec.ts"
-      );
       process.exit(1);
     }
 
@@ -96,20 +151,19 @@ async function main(): Promise<void> {
         env: {
           ...process.env,
           TUTORIAL_NAME: tutorialName,
-          // Point ALL external services at the mock server — zero real connections
+          TUTORIAL_WEB_PORT: String(WEB_SERVER_PORT),
           AGENT_SERVICE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
           NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
         },
       });
     } catch {
-      // Playwright exited with non-zero -- screenshots may be partial
       console.error("\nPlaywright test failed. Check output above for details.");
       process.exit(1);
     }
 
     // ────────────────────────────────────────────────────────────
-    // 4. Print summary
+    // 5. Print summary
     // ────────────────────────────────────────────────────────────
 
     const outputDir = path.join(process.cwd(), "output", tutorialName);
@@ -128,26 +182,23 @@ async function main(): Promise<void> {
       );
     }
   } catch (err) {
-    if (
-      err instanceof Error &&
-      err.message.includes("EADDRINUSE")
-    ) {
-      console.error(
-        `Error: Port ${MOCK_SERVER_PORT} is already in use.`
-      );
-      console.error(
-        "Kill the existing process or choose a different port."
-      );
+    if (err instanceof Error && err.message.includes("EADDRINUSE")) {
+      console.error(`Error: A required port is already in use.`);
+      console.error("Kill existing processes or choose different ports.");
     } else {
       console.error("Capture failed:", err);
     }
     process.exit(1);
   } finally {
     // ────────────────────────────────────────────────────────────
-    // 5. Always shut down mock server
+    // 6. Always shut down both servers
     // ────────────────────────────────────────────────────────────
-    if (server) {
-      server.close();
+    if (nextProcess) {
+      nextProcess.kill("SIGTERM");
+      console.log("Next.js dev server stopped.");
+    }
+    if (mockServer) {
+      mockServer.close();
       console.log("Mock server stopped.");
     }
   }

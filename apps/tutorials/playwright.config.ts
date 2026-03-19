@@ -1,8 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Dedicated port for tutorial captures — avoids conflict with normal dev server
-const TUTORIAL_WEB_PORT = 3099;
-const MOCK_SERVER_PORT = 4112;
+// Port configuration — capture.ts manages both servers, not Playwright
+const TUTORIAL_WEB_PORT = Number(process.env.TUTORIAL_WEB_PORT ?? 3099);
 
 export default defineConfig({
   testDir: "./capture",
@@ -22,15 +21,5 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: `pnpm --filter web dev --port ${TUTORIAL_WEB_PORT}`,
-    url: `http://localhost:${TUTORIAL_WEB_PORT}`,
-    reuseExistingServer: false,
-    env: {
-      // Point ALL external services at the mock server — zero real connections
-      AGENT_SERVICE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
-      NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
-    },
-  },
+  // No webServer — capture.ts starts both mock server and Next.js with mock env vars
 });
