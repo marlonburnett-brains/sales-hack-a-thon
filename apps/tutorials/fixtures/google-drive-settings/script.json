@@ -1,0 +1,64 @@
+{
+  "id": "google-drive-settings",
+  "title": "Configuring Google Drive Settings",
+  "description": "Learn how to connect your Google Drive folder so AtlusDeck can store generated decks automatically.",
+  "fixtures": "google-drive-settings",
+  "steps": [
+    {
+      "id": "step-001",
+      "url": "/settings",
+      "narration": "Let's configure your Google Drive connection. The settings page is your hub for managing integrations, deck structures, and agent configurations.",
+      "waitFor": "main",
+      "emotion": "professional"
+    },
+    {
+      "id": "step-002",
+      "url": "/settings/drive",
+      "narration": "Here are your Drive settings. Right now no folder is selected, so AtlusDeck doesn't have a place to save your generated decks. Let's fix that.",
+      "waitFor": "main",
+      "mockStage": "unconfigured",
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.4,
+        "x": 0.5,
+        "y": 0.35
+      },
+      "delayMs": 1000
+    },
+    {
+      "id": "step-003",
+      "url": "/settings/drive",
+      "narration": "Click Choose Folder to open the Google Drive picker and select your root folder. This is where AtlusDeck will store all your generated decks.",
+      "waitFor": "main",
+      "callout": {
+        "text": "Click here to open the Drive folder picker.",
+        "x": 0.5,
+        "y": 0.45
+      },
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "step-004",
+      "url": "/settings/drive",
+      "narration": "Once you've selected a folder, you'll see it confirmed here. AtlusDeck will now save all generated decks to this location automatically.",
+      "waitFor": "main",
+      "mockStage": "configured",
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.35,
+        "x": 0.5,
+        "y": 0.35
+      }
+    },
+    {
+      "id": "step-005",
+      "url": "/settings",
+      "narration": "That's all there is to it. Your Drive connection is ready and AtlusDeck will handle file storage from here. Head back to settings to explore other configuration options.",
+      "waitFor": "main",
+      "emotion": "calm"
+    }
+  ]
+}
