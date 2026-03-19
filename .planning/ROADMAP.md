@@ -225,7 +225,7 @@ Plans:
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
-| 63. HITL & Async Mock Capture | 2/2 | Complete   | 2026-03-19 | - |
+| 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
 | 64. TTS Pipeline | v1.9 | 0/TBD | Not started | - |
 | 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |
 | 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
