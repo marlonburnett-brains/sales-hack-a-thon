@@ -5,11 +5,13 @@ import {
   UserFixtureSchema,
   TemplateFixtureSchema,
   SlideFixtureSchema,
+  InteractionFixtureSchema,
   type CompanyFixture,
   type DealFixture,
   type UserFixture,
   type TemplateFixture,
   type SlideFixture,
+  type InteractionFixture,
   type FixtureSet,
 } from "./types.js";
 
@@ -152,6 +154,31 @@ const DEFAULT_SLIDE: SlideFixture = {
 export const createSlideFixture = createFactory(
   SlideFixtureSchema,
   DEFAULT_SLIDE
+);
+
+// ────────────────────────────────────────────────────────────
+// Interaction Factory
+// ────────────────────────────────────────────────────────────
+
+const DEFAULT_INTERACTION: InteractionFixture = {
+  id: "int-001",
+  dealId: "deal-001",
+  touchType: "touch_4",
+  status: "in_progress",
+  inputs: "{}",
+  decision: null,
+  generatedContent: null,
+  outputRefs: null,
+  driveFileId: null,
+  hitlStage: "idle",
+  stageContent: null,
+  createdAt: "2026-03-01T10:00:00.000Z",
+  updatedAt: "2026-03-01T10:00:00.000Z",
+};
+
+export const createInteractionFixture = createFactory(
+  InteractionFixtureSchema,
+  DEFAULT_INTERACTION
 );
 
 // ────────────────────────────────────────────────────────────

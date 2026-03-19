@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { FixtureSet } from "./types.js";
+import { StageFixtureSchema, SequenceFileSchema } from "./types.js";
+import type { FixtureSet, StageFixture, SequenceFile } from "./types.js";
 
 /**
  * Fixture Loader
@@ -18,7 +19,7 @@ const FIXTURES_DIR = path.join(process.cwd(), "fixtures");
  * Deep merge source into target. Arrays are replaced (not concatenated).
  * Objects are recursively merged.
  */
-function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
+export function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
   const result = { ...target };
 
   for (const key of Object.keys(source) as Array<keyof T>) {
@@ -86,4 +87,71 @@ export function loadFixtures(tutorialName: string): FixtureSet {
   }
 
   return fixtures;
+}
+
+/**
+ * Load stage-specific fixture overrides for a given tutorial and stage.
+ *
+ * Loads from fixtures/{tutorialName}/stages/{stage}.json if it exists.
+ * Returns null if the file doesn't exist (stage has no overrides).
+ * Validates against StageFixtureSchema at load time.
+ *
+ * @param tutorialName - Tutorial identifier (e.g., "touch-4-hitl")
+ * @param stage - HITL stage name (e.g., "skeleton", "hifi")
+ */
+export function loadStageFixtures(
+  tutorialName: string,
+  stage: string
+): Partial<FixtureSet> | null {
+  const stagePath = path.join(
+    FIXTURES_DIR,
+    tutorialName,
+    "stages",
+    `${stage}.json`
+  );
+  const raw = loadJsonFile<unknown>(stagePath);
+  if (raw === null) return null;
+
+  const parsed = StageFixtureSchema.parse(raw);
+  return parsed as Partial<FixtureSet>;
+}
+
+/**
+ * Load all sequence files for a given tutorial.
+ *
+ * Reads all JSON files from fixtures/{tutorialName}/sequences/ directory.
+ * Each file is an ordered array of responses validated against SequenceFileSchema.
+ * Returns a record keyed by filename (without .json extension).
+ *
+ * Example: sequences/workflow-status.json -> { "workflow-status": [...] }
+ *
+ * Returns empty record if the sequences directory doesn't exist.
+ *
+ * @param tutorialName - Tutorial identifier (e.g., "touch-4-hitl")
+ */
+export function loadSequences(
+  tutorialName: string
+): Record<string, unknown[]> {
+  const seqDir = path.join(FIXTURES_DIR, tutorialName, "sequences");
+
+  if (!fs.existsSync(seqDir) || !fs.statSync(seqDir).isDirectory()) {
+    return {};
+  }
+
+  const files = fs
+    .readdirSync(seqDir)
+    .filter((f) => f.endsWith(".json"));
+
+  const sequences: Record<string, unknown[]> = {};
+
+  for (const file of files) {
+    const key = path.basename(file, ".json");
+    const raw = loadJsonFile<unknown[]>(path.join(seqDir, file));
+    if (raw !== null) {
+      const validated = SequenceFileSchema.parse(raw);
+      sequences[key] = validated;
+    }
+  }
+
+  return sequences;
 }

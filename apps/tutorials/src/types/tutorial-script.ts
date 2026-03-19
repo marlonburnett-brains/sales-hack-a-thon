@@ -70,6 +70,16 @@ export const StepSchema = z.object({
     .optional(),
   /** Step-specific fixture overrides merged onto shared fixtures */
   mockOverrides: z.record(z.string(), z.unknown()).optional(),
+  /** HITL stage to set on mock server before this step executes */
+  mockStage: z
+    .enum(["idle", "generating", "skeleton", "lowfi", "hifi", "completed"])
+    .optional(),
+  /** Text to wait for on screen before taking screenshot (full-page text search) */
+  waitForText: z.string().optional(),
+  /** Sequence keys to reset on mock server before this step executes */
+  resetSequences: z.array(z.string()).optional(),
+  /** Pause in milliseconds before screenshot for UI settling */
+  delayMs: z.number().optional(),
 });
 
 export const TutorialScriptSchema = z.object({
@@ -83,6 +93,10 @@ export const TutorialScriptSchema = z.object({
   steps: z.array(StepSchema).min(1),
   /** Name of the fixture set to use (defaults to "shared") */
   fixtures: z.string().optional(),
+  /** Touch type for HITL tutorials (determines stage progression) */
+  touchType: z
+    .enum(["touch-1", "touch-2", "touch-3", "touch-4", "pre-call"])
+    .optional(),
 });
 
 export type TutorialScript = z.infer<typeof TutorialScriptSchema>;

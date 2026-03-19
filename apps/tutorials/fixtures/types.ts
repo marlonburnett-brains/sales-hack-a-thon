@@ -166,3 +166,54 @@ export const FixtureSetSchema = z.object({
 });
 
 export type FixtureSet = z.infer<typeof FixtureSetSchema>;
+
+// ────────────────────────────────────────────────────────────
+// Stage Fixture (partial FixtureSet override for a specific HITL stage)
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Stage fixtures are partial overrides applied on top of the base FixtureSet
+ * when the mock server is set to a specific stage (e.g., "skeleton", "hifi").
+ * Each field is optional; only the fields present in the stage file are merged.
+ * `.passthrough()` allows additional ad-hoc fields for stage-specific data.
+ */
+export const StageFixtureSchema = z
+  .object({
+    companies: z.array(CompanyFixtureSchema).optional(),
+    deals: z.array(DealFixtureSchema).optional(),
+    users: z.array(UserFixtureSchema).optional(),
+    templates: z.array(TemplateFixtureSchema).optional(),
+    slides: z.array(SlideFixtureSchema).optional(),
+    interactions: z.array(InteractionFixtureSchema).optional(),
+    tokenCheck: TokenCheckFixtureSchema.optional(),
+  })
+  .passthrough();
+
+export type StageFixture = z.infer<typeof StageFixtureSchema>;
+
+// ────────────────────────────────────────────────────────────
+// Sequence (ordered polling responses for async flow simulation)
+// ────────────────────────────────────────────────────────────
+
+/**
+ * Each sequence response is a flexible object representing one polling response.
+ * Common fields: status, runId, steps, result -- but shape varies by endpoint.
+ * `.passthrough()` allows any additional fields the specific endpoint needs.
+ */
+export const SequenceResponseSchema = z
+  .object({
+    status: z.string().optional(),
+    runId: z.string().optional(),
+    steps: z.record(z.unknown()).optional(),
+    result: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
+
+/**
+ * A sequence file is an ordered array of responses. The mock server serves
+ * them in order, repeating the last response after exhaustion.
+ */
+export const SequenceFileSchema = z.array(SequenceResponseSchema).min(1);
+
+export type SequenceResponse = z.infer<typeof SequenceResponseSchema>;
+export type SequenceFile = z.infer<typeof SequenceFileSchema>;
