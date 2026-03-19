@@ -4,7 +4,7 @@ milestone: v1.9
 milestone_name: Tutorial Videos
 status: executing
 stopped_at: Completed 66-01-PLAN.md
-last_updated: "2026-03-19T15:34:27.609Z"
+last_updated: "2026-03-19T15:35:22Z"
 last_activity: "2026-03-19 -- Phase 66 Plan 01 complete: Deterministic effect schema and reusable Remotion polish primitives"
 progress:
   total_phases: 9
@@ -75,8 +75,6 @@ Recent decisions for v1.9:
 - [Phase 65]: Sequential batch rendering per Remotion documentation recommendation
 - [Phase 66]: Effect coordinates use normalized 0-1 values for zoom, callout, and cursor targeting
 - [Phase 66]: Intro and outro slates use text-based AtlusDeck wordmarks until a brand asset is introduced
-- [Phase 66]: Effect coordinates use normalized 0-1 values for zoom, callout, and cursor targeting
-- [Phase 66]: Intro and outro slates use text-based AtlusDeck wordmarks until a brand asset is introduced
 
 ### Pending Todos
 
@@ -91,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T15:34:27.535Z
+Last session: 2026-03-19T15:35:22Z
 Stopped at: Completed 66-01-PLAN.md
 Next action: Execute 66-02 to wire TransitionSeries, integrate effect layers, and render the getting-started pilot.
