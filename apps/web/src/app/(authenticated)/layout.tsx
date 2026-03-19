@@ -7,18 +7,6 @@ export default async function AuthenticatedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Tutorial mock mode — skip Supabase auth entirely
-  if (process.env.MOCK_AUTH === "true") {
-    const name = "Tutorial User";
-    const email = "tutorial@example.com";
-    const avatarUrl = "";
-    return (
-      <Sidebar user={{ name, email, avatarUrl }}>
-        {children}
-      </Sidebar>
-    );
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
