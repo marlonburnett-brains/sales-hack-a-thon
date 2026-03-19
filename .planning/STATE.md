@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: executing
-stopped_at: Completed 66-01-PLAN.md
-last_updated: "2026-03-19T15:35:22Z"
-last_activity: "2026-03-19 -- Phase 66 Plan 01 complete: Deterministic effect schema and reusable Remotion polish primitives"
+stopped_at: Completed 66-02-PLAN.md
+last_updated: "2026-03-19T15:50:41.941Z"
+last_activity: "2026-03-19 -- Phase 66 Plan 02 complete: TransitionSeries timeline and integrated visual effects pipeline"
 progress:
   total_phases: 9
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
   percent: 92
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos -- Phase 66: Visual Effects & Polish (in progress)
+**Current focus:** v1.9 Tutorial Videos -- Phase 67: Low-Complexity Tutorials (ready to start)
 
 ## Current Position
 
 Phase: 66 (5 of 9 in v1.9) (Visual Effects & Polish)
-Plan: 1 of 2 in current phase
-Status: Phase 66 in progress -- reusable effect primitives complete, composition wiring pending in 66-02
-Last activity: 2026-03-19 -- Phase 66 Plan 01 complete: Deterministic effect schema and reusable Remotion polish primitives
+Plan: 2 of 2 in current phase
+Status: Phase 66 complete -- TransitionSeries timeline, effect layers, and pilot render verification shipped
+Last activity: 2026-03-19 -- Phase 66 Plan 02 complete: TransitionSeries timeline and integrated visual effects pipeline
 
-Progress: [█████████░] 92% (11/12 planned tutorial-video plans on disk)
+Progress: [██████████] 100% (12/12 planned tutorial-video plans on disk)
 
 ## Performance Metrics
 
@@ -75,6 +75,12 @@ Recent decisions for v1.9:
 - [Phase 65]: Sequential batch rendering per Remotion documentation recommendation
 - [Phase 66]: Effect coordinates use normalized 0-1 values for zoom, callout, and cursor targeting
 - [Phase 66]: Intro and outro slates use text-based AtlusDeck wordmarks until a brand asset is introduced
+- [Phase 66]: Render input props merge timing manifests with fixture script metadata by step id before composition selection
+- [Phase 66]: Cursor continuity comes only from click or hover steps; informational scenes never show a cursor from coordinates alone
+- [Phase 66]: Composition timing uses 90-frame intro, 120-frame outro, and 15-frame fades between every scene boundary
+- [Phase 66]: Render input props now merge timing manifests with fixture script metadata by step id before composition selection — Prepared composition inputs keep Remotion rendering deterministic and avoid runtime joins inside the timeline.
+- [Phase 66]: Cursor continuity comes only from click or hover steps; informational steps never show a cursor just because coordinates exist — This preserves clean non-interactive scenes while still giving viewers motion guidance where interaction actually happens.
+- [Phase 66]: The composition uses 90-frame intro, 120-frame outro, and 15-frame fades between every scene boundary — Shared timing values keep metadata duration math and the visible TransitionSeries rhythm aligned.
 
 ### Pending Todos
 
@@ -89,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T15:35:22Z
-Stopped at: Completed 66-01-PLAN.md
-Next action: Execute 66-02 to wire TransitionSeries, integrate effect layers, and render the getting-started pilot.
+Last session: 2026-03-19T15:49:57.601Z
+Stopped at: Completed 66-02-PLAN.md
+Next action: Plan and execute Phase 67 low-complexity tutorial authoring on top of the finished visual-effects pipeline.

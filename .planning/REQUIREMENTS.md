@@ -39,7 +39,7 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 - [x] **COMP-04**: Zoom/pan effects highlight specific UI regions defined in the tutorial script via CSS transforms and `interpolate()`
 - [x] **COMP-05**: Text overlays and callout annotations label UI elements, show step numbers, and display keyboard shortcuts
 - [x] **COMP-06**: Animated cursor moves to click targets at each step, showing where the user would interact
-- [ ] **COMP-07**: `<TransitionSeries>` provides smooth cross-fades between tutorial steps instead of hard cuts
+- [x] **COMP-07**: `<TransitionSeries>` provides smooth cross-fades between tutorial steps instead of hard cuts
 - [x] **COMP-08**: Intro and outro slates with tutorial title, AtlusDeck branding, and navigation context bookend each video
 
 ### Tutorial Content — Low Complexity
@@ -126,7 +126,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-04 | Phase 66 | Complete |
 | COMP-05 | Phase 66 | Complete |
 | COMP-06 | Phase 66 | Complete |
-| COMP-07 | Phase 66 | Pending |
+| COMP-07 | Phase 66 | Complete |
 | COMP-08 | Phase 66 | Complete |
 | TUT-01 | Phase 67 | Pending |
 | TUT-02 | Phase 67 | Pending |
