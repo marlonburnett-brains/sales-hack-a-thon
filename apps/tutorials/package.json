@@ -6,7 +6,9 @@
     "generate": "tsx scripts/generate-script.ts",
     "tts": "tsx scripts/tts.ts",
     "tts:draft": "tsx scripts/tts.ts --engine kokoro",
-    "tts:prod": "tsx scripts/tts.ts --engine chatterbox"
+    "tts:prod": "tsx scripts/tts.ts --engine chatterbox",
+    "render": "tsx scripts/render.ts",
+    "render:all": "tsx scripts/render-all.ts"
   },
   "dependencies": {
     "@lumenalta/schemas": "workspace:*",

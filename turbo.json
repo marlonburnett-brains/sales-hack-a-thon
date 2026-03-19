@@ -35,6 +35,10 @@
     "tts": {
       "cache": false,
       "persistent": false
+    },
+    "render": {
+      "cache": false,
+      "persistent": false
     }
   }
 }
