@@ -1,0 +1,1 @@
+Place reference-voice.wav here (~10s female narrator clip for Chatterbox voice consistency). Generate with: pnpm --filter tutorials tts getting-started --engine kokoro, then extract a clean 10s clip from the output.
