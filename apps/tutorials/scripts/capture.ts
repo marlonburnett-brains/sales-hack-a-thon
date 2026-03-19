@@ -96,7 +96,10 @@ async function main(): Promise<void> {
         env: {
           ...process.env,
           TUTORIAL_NAME: tutorialName,
+          // Point ALL external services at the mock server — zero real connections
           AGENT_SERVICE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+          NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
         },
       });
     } catch {

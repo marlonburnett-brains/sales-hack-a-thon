@@ -177,6 +177,49 @@ export async function mockBrowserAPIs(
   });
 
   // ────────────────────────────────────────────────────────────
+  // Supabase Auth (client-side calls from @supabase/ssr)
+  // Intercept any browser-side auth refresh/session calls
+  // ────────────────────────────────────────────────────────────
+
+  await page.route("**/auth/v1/user*", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "00000000-0000-0000-0000-000000000001",
+        email: "tutorial@example.com",
+        aud: "authenticated",
+        role: "authenticated",
+        app_metadata: { provider: "email", providers: ["email"] },
+        user_metadata: { full_name: "Tutorial User" },
+        created_at: "2025-01-01T00:00:00.000Z",
+        updated_at: "2025-01-01T00:00:00.000Z",
+      }),
+    });
+  });
+
+  await page.route("**/auth/v1/token*", async (route: Route) => {
+    const now = Math.floor(Date.now() / 1000);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access_token: "mock-access-token",
+        refresh_token: "mock-refresh-token",
+        token_type: "bearer",
+        expires_in: 86400,
+        expires_at: now + 86400,
+        user: {
+          id: "00000000-0000-0000-0000-000000000001",
+          email: "tutorial@example.com",
+          aud: "authenticated",
+          role: "authenticated",
+        },
+      }),
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────
   // Catch-all for unhandled /api/* routes
   // Warns but still returns 200 to prevent UI errors
   // ────────────────────────────────────────────────────────────

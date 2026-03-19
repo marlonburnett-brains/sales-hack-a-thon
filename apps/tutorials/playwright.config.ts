@@ -23,9 +23,10 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: true,
     env: {
+      // Point ALL external services at the mock server — zero real connections
       AGENT_SERVICE_URL: "http://localhost:4112",
-      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      NEXT_PUBLIC_SUPABASE_URL: "http://localhost:4112",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
     },
   },
 });

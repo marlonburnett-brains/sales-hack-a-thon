@@ -1,91 +1,92 @@
 import type { Page } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
-import * as path from "node:path";
 
 /**
- * Auth Helper for Tutorial Captures
+ * Auth Helper for Tutorial Captures — Fully Mocked
  *
- * Signs in a real Supabase test user via signInWithPassword() and injects
- * the session into the Playwright browser. This produces valid tokens that
- * satisfy both middleware auth paths:
- *   - getSession() (fast, cookie-only, RSC requests)
- *   - getUser() (full server validation, page loads)
+ * Injects synthetic Supabase auth state (cookies + localStorage) so the
+ * Next.js middleware considers the browser "authenticated" without ever
+ * contacting a real Supabase instance.
+ *
+ * The companion mock-server.ts serves `/auth/v1/*` endpoints so
+ * server-side getUser()/getSession() calls also succeed.
+ *
+ * NO external credentials are required.
  */
 
-const STORAGE_STATE_DIR = path.join(
-  process.cwd(),
-  "apps",
-  "tutorials",
-  ".auth"
-);
+/** Deterministic fake user for tutorials */
+const MOCK_USER = {
+  id: "00000000-0000-0000-0000-000000000001",
+  email: "tutorial@example.com",
+  aud: "authenticated",
+  role: "authenticated",
+  app_metadata: { provider: "email", providers: ["email"] },
+  user_metadata: { full_name: "Tutorial User" },
+  created_at: "2025-01-01T00:00:00.000Z",
+  updated_at: "2025-01-01T00:00:00.000Z",
+};
 
 /**
- * Get the file path for cached auth storage state.
+ * Build a fake (unsigned) JWT that Supabase SSR can decode.
+ *
+ * Supabase's `getSession()` only base64-decodes the payload — it does NOT
+ * verify the signature when reading from cookies. So a structurally valid
+ * but unsigned token is sufficient.
  */
-export function getStorageStatePath(): string {
-  return path.join(STORAGE_STATE_DIR, "state.json");
+function buildFakeJWT(): string {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    sub: MOCK_USER.id,
+    email: MOCK_USER.email,
+    aud: "authenticated",
+    role: "authenticated",
+    iss: "http://localhost:4112/auth/v1",
+    iat: now,
+    exp: now + 86400, // 24 hours
+    session_id: "mock-session-id",
+    app_metadata: MOCK_USER.app_metadata,
+    user_metadata: MOCK_USER.user_metadata,
+  };
+
+  const encode = (obj: unknown) =>
+    Buffer.from(JSON.stringify(obj))
+      .toString("base64url")
+      .replace(/=+$/, "");
+
+  // Header.Payload.FakeSignature
+  return `${encode(header)}.${encode(payload)}.mock-signature`;
 }
 
 /**
- * Ensure a valid Supabase auth session is injected into the browser page.
+ * Build the session object that Supabase SSR stores in cookies.
+ */
+function buildFakeSession() {
+  const accessToken = buildFakeJWT();
+  return {
+    access_token: accessToken,
+    refresh_token: "mock-refresh-token",
+    token_type: "bearer",
+    expires_in: 86400,
+    expires_at: Math.floor(Date.now() / 1000) + 86400,
+    user: MOCK_USER,
+  };
+}
+
+/**
+ * Inject synthetic auth state into the Playwright browser context.
  *
- * Flow:
- * 1. Signs in via Supabase REST API (signInWithPassword)
- * 2. Injects session into localStorage (for client-side Supabase reads)
- * 3. Sets Supabase auth cookies (for SSR middleware getSession/getUser)
+ * Sets:
+ * 1. Supabase SSR auth cookies (for middleware getSession/getUser)
+ * 2. localStorage entry (for client-side Supabase reads)
+ * 3. google-token-status cookie (prevents middleware token check)
  *
- * Required env vars:
- *   - NEXT_PUBLIC_SUPABASE_URL
- *   - NEXT_PUBLIC_SUPABASE_ANON_KEY
- *   - TUTORIAL_USER_EMAIL
- *   - TUTORIAL_USER_PASSWORD
+ * No network calls. No env vars required.
  */
 export async function ensureAuthState(page: Page): Promise<void> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const email = process.env.TUTORIAL_USER_EMAIL;
-  const password = process.env.TUTORIAL_USER_PASSWORD;
+  const session = buildFakeSession();
+  const storageKey = "sb-localhost-auth-token";
 
-  if (!supabaseUrl) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL is required. Set it in apps/tutorials/.env"
-    );
-  }
-  if (!supabaseAnonKey) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_ANON_KEY is required. Set it in apps/tutorials/.env"
-    );
-  }
-  if (!email || !password) {
-    throw new Error(
-      "TUTORIAL_USER_EMAIL and TUTORIAL_USER_PASSWORD are required. " +
-        "Create a test user in Supabase with password auth enabled, " +
-        "then set these in apps/tutorials/.env"
-    );
-  }
-
-  // Create Supabase client and sign in
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error || !data.session) {
-    throw new Error(
-      `Supabase auth failed: ${error?.message ?? "No session returned"}. ` +
-        "Ensure the test user exists and password auth is enabled in Supabase."
-    );
-  }
-
-  const session = data.session;
-
-  // Extract Supabase project ref from URL (e.g., "abcdefgh" from "https://abcdefgh.supabase.co")
-  const ref = new URL(supabaseUrl).hostname.split(".")[0];
-  const storageKey = `sb-${ref}-auth-token`;
-
-  // Inject session into browser localStorage (for client-side Supabase reads)
+  // ── 1. Inject localStorage for client-side Supabase client ──
   await page.addInitScript(
     (args: { key: string; session: unknown }) => {
       localStorage.setItem(args.key, JSON.stringify(args.session));
@@ -93,37 +94,36 @@ export async function ensureAuthState(page: Page): Promise<void> {
     { key: storageKey, session }
   );
 
-  // Set Supabase auth cookies (for SSR middleware)
-  // The @supabase/ssr package stores the session in chunked cookies
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL)
-    : new URL("http://localhost:3000");
-
-  const cookieBase = `sb-${ref}-auth-token`;
+  // ── 2. Set Supabase SSR auth cookies ──
+  // @supabase/ssr stores session as base64 chunks in cookies.
   const sessionJson = JSON.stringify(session);
+  const encoded = `base64-${Buffer.from(sessionJson).toString("base64")}`;
+  const cookieBase = "sb-localhost-auth-token";
+  const maxChunkSize = 3180;
 
-  // Supabase SSR stores session as base64 chunks in cookies
-  // For simplicity, set a single cookie (works for sessions under ~4KB)
-  const cookies = [
-    {
-      name: `${cookieBase}`,
-      value: `base64-${Buffer.from(sessionJson).toString("base64")}`,
+  const cookies: Array<{
+    name: string;
+    value: string;
+    domain: string;
+    path: string;
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: "Lax";
+    expires: number;
+  }> = [];
+
+  if (encoded.length <= maxChunkSize) {
+    cookies.push({
+      name: cookieBase,
+      value: encoded,
       domain: "localhost",
       path: "/",
       httpOnly: false,
       secure: false,
-      sameSite: "Lax" as const,
-      expires: Math.floor(Date.now() / 1000) + 3600,
-    },
-  ];
-
-  // If session is large, chunk it (Supabase SSR uses .0, .1, .2 suffixes)
-  const maxChunkSize = 3180; // ~3KB per cookie chunk (leaves room for cookie overhead)
-  const encoded = `base64-${Buffer.from(sessionJson).toString("base64")}`;
-
-  if (encoded.length > maxChunkSize) {
-    // Clear the single cookie approach -- use chunks
-    cookies.length = 0;
+      sameSite: "Lax",
+      expires: Math.floor(Date.now() / 1000) + 86400,
+    });
+  } else {
     const chunks = Math.ceil(encoded.length / maxChunkSize);
     for (let i = 0; i < chunks; i++) {
       cookies.push({
@@ -133,15 +133,15 @@ export async function ensureAuthState(page: Page): Promise<void> {
         path: "/",
         httpOnly: false,
         secure: false,
-        sameSite: "Lax" as const,
-        expires: Math.floor(Date.now() / 1000) + 3600,
+        sameSite: "Lax",
+        expires: Math.floor(Date.now() / 1000) + 86400,
       });
     }
   }
 
   await page.context().addCookies(cookies);
 
-  // Also set the google-token-status cookie to prevent middleware token check
+  // ── 3. Set google-token-status cookie (prevents middleware token check) ──
   await page.context().addCookies([
     {
       name: "google-token-status",
@@ -150,8 +150,11 @@ export async function ensureAuthState(page: Page): Promise<void> {
       path: "/",
       httpOnly: false,
       secure: false,
-      sameSite: "Lax" as const,
-      expires: Math.floor(Date.now() / 1000) + 3600,
+      sameSite: "Lax",
+      expires: Math.floor(Date.now() / 1000) + 86400,
     },
   ]);
 }
+
+/** Re-export for tests that need the mock user shape */
+export { MOCK_USER };

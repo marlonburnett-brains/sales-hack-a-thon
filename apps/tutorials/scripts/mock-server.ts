@@ -23,6 +23,64 @@ export function createMockServer(tutorialName: string): Express {
 
   app.use(express.json());
 
+  // ════════════════════════════════════════════════════════════
+  // Supabase Auth API (fully mocked — no real Supabase needed)
+  // The Next.js app is started with NEXT_PUBLIC_SUPABASE_URL
+  // pointing here, so all auth calls land on these routes.
+  // ════════════════════════════════════════════════════════════
+
+  const MOCK_USER = {
+    id: "00000000-0000-0000-0000-000000000001",
+    email: "tutorial@example.com",
+    aud: "authenticated",
+    role: "authenticated",
+    app_metadata: { provider: "email", providers: ["email"] },
+    user_metadata: { full_name: "Tutorial User" },
+    created_at: "2025-01-01T00:00:00.000Z",
+    updated_at: "2025-01-01T00:00:00.000Z",
+  };
+
+  // getUser() — middleware calls this on full page loads
+  app.get("/auth/v1/user", (_req: Request, res: Response) => {
+    res.json(MOCK_USER);
+  });
+
+  // signInWithPassword / token exchange
+  app.post("/auth/v1/token", (_req: Request, res: Response) => {
+    const now = Math.floor(Date.now() / 1000);
+    res.json({
+      access_token: "mock-access-token",
+      refresh_token: "mock-refresh-token",
+      token_type: "bearer",
+      expires_in: 86400,
+      expires_at: now + 86400,
+      user: MOCK_USER,
+    });
+  });
+
+  // Token refresh
+  app.post("/auth/v1/token?grant_type=refresh_token", (_req: Request, res: Response) => {
+    const now = Math.floor(Date.now() / 1000);
+    res.json({
+      access_token: "mock-access-token-refreshed",
+      refresh_token: "mock-refresh-token-refreshed",
+      token_type: "bearer",
+      expires_in: 86400,
+      expires_at: now + 86400,
+      user: MOCK_USER,
+    });
+  });
+
+  // Logout
+  app.post("/auth/v1/logout", (_req: Request, res: Response) => {
+    res.status(204).send();
+  });
+
+  // Supabase REST/PostgREST catch-all (for any direct DB queries via Supabase client)
+  app.all("/rest/v1/*", (_req: Request, res: Response) => {
+    res.json([]);
+  });
+
   // ────────────────────────────────────────────────────────────
   // Token Check (CRITICAL -- middleware calls this on every page load)
   // ────────────────────────────────────────────────────────────
