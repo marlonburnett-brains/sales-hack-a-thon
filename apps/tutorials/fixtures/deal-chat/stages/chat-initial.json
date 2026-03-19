@@ -1,0 +1,23 @@
+{
+  "chatBootstrap": {
+    "messages": [
+      {
+        "id": "msg-prior-1",
+        "role": "user",
+        "content": "What's the latest status on the Meridian Dynamics deal?",
+        "createdAt": "2026-03-18T14:30:00.000Z"
+      },
+      {
+        "id": "msg-prior-2",
+        "role": "assistant",
+        "content": "The Meridian Dynamics Q2 Digital Transformation Initiative is currently open. The deal was created on February 10 and last updated on March 5. James Mitchell is listed as a collaborator. You've completed a pre-call briefing and two Touch 1 sessions so far.",
+        "createdAt": "2026-03-18T14:30:05.000Z"
+      }
+    ],
+    "greeting": "Hello! How can I help you with the Meridian Dynamics deal?",
+    "suggestions": [
+      { "label": "Draft meeting prep", "value": "Help me prepare for the next meeting" },
+      { "label": "Summarize activity", "value": "Summarize recent deal activity" }
+    ]
+  }
+}

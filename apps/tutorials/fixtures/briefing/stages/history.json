@@ -1,0 +1,49 @@
+{
+  "interactions": [
+    {
+      "id": "int-briefing-hist-001",
+      "dealId": "deal-001",
+      "touchType": "pre_call",
+      "status": "completed",
+      "inputs": "{\"buyerRole\":\"VP of Technology\",\"meetingContext\":\"Initial discovery call to discuss digital transformation roadmap\"}",
+      "decision": null,
+      "generatedContent": "{\"companyResearch\":{\"industryPosition\":\"Meridian Dynamics is a mid-market technology consulting firm.\"},\"valueHypotheses\":[\"Legacy ERP modernization could save 40% on integration costs\"],\"discoveryQuestions\":[\"What's driving the urgency on the digital transformation timeline?\"]}",
+      "outputRefs": "{\"briefingDocUrl\":\"https://docs.google.com/document/d/mock-briefing-001\"}",
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-03-10T09:00:00.000Z",
+      "updatedAt": "2026-03-10T09:05:00.000Z"
+    },
+    {
+      "id": "int-briefing-hist-002",
+      "dealId": "deal-001",
+      "touchType": "pre_call",
+      "status": "completed",
+      "inputs": "{\"buyerRole\":\"Director of Engineering\",\"meetingContext\":\"Technical deep dive on integration architecture\"}",
+      "decision": null,
+      "generatedContent": "{\"companyResearch\":{\"industryPosition\":\"Meridian Dynamics engineering team has 45 developers.\"},\"valueHypotheses\":[\"Microservices architecture reduces deployment risk\"],\"discoveryQuestions\":[\"What's your current CI/CD pipeline maturity?\"]}",
+      "outputRefs": "{\"briefingDocUrl\":\"https://docs.google.com/document/d/mock-briefing-002\"}",
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-03-15T14:00:00.000Z",
+      "updatedAt": "2026-03-15T14:04:00.000Z"
+    },
+    {
+      "id": "int-briefing-hist-003",
+      "dealId": "deal-001",
+      "touchType": "pre_call",
+      "status": "completed",
+      "inputs": "{\"buyerRole\":\"VP of Technology\",\"meetingContext\":\"Follow-up on proposal review and next steps\"}",
+      "decision": null,
+      "generatedContent": "{\"companyResearch\":{\"industryPosition\":\"Meridian Dynamics expanded cloud practice recently.\"},\"valueHypotheses\":[\"Phased migration approach minimizes business disruption\"],\"discoveryQuestions\":[\"Which stakeholders need to approve the final proposal?\"]}",
+      "outputRefs": "{\"briefingDocUrl\":\"https://docs.google.com/document/d/mock-briefing-003\"}",
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-03-19T09:00:00.000Z",
+      "updatedAt": "2026-03-19T09:05:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "id": "deals",
+  "title": "Creating & Managing Deals",
+  "description": "Learn how to create new deals, assign team members, update deal status, switch between grid and table views, and filter your deal pipeline.",
+  "fixtures": "deals",
+  "steps": [
+    {
+      "id": "step-001",
+      "url": "/deals",
+      "narration": "Your deals pipeline is the command center for all active engagements. Here you can see seven deals at a glance, each showing the company, status, and owner.",
+      "waitFor": "main",
+      "delayMs": 1500,
+      "emotion": "professional"
+    },
+    {
+      "id": "step-002",
+      "url": "/deals",
+      "narration": "Let's create a new deal. Click the New Deal button in the upper right to open the deal creation form.",
+      "waitFor": "main",
+      "actions": [
+        { "type": "click", "selector": "button:has-text('New Deal')" }
+      ],
+      "cursorTarget": { "x": 0.88, "y": 0.12 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-003",
+      "url": "/deals",
+      "narration": "Fill in the deal details. We'll name this one Cloud Migration Assessment and associate it with Meridian Dynamics since we're expanding our engagement with them.",
+      "waitFor": "[role='dialog']",
+      "actions": [
+        { "type": "fill", "selector": "input[name='name'], input[placeholder*='deal name' i], input[placeholder*='Deal name' i]", "value": "Cloud Migration Assessment" }
+      ],
+      "zoomTarget": { "selector": "[role='dialog']", "scale": 1.5, "x": 0.5, "y": 0.4 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-004",
+      "url": "/deals",
+      "narration": "After submitting, the new deal appears in your grid right away. AtlusDeck automatically sets the status to open and assigns you as the owner.",
+      "waitFor": "main",
+      "callout": { "text": "New deal added to your pipeline", "x": 0.5, "y": 0.15 },
+      "delayMs": 1000
+    },
+    {
+      "id": "step-005",
+      "url": "/deals/deal-001/overview",
+      "narration": "Click any deal card to open its overview page. Let's look at the Meridian Dynamics Q2 Digital Transformation Initiative to see the full deal context.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.3, "y": 0.3 },
+      "delayMs": 1000
+    },
+    {
+      "id": "step-006",
+      "url": "/deals",
+      "narration": "Back on the deals page, let's manage team assignments. Click the assign button on the Meridian deal to add a team member.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.7, "y": 0.3 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-007",
+      "url": "/deals",
+      "narration": "Select a team member from the dropdown. Assigning deals helps distribute workload and keeps the right people connected to each opportunity.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.7, "y": 0.35 },
+      "cursorTarget": { "x": 0.7, "y": 0.38 }
+    },
+    {
+      "id": "step-008",
+      "url": "/deals",
+      "narration": "Now let's update a deal status. Changing the Meridian deal from open to won marks it as a successfully closed engagement.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.6, "y": 0.3 },
+      "callout": { "text": "Update deal status to track progress", "x": 0.5, "y": 0.2 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-009",
+      "url": "/deals",
+      "narration": "Switch to table view for a more compact layout. The toggle in the upper right lets you choose between the visual grid and a traditional table format.",
+      "waitFor": "main",
+      "actions": [
+        { "type": "click", "selector": "button[aria-label*='table' i], button[aria-label*='Table' i], button[data-testid='view-toggle-table'], [role='tablist'] button:nth-child(2)" }
+      ],
+      "cursorTarget": { "x": 0.85, "y": 0.12 },
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.85, "y": 0.12 }
+    },
+    {
+      "id": "step-010",
+      "url": "/deals",
+      "narration": "Table view shows all your deals in a scannable list with sortable columns. This is ideal when you need to compare details across many deals quickly.",
+      "waitFor": "main",
+      "delayMs": 1000
+    },
+    {
+      "id": "step-011",
+      "url": "/deals",
+      "narration": "Use the status filter to narrow your view. Let's filter to show only won deals so we can see which engagements have closed successfully.",
+      "waitFor": "main",
+      "actions": [
+        { "type": "click", "selector": "button:has-text('Status'), button:has-text('Filter'), [data-testid='status-filter']" }
+      ],
+      "cursorTarget": { "x": 0.2, "y": 0.12 },
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.3, "y": 0.15 }
+    },
+    {
+      "id": "step-012",
+      "url": "/deals",
+      "narration": "With the filter active, only your won deals are visible. Clear the filter anytime to see the full pipeline again.",
+      "waitFor": "main",
+      "delayMs": 1000,
+      "emotion": "calm"
+    }
+  ]
+}

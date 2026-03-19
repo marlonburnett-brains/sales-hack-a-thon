@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-briefing-gen-001",
+      "dealId": "deal-001",
+      "touchType": "pre_call",
+      "status": "running",
+      "inputs": "{\"buyerRole\":\"VP of Technology\",\"meetingContext\":\"Initial discovery call to discuss digital transformation roadmap\"}",
+      "decision": null,
+      "generatedContent": null,
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-03-19T09:00:00.000Z",
+      "updatedAt": "2026-03-19T09:00:30.000Z"
+    }
+  ]
+}

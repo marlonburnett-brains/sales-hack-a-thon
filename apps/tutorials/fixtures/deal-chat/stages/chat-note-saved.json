@@ -1,0 +1,59 @@
+{
+  "chatBootstrap": {
+    "messages": [
+      {
+        "id": "msg-prior-1",
+        "role": "user",
+        "content": "What's the latest status on the Meridian Dynamics deal?",
+        "createdAt": "2026-03-18T14:30:00.000Z"
+      },
+      {
+        "id": "msg-prior-2",
+        "role": "assistant",
+        "content": "The Meridian Dynamics Q2 Digital Transformation Initiative is currently open. The deal was created on February 10 and last updated on March 5. James Mitchell is listed as a collaborator. You've completed a pre-call briefing and two Touch 1 sessions so far.",
+        "createdAt": "2026-03-18T14:30:05.000Z"
+      },
+      {
+        "id": "msg-new-1",
+        "role": "user",
+        "content": "What are the key pain points we should address in our next meeting?",
+        "createdAt": "2026-03-19T10:00:00.000Z"
+      },
+      {
+        "id": "msg-new-2",
+        "role": "assistant",
+        "content": "Based on the deal context for Meridian Dynamics, here are the key pain points to address:\n\n1. **Legacy system integration** -- Their existing ERP is 8+ years old and becoming a bottleneck for new digital initiatives\n2. **Data silos** -- Marketing and sales teams use separate tools with no shared customer view\n3. **Scalability concerns** -- Current infrastructure can't handle projected Q3 growth targets\n\nI'd recommend focusing on the integration story since that's typically the highest-value conversation starter for technology consulting firms.",
+        "createdAt": "2026-03-19T10:00:08.000Z"
+      },
+      {
+        "id": "msg-kb-1",
+        "role": "user",
+        "content": "What proposals have we sent to similar companies in the technology consulting space?",
+        "createdAt": "2026-03-19T10:02:00.000Z"
+      },
+      {
+        "id": "msg-kb-2",
+        "role": "assistant",
+        "content": "I found 3 relevant proposals from your organization's history:\n\n1. **Apex Digital Solutions** (Q4 2025) -- Cloud migration strategy for a mid-market IT firm. Won at $1.2M. Key differentiator: phased migration approach that minimized downtime.\n\n2. **CoreTech Partners** (Q3 2025) -- ERP modernization for a consulting firm with 500+ employees. Won at $850K. Used a hybrid cloud model they appreciated.\n\n3. **Synapse Consulting Group** (Q1 2025) -- Data platform unification proposal. Lost to a competitor. Post-mortem noted pricing was 15% above market.\n\nThe Apex proposal's phased approach could be a strong template for Meridian Dynamics given their similar scale and integration concerns.",
+        "createdAt": "2026-03-19T10:02:10.000Z"
+      },
+      {
+        "id": "msg-note-1",
+        "role": "user",
+        "content": "Save note: Focus on phased migration approach for Meridian -- reference the Apex Digital success case. Lead with integration story, then address data silos as secondary value prop.",
+        "createdAt": "2026-03-19T10:05:00.000Z"
+      },
+      {
+        "id": "msg-note-2",
+        "role": "assistant",
+        "content": "Note saved successfully. I've stored this as a deal note:\n\n> Focus on phased migration approach for Meridian -- reference the Apex Digital success case. Lead with integration story, then address data silos as secondary value prop.\n\nWould you like to bind this note to a specific touch? This will include the insight in your next generated presentation or document.",
+        "createdAt": "2026-03-19T10:05:03.000Z"
+      }
+    ],
+    "greeting": "Hello! How can I help you with the Meridian Dynamics deal?",
+    "suggestions": [
+      { "label": "Bind to Touch 1", "value": "Bind this note to Touch 1" },
+      { "label": "View all notes", "value": "Show all saved notes for this deal" }
+    ]
+  }
+}

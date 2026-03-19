@@ -1,0 +1,35 @@
+{
+  "chatBootstrap": {
+    "messages": [
+      {
+        "id": "msg-prior-1",
+        "role": "user",
+        "content": "What's the latest status on the Meridian Dynamics deal?",
+        "createdAt": "2026-03-18T14:30:00.000Z"
+      },
+      {
+        "id": "msg-prior-2",
+        "role": "assistant",
+        "content": "The Meridian Dynamics Q2 Digital Transformation Initiative is currently open. The deal was created on February 10 and last updated on March 5. James Mitchell is listed as a collaborator. You've completed a pre-call briefing and two Touch 1 sessions so far.",
+        "createdAt": "2026-03-18T14:30:05.000Z"
+      },
+      {
+        "id": "msg-new-1",
+        "role": "user",
+        "content": "What are the key pain points we should address in our next meeting?",
+        "createdAt": "2026-03-19T10:00:00.000Z"
+      },
+      {
+        "id": "msg-new-2",
+        "role": "assistant",
+        "content": "Based on the deal context for Meridian Dynamics, here are the key pain points to address:\n\n1. **Legacy system integration** -- Their existing ERP is 8+ years old and becoming a bottleneck for new digital initiatives\n2. **Data silos** -- Marketing and sales teams use separate tools with no shared customer view\n3. **Scalability concerns** -- Current infrastructure can't handle projected Q3 growth targets\n\nI'd recommend focusing on the integration story since that's typically the highest-value conversation starter for technology consulting firms.",
+        "createdAt": "2026-03-19T10:00:08.000Z"
+      }
+    ],
+    "greeting": "Hello! How can I help you with the Meridian Dynamics deal?",
+    "suggestions": [
+      { "label": "Draft meeting prep", "value": "Help me prepare for the next meeting" },
+      { "label": "Summarize activity", "value": "Summarize recent deal activity" }
+    ]
+  }
+}

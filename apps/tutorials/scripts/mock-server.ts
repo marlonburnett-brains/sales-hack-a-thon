@@ -353,14 +353,20 @@ export function createMockServer(tutorialName: string): Express {
   // ────────────────────────────────────────────────────────────
 
   app.get("/deals/:dealId/chat", (_req: Request, res: Response) => {
-    res.json({
-      messages: [],
-      greeting: "Hello! How can I help you with this deal?",
-      suggestions: [
-        { label: "Summarize this deal", value: "Summarize this deal" },
-        { label: "What are the next steps?", value: "What are the next steps?" },
-      ],
-    });
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const chatData = (stageFixtures as Record<string, unknown>)?.chatBootstrap;
+    if (chatData) {
+      res.json(chatData);
+    } else {
+      res.json({
+        messages: [],
+        greeting: "Hello! How can I help you with this deal?",
+        suggestions: [
+          { label: "Summarize this deal", value: "Summarize this deal" },
+          { label: "What are the next steps?", value: "What are the next steps?" },
+        ],
+      });
+    }
   });
 
   app.post("/deals/:dealId/chat", (_req: Request, res: Response) => {

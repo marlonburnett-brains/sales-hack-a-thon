@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-briefing-001",
+      "dealId": "deal-001",
+      "touchType": "pre_call",
+      "status": "completed",
+      "inputs": "{\"buyerRole\":\"VP of Technology\",\"meetingContext\":\"Initial discovery call to discuss digital transformation roadmap\"}",
+      "decision": null,
+      "generatedContent": "{\"companyResearch\":{\"industryPosition\":\"Meridian Dynamics is a mid-market technology consulting firm specializing in enterprise digital transformation. Founded in 2015, they've grown to 200+ employees across 3 offices.\",\"recentNews\":\"Recently expanded their cloud practice with 3 new senior hires from AWS and Azure partner networks. Announced a strategic partnership with Snowflake for data platform implementations.\",\"competitiveContext\":\"Competing with Accenture and Deloitte Digital for mid-market deals. Their differentiator is faster delivery timelines and more personalized engagement models.\"},\"valueHypotheses\":[\"Legacy ERP modernization could save 40% on integration costs by replacing point-to-point connections with a unified middleware layer\",\"Unified data platform would reduce sales-to-marketing handoff time by 60%, directly impacting their pipeline velocity\",\"Cloud migration path aligned with their Q3 growth projections -- containerized architecture scales without infrastructure bottlenecks\"],\"discoveryQuestions\":[\"What's driving the urgency on the digital transformation timeline? Is it the board mandate or competitive pressure?\",\"How are your teams currently sharing customer data across departments? What breaks down most often?\",\"What does success look like for your Q3 scalability targets -- specific user counts, transaction volumes, or response times?\"]}",
+      "outputRefs": "{\"briefingDocUrl\":\"https://docs.google.com/document/d/mock-briefing-doc\"}",
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-03-19T09:00:00.000Z",
+      "updatedAt": "2026-03-19T09:05:00.000Z"
+    }
+  ]
+}

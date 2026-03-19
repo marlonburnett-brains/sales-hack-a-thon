@@ -1,0 +1,101 @@
+{
+  "interactions": [
+    {
+      "id": "int-overview-001",
+      "dealId": "deal-001",
+      "touchType": "pre_call",
+      "status": "completed",
+      "inputs": "{\"buyerRole\":\"VP of Technology\",\"meetingContext\":\"Initial discovery call to discuss digital transformation roadmap\"}",
+      "decision": null,
+      "generatedContent": "{\"companyResearch\":{\"industryPosition\":\"Mid-market technology consulting\"},\"valueHypotheses\":[\"Legacy ERP modernization\"],\"discoveryQuestions\":[\"What drives the timeline?\"]}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-02-12T10:00:00.000Z",
+      "updatedAt": "2026-02-12T10:05:00.000Z"
+    },
+    {
+      "id": "int-overview-002",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "completed",
+      "inputs": "{\"meetingType\":\"Discovery\"}",
+      "decision": null,
+      "generatedContent": null,
+      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-deck-001\"}",
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-02-20T14:00:00.000Z",
+      "updatedAt": "2026-02-20T14:30:00.000Z"
+    },
+    {
+      "id": "int-overview-003",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "completed",
+      "inputs": "{\"meetingType\":\"Follow-up\"}",
+      "decision": null,
+      "generatedContent": null,
+      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-deck-002\"}",
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-02-25T11:00:00.000Z",
+      "updatedAt": "2026-02-25T11:20:00.000Z"
+    },
+    {
+      "id": "int-overview-004",
+      "dealId": "deal-001",
+      "touchType": "touch_2",
+      "status": "in_progress",
+      "inputs": "{\"meetingType\":\"Solution Presentation\"}",
+      "decision": null,
+      "generatedContent": null,
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-03-05T09:00:00.000Z",
+      "updatedAt": "2026-03-05T09:00:00.000Z"
+    },
+    {
+      "id": "int-overview-005",
+      "dealId": "deal-001",
+      "touchType": "touch_2",
+      "status": "completed",
+      "inputs": "{\"meetingType\":\"Technical Deep Dive\"}",
+      "decision": null,
+      "generatedContent": null,
+      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-deck-003\"}",
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-03-10T15:00:00.000Z",
+      "updatedAt": "2026-03-10T15:45:00.000Z"
+    }
+  ],
+  "users": [
+    {
+      "id": "user-tutorial-001",
+      "email": "sarah.chen@lumenalta.com",
+      "name": "Sarah Chen"
+    },
+    {
+      "id": "user-tutorial-002",
+      "email": "james.mitchell@lumenalta.com",
+      "name": "James Mitchell"
+    },
+    {
+      "id": "user-tutorial-003",
+      "email": "priya.sharma@lumenalta.com",
+      "name": "Priya Sharma"
+    },
+    {
+      "id": "user-tutorial-004",
+      "email": "marcus.rodriguez@lumenalta.com",
+      "name": "Marcus Rodriguez"
+    }
+  ]
+}

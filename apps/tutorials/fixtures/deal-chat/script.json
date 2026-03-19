@@ -1,0 +1,109 @@
+{
+  "id": "deal-chat",
+  "title": "Deal Chat",
+  "description": "Use the deal chat assistant to ask context-aware questions, query the knowledge base, upload call transcripts, save notes, and bind them to touches.",
+  "fixtures": "deal-chat",
+  "steps": [
+    {
+      "id": "step-001",
+      "url": "/deals/deal-001/overview",
+      "narration": "Every deal page includes a persistent chat panel on the right side. Notice there are already a couple of messages from an earlier conversation about this deal.",
+      "mockStage": "chat-initial",
+      "waitFor": "main",
+      "delayMs": 1500,
+      "emotion": "professional"
+    },
+    {
+      "id": "step-002",
+      "url": "/deals/deal-001/overview",
+      "narration": "Expand the chat panel to see the full conversation history. The assistant remembers context from previous exchanges so you can pick up right where you left off.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.92, "y": 0.5 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-003",
+      "url": "/deals/deal-001/overview",
+      "narration": "The prior conversation shows the assistant summarized the deal status when asked. All context stays attached to this deal, so every response is grounded in real data.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.8, "y": 0.35 }
+    },
+    {
+      "id": "step-004",
+      "url": "/deals/deal-001/overview",
+      "narration": "Ask a context-aware question about the deal. Here we're asking about key pain points to address in the next meeting with Meridian Dynamics.",
+      "mockStage": "chat-exchange-1",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.8, "y": 0.5 },
+      "cursorTarget": { "x": 0.8, "y": 0.85 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-005",
+      "url": "/deals/deal-001/overview",
+      "narration": "The assistant responds with three specific pain points drawn from the deal context: legacy system integration, data silos between teams, and scalability concerns. Each point is actionable.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.6, "x": 0.8, "y": 0.55 },
+      "callout": { "text": "AI responses grounded in deal data", "x": 0.65, "y": 0.3 }
+    },
+    {
+      "id": "step-006",
+      "url": "/deals/deal-001/overview",
+      "narration": "Now let's query the knowledge base. Ask what proposals have been sent to similar companies. The assistant searches across your organization's past work.",
+      "mockStage": "chat-exchange-2",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.8, "y": 0.6 },
+      "cursorTarget": { "x": 0.8, "y": 0.85 }
+    },
+    {
+      "id": "step-007",
+      "url": "/deals/deal-001/overview",
+      "narration": "The knowledge base response surfaces relevant past proposals and their outcomes. This helps you build on what has worked before rather than starting from scratch.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.6, "x": 0.8, "y": 0.65 }
+    },
+    {
+      "id": "step-008",
+      "url": "/deals/deal-001/overview",
+      "narration": "Upload a call transcript to feed the assistant even more context. Click the upload button to add a recording transcript from your last meeting.",
+      "mockStage": "transcript-uploaded",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.85, "y": 0.82 },
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.85, "y": 0.82 }
+    },
+    {
+      "id": "step-009",
+      "url": "/deals/deal-001/overview",
+      "narration": "The transcript has been uploaded and parsed. The assistant found twelve key discussion points which are now available as context for future questions and artifact generation.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.8, "y": 0.7 },
+      "callout": { "text": "Transcript parsed into discussion points", "x": 0.65, "y": 0.55 }
+    },
+    {
+      "id": "step-010",
+      "url": "/deals/deal-001/overview",
+      "narration": "Save an important insight as a note. Type a summary of the key takeaway and the assistant will store it as a deal note you can reference later.",
+      "mockStage": "chat-note-saved",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.8, "y": 0.85 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-011",
+      "url": "/deals/deal-001/overview",
+      "narration": "The note has been saved. Now bind it to a specific touch to connect this insight with your preparation workflow. Select Touch 1 as the target.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.8, "y": 0.72 },
+      "cursorTarget": { "x": 0.8, "y": 0.72 }
+    },
+    {
+      "id": "step-012",
+      "url": "/deals/deal-001/overview",
+      "narration": "The binding confirmation shows the note is now linked to Touch 1. When AtlusDeck generates your next presentation, this insight will be woven into the content automatically.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.6, "x": 0.8, "y": 0.68 },
+      "callout": { "text": "Notes feed into artifact generation", "x": 0.6, "y": 0.55 },
+      "emotion": "calm"
+    }
+  ]
+}

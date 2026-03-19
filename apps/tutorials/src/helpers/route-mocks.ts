@@ -166,16 +166,31 @@ export async function mockBrowserAPIs(
         body: "This is a mock response from the deal chat assistant.",
       });
     } else {
-      // GET -- bootstrap
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          messages: [],
-          greeting: "Hello! How can I help you with this deal?",
-          suggestions: [],
-        }),
-      });
+      // GET -- proxy to mock server for stage-awareness
+      const mockPort = process.env.MOCK_SERVER_PORT ?? "4112";
+      const url = new URL(route.request().url());
+      const dealId = url.pathname.split("/deals/")[1]?.split("/chat")[0];
+      try {
+        const resp = await fetch(
+          `http://localhost:${mockPort}/deals/${dealId}/chat${url.search}`
+        );
+        const data = await resp.json();
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(data),
+        });
+      } catch {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            messages: [],
+            greeting: "Hello! How can I help you with this deal?",
+            suggestions: [],
+          }),
+        });
+      }
     }
   });
 
