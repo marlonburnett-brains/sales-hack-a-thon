@@ -50,7 +50,11 @@ function startNextServer(): ChildProcess {
     env: {
       ...process.env,
       // Point ALL external services at the mock server — zero real connections
+      // SUPABASE_URL / SUPABASE_ANON_KEY are runtime overrides for the Edge
+      // Runtime middleware (NEXT_PUBLIC_* are compile-time inlined and ignored)
       AGENT_SERVICE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+      SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+      SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
       NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
     },
@@ -153,6 +157,8 @@ async function main(): Promise<void> {
           TUTORIAL_NAME: tutorialName,
           TUTORIAL_WEB_PORT: String(WEB_SERVER_PORT),
           AGENT_SERVICE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+          SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+          SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
           NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
         },
