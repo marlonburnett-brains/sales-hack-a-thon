@@ -164,7 +164,7 @@ Plans:
 **Goal**: Playwright can capture multi-stage HITL workflows and polling-based async flows with pre-authored fixture sequences
 **Depends on**: Phase 62
 **Requirements**: CAPT-03, CAPT-04
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 Plans:
 - [ ] 63-01-PLAN.md -- Stage/sequence infrastructure for mock server, schema extensions, fixture loader
 - [ ] 63-02-PLAN.md -- Pilot Touch 4 HITL tutorial fixtures, capture spec, and end-to-end verification
@@ -183,7 +183,7 @@ Plans:
 **Goal**: Developer can render a complete tutorial MP4 from screenshots and narration audio with synchronized playback
 **Depends on**: Phase 62, Phase 64 (needs screenshots and audio)
 **Requirements**: COMP-01, COMP-02, COMP-03
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 Plans:
 - [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
 - [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
@@ -202,10 +202,11 @@ Plans:
 **Goal**: Three introductory tutorials covering first-time user experience and basic settings are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 66 (needs visual effects for production quality)
 **Requirements**: TUT-01, TUT-02, TUT-03
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 Plans:
 - [ ] 67-01-PLAN.md -- Mock server extensions, Getting Started refinement, Google Drive Settings tutorial
 - [ ] 67-02-PLAN.md -- Action Center tutorial with stage-based resolution flow and end-to-end verification
+- [ ] 67-03-PLAN.md -- Gap closure: TTS narration and MP4 render for Google Drive Settings and Action Center tutorials
 
 ### Phase 68: Medium-Complexity Tutorials (Deals & Briefing)
 **Goal**: Four tutorials covering deal management and pre-call briefing workflows are captured, narrated, and rendered as MP4 videos
