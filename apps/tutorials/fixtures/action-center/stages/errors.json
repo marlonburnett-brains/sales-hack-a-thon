@@ -1,0 +1,49 @@
+{
+  "actions": [
+    {
+      "id": "action-001",
+      "userId": "00000000-0000-0000-0000-000000000001",
+      "actionType": "reauth_needed",
+      "title": "Google OAuth Token Expired",
+      "description": "Your Google connection has expired. Re-authenticate to continue generating decks.",
+      "resourceId": null,
+      "resourceName": null,
+      "resolved": false,
+      "resolvedAt": null,
+      "silenced": false,
+      "seenAt": null,
+      "createdAt": "2026-03-18T10:00:00.000Z",
+      "updatedAt": "2026-03-18T10:00:00.000Z"
+    },
+    {
+      "id": "action-002",
+      "userId": "00000000-0000-0000-0000-000000000001",
+      "actionType": "share_with_sa",
+      "title": "Template Not Shared with Service Account",
+      "description": "The template 'Q2 Proposal Master' needs to be shared with the AtlusDeck service account for slide analysis.",
+      "resourceId": "tmpl-001",
+      "resourceName": "Q2 Proposal Master",
+      "resolved": false,
+      "resolvedAt": null,
+      "silenced": false,
+      "seenAt": null,
+      "createdAt": "2026-03-18T11:00:00.000Z",
+      "updatedAt": "2026-03-18T11:00:00.000Z"
+    },
+    {
+      "id": "action-003",
+      "userId": "00000000-0000-0000-0000-000000000001",
+      "actionType": "drive_access",
+      "title": "Drive Folder Access Missing",
+      "description": "AtlusDeck cannot access your configured Drive folder. Please verify folder permissions.",
+      "resourceId": "folder-abc",
+      "resourceName": "AtlusDeck Proposals",
+      "resolved": false,
+      "resolvedAt": null,
+      "silenced": false,
+      "seenAt": null,
+      "createdAt": "2026-03-18T12:00:00.000Z",
+      "updatedAt": "2026-03-18T12:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "id": "action-center",
+  "title": "Using the Action Center",
+  "description": "Learn how to identify and resolve integration issues in the Action Center, including expired OAuth tokens, template sharing, and Drive folder access.",
+  "fixtures": "action-center",
+  "steps": [
+    {
+      "id": "step-001",
+      "url": "/",
+      "narration": "Sometimes AtlusDeck needs your help to resolve integration issues. Notice the action count indicator in the sidebar -- that means there are items that need your attention. Let's take a look at the Action Center.",
+      "mockStage": "errors",
+      "waitFor": "main",
+      "emotion": "professional"
+    },
+    {
+      "id": "step-002",
+      "url": "/actions",
+      "narration": "The Action Center shows all issues that need your attention. Each item tells you exactly what's wrong and how to fix it.",
+      "waitFor": "main",
+      "delayMs": 1000,
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.4,
+        "x": 0.5,
+        "y": 0.4
+      }
+    },
+    {
+      "id": "step-003",
+      "url": "/actions",
+      "narration": "This first item is an expired Google connection. When your OAuth token expires, AtlusDeck can't access your Drive or Slides. Click Re-authenticate to reconnect.",
+      "waitFor": "main",
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.6,
+        "x": 0.5,
+        "y": 0.25
+      },
+      "cursorTarget": {
+        "x": 0.75,
+        "y": 0.25
+      }
+    },
+    {
+      "id": "step-004",
+      "url": "/actions",
+      "narration": "This item means a template hasn't been shared with the AtlusDeck service account. Copy the service account email and share the template in Google Drive.",
+      "waitFor": "main",
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.6,
+        "x": 0.5,
+        "y": 0.45
+      },
+      "cursorTarget": {
+        "x": 0.75,
+        "y": 0.45
+      },
+      "callout": {
+        "text": "Share templates with the service account email",
+        "x": 0.5,
+        "y": 0.55
+      }
+    },
+    {
+      "id": "step-005",
+      "url": "/actions",
+      "narration": "A Drive access issue means AtlusDeck can't reach your configured folder. Check that the folder still exists and permissions are correct.",
+      "waitFor": "main",
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.6,
+        "x": 0.5,
+        "y": 0.65
+      },
+      "cursorTarget": {
+        "x": 0.75,
+        "y": 0.65
+      }
+    },
+    {
+      "id": "step-006",
+      "url": "/actions",
+      "narration": "Once you've resolved all issues, the Action Center shows a clean green checkmark. You're good to go!",
+      "mockStage": "resolved",
+      "waitFor": "main",
+      "delayMs": 500,
+      "callout": {
+        "text": "All clear -- no actions required",
+        "x": 0.5,
+        "y": 0.45
+      }
+    },
+    {
+      "id": "step-007",
+      "url": "/",
+      "narration": "Back on the dashboard, the action indicator is gone -- everything is running smoothly.",
+      "waitFor": "main",
+      "emotion": "calm"
+    }
+  ]
+}
