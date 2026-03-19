@@ -11,6 +11,13 @@ import { createClient } from "./server";
  * Returns null if no active session exists.
  */
 export async function getSupabaseAccessToken(): Promise<string | null> {
+  // Tutorial mock mode — return a synthetic token without touching Supabase.
+  // The Edge Runtime middleware already skips auth when MOCK_AUTH=true,
+  // but server components also need an access token for agent API calls.
+  if (process.env.MOCK_AUTH === "true") {
+    return "mock-access-token";
+  }
+
   const supabase = await createClient();
   const {
     data: { session },
