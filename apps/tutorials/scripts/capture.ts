@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { execSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import type { Server } from "node:http";
 import { TutorialScriptSchema } from "../src/types/tutorial-script.js";
@@ -147,21 +147,31 @@ async function main(): Promise<void> {
 
     console.log(`\nRunning Playwright: ${specPath}\n`);
 
-    try {
-      execSync(`npx playwright test ${specPath} --project=capture`, {
-        cwd: process.cwd(),
-        stdio: "inherit",
-        env: {
-          ...process.env,
-          TUTORIAL_NAME: tutorialName,
-          TUTORIAL_WEB_PORT: String(WEB_SERVER_PORT),
-          MOCK_AUTH: "true",
-          AGENT_SERVICE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
-          NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
-        },
-      });
-    } catch {
+    // IMPORTANT: Use spawn (not execSync) so the Node.js event loop stays
+    // unblocked. The mock server runs in this same process — execSync would
+    // freeze it, preventing SSR data fetches from completing.
+    const playwrightExitCode = await new Promise<number>((resolve) => {
+      const pw = spawn(
+        "npx",
+        ["playwright", "test", specPath, "--project=capture"],
+        {
+          cwd: process.cwd(),
+          stdio: "inherit",
+          env: {
+            ...process.env,
+            TUTORIAL_NAME: tutorialName,
+            TUTORIAL_WEB_PORT: String(WEB_SERVER_PORT),
+            MOCK_AUTH: "true",
+            AGENT_SERVICE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+            NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${MOCK_SERVER_PORT}`,
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key-for-tutorials",
+          },
+        }
+      );
+      pw.on("close", (code) => resolve(code ?? 1));
+    });
+
+    if (playwrightExitCode !== 0) {
       console.error("\nPlaywright test failed. Check output above for details.");
       process.exit(1);
     }
