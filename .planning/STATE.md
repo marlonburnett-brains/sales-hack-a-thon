@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
-status: completed
-stopped_at: Phase 67 context gathered
-last_updated: "2026-03-19T21:52:49.956Z"
-last_activity: "2026-03-19 -- Phase 66 Plan 03 complete: Content accuracy gap closure with enriched fixtures and corrected narration"
+status: in-progress
+stopped_at: Completed 67-01-PLAN.md
+last_updated: "2026-03-19T22:14:25.000Z"
+last_activity: "2026-03-19 -- Phase 67 Plan 01 complete: Mock server extensions, Getting Started refinement, Google Drive Settings tutorial"
 progress:
   total_phases: 9
   completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 14
+  completed_plans: 14
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos -- Phase 67: Low-Complexity Tutorials (ready to start)
+**Current focus:** v1.9 Tutorial Videos -- Phase 67: Low-Complexity Tutorials (in progress)
 
 ## Current Position
 
-Phase: 66 (5 of 9 in v1.9) (Visual Effects & Polish)
-Plan: 3 of 3 in current phase
-Status: Phase 66 complete -- Visual effects pipeline, content accuracy gap closure, and fixture enrichment shipped
-Last activity: 2026-03-19 -- Phase 66 Plan 03 complete: Content accuracy gap closure with enriched fixtures and corrected narration
+Phase: 67 (6 of 9 in v1.9) (Low-Complexity Tutorials)
+Plan: 1 of 1 in current phase
+Status: Phase 67 Plan 01 complete -- Mock server extensions, Getting Started refinement, Google Drive Settings tutorial authored
+Last activity: 2026-03-19 -- Phase 67 Plan 01 complete: Mock server extensions, Getting Started refinement, Google Drive Settings tutorial
 
-Progress: [██████████] 100% (13/13 planned tutorial-video plans on disk)
+Progress: [██████████] 100% (14/14 planned tutorial-video plans on disk)
 
 ## Performance Metrics
 
@@ -82,6 +82,10 @@ Recent decisions for v1.9:
 - [Phase 66]: Cursor continuity comes only from click or hover steps; informational steps never show a cursor just because coordinates exist — This preserves clean non-interactive scenes while still giving viewers motion guidance where interaction actually happens.
 - [Phase 66]: The composition uses 90-frame intro, 120-frame outro, and 15-frame fades between every scene boundary — Shared timing values keep metadata duration math and the visible TransitionSeries rhythm aligned.
 - [Phase 66]: enrichDeal helper centralizes company+interactions join logic in mock server
+- [Phase 67]: mockStage changed from fixed enum to z.string() for arbitrary stage names beyond HITL
+- [Phase 67]: User-settings routes are stage-aware: stage fixtures checked before in-memory store
+- [Phase 67]: Google Drive Settings uses stage switching instead of clicking the Drive picker (Google iframe incompatible with mock)
+- [Phase 67]: Non-HITL tutorials use custom stage names (unconfigured/configured) with matching stage fixture files
 
 ### Pending Todos
 
@@ -96,6 +100,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T21:52:49.944Z
-Stopped at: Phase 67 context gathered
-Next action: Plan and execute Phase 67 low-complexity tutorial authoring on top of the finished visual-effects pipeline.
+Last session: 2026-03-19T22:14:25.000Z
+Stopped at: Completed 67-01-PLAN.md
+Next action: Continue Phase 67 if more plans exist, or advance to Phase 68.

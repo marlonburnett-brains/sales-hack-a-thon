@@ -202,7 +202,7 @@ Plans:
 **Goal**: Three introductory tutorials covering first-time user experience and basic settings are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 66 (needs visual effects for production quality)
 **Requirements**: TUT-01, TUT-02, TUT-03
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 67-01-PLAN.md -- Mock server extensions, Getting Started refinement, Google Drive Settings tutorial
 - [ ] 67-02-PLAN.md -- Action Center tutorial with stage-based resolution flow and end-to-end verification
@@ -252,7 +252,7 @@ Plans:
 | 64. TTS Pipeline | 3/3 | Complete    | 2026-03-19 | - |
 | 65. Remotion Composition Core | 2/2 | Complete    | 2026-03-19 | - |
 | 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
-| 67. Low-Complexity Tutorials | v1.9 | 0/2 | Planned | - |
+| 67. Low-Complexity Tutorials | 1/2 | In Progress|  | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
 | 69. Medium-Complexity Tutorials (Library & Settings) | v1.9 | 0/TBD | Not started | - |
 | 70. High-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
