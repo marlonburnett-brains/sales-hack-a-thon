@@ -204,8 +204,8 @@ Plans:
 **Requirements**: TUT-01, TUT-02, TUT-03
 **Plans:** 2 plans
 Plans:
-- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
-- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
+- [ ] 67-01-PLAN.md -- Mock server extensions, Getting Started refinement, Google Drive Settings tutorial
+- [ ] 67-02-PLAN.md -- Action Center tutorial with stage-based resolution flow and end-to-end verification
 
 ### Phase 68: Medium-Complexity Tutorials (Deals & Briefing)
 **Goal**: Four tutorials covering deal management and pre-call briefing workflows are captured, narrated, and rendered as MP4 videos
@@ -252,7 +252,7 @@ Plans:
 | 64. TTS Pipeline | 3/3 | Complete    | 2026-03-19 | - |
 | 65. Remotion Composition Core | 2/2 | Complete    | 2026-03-19 | - |
 | 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
-| 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
+| 67. Low-Complexity Tutorials | v1.9 | 0/2 | Planned | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
 | 69. Medium-Complexity Tutorials (Library & Settings) | v1.9 | 0/TBD | Not started | - |
 | 70. High-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
