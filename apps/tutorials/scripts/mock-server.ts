@@ -23,9 +23,11 @@ export function createMockServer(tutorialName: string): Express {
 
   app.use(express.json());
 
-  // Request logging — helps debug connectivity issues
+  // Request logging — helps debug mock server usage
   app.use((req: Request, _res: Response, next: Function) => {
-    console.log(`[mock] ${req.method} ${req.url}`);
+    if (!req.url.startsWith("/auth/")) {
+      console.log(`[mock] ${req.method} ${req.url}`);
+    }
     next();
   });
 
