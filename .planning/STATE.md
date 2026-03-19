@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: completed
-stopped_at: Phase 65 context gathered
-last_updated: "2026-03-19T12:46:31.872Z"
-last_activity: "2026-03-19 -- Phase 64 Plan 03 complete: TTS orchestrator CLI with engine switching and timing manifests"
+stopped_at: Completed 65-01-PLAN.md
+last_updated: "2026-03-19T13:15:07.754Z"
+last_activity: "2026-03-19 -- Phase 65 Plan 01 complete: Remotion composition components for tutorial video pipeline"
 progress:
   total_phases: 9
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_plans: 10
+  completed_plans: 9
+  percent: 96
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos -- Phase 64: TTS Pipeline (Plan 01 complete)
+**Current focus:** v1.9 Tutorial Videos -- Phase 65: Remotion Composition Core (Plan 01 complete)
 
 ## Current Position
 
-Phase: 64 (3 of 9 in v1.9) (TTS Pipeline)
-Plan: 3 of 3 in current phase (PHASE COMPLETE)
-Status: Phase 64 complete -- TTS pipeline with Kokoro/Chatterbox engines and orchestrator CLI
-Last activity: 2026-03-19 -- Phase 64 Plan 03 complete: TTS orchestrator CLI with engine switching and timing manifests
+Phase: 65 (4 of 9 in v1.9) (Remotion Composition Core)
+Plan: 1 of 2 in current phase
+Status: Plan 01 complete -- Remotion composition layer with registerRoot, calculateMetadata, step-to-Sequence mapping
+Last activity: 2026-03-19 -- Phase 65 Plan 01 complete: Remotion composition components for tutorial video pipeline
 
-Progress: [██████████] 100% (v1.9)
+Progress: [██████████] 96% (v1.9)
 
 ## Performance Metrics
 
@@ -69,6 +69,8 @@ Recent decisions for v1.9:
 - [Phase 64]: af_heart voice preset for warm female narrator brand consistency
 - [Phase 64]: Two-pass ffmpeg loudnorm for accurate -16 LUFS normalization
 - [Phase 64]: No external CLI parsing library -- process.argv manual parsing for zero new dependencies
+- [Phase 65]: skipLibCheck required for Remotion 4.0.436 type defs (Timer type)
+- [Phase 65]: Audio from @remotion/media, layout=none on Sequences, 3s fallback for missing audio
 
 ### Pending Todos
 
@@ -83,6 +85,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T12:46:31.863Z
-Stopped at: Phase 65 context gathered
-Next action: Begin Phase 65 (Remotion composition)
+Last session: 2026-03-19T13:15:07.751Z
+Stopped at: Completed 65-01-PLAN.md
+Next action: Execute Phase 65 Plan 02 (render pipeline)

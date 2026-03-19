@@ -33,8 +33,8 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 
 ### Video Composition
 
-- [ ] **COMP-01**: Each tutorial step renders as a Remotion `<Sequence>` with its screenshot and narration audio synchronized
-- [ ] **COMP-02**: Shared `TutorialStep` component encapsulates screenshot display, audio playback, and timing logic
+- [x] **COMP-01**: Each tutorial step renders as a Remotion `<Sequence>` with its screenshot and narration audio synchronized
+- [x] **COMP-02**: Shared `TutorialStep` component encapsulates screenshot display, audio playback, and timing logic
 - [ ] **COMP-03**: Developer can render a final MP4 per tutorial via Remotion CLI with `--concurrency=2` for M1 Pro memory safety
 - [ ] **COMP-04**: Zoom/pan effects highlight specific UI regions defined in the tutorial script via CSS transforms and `interpolate()`
 - [ ] **COMP-05**: Text overlays and callout annotations label UI elements, show step numbers, and display keyboard shortcuts
@@ -120,8 +120,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TTS-02 | Phase 64 | Complete |
 | TTS-03 | Phase 64 | Complete |
 | TTS-04 | Phase 64 | Complete |
-| COMP-01 | Phase 65 | Pending |
-| COMP-02 | Phase 65 | Pending |
+| COMP-01 | Phase 65 | Complete |
+| COMP-02 | Phase 65 | Complete |
 | COMP-03 | Phase 65 | Pending |
 | COMP-04 | Phase 66 | Pending |
 | COMP-05 | Phase 66 | Pending |

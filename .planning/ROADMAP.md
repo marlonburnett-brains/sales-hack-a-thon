@@ -183,7 +183,7 @@ Plans:
 **Goal**: Developer can render a complete tutorial MP4 from screenshots and narration audio with synchronized playback
 **Depends on**: Phase 62, Phase 64 (needs screenshots and audio)
 **Requirements**: COMP-01, COMP-02, COMP-03
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
 - [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
@@ -249,7 +249,7 @@ Plans:
 | 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
 | 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
 | 64. TTS Pipeline | 3/3 | Complete    | 2026-03-19 | - |
-| 65. Remotion Composition Core | v1.9 | 0/2 | Planned | - |
+| 65. Remotion Composition Core | 1/2 | In Progress|  | - |
 | 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
 | 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
