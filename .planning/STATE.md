@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: verifying
-stopped_at: Completed 66-02-PLAN.md
-last_updated: "2026-03-19T16:41:25.356Z"
-last_activity: "2026-03-19 -- Phase 66 Plan 02 complete: TransitionSeries timeline and integrated visual effects pipeline"
+stopped_at: Completed 66-03-PLAN.md
+last_updated: "2026-03-19T20:28:20.146Z"
+last_activity: "2026-03-19 -- Phase 66 Plan 03 complete: Content accuracy gap closure with enriched fixtures and corrected narration"
 progress:
   total_phases: 9
   completed_phases: 5
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 13
+  completed_plans: 13
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 66 (5 of 9 in v1.9) (Visual Effects & Polish)
-Plan: 2 of 2 in current phase
-Status: Phase 66 complete -- TransitionSeries timeline, effect layers, and pilot render verification shipped
-Last activity: 2026-03-19 -- Phase 66 Plan 02 complete: TransitionSeries timeline and integrated visual effects pipeline
+Plan: 3 of 3 in current phase
+Status: Phase 66 complete -- Visual effects pipeline, content accuracy gap closure, and fixture enrichment shipped
+Last activity: 2026-03-19 -- Phase 66 Plan 03 complete: Content accuracy gap closure with enriched fixtures and corrected narration
 
-Progress: [██████████] 100% (12/12 planned tutorial-video plans on disk)
+Progress: [██████████] 100% (13/13 planned tutorial-video plans on disk)
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ Recent decisions for v1.9:
 - [Phase 66]: Render input props now merge timing manifests with fixture script metadata by step id before composition selection — Prepared composition inputs keep Remotion rendering deterministic and avoid runtime joins inside the timeline.
 - [Phase 66]: Cursor continuity comes only from click or hover steps; informational steps never show a cursor just because coordinates exist — This preserves clean non-interactive scenes while still giving viewers motion guidance where interaction actually happens.
 - [Phase 66]: The composition uses 90-frame intro, 120-frame outro, and 15-frame fades between every scene boundary — Shared timing values keep metadata duration math and the visible TransitionSeries rhythm aligned.
+- [Phase 66]: enrichDeal helper centralizes company+interactions join logic in mock server
 
 ### Pending Todos
 
@@ -95,6 +96,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T15:49:57.601Z
-Stopped at: Completed 66-02-PLAN.md
+Last session: 2026-03-19T20:28:20.141Z
+Stopped at: Completed 66-03-PLAN.md
 Next action: Plan and execute Phase 67 low-complexity tutorial authoring on top of the finished visual-effects pipeline.

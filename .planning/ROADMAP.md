@@ -138,7 +138,7 @@
 - [x] **Phase 63: HITL & Async Mock Capture** - Add mock patterns for multi-stage HITL workflows and polling/async status sequences (completed 2026-03-19)
 - [x] **Phase 64: TTS Pipeline** - Integrate Kokoro (draft) and Chatterbox-Turbo (production) TTS engines with timing manifest generation (completed 2026-03-19)
 - [x] **Phase 65: Remotion Composition Core** - Build shared TutorialStep component, per-tutorial Remotion compositions, and MP4 render pipeline (completed 2026-03-19)
-- [ ] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates (gap closure in progress)
+- [x] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates (gap closure in progress) (completed 2026-03-19)
 - [ ] **Phase 67: Low-Complexity Tutorials** - Author scripts, fixtures, and captures for Getting Started, Google Drive Settings, and Action Center tutorials
 - [ ] **Phase 68: Medium-Complexity Tutorials (Deals & Briefing)** - Author scripts, fixtures, and captures for Deals, Deal Overview, Deal Chat, and Pre-Call Briefing tutorials
 - [ ] **Phase 69: Medium-Complexity Tutorials (Library & Settings)** - Author scripts, fixtures, and captures for Template Library, Slide Library, Deck Structures, Agent Prompts, and AtlusAI Integration tutorials
@@ -192,7 +192,7 @@ Plans:
 **Goal**: Tutorial videos include professional visual enhancements that guide the viewer's attention and provide context
 **Depends on**: Phase 65
 **Requirements**: COMP-04, COMP-05, COMP-06, COMP-07, COMP-08
-**Plans:** 3 plans (2 complete, 1 gap closure)
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 66-01-PLAN.md -- Install transitions package, extend deterministic effect schema data, and add reusable Remotion effect primitives
 - [x] 66-02-PLAN.md -- Integrate TransitionSeries timeline, wire effect layers into the composition, and verify a pilot render
@@ -251,7 +251,7 @@ Plans:
 | 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
 | 64. TTS Pipeline | 3/3 | Complete    | 2026-03-19 | - |
 | 65. Remotion Composition Core | 2/2 | Complete    | 2026-03-19 | - |
-| 66. Visual Effects & Polish | 2/3 | Gap closure | 2026-03-19 | - |
+| 66. Visual Effects & Polish | 3/3 | Complete   | 2026-03-19 | - |
 | 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
 | 69. Medium-Complexity Tutorials (Library & Settings) | v1.9 | 0/TBD | Not started | - |
