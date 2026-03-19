@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: completed
-stopped_at: Completed 65-01-PLAN.md
-last_updated: "2026-03-19T13:15:07.754Z"
+stopped_at: Completed 65-02-PLAN.md
+last_updated: "2026-03-19T13:19:43.776Z"
 last_activity: "2026-03-19 -- Phase 65 Plan 01 complete: Remotion composition components for tutorial video pipeline"
 progress:
   total_phases: 9
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 96
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos -- Phase 65: Remotion Composition Core (Plan 01 complete)
+**Current focus:** v1.9 Tutorial Videos -- Phase 65: Remotion Composition Core (complete)
 
 ## Current Position
 
 Phase: 65 (4 of 9 in v1.9) (Remotion Composition Core)
-Plan: 1 of 2 in current phase
-Status: Plan 01 complete -- Remotion composition layer with registerRoot, calculateMetadata, step-to-Sequence mapping
-Last activity: 2026-03-19 -- Phase 65 Plan 01 complete: Remotion composition components for tutorial video pipeline
+Plan: 2 of 2 in current phase (phase complete)
+Status: Phase 65 complete -- Remotion composition layer + render pipeline CLI
+Last activity: 2026-03-19 -- Phase 65 Plan 02 complete: Render CLI pipeline with pre-validation and batch rendering
 
-Progress: [██████████] 96% (v1.9)
+Progress: [██████████] 100% (v1.9)
 
 ## Performance Metrics
 
@@ -71,6 +71,8 @@ Recent decisions for v1.9:
 - [Phase 64]: No external CLI parsing library -- process.argv manual parsing for zero new dependencies
 - [Phase 65]: skipLibCheck required for Remotion 4.0.436 type defs (Timer type)
 - [Phase 65]: Audio from @remotion/media, layout=none on Sequences, 3s fallback for missing audio
+- [Phase 65]: Exported renderTutorial function from render.ts for reuse by render-all.ts
+- [Phase 65]: Sequential batch rendering per Remotion documentation recommendation
 
 ### Pending Todos
 
@@ -85,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T13:15:07.751Z
-Stopped at: Completed 65-01-PLAN.md
-Next action: Execute Phase 65 Plan 02 (render pipeline)
+Last session: 2026-03-19T13:19:43.771Z
+Stopped at: Completed 65-02-PLAN.md
+Next action: Phase 65 complete. Proceed to Phase 66 (visual enhancements) or next milestone phase.

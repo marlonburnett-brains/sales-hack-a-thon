@@ -137,7 +137,7 @@
 - [x] **Phase 62: Workspace & Mock Infrastructure** - Scaffold apps/tutorials workspace with mock agent server, page.route() helpers, auth bypass, fixture factories, and deterministic screenshot capture (completed 2026-03-19)
 - [x] **Phase 63: HITL & Async Mock Capture** - Add mock patterns for multi-stage HITL workflows and polling/async status sequences (completed 2026-03-19)
 - [x] **Phase 64: TTS Pipeline** - Integrate Kokoro (draft) and Chatterbox-Turbo (production) TTS engines with timing manifest generation (completed 2026-03-19)
-- [ ] **Phase 65: Remotion Composition Core** - Build shared TutorialStep component, per-tutorial Remotion compositions, and MP4 render pipeline
+- [x] **Phase 65: Remotion Composition Core** - Build shared TutorialStep component, per-tutorial Remotion compositions, and MP4 render pipeline (completed 2026-03-19)
 - [ ] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates
 - [ ] **Phase 67: Low-Complexity Tutorials** - Author scripts, fixtures, and captures for Getting Started, Google Drive Settings, and Action Center tutorials
 - [ ] **Phase 68: Medium-Complexity Tutorials (Deals & Briefing)** - Author scripts, fixtures, and captures for Deals, Deal Overview, Deal Chat, and Pre-Call Briefing tutorials
@@ -183,7 +183,7 @@ Plans:
 **Goal**: Developer can render a complete tutorial MP4 from screenshots and narration audio with synchronized playback
 **Depends on**: Phase 62, Phase 64 (needs screenshots and audio)
 **Requirements**: COMP-01, COMP-02, COMP-03
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
 - [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
@@ -249,7 +249,7 @@ Plans:
 | 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
 | 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
 | 64. TTS Pipeline | 3/3 | Complete    | 2026-03-19 | - |
-| 65. Remotion Composition Core | 1/2 | In Progress|  | - |
+| 65. Remotion Composition Core | 2/2 | Complete   | 2026-03-19 | - |
 | 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
 | 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
