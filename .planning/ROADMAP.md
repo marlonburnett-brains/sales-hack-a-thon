@@ -156,9 +156,9 @@
   5. Screenshots are visually deterministic across repeated runs (CSS animations disabled, network idle waits enforced)
 **Plans:** 3/3 plans complete
 Plans:
-- [ ] 62-01-PLAN.md -- Scaffold workspace, tutorial script schema, and fixture factories
-- [ ] 62-02-PLAN.md -- Mock agent server, auth bypass, route mocks, and determinism utilities
-- [ ] 62-03-PLAN.md -- Capture orchestration, Getting Started pilot tutorial, and end-to-end verification
+- [x] 62-01-PLAN.md -- Scaffold workspace, tutorial script schema, and fixture factories
+- [x] 62-02-PLAN.md -- Mock agent server, auth bypass, route mocks, and determinism utilities
+- [x] 62-03-PLAN.md -- Capture orchestration, Getting Started pilot tutorial, and end-to-end verification
 
 ### Phase 63: HITL & Async Mock Capture
 **Goal**: Playwright can capture multi-stage HITL workflows and polling-based async flows with pre-authored fixture sequences
@@ -221,7 +221,7 @@ Plans:
 | 35-40 | v1.6 | 20/20 | Complete | 2026-03-08 |
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
-| 62. Workspace & Mock Infrastructure | 3/3 | Complete   | 2026-03-19 | - |
+| 62 | v1.9 | 3/3 | Complete | 2026-03-19 |
 | 63. HITL & Async Mock Capture | v1.9 | 0/TBD | Not started | - |
 | 64. TTS Pipeline | v1.9 | 0/TBD | Not started | - |
 | 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |

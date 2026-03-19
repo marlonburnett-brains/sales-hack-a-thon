@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: executing
-stopped_at: Completed 62-03-PLAN.md (checkpoint pending)
+stopped_at: Completed Phase 62 (all 3 plans done, verified)
 last_updated: "2026-03-19T00:23:57.639Z"
-last_activity: 2026-03-19 -- Completed 62-03 capture orchestration and Getting Started pilot
+last_activity: 2026-03-19 -- Phase 62 complete: all 3 plans done, end-to-end capture verified
 progress:
   total_phases: 9
   completed_phases: 1
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 62 (1 of 9 in v1.9) (Workspace & Mock Infrastructure)
-Plan: 3 of 3 in current phase (62-03 complete, human-verify checkpoint pending)
-Status: Phase 62 complete (pending human verification of end-to-end capture)
-Last activity: 2026-03-19 -- Completed 62-03 capture orchestration and Getting Started pilot
+Plan: 3 of 3 in current phase (all complete, verified)
+Status: Phase 62 complete -- ready for Phase 63
+Last activity: 2026-03-19 -- Phase 62 complete: all 3 plans done, end-to-end capture verified
 
 Progress: [█████████░] 89% (v1.9)
 
@@ -55,6 +55,9 @@ Recent decisions for v1.9:
 - [Phase 62]: Auth bypass injects both localStorage + SSR cookies to satisfy both middleware auth paths
 - [Phase 62]: Generic capture loop iterates script.steps JSON -- not hardcoded to any specific tutorial
 - [Phase 62]: 3-digit zero-padded screenshot naming (step-001.png) for alphabetical sort up to 999 steps
+- [Phase 62]: MOCK_AUTH=true bypasses all Supabase auth in Edge Runtime middleware -- Edge Runtime cannot HTTP to localhost
+- [Phase 62]: capture.ts manages both mock server AND Next.js dev server lifecycle with spawn (not execSync)
+- [Phase 62]: Dedicated port 3099 for tutorial captures avoids conflicts with dev server on 3000
 
 ### Pending Todos
 
@@ -70,5 +73,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-19T00:23:57.000Z
-Stopped at: Completed 62-03-PLAN.md (checkpoint: human-verify pending)
-Next action: Human verifies end-to-end capture, then proceed to Phase 63
+Stopped at: Phase 62 fully complete (all 3 plans, human-verified)
+Next action: Proceed to Phase 63 (HITL & Async Mock Capture)
