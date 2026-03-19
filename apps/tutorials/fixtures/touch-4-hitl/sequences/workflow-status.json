@@ -1,0 +1,5 @@
+[
+  { "runId": "mock-run-touch4", "status": "running", "steps": {}, "result": {} },
+  { "runId": "mock-run-touch4", "status": "running", "steps": {}, "result": {} },
+  { "runId": "mock-run-touch4", "status": "suspended", "steps": {}, "result": {} }
+]

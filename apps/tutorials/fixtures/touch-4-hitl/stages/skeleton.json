@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch4-001",
+      "dealId": "deal-001",
+      "touchType": "touch_4",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Mock meeting transcript for tutorial capture.\",\"runId\":\"mock-run-touch4\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch4\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "skeleton",
+      "stageContent": "{\"extractedFields\":{\"customerContext\":\"Meridian Dynamics is a mid-market technology consulting firm looking to modernize their client engagement workflow. Current proposal turnaround is 5-7 business days.\",\"businessOutcomes\":\"Reduce proposal cycle time to under 2 hours. Improve win rate by 15% through personalized, data-driven proposals. Scale proposal capacity without adding headcount.\",\"constraints\":\"Must integrate with existing Google Workspace environment. Budget approved for Q2 rollout. Need SOC 2 compliance documentation.\",\"stakeholders\":\"VP of Sales (decision maker), CTO (technical evaluator), Head of Operations (end user champion)\",\"timeline\":\"Pilot in April, full rollout by end of Q2 2026\",\"budget\":\"Approved for $180K annual, with potential expansion to $350K for enterprise tier\"},\"fieldSeverity\":{\"customerContext\":\"ok\",\"businessOutcomes\":\"ok\",\"constraints\":\"warning\",\"stakeholders\":\"ok\",\"timeline\":\"ok\",\"budget\":\"ok\"},\"hasErrors\":false}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:02:00.000Z"
+    }
+  ]
+}

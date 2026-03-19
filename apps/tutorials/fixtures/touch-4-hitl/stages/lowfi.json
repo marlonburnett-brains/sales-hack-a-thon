@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch4-001",
+      "dealId": "deal-001",
+      "touchType": "touch_4",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Mock meeting transcript for tutorial capture.\",\"runId\":\"mock-run-touch4\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch4\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "lowfi",
+      "stageContent": "{\"briefData\":{\"executiveSummary\":\"Meridian Dynamics faces a critical bottleneck in their sales proposal process, with turnaround times averaging 5-7 business days. This delay directly impacts win rates and limits the team's capacity to pursue new opportunities. AtlusDeck's AI-powered proposal automation platform addresses this gap by reducing proposal generation to under 2 hours while maintaining brand consistency and personalization quality.\",\"solutionPillars\":[{\"name\":\"Intelligent Proposal Generation\",\"description\":\"AI-driven content assembly that pulls from approved templates and personalizes based on prospect industry, pain points, and engagement history. Generates complete proposal decks with talk tracks and FAQ documents.\"},{\"name\":\"Human-in-the-Loop Quality Assurance\",\"description\":\"Multi-stage review workflow with skeleton, draft, and final checkpoints. Sellers maintain full control over content quality while AI handles the heavy lifting of initial creation and formatting.\"},{\"name\":\"Google Workspace Integration\",\"description\":\"Native integration with Google Slides, Docs, and Drive. Generated assets are automatically saved to the deal folder with proper access controls and version management.\"}]},\"roiFramingData\":{\"outcomes\":[{\"outcome\":\"Reduce proposal turnaround from 5-7 days to under 2 hours\"},{\"outcome\":\"Increase win rate by 15% through data-driven personalization\"},{\"outcome\":\"Scale proposal capacity 4x without additional headcount\"},{\"outcome\":\"Achieve full ROI within 90 days of deployment\"}]}}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:03:00.000Z"
+    }
+  ]
+}
