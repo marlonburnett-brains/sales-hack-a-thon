@@ -214,8 +214,8 @@ Plans:
 **Requirements**: TUT-04, TUT-05, TUT-06, TUT-07
 **Plans:** 2 plans
 Plans:
-- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
-- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
+- [ ] 68-01-PLAN.md -- Scripts, fixtures, mock server extensions, and capture specs for all 4 tutorials
+- [ ] 68-02-PLAN.md -- TTS audio generation and MP4 rendering for all 4 tutorials
 
 ### Phase 69: Medium-Complexity Tutorials (Library & Settings)
 **Goal**: Five tutorials covering template/slide management, deck intelligence, agent configuration, and AtlusAI integration are captured, narrated, and rendered as MP4 videos
