@@ -46,7 +46,7 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 
 - [x] **TUT-01**: "Getting Started" tutorial — sign in, initial setup, navigating the UI
 - [x] **TUT-02**: "Google Drive Settings" tutorial — select root folder, verify access
-- [ ] **TUT-03**: "Action Center" tutorial — resolve integration issues (OAuth, sharing, access)
+- [x] **TUT-03**: "Action Center" tutorial — resolve integration issues (OAuth, sharing, access)
 
 ### Tutorial Content — Medium Complexity
 
@@ -130,7 +130,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-08 | Phase 66 | Complete |
 | TUT-01 | Phase 67 | Complete |
 | TUT-02 | Phase 67 | Complete |
-| TUT-03 | Phase 67 | Pending |
+| TUT-03 | Phase 67 | Complete |
 | TUT-04 | Phase 68 | Pending |
 | TUT-05 | Phase 68 | Pending |
 | TUT-06 | Phase 68 | Pending |

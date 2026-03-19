@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
-status: in-progress
-stopped_at: Completed 67-01-PLAN.md
-last_updated: "2026-03-19T22:14:25.000Z"
-last_activity: "2026-03-19 -- Phase 67 Plan 01 complete: Mock server extensions, Getting Started refinement, Google Drive Settings tutorial"
+status: verifying
+stopped_at: Completed 67-02-PLAN.md
+last_updated: "2026-03-19T22:22:04.932Z"
+last_activity: "2026-03-19 -- Phase 67 Plan 02 complete: Action Center tutorial authored, all 3 low-complexity tutorials capture-verified"
 progress:
   total_phases: 9
-  completed_phases: 5
-  total_plans: 14
-  completed_plans: 14
+  completed_phases: 6
+  total_plans: 15
+  completed_plans: 15
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-18)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.9 Tutorial Videos -- Phase 67: Low-Complexity Tutorials (in progress)
+**Current focus:** v1.9 Tutorial Videos -- Phase 67: Low-Complexity Tutorials (complete)
 
 ## Current Position
 
 Phase: 67 (6 of 9 in v1.9) (Low-Complexity Tutorials)
-Plan: 1 of 1 in current phase
-Status: Phase 67 Plan 01 complete -- Mock server extensions, Getting Started refinement, Google Drive Settings tutorial authored
-Last activity: 2026-03-19 -- Phase 67 Plan 01 complete: Mock server extensions, Getting Started refinement, Google Drive Settings tutorial
+Plan: 2 of 2 in current phase (phase complete)
+Status: Phase 67 complete -- All 3 low-complexity tutorials authored and capture-verified
+Last activity: 2026-03-19 -- Phase 67 Plan 02 complete: Action Center tutorial authored, all 3 low-complexity tutorials capture-verified
 
-Progress: [██████████] 100% (14/14 planned tutorial-video plans on disk)
+Progress: [██████████] 100% (15/15 planned tutorial-video plans on disk)
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Recent decisions for v1.9:
 - [Phase 67]: User-settings routes are stage-aware: stage fixtures checked before in-memory store
 - [Phase 67]: Google Drive Settings uses stage switching instead of clicking the Drive picker (Google iframe incompatible with mock)
 - [Phase 67]: Non-HITL tutorials use custom stage names (unconfigured/configured) with matching stage fixture files
+- [Phase 67]: Action Center errors stage set on dashboard (step 1) not /actions page -- SSR requires stage before navigation
 
 ### Pending Todos
 
@@ -100,6 +101,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T22:14:25.000Z
-Stopped at: Completed 67-01-PLAN.md
+Last session: 2026-03-19T22:22:04.928Z
+Stopped at: Completed 67-02-PLAN.md
 Next action: Continue Phase 67 if more plans exist, or advance to Phase 68.

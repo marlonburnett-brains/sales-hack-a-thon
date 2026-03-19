@@ -139,7 +139,7 @@
 - [x] **Phase 64: TTS Pipeline** - Integrate Kokoro (draft) and Chatterbox-Turbo (production) TTS engines with timing manifest generation (completed 2026-03-19)
 - [x] **Phase 65: Remotion Composition Core** - Build shared TutorialStep component, per-tutorial Remotion compositions, and MP4 render pipeline (completed 2026-03-19)
 - [x] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates (gap closure in progress) (completed 2026-03-19)
-- [ ] **Phase 67: Low-Complexity Tutorials** - Author scripts, fixtures, and captures for Getting Started, Google Drive Settings, and Action Center tutorials
+- [x] **Phase 67: Low-Complexity Tutorials** - Author scripts, fixtures, and captures for Getting Started, Google Drive Settings, and Action Center tutorials (completed 2026-03-19)
 - [ ] **Phase 68: Medium-Complexity Tutorials (Deals & Briefing)** - Author scripts, fixtures, and captures for Deals, Deal Overview, Deal Chat, and Pre-Call Briefing tutorials
 - [ ] **Phase 69: Medium-Complexity Tutorials (Library & Settings)** - Author scripts, fixtures, and captures for Template Library, Slide Library, Deck Structures, Agent Prompts, and AtlusAI Integration tutorials
 - [ ] **Phase 70: High-Complexity Tutorials** - Author scripts, fixtures, and captures for Touch 1-4 HITL workflows and Asset Review tutorial
@@ -202,7 +202,7 @@ Plans:
 **Goal**: Three introductory tutorials covering first-time user experience and basic settings are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 66 (needs visual effects for production quality)
 **Requirements**: TUT-01, TUT-02, TUT-03
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 67-01-PLAN.md -- Mock server extensions, Getting Started refinement, Google Drive Settings tutorial
 - [ ] 67-02-PLAN.md -- Action Center tutorial with stage-based resolution flow and end-to-end verification
@@ -252,7 +252,7 @@ Plans:
 | 64. TTS Pipeline | 3/3 | Complete    | 2026-03-19 | - |
 | 65. Remotion Composition Core | 2/2 | Complete    | 2026-03-19 | - |
 | 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
-| 67. Low-Complexity Tutorials | 1/2 | In Progress|  | - |
+| 67. Low-Complexity Tutorials | 2/2 | Complete   | 2026-03-19 | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
 | 69. Medium-Complexity Tutorials (Library & Settings) | v1.9 | 0/TBD | Not started | - |
 | 70. High-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
