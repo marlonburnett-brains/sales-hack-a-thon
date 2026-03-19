@@ -5,7 +5,7 @@ const TUTORIAL_WEB_PORT = Number(process.env.TUTORIAL_WEB_PORT ?? 3099);
 
 export default defineConfig({
   testDir: "./capture",
-  outputDir: "./output",
+  outputDir: "./test-results",
   timeout: 60_000,
   use: {
     baseURL: `http://localhost:${TUTORIAL_WEB_PORT}`,

@@ -1,19 +1,3 @@
 {
-  "interactions": [
-    {
-      "id": "int-touch4-001",
-      "dealId": "deal-001",
-      "touchType": "touch_4",
-      "status": "not_started",
-      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Mock meeting transcript for tutorial capture.\"}",
-      "decision": null,
-      "generatedContent": null,
-      "outputRefs": null,
-      "driveFileId": null,
-      "hitlStage": null,
-      "stageContent": null,
-      "createdAt": "2026-03-15T10:00:00.000Z",
-      "updatedAt": "2026-03-15T10:00:00.000Z"
-    }
-  ]
+  "interactions": []
 }

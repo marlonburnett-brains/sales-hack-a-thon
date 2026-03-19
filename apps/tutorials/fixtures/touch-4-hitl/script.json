@@ -18,7 +18,7 @@
       "url": "/deals/deal-001/touch/4",
       "narration": "After submitting the transcript, AtlusDeck begins extracting key fields and generating content. The progress indicator shows the workflow is actively processing your input.",
       "mockStage": "generating",
-      "waitForText": "Generating",
+      "waitForText": "Generation in progress",
       "delayMs": 500
     },
     {

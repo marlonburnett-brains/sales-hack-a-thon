@@ -48,6 +48,8 @@ export async function disableAnimations(page: Page): Promise<void> {
         transition-delay: 0s !important;
         scroll-behavior: auto !important;
       }
+      /* Hide Next.js dev indicator — not visible to real users */
+      nextjs-portal { display: none !important; }
     `,
   });
 }

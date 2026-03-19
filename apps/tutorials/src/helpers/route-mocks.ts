@@ -48,6 +48,26 @@ export async function mockBrowserAPIs(
   options?: MockBrowserOptions
 ): Promise<void> {
   // ────────────────────────────────────────────────────────────
+  // Catch-all for unhandled /api/* routes
+  // MUST be registered FIRST — Playwright checks routes in reverse
+  // registration order, so this will be checked LAST, only catching
+  // requests that no specific handler above matched.
+  // ────────────────────────────────────────────────────────────
+
+  await page.route("**/api/**", async (route: Route) => {
+    const url = route.request().url();
+    const method = route.request().method();
+    console.warn(
+      `[route-mocks] Unhandled browser API call: ${method} ${url}`
+    );
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ _mock: true, _warning: "Unhandled route" }),
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────
   // Workflow Status Polling
   // ────────────────────────────────────────────────────────────
 
@@ -278,21 +298,4 @@ export async function mockBrowserAPIs(
     });
   });
 
-  // ────────────────────────────────────────────────────────────
-  // Catch-all for unhandled /api/* routes
-  // Warns but still returns 200 to prevent UI errors
-  // ────────────────────────────────────────────────────────────
-
-  await page.route("**/api/**", async (route: Route) => {
-    const url = route.request().url();
-    const method = route.request().method();
-    console.warn(
-      `[route-mocks] Unhandled browser API call: ${method} ${url}`
-    );
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ _mock: true, _warning: "Unhandled route" }),
-    });
-  });
 }
