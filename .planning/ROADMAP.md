@@ -183,37 +183,55 @@ Plans:
 **Goal**: Developer can render a complete tutorial MP4 from screenshots and narration audio with synchronized playback
 **Depends on**: Phase 62, Phase 64 (needs screenshots and audio)
 **Requirements**: COMP-01, COMP-02, COMP-03
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
+- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
 
 ### Phase 66: Visual Effects & Polish
 **Goal**: Tutorial videos include professional visual enhancements that guide the viewer's attention and provide context
 **Depends on**: Phase 65
 **Requirements**: COMP-04, COMP-05, COMP-06, COMP-07, COMP-08
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
+- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
 
 ### Phase 67: Low-Complexity Tutorials
 **Goal**: Three introductory tutorials covering first-time user experience and basic settings are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 66 (needs visual effects for production quality)
 **Requirements**: TUT-01, TUT-02, TUT-03
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
+- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
 
 ### Phase 68: Medium-Complexity Tutorials (Deals & Briefing)
 **Goal**: Four tutorials covering deal management and pre-call briefing workflows are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
 **Requirements**: TUT-04, TUT-05, TUT-06, TUT-07
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
+- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
 
 ### Phase 69: Medium-Complexity Tutorials (Library & Settings)
 **Goal**: Five tutorials covering template/slide management, deck intelligence, agent configuration, and AtlusAI integration are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs async mock patterns for ingestion), Phase 66 (needs visual effects)
 **Requirements**: TUT-08, TUT-09, TUT-10, TUT-11, TUT-12
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
+- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
 
 ### Phase 70: High-Complexity Tutorials
 **Goal**: Five tutorials covering multi-stage HITL touch workflows and asset review are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
 **Requirements**: TUT-13, TUT-14, TUT-15, TUT-16, TUT-17
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
+- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
 
 ## Progress
 
@@ -231,7 +249,7 @@ Plans:
 | 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
 | 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
 | 64. TTS Pipeline | 3/3 | Complete    | 2026-03-19 | - |
-| 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |
+| 65. Remotion Composition Core | v1.9 | 0/2 | Planned | - |
 | 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
 | 67. Low-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | v1.9 | 0/TBD | Not started | - |
