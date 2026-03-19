@@ -13,6 +13,19 @@ import type { FixtureSet } from "../../fixtures/types.js";
  */
 
 /**
+ * Options for stage-aware and sequence-aware browser-side mocks (Phase 63).
+ *
+ * When provided, the workflow status polling handler uses these to derive
+ * dynamic responses based on the current HITL stage.
+ */
+export interface MockBrowserOptions {
+  /** Returns the current HITL stage (e.g., "idle", "generating", "skeleton") */
+  stageGetter?: () => string;
+  /** Returns the next sequence response for a named key, or null if no sequence */
+  sequenceGetter?: (key: string) => unknown | null;
+}
+
+/**
  * Mock all browser-side /api/* routes with fixture data.
  *
  * Intercepts:
@@ -26,22 +39,57 @@ import type { FixtureSet } from "../../fixtures/types.js";
  * - /api/drive/token (Google Drive token)
  * - /api/visual-qa (visual QA)
  * - Catch-all for any unhandled /api/* routes
+ *
+ * @param options - Optional stage/sequence getters for HITL tutorials (Phase 63)
  */
 export async function mockBrowserAPIs(
   page: Page,
-  fixtures: FixtureSet
+  fixtures: FixtureSet,
+  options?: MockBrowserOptions
 ): Promise<void> {
   // ────────────────────────────────────────────────────────────
   // Workflow Status Polling
   // ────────────────────────────────────────────────────────────
 
   await page.route("**/api/workflows/status*", async (route: Route) => {
+    // Try sequence getter first (highest priority)
+    const seqResponse = options?.sequenceGetter?.("workflow-status");
+    if (seqResponse !== null && seqResponse !== undefined) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(seqResponse),
+      });
+      return;
+    }
+
+    // Derive status from current stage if stageGetter provided
+    let workflowStatus = "completed";
+    if (options?.stageGetter) {
+      const stage = options.stageGetter();
+      switch (stage) {
+        case "generating":
+          workflowStatus = "running";
+          break;
+        case "skeleton":
+        case "lowfi":
+        case "hifi":
+          workflowStatus = "suspended";
+          break;
+        case "idle":
+        case "completed":
+        default:
+          workflowStatus = "completed";
+          break;
+      }
+    }
+
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         runId: new URL(route.request().url()).searchParams.get("runId") ?? "mock-run",
-        status: "completed",
+        status: workflowStatus,
         steps: {},
         result: {},
       }),
@@ -53,6 +101,17 @@ export async function mockBrowserAPIs(
   // ────────────────────────────────────────────────────────────
 
   await page.route("**/api/generation-logs*", async (route: Route) => {
+    // Try sequence getter first
+    const seqResponse = options?.sequenceGetter?.("generation-logs");
+    if (seqResponse !== null && seqResponse !== undefined) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(seqResponse),
+      });
+      return;
+    }
+
     await route.fulfill({
       status: 200,
       contentType: "application/json",

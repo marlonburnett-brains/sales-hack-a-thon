@@ -1,7 +1,7 @@
 import express from "express";
 import type { Express, Request, Response } from "express";
 import type { Server } from "node:http";
-import { loadFixtures } from "../fixtures/loader.js";
+import { loadFixtures, loadStageFixtures, loadSequences, deepMerge } from "../fixtures/loader.js";
 import type { FixtureSet } from "../fixtures/types.js";
 
 /**
@@ -21,14 +21,83 @@ export function createMockServer(tutorialName: string): Express {
   const app = express();
   const fixtures = loadFixtures(tutorialName);
 
+  // ════════════════════════════════════════════════════════════
+  // Stage State & Sequence Counters (Phase 63)
+  // ════════════════════════════════════════════════════════════
+
+  let currentStage: string = "idle";
+  const sequenceCounters: Record<string, number> = {};
+  const sequences = loadSequences(tutorialName);
+
+  /**
+   * Get the next response from a named sequence.
+   * Advances the counter each call. After exhaustion, repeats the last response.
+   * Returns null if no sequence exists for the given key.
+   */
+  function getNextSequenceResponse(key: string): unknown | null {
+    const seq = sequences[key];
+    if (!seq || seq.length === 0) return null;
+
+    const idx = sequenceCounters[key] ?? 0;
+    const servingIdx = Math.min(idx, seq.length - 1);
+    const response = seq[servingIdx];
+    sequenceCounters[key] = idx + 1;
+
+    const status = (response as Record<string, unknown>)?.status ?? "unknown";
+    console.log(
+      `[mock-seq] ${key}: response ${servingIdx + 1}/${seq.length} (status=${status})`
+    );
+
+    return response;
+  }
+
   app.use(express.json());
 
   // Request logging — helps debug mock server usage
   app.use((req: Request, _res: Response, next: Function) => {
-    if (!req.url.startsWith("/auth/")) {
+    if (!req.url.startsWith("/auth/") && !req.url.startsWith("/mock/")) {
       console.log(`[mock] ${req.method} ${req.url}`);
     }
     next();
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // Mock Control Endpoints (Phase 63)
+  // ════════════════════════════════════════════════════════════
+
+  app.post("/mock/set-stage", (req: Request, res: Response) => {
+    const { stage } = req.body ?? {};
+    if (typeof stage === "string") {
+      currentStage = stage;
+      console.log(`[mock-stage] Stage set to: ${stage}`);
+      res.json({ stage });
+    } else {
+      res.status(400).json({ error: "Missing stage in request body" });
+    }
+  });
+
+  app.get("/mock/get-stage", (_req: Request, res: Response) => {
+    res.json({ stage: currentStage });
+  });
+
+  app.post("/mock/reset-sequence", (req: Request, res: Response) => {
+    const { key } = req.body ?? {};
+    if (typeof key === "string") {
+      sequenceCounters[key] = 0;
+      console.log(`[mock-seq] Reset: ${key}`);
+      res.json({ key, counter: 0 });
+    } else {
+      res.status(400).json({ error: "Missing key in request body" });
+    }
+  });
+
+  app.post("/mock/reset", (_req: Request, res: Response) => {
+    currentStage = "idle";
+    for (const key of Object.keys(sequenceCounters)) {
+      sequenceCounters[key] = 0;
+    }
+    console.log(`[mock] Full state reset`);
+    res.json({ stage: currentStage, sequences: "reset" });
   });
 
   // ════════════════════════════════════════════════════════════
@@ -208,7 +277,14 @@ export function createMockServer(tutorialName: string): Express {
   // ────────────────────────────────────────────────────────────
 
   app.get("/deals/:dealId/interactions", (_req: Request, res: Response) => {
-    res.json(fixtures.interactions ?? []);
+    // Stage-aware: merge stage fixtures if stage is set and stage file exists
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    if (stageFixtures?.interactions) {
+      // Stage provides full replacement for interactions
+      res.json(stageFixtures.interactions);
+    } else {
+      res.json(fixtures.interactions ?? []);
+    }
   });
 
   // HITL Stage Management
@@ -326,9 +402,32 @@ export function createMockServer(tutorialName: string): Express {
     });
 
     app.get(`/api/workflows/${wf}/runs/:runId`, (_req: Request, res: Response) => {
+      // Check sequence first (highest priority)
+      const seqResponse = getNextSequenceResponse("workflow-status");
+      if (seqResponse !== null) {
+        res.json(seqResponse);
+        return;
+      }
+      // Derive from current stage
+      let status: string;
+      switch (currentStage) {
+        case "generating":
+          status = "running";
+          break;
+        case "skeleton":
+        case "lowfi":
+        case "hifi":
+          status = "suspended";
+          break;
+        case "idle":
+        case "completed":
+        default:
+          status = "completed";
+          break;
+      }
       res.json({
         runId: _req.params.runId,
-        status: "completed",
+        status,
         steps: {},
         result: {},
       });
@@ -403,6 +502,12 @@ export function createMockServer(tutorialName: string): Express {
   });
 
   app.get("/templates/:id/progress", (_req: Request, res: Response) => {
+    // Check sequence first
+    const seqResponse = getNextSequenceResponse("ingestion-progress");
+    if (seqResponse !== null) {
+      res.json(seqResponse);
+      return;
+    }
     res.json({ status: "idle", current: 0, total: 0 });
   });
 
@@ -435,7 +540,7 @@ export function createMockServer(tutorialName: string): Express {
   // ────────────────────────────────────────────────────────────
 
   app.get("/briefs/:briefId", (_req: Request, res: Response) => {
-    res.json({
+    const baseBrief = {
       id: _req.params.briefId,
       interactionId: "mock-interaction",
       primaryPillar: "Cloud Transformation",
@@ -456,40 +561,62 @@ export function createMockServer(tutorialName: string): Express {
       workflowRunId: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    });
+    };
+    // Stage-aware: merge brief overrides from stage fixtures
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    if (stageFixtures && (stageFixtures as Record<string, unknown>).brief) {
+      res.json(
+        deepMerge(
+          baseBrief as unknown as Record<string, unknown>,
+          (stageFixtures as Record<string, unknown>).brief as Record<string, unknown>
+        )
+      );
+    } else {
+      res.json(baseBrief);
+    }
   });
 
   app.get("/briefs/:briefId/review", (req: Request, res: Response) => {
-    res.json({
-      brief: {
-        id: req.params.briefId,
-        interactionId: "mock-interaction",
-        primaryPillar: "Cloud Transformation",
-        secondaryPillars: "[]",
-        evidence: "Mock evidence",
-        customerContext: "Mock context",
-        businessOutcomes: "Mock outcomes",
-        constraints: "Mock constraints",
-        stakeholders: "Mock stakeholders",
-        timeline: "Q2 2026",
-        budget: "$500k-1M",
-        useCases: "[]",
-        roiFraming: "{}",
-        approvalStatus: "pending_approval",
-        reviewerName: null,
-        approvedAt: null,
-        rejectionFeedback: null,
-        workflowRunId: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+    const baseBrief = {
+      id: req.params.briefId,
+      interactionId: "mock-interaction",
+      primaryPillar: "Cloud Transformation",
+      secondaryPillars: "[]",
+      evidence: "Mock evidence",
+      customerContext: "Mock context",
+      businessOutcomes: "Mock outcomes",
+      constraints: "Mock constraints",
+      stakeholders: "Mock stakeholders",
+      timeline: "Q2 2026",
+      budget: "$500k-1M",
+      useCases: "[]",
+      roiFraming: "{}",
+      approvalStatus: "pending_approval",
+      reviewerName: null,
+      approvedAt: null,
+      rejectionFeedback: null,
+      workflowRunId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const baseReview = {
+      brief: baseBrief,
       deal: {
         companyName: fixtures.companies[0]?.name ?? "Mock Company",
         industry: fixtures.companies[0]?.industry ?? "Technology",
         dealName: fixtures.deals[0]?.name ?? "Mock Deal",
       },
       transcript: null,
-    });
+    };
+    // Stage-aware: merge brief overrides into the review response
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    if (stageFixtures && (stageFixtures as Record<string, unknown>).brief) {
+      baseReview.brief = deepMerge(
+        baseBrief as unknown as Record<string, unknown>,
+        (stageFixtures as Record<string, unknown>).brief as Record<string, unknown>
+      ) as typeof baseBrief;
+    }
+    res.json(baseReview);
   });
 
   app.post("/briefs/:briefId/approve", (_req: Request, res: Response) => {

@@ -7,6 +7,7 @@ import { ensureAuthState } from "../src/helpers/auth.js";
 import { mockBrowserAPIs } from "../src/helpers/route-mocks.js";
 import { captureStep } from "../src/helpers/screenshot.js";
 import { loadFixtures } from "../fixtures/loader.js";
+import { waitForText } from "../src/helpers/determinism.js";
 
 /**
  * Getting Started Tutorial Capture
@@ -18,6 +19,7 @@ import { loadFixtures } from "../fixtures/loader.js";
  */
 
 const TUTORIAL_ID = "getting-started";
+const MOCK_SERVER_URL = `http://localhost:${process.env.MOCK_SERVER_PORT ?? "4112"}`;
 
 // Load and validate the script at module level
 const scriptPath = path.join(
@@ -30,13 +32,20 @@ const scriptRaw = JSON.parse(fs.readFileSync(scriptPath, "utf-8"));
 const script = TutorialScriptSchema.parse(scriptRaw);
 
 test.describe("Getting Started Tutorial Capture", () => {
+  // Mutable stage ref -- updated by capture loop, read by browser-side mocks
+  let currentStageRef = "idle";
+
   test.beforeEach(async ({ page }) => {
     // Set up auth state (injects Supabase session + cookies)
     await ensureAuthState(page);
 
-    // Set up browser-side API route mocks
+    // Set up browser-side API route mocks with stage/sequence awareness
     const fixtures = loadFixtures(TUTORIAL_ID);
-    await mockBrowserAPIs(page, fixtures);
+    await mockBrowserAPIs(page, fixtures, {
+      stageGetter: () => currentStageRef,
+      // Sequences are managed by the mock server for SSR routes;
+      // browser-side derives from stage via stageGetter
+    });
   });
 
   test("capture all steps", async ({ page }) => {
@@ -46,6 +55,27 @@ test.describe("Getting Started Tutorial Capture", () => {
       const step: TutorialStep = script.steps[i];
 
       await test.step(`Step ${i + 1}: ${step.id}`, async () => {
+        // ── Pre-step: set mock stage if specified ──
+        if (step.mockStage) {
+          currentStageRef = step.mockStage;
+          await fetch(`${MOCK_SERVER_URL}/mock/set-stage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stage: step.mockStage }),
+          });
+        }
+
+        // ── Pre-step: reset sequences if specified ──
+        if (step.resetSequences) {
+          for (const key of step.resetSequences) {
+            await fetch(`${MOCK_SERVER_URL}/mock/reset-sequence`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ key }),
+            });
+          }
+        }
+
         // Navigate if URL changed
         if (step.url && step.url !== currentUrl) {
           await page.goto(step.url, { waitUntil: "domcontentloaded" });
@@ -118,6 +148,20 @@ test.describe("Getting Started Tutorial Capture", () => {
                 break;
             }
           }
+        }
+
+        // ── Post-action: wait for text if specified ──
+        if (step.waitForText) {
+          await waitForText(page, step.waitForText).catch(() => {
+            console.warn(
+              `Warning: waitForText "${step.waitForText}" not found for ${step.id}`
+            );
+          });
+        }
+
+        // ── Post-action: delay if specified ──
+        if (step.delayMs) {
+          await page.waitForTimeout(step.delayMs);
         }
 
         // Capture the screenshot
