@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: completed
-stopped_at: Completed 63-01-PLAN.md
-last_updated: "2026-03-19T04:18:19.767Z"
-last_activity: "2026-03-19 -- Phase 63 Plan 01 complete: stage state, sequence counters, control endpoints"
+stopped_at: Completed 63-02-PLAN.md
+last_updated: "2026-03-19T05:12:41.678Z"
+last_activity: "2026-03-19 -- Phase 63 Plan 02 complete: Touch 4 HITL pilot fixtures and capture validated end-to-end"
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 95
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 
 ## Current Position
 
-Phase: 63 (2 of 9 in v1.9) (HITL & Async Mock Capture)
-Plan: 1 of 2 in current phase
-Status: Plan 01 complete -- stage/sequence infrastructure built
-Last activity: 2026-03-19 -- Phase 63 Plan 01 complete: stage state, sequence counters, control endpoints
+Phase: 63 (2 of 9 in v1.9) (HITL & Async Mock Capture) -- COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase 63 complete -- all plans executed
+Last activity: 2026-03-19 -- Phase 63 Plan 02 complete: Touch 4 HITL pilot fixtures and capture validated end-to-end
 
-Progress: [██████████] 95% (v1.9)
+Progress: [██████████] 100% (v1.9)
 
 ## Performance Metrics
 
@@ -60,6 +60,9 @@ Recent decisions for v1.9:
 - [Phase 62]: Dedicated port 3099 for tutorial captures avoids conflicts with dev server on 3000
 - [Phase 63]: Stage ref pattern: mutable variable in capture loop shared via closure with browser mocks
 - [Phase 63]: Sequences managed server-side only; browser mocks derive status from stageGetter closure
+- [Phase 63]: Playwright outputDir separated from screenshot output to prevent cross-tutorial cleanup
+- [Phase 63]: Catch-all API route registered first in mockBrowserAPIs for correct Playwright reverse-order priority
+- [Phase 63]: Idle stage returns empty interactions array to avoid false fallback UI triggers
 
 ### Pending Todos
 
@@ -74,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T04:18:19.765Z
-Stopped at: Completed 63-01-PLAN.md
-Next action: Proceed to Phase 63 (HITL & Async Mock Capture)
+Last session: 2026-03-19T05:12:00.000Z
+Stopped at: Completed 63-02-PLAN.md
+Next action: Proceed to Phase 64 (next phase in v1.9)

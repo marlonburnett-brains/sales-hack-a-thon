@@ -135,7 +135,7 @@
 **Milestone Goal:** Produce automated, deterministic tutorial videos for every AtlusDeck feature using Playwright-driven UI capture, Remotion video composition, and local TTS narration.
 
 - [x] **Phase 62: Workspace & Mock Infrastructure** - Scaffold apps/tutorials workspace with mock agent server, page.route() helpers, auth bypass, fixture factories, and deterministic screenshot capture (completed 2026-03-19)
-- [ ] **Phase 63: HITL & Async Mock Capture** - Add mock patterns for multi-stage HITL workflows and polling/async status sequences
+- [x] **Phase 63: HITL & Async Mock Capture** - Add mock patterns for multi-stage HITL workflows and polling/async status sequences (completed 2026-03-19)
 - [ ] **Phase 64: TTS Pipeline** - Integrate Kokoro (draft) and Chatterbox-Turbo (production) TTS engines with timing manifest generation
 - [ ] **Phase 65: Remotion Composition Core** - Build shared TutorialStep component, per-tutorial Remotion compositions, and MP4 render pipeline
 - [ ] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates
@@ -164,7 +164,7 @@ Plans:
 **Goal**: Playwright can capture multi-stage HITL workflows and polling-based async flows with pre-authored fixture sequences
 **Depends on**: Phase 62
 **Requirements**: CAPT-03, CAPT-04
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 63-01-PLAN.md -- Stage/sequence infrastructure for mock server, schema extensions, fixture loader
 - [ ] 63-02-PLAN.md -- Pilot Touch 4 HITL tutorial fixtures, capture spec, and end-to-end verification
@@ -225,7 +225,7 @@ Plans:
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
-| 63. HITL & Async Mock Capture | 1/2 | In Progress|  | - |
+| 63. HITL & Async Mock Capture | 2/2 | Complete   | 2026-03-19 | - |
 | 64. TTS Pipeline | v1.9 | 0/TBD | Not started | - |
 | 65. Remotion Composition Core | v1.9 | 0/TBD | Not started | - |
 | 66. Visual Effects & Polish | v1.9 | 0/TBD | Not started | - |
