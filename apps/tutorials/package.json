@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "capture": "tsx scripts/capture.ts",
-    "generate": "tsx scripts/generate-script.ts",
+    "generate": "tsx scripts/generate.ts",
     "tts": "tsx scripts/tts.ts",
     "tts:draft": "tsx scripts/tts.ts --engine kokoro",
     "tts:prod": "tsx scripts/tts.ts --engine chatterbox",

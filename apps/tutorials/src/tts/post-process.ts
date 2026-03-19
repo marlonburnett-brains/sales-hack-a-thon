@@ -69,18 +69,30 @@ function parseLoudnormStats(stderr: string): {
   measured_TP: string;
   measured_thresh: string;
 } {
-  // Find the JSON block that loudnorm prints
-  const jsonMatch = stderr.match(
-    /\{[^}]*"input_i"[^}]*"input_lra"[^}]*"input_tp"[^}]*"input_thresh"[^}]*\}/s
-  );
-  if (!jsonMatch) {
+  // Find JSON-like objects in stderr and select the one containing loudnorm stats.
+  const jsonBlocks = stderr.match(/\{[\s\S]*?\}/g) ?? [];
+  const jsonBlock = jsonBlocks.find((block) => {
+    try {
+      const parsed = JSON.parse(block) as Record<string, unknown>;
+      return (
+        typeof parsed.input_i === "string" &&
+        typeof parsed.input_lra === "string" &&
+        typeof parsed.input_tp === "string" &&
+        typeof parsed.input_thresh === "string"
+      );
+    } catch {
+      return false;
+    }
+  });
+
+  if (!jsonBlock) {
     throw new Error(
       "Failed to parse loudnorm stats from ffmpeg output. Raw stderr:\n" +
         stderr.slice(-500)
     );
   }
 
-  const stats = JSON.parse(jsonMatch[0]);
+  const stats = JSON.parse(jsonBlock) as Record<string, string>;
   return {
     measured_I: stats.input_i,
     measured_LRA: stats.input_lra,
