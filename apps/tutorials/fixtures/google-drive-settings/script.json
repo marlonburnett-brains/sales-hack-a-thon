@@ -42,21 +42,28 @@
     },
     {
       "id": "step-004",
-      "url": "/settings/drive",
-      "narration": "Once you've selected a folder, you'll see it confirmed here. AtlusDeck will now save all generated decks to this location automatically.",
+      "url": "/settings",
+      "narration": "After selecting your folder in the Drive picker, the settings save automatically. Let's go back to the Drive page to confirm.",
       "waitFor": "main",
-      "mockStage": "configured",
+      "mockStage": "configured"
+    },
+    {
+      "id": "step-005",
+      "url": "/settings/drive",
+      "narration": "Your folder is now set to AtlusDeck Proposals. All generated decks, talk tracks, and other deal artifacts will be organized under this folder automatically.",
+      "waitFor": "main",
       "zoomTarget": {
         "selector": "main",
         "scale": 1.35,
         "x": 0.5,
         "y": 0.35
-      }
+      },
+      "delayMs": 1000
     },
     {
-      "id": "step-005",
+      "id": "step-006",
       "url": "/settings",
-      "narration": "That's all there is to it. Your Drive connection is ready and AtlusDeck will handle file storage from here. Head back to settings to explore other configuration options.",
+      "narration": "That's all there is to it. Your Drive connection is ready and AtlusDeck will handle file storage from here. Explore other settings to customize your workspace.",
       "waitFor": "main",
       "emotion": "calm"
     }

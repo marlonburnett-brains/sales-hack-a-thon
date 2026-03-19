@@ -232,6 +232,30 @@ export async function mockBrowserAPIs(
   });
 
   // ────────────────────────────────────────────────────────────
+  // Actions Count (sidebar badge)
+  // ────────────────────────────────────────────────────────────
+
+  await page.route("**/api/actions/count*", async (route: Route) => {
+    // Fetch from the mock server which is stage-aware
+    const mockPort = process.env.MOCK_SERVER_PORT ?? "4112";
+    try {
+      const resp = await fetch(`http://localhost:${mockPort}/actions/count`);
+      const data = await resp.json();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(data),
+      });
+    } catch {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ count: 0 }),
+      });
+    }
+  });
+
+  // ────────────────────────────────────────────────────────────
   // Google Drive Token
   // ────────────────────────────────────────────────────────────
 

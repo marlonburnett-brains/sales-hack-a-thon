@@ -6,16 +6,23 @@
   "steps": [
     {
       "id": "step-001",
-      "url": "/",
-      "narration": "Sometimes AtlusDeck needs your help to resolve integration issues. Notice the action count indicator in the sidebar -- that means there are items that need your attention. Let's take a look at the Action Center.",
+      "url": "/deals",
+      "narration": "Sometimes AtlusDeck needs your help to resolve integration issues. Notice the action count badge in the sidebar showing three items that need your attention. Let's take a look.",
       "mockStage": "errors",
       "waitFor": "main",
-      "emotion": "professional"
+      "delayMs": 1500,
+      "emotion": "professional",
+      "zoomTarget": {
+        "selector": "nav",
+        "scale": 1.5,
+        "x": 0.5,
+        "y": 0.7
+      }
     },
     {
       "id": "step-002",
       "url": "/actions",
-      "narration": "The Action Center shows all issues that need your attention. Each item tells you exactly what's wrong and how to fix it.",
+      "narration": "The Action Center shows all issues that need your attention. Each item tells you exactly what's wrong and how to fix it. Right now there are three issues to resolve.",
       "waitFor": "main",
       "delayMs": 1000,
       "zoomTarget": {
@@ -28,7 +35,7 @@
     {
       "id": "step-003",
       "url": "/actions",
-      "narration": "This first item is an expired Google connection. When your OAuth token expires, AtlusDeck can't access your Drive or Slides. Click Re-authenticate to reconnect.",
+      "narration": "This first item is an expired Google connection. When your OAuth token expires, AtlusDeck can't access your Drive or Slides. Click Connect Google to re-authenticate.",
       "waitFor": "main",
       "zoomTarget": {
         "selector": "main",
@@ -80,21 +87,35 @@
     },
     {
       "id": "step-006",
-      "url": "/actions",
-      "narration": "Once you've resolved all issues, the Action Center shows a clean green checkmark. You're good to go!",
+      "url": "/deals",
+      "narration": "After resolving all three issues, let's check the results. Notice the action badge is now gone from the sidebar.",
       "mockStage": "resolved",
       "waitFor": "main",
-      "delayMs": 500,
-      "callout": {
-        "text": "All clear -- no actions required",
+      "delayMs": 1000,
+      "zoomTarget": {
+        "selector": "nav",
+        "scale": 1.5,
         "x": 0.5,
-        "y": 0.45
+        "y": 0.7
       }
     },
     {
       "id": "step-007",
-      "url": "/",
-      "narration": "Back on the dashboard, the action indicator is gone -- everything is running smoothly.",
+      "url": "/actions",
+      "narration": "The Action Center confirms everything is clear with a green checkmark. All issues have been resolved and you're good to go.",
+      "waitFor": "main",
+      "delayMs": 1000,
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.4,
+        "x": 0.5,
+        "y": 0.4
+      }
+    },
+    {
+      "id": "step-008",
+      "url": "/deals",
+      "narration": "Back on your deals dashboard, everything is running smoothly. You can always check the Action Center if a new issue appears.",
       "waitFor": "main",
       "emotion": "calm"
     }
