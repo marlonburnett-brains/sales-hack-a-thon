@@ -7,7 +7,7 @@
     {
       "id": "step-001",
       "url": "/deals",
-      "narration": "Your deals pipeline is the command center for all active engagements. Here you can see seven deals at a glance, each showing the company, status, and owner.",
+      "narration": "Your deals pipeline is the command center for all active engagements. Here you can see your open deals at a glance, each showing the company, status, and owner.",
       "waitFor": "main",
       "delayMs": 1500,
       "emotion": "professional"
@@ -21,7 +21,7 @@
         { "type": "click", "selector": "button:has-text('New Deal')" }
       ],
       "cursorTarget": { "x": 0.88, "y": 0.12 },
-      "delayMs": 500
+      "delayMs": 800
     },
     {
       "id": "step-003",
@@ -29,7 +29,7 @@
       "narration": "Fill in the deal details. We'll name this one Cloud Migration Assessment and associate it with Meridian Dynamics since we're expanding our engagement with them.",
       "waitFor": "[role='dialog']",
       "actions": [
-        { "type": "fill", "selector": "input[name='name'], input[placeholder*='deal name' i], input[placeholder*='Deal name' i]", "value": "Cloud Migration Assessment" }
+        { "type": "fill", "selector": "#dealName", "value": "Cloud Migration Assessment" }
       ],
       "zoomTarget": { "selector": "[role='dialog']", "scale": 1.5, "x": 0.5, "y": 0.4 },
       "delayMs": 500
@@ -53,7 +53,7 @@
     {
       "id": "step-006",
       "url": "/deals",
-      "narration": "Back on the deals page, let's manage team assignments. Click the assign button on the Meridian deal to add a team member.",
+      "narration": "Back on the deals page, let's manage team assignments. The assign action on each deal card lets you add or change the team member responsible.",
       "waitFor": "main",
       "cursorTarget": { "x": 0.7, "y": 0.3 },
       "delayMs": 500
@@ -61,15 +61,15 @@
     {
       "id": "step-007",
       "url": "/deals",
-      "narration": "Select a team member from the dropdown. Assigning deals helps distribute workload and keeps the right people connected to each opportunity.",
+      "narration": "Assigning deals helps distribute workload and keeps the right people connected to each opportunity. Each team member sees only their assigned deals by default.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.7, "y": 0.35 },
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.35 },
       "cursorTarget": { "x": 0.7, "y": 0.38 }
     },
     {
       "id": "step-008",
       "url": "/deals",
-      "narration": "Now let's update a deal status. Changing the Meridian deal from open to won marks it as a successfully closed engagement.",
+      "narration": "You can also update a deal's status directly from the grid. Changing a deal from open to won, lost, or abandoned keeps your pipeline accurate.",
       "waitFor": "main",
       "cursorTarget": { "x": 0.6, "y": 0.3 },
       "callout": { "text": "Update deal status to track progress", "x": 0.5, "y": 0.2 },
@@ -77,37 +77,33 @@
     },
     {
       "id": "step-009",
-      "url": "/deals",
-      "narration": "Switch to table view for a more compact layout. The toggle in the upper right lets you choose between the visual grid and a traditional table format.",
+      "url": "/deals?view=table",
+      "narration": "Switch to table view for a more compact layout. The view toggle in the upper right lets you choose between the visual grid and a traditional table format.",
       "waitFor": "main",
-      "actions": [
-        { "type": "click", "selector": "button[aria-label*='table' i], button[aria-label*='Table' i], button[data-testid='view-toggle-table'], [role='tablist'] button:nth-child(2)" }
-      ],
       "cursorTarget": { "x": 0.85, "y": 0.12 },
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.85, "y": 0.12 }
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.85, "y": 0.12 },
+      "delayMs": 1000
     },
     {
       "id": "step-010",
-      "url": "/deals",
+      "url": "/deals?view=table",
       "narration": "Table view shows all your deals in a scannable list with sortable columns. This is ideal when you need to compare details across many deals quickly.",
       "waitFor": "main",
       "delayMs": 1000
     },
     {
       "id": "step-011",
-      "url": "/deals",
-      "narration": "Use the status filter to narrow your view. Let's filter to show only won deals so we can see which engagements have closed successfully.",
+      "url": "/deals?status=won",
+      "narration": "Use the status filter to narrow your view. Here we've filtered to show only won deals so you can see which engagements have closed successfully.",
       "waitFor": "main",
-      "actions": [
-        { "type": "click", "selector": "button:has-text('Status'), button:has-text('Filter'), [data-testid='status-filter']" }
-      ],
       "cursorTarget": { "x": 0.2, "y": 0.12 },
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.3, "y": 0.15 }
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.3, "y": 0.15 },
+      "delayMs": 1000
     },
     {
       "id": "step-012",
       "url": "/deals",
-      "narration": "With the filter active, only your won deals are visible. Clear the filter anytime to see the full pipeline again.",
+      "narration": "Clear the filter to see the full pipeline again. The deals page gives you everything you need to manage your active engagements in one place.",
       "waitFor": "main",
       "delayMs": 1000,
       "emotion": "calm"
