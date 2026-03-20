@@ -16,11 +16,11 @@ import type { TutorialBrowseCategory } from "@/lib/api-client";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   getting_started: Rocket,
-  sales_process: Briefcase,
-  customer_success: Hand,
-  product_features: Layers3,
-  best_practices: ClipboardCheck,
-  settings: Settings2,
+  deal_workflows: Briefcase,
+  touch_points: Hand,
+  content_management: Layers3,
+  review: ClipboardCheck,
+  settings_admin: Settings2,
 };
 
 function getIcon(key: string): LucideIcon {
