@@ -154,7 +154,7 @@
   3. All browser-side API calls return fixture JSON via page.route() helpers with no external network requests
   4. Playwright navigates past the Google OAuth login wall using mocked session cookies without any real authentication
   5. Screenshots are visually deterministic across repeated runs (CSS animations disabled, network idle waits enforced)
-**Plans:** 3/3 plans complete
+**Plans:** 4 plans (3 complete + 1 gap closure)
 Plans:
 - [x] 62-01-PLAN.md -- Scaffold workspace, tutorial script schema, and fixture factories
 - [x] 62-02-PLAN.md -- Mock agent server, auth bypass, route mocks, and determinism utilities
@@ -173,7 +173,7 @@ Plans:
 **Goal**: Developer can generate narration audio files from script text using either draft or production TTS engine
 **Depends on**: Phase 62 (needs tutorial script format from INFRA-02)
 **Requirements**: TTS-01, TTS-02, TTS-03, TTS-04
-**Plans:** 3/3 plans complete
+**Plans:** 4 plans (3 complete + 1 gap closure)
 Plans:
 - [ ] 64-01-PLAN.md -- Type contracts, Kokoro draft engine, ffmpeg post-processing, timing manifest module
 - [ ] 64-02-PLAN.md -- Chatterbox-Turbo Python sidecar setup and TypeScript wrapper
@@ -192,7 +192,7 @@ Plans:
 **Goal**: Tutorial videos include professional visual enhancements that guide the viewer's attention and provide context
 **Depends on**: Phase 65
 **Requirements**: COMP-04, COMP-05, COMP-06, COMP-07, COMP-08
-**Plans:** 3/3 plans complete
+**Plans:** 4 plans (3 complete + 1 gap closure)
 Plans:
 - [x] 66-01-PLAN.md -- Install transitions package, extend deterministic effect schema data, and add reusable Remotion effect primitives
 - [x] 66-02-PLAN.md -- Integrate TransitionSeries timeline, wire effect layers into the composition, and verify a pilot render
@@ -202,7 +202,7 @@ Plans:
 **Goal**: Three introductory tutorials covering first-time user experience and basic settings are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 66 (needs visual effects for production quality)
 **Requirements**: TUT-01, TUT-02, TUT-03
-**Plans:** 3/3 plans complete
+**Plans:** 4 plans (3 complete + 1 gap closure)
 Plans:
 - [ ] 67-01-PLAN.md -- Mock server extensions, Getting Started refinement, Google Drive Settings tutorial
 - [ ] 67-02-PLAN.md -- Action Center tutorial with stage-based resolution flow and end-to-end verification
@@ -230,11 +230,12 @@ Plans:
 **Goal**: Five tutorials covering multi-stage HITL touch workflows and asset review are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
 **Requirements**: TUT-13, TUT-14, TUT-15, TUT-16, TUT-17
-**Plans:** 3/3 plans complete
+**Plans:** 4 plans (3 complete + 1 gap closure)
 Plans:
 - [ ] 70-01-PLAN.md -- Touch 1-3 HITL scripts, fixtures, mock server asset-review extension, and capture specs
 - [ ] 70-02-PLAN.md -- Touch 4 expanded script, Asset Review script, fixtures, and capture specs
 - [ ] 70-03-PLAN.md -- TTS audio generation and MP4 rendering for all 5 tutorials
+- [ ] 70-04-PLAN.md -- Gap closure: fix regenerating.json fixture defect and re-run captures/renders
 
 ## Progress
 
