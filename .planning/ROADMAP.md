@@ -223,8 +223,8 @@ Plans:
 **Requirements**: TUT-08, TUT-09, TUT-10, TUT-11, TUT-12
 **Plans:** 2 plans
 Plans:
-- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
-- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
+- [ ] 69-01-PLAN.md -- Scripts, fixtures, mock server extensions, and capture specs for all 5 tutorials
+- [ ] 69-02-PLAN.md -- TTS audio generation and MP4 rendering for all 5 tutorials
 
 ### Phase 70: High-Complexity Tutorials
 **Goal**: Five tutorials covering multi-stage HITL touch workflows and asset review are captured, narrated, and rendered as MP4 videos
@@ -256,5 +256,5 @@ Plans:
 | 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
 | 67. Low-Complexity Tutorials | 3/3 | Complete   | 2026-03-19 | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | 2/2 | Complete    | 2026-03-20 | - |
-| 69. Medium-Complexity Tutorials (Library & Settings) | v1.9 | 0/TBD | Not started | - |
+| 69. Medium-Complexity Tutorials (Library & Settings) | 0/2 | Not started | - | - |
 | 70. High-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
