@@ -230,10 +230,11 @@ Plans:
 **Goal**: Five tutorials covering multi-stage HITL touch workflows and asset review are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
 **Requirements**: TUT-13, TUT-14, TUT-15, TUT-16, TUT-17
-**Plans:** 2 plans
+**Plans:** 3 plans
 Plans:
-- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
-- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
+- [ ] 70-01-PLAN.md -- Touch 1-3 HITL scripts, fixtures, mock server asset-review extension, and capture specs
+- [ ] 70-02-PLAN.md -- Touch 4 expanded script, Asset Review script, fixtures, and capture specs
+- [ ] 70-03-PLAN.md -- TTS audio generation and MP4 rendering for all 5 tutorials
 
 ## Progress
 
