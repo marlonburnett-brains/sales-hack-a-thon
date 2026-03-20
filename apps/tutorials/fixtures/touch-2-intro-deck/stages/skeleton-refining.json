@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch2-001",
+      "dealId": "deal-001",
+      "touchType": "touch_2",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch2\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "skeleton",
+      "stageContent": "{\"slideOutline\":[],\"refining\":true}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:02:30.000Z"
+    }
+  ]
+}

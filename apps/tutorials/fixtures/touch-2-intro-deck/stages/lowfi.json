@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch2-001",
+      "dealId": "deal-001",
+      "touchType": "touch_2",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch2\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "lowfi",
+      "stageContent": "{\"slidePreviews\":[{\"slideNumber\":1,\"title\":\"About AtlusDeck\",\"contentBlocks\":[\"Founded 2024 | AI Sales Enablement\",\"Trusted by 50+ enterprise sales teams\",\"Average 3.2x ROI in first quarter\"]},{\"slideNumber\":2,\"title\":\"Meridian's Growth Challenge\",\"contentBlocks\":[\"5-7 day proposal turnaround\",\"40+ deals competing for limited bandwidth\",\"Inconsistent branding across deliverables\"]},{\"slideNumber\":3,\"title\":\"AI-Powered Proposal Automation\",\"contentBlocks\":[\"Intelligent content assembly from approved templates\",\"3-gate human-in-the-loop review: skeleton, draft, final\",\"Brand compliance enforced automatically\"]},{\"slideNumber\":4,\"title\":\"Platform Capabilities\",\"contentBlocks\":[\"Template library with slide-level classification\",\"Deck structure intelligence per touch type\",\"Content similarity search across slide corpus\"]},{\"slideNumber\":5,\"title\":\"Google Workspace Integration\",\"contentBlocks\":[\"Native Google Slides generation\",\"Automatic Drive folder organization\",\"Real-time collaboration support\"]},{\"slideNumber\":6,\"title\":\"Proven Results\",\"contentBlocks\":[\"95% reduction in proposal turnaround\",\"20% increase in prospect engagement\",\"4x proposal capacity without headcount growth\"]},{\"slideNumber\":7,\"title\":\"Pilot Program & Timeline\",\"contentBlocks\":[\"Week 1-2: Template onboarding and configuration\",\"Week 3-4: Pilot with 5 active deals\",\"Month 2: Full team rollout\"]},{\"slideNumber\":8,\"title\":\"Let's Get Started\",\"contentBlocks\":[\"Schedule your personalized demo\",\"See a live proposal generated for your deal\",\"Contact: sales@atlusdeck.com\"]}]}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:04:00.000Z"
+    }
+  ]
+}

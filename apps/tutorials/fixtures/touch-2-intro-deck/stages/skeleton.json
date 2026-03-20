@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch2-001",
+      "dealId": "deal-001",
+      "touchType": "touch_2",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch2\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "skeleton",
+      "stageContent": "{\"slideOutline\":[{\"slideNumber\":1,\"title\":\"Company Overview\",\"purpose\":\"Introduce AtlusDeck and establish credibility in the AI-powered sales enablement space\"},{\"slideNumber\":2,\"title\":\"The Challenge\",\"purpose\":\"Frame Meridian Dynamics' current proposal bottleneck and its impact on revenue\"},{\"slideNumber\":3,\"title\":\"Our Approach\",\"purpose\":\"Present the AI-driven proposal automation methodology with human-in-the-loop quality gates\"},{\"slideNumber\":4,\"title\":\"Key Capabilities\",\"purpose\":\"Highlight template management, content assembly, and Google Workspace integration\"},{\"slideNumber\":5,\"title\":\"Success Metrics\",\"purpose\":\"Share quantified outcomes: 95% faster turnaround, 20% engagement lift, 4x capacity\"},{\"slideNumber\":6,\"title\":\"Implementation Timeline\",\"purpose\":\"Outline the pilot-to-production path aligned with Meridian's Q2 timeline\"},{\"slideNumber\":7,\"title\":\"Next Steps\",\"purpose\":\"Propose a live demo and pilot kickoff schedule\"}]}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:02:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch2-001",
+      "dealId": "deal-001",
+      "touchType": "touch_2",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch2\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "highfi",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch2-intro-deck/edit\",\"slideCount\":8,\"brandCompliant\":true,\"formatting\":{\"theme\":\"AtlusDeck Corporate\",\"primaryColor\":\"#2563EB\",\"accentColor\":\"#10B981\",\"headerFont\":\"Brand Sans\",\"bodyFont\":\"Inter\"},\"complianceResult\":{\"status\":\"passed\",\"issues\":[]}}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:05:00.000Z"
+    }
+  ]
+}

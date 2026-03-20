@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch3-001",
+      "dealId": "deal-001",
+      "touchType": "touch_3",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"capabilityAreas\":[\"Cloud Infrastructure\",\"Data Analytics\",\"Security\"]}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch3\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "skeleton",
+      "stageContent": "{\"capabilityStructure\":{\"selectedAreas\":[\"Cloud Infrastructure\",\"Data Analytics\",\"Security\"],\"deckSections\":[{\"sectionTitle\":\"Cloud Infrastructure\",\"slides\":[{\"slideNumber\":1,\"title\":\"Cloud Migration & Modernization\",\"purpose\":\"Present end-to-end cloud migration capabilities and hybrid cloud management\"},{\"slideNumber\":2,\"title\":\"Infrastructure as Code\",\"purpose\":\"Showcase automated provisioning, Terraform, and CI/CD pipeline expertise\"}]},{\"sectionTitle\":\"Data Analytics\",\"slides\":[{\"slideNumber\":3,\"title\":\"Data Platform Architecture\",\"purpose\":\"Present modern data stack capabilities: lakehouse, streaming, and batch processing\"},{\"slideNumber\":4,\"title\":\"Business Intelligence & Visualization\",\"purpose\":\"Demonstrate dashboard design, self-service analytics, and executive reporting\"}]},{\"sectionTitle\":\"Security\",\"slides\":[{\"slideNumber\":5,\"title\":\"Zero Trust Architecture\",\"purpose\":\"Present comprehensive security posture management and identity-based access control\"},{\"slideNumber\":6,\"title\":\"Compliance & Governance\",\"purpose\":\"SOC 2, GDPR, and industry-specific compliance framework implementation\"}]},{\"sectionTitle\":\"Summary\",\"slides\":[{\"slideNumber\":7,\"title\":\"Integrated Capability View\",\"purpose\":\"Show how all three capability areas work together for Meridian's transformation\"},{\"slideNumber\":8,\"title\":\"Engagement Model\",\"purpose\":\"Propose next steps and engagement structure\"}]}]}}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:02:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch3-001",
+      "dealId": "deal-001",
+      "touchType": "touch_3",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"capabilityAreas\":[\"Cloud Infrastructure\",\"Data Analytics\",\"Security\"]}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch3\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "lowfi",
+      "stageContent": "{\"capabilitySlides\":[{\"slideNumber\":1,\"section\":\"Cloud Infrastructure\",\"title\":\"Cloud Migration & Modernization\",\"contentBlocks\":[\"Proven migration framework: Assess, Plan, Migrate, Optimize\",\"Hybrid cloud management with unified control plane\",\"Kubernetes orchestration with GitOps deployment\",\"Meridian-specific: 40% cost reduction with right-sizing analysis\"]},{\"slideNumber\":2,\"section\":\"Cloud Infrastructure\",\"title\":\"Infrastructure as Code\",\"contentBlocks\":[\"Terraform modules customized to Meridian's AWS environment\",\"Automated compliance scanning in CI/CD pipelines\",\"Blue-green deployments for zero-downtime releases\",\"Infrastructure drift detection and auto-remediation\"]},{\"slideNumber\":3,\"section\":\"Data Analytics\",\"title\":\"Data Platform Architecture\",\"contentBlocks\":[\"Lakehouse architecture on Databricks with Delta Lake\",\"Real-time event streaming for operational intelligence\",\"Data mesh principles for domain-oriented ownership\",\"Meridian-specific: Unified view of client engagement data\"]},{\"slideNumber\":4,\"section\":\"Data Analytics\",\"title\":\"Business Intelligence & Visualization\",\"contentBlocks\":[\"Executive dashboards with drill-down to operational metrics\",\"Self-service analytics empowering sales and operations teams\",\"Predictive modeling for deal outcome forecasting\",\"Embedded analytics in Meridian's client portal\"]},{\"slideNumber\":5,\"section\":\"Security\",\"title\":\"Zero Trust Architecture\",\"contentBlocks\":[\"Identity-first security with conditional access policies\",\"Micro-segmentation aligned with Meridian's service boundaries\",\"24/7 SOC monitoring with automated threat response\",\"Quarterly penetration testing and vulnerability assessments\"]},{\"slideNumber\":6,\"section\":\"Security\",\"title\":\"Compliance & Governance\",\"contentBlocks\":[\"SOC 2 Type II readiness program (12-week fast-track)\",\"GDPR compliance framework with data mapping\",\"Automated evidence collection for audit cycles\",\"Meridian-specific: Client data handling policy templates\"]},{\"slideNumber\":7,\"section\":\"Summary\",\"title\":\"Integrated Capability View\",\"contentBlocks\":[\"Three capability areas, one unified transformation platform\",\"Shared security posture across cloud and data workloads\",\"Cross-domain visibility from infrastructure to analytics\",\"Single engagement model reduces coordination overhead\"]},{\"slideNumber\":8,\"section\":\"Summary\",\"title\":\"Engagement Model\",\"contentBlocks\":[\"Discovery & Assessment: 2-week deep dive into current state\",\"Foundation Sprint: 6-week core platform buildout\",\"Capability Waves: 8-week phased delivery per domain\",\"Continuous Optimization: Quarterly reviews and roadmap updates\"]}]}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:04:00.000Z"
+    }
+  ]
+}

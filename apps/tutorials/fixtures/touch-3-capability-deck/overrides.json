@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch3-001",
+      "dealId": "deal-001",
+      "touchType": "touch_3",
+      "status": "not_started",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\"}",
+      "decision": null,
+      "generatedContent": null,
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "idle",
+      "stageContent": null,
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:00:00.000Z"
+    }
+  ]
+}
