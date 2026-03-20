@@ -140,7 +140,7 @@
 - [x] **Phase 65: Remotion Composition Core** - Build shared TutorialStep component, per-tutorial Remotion compositions, and MP4 render pipeline (completed 2026-03-19)
 - [x] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates (gap closure in progress) (completed 2026-03-19)
 - [x] **Phase 67: Low-Complexity Tutorials** - Author scripts, fixtures, and captures for Getting Started, Google Drive Settings, and Action Center tutorials (completed 2026-03-19)
-- [ ] **Phase 68: Medium-Complexity Tutorials (Deals & Briefing)** - Author scripts, fixtures, and captures for Deals, Deal Overview, Deal Chat, and Pre-Call Briefing tutorials
+- [x] **Phase 68: Medium-Complexity Tutorials (Deals & Briefing)** - Author scripts, fixtures, and captures for Deals, Deal Overview, Deal Chat, and Pre-Call Briefing tutorials (completed 2026-03-20)
 - [ ] **Phase 69: Medium-Complexity Tutorials (Library & Settings)** - Author scripts, fixtures, and captures for Template Library, Slide Library, Deck Structures, Agent Prompts, and AtlusAI Integration tutorials
 - [ ] **Phase 70: High-Complexity Tutorials** - Author scripts, fixtures, and captures for Touch 1-4 HITL workflows and Asset Review tutorial
 
@@ -212,7 +212,7 @@ Plans:
 **Goal**: Four tutorials covering deal management and pre-call briefing workflows are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
 **Requirements**: TUT-04, TUT-05, TUT-06, TUT-07
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 68-01-PLAN.md -- Scripts, fixtures, mock server extensions, and capture specs for all 4 tutorials
 - [ ] 68-02-PLAN.md -- TTS audio generation and MP4 rendering for all 4 tutorials
@@ -254,6 +254,6 @@ Plans:
 | 65. Remotion Composition Core | 2/2 | Complete    | 2026-03-19 | - |
 | 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
 | 67. Low-Complexity Tutorials | 3/3 | Complete   | 2026-03-19 | - |
-| 68. Medium-Complexity Tutorials (Deals & Briefing) | 1/2 | In Progress|  | - |
+| 68. Medium-Complexity Tutorials (Deals & Briefing) | 2/2 | Complete   | 2026-03-20 | - |
 | 69. Medium-Complexity Tutorials (Library & Settings) | v1.9 | 0/TBD | Not started | - |
 | 70. High-Complexity Tutorials | v1.9 | 0/TBD | Not started | - |
