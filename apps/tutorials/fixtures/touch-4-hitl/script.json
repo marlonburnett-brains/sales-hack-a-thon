@@ -1,57 +1,151 @@
 {
   "id": "touch-4-hitl",
-  "title": "Touch 4: Sales Proposal HITL Workflow",
-  "description": "Walk through the complete Touch 4 Sales Proposal human-in-the-loop workflow: from transcript processing through field review, brief generation, asset creation, and final delivery.",
+  "title": "Touch 4: Transcript-to-Proposal Pipeline",
+  "description": "Walk through the complete Touch 4 transcript-to-proposal pipeline: paste a meeting transcript, watch AtlusDeck extract fields, review drafts of all 3 artifacts (proposal deck, talk track, FAQ), request changes, and receive finalized Google Drive links.",
   "fixtures": "touch-4-hitl",
   "touchType": "touch-4",
   "steps": [
     {
       "id": "step-001",
       "url": "/deals/deal-001/touch/4",
-      "narration": "Start by navigating to the Touch 4 Sales Proposal page for your deal. You'll see the transcript processing form where you can paste your meeting notes.",
+      "narration": "Welcome to Touch 4 -- the most comprehensive touch in AtlusDeck. From a single meeting transcript, you'll get three polished artifacts: a proposal deck, a talk track, and a buyer FAQ. Let's start on the Touch 4 page for the Meridian Dynamics deal.",
       "mockStage": "idle",
       "waitFor": "main",
-      "delayMs": 500
+      "delayMs": 500,
+      "emotion": "cheerful"
     },
     {
       "id": "step-002",
       "url": "/deals/deal-001/touch/4",
-      "narration": "After submitting the transcript, AtlusDeck begins extracting key fields and generating content. The progress indicator shows the workflow is actively processing your input.",
-      "mockStage": "generating",
-      "waitForText": "Generation in progress",
+      "narration": "Here's the transcript input area. This is where you paste the notes from your meeting -- AtlusDeck will extract everything it needs from the raw text.",
+      "mockStage": "idle",
+      "zoomTarget": { "selector": "textarea, [data-testid='transcript-input']", "scale": 1.4, "x": 0.5, "y": 0.4 },
+      "callout": { "text": "Paste your meeting transcript here", "x": 0.5, "y": 0.25 },
       "delayMs": 500
     },
     {
       "id": "step-003",
       "url": "/deals/deal-001/touch/4",
-      "narration": "The AI has extracted structured fields from your transcript. Review customer context, business outcomes, constraints, stakeholders, timeline, and budget before proceeding.",
-      "mockStage": "skeleton",
-      "waitForText": "Extracted Transcript Fields",
+      "narration": "After pasting in your transcript, you can see the full meeting notes ready for processing. The text includes customer context, business outcomes, and all the details AtlusDeck will extract.",
+      "mockStage": "transcript-pasted",
+      "waitForText": "Meridian Dynamics",
+      "cursorTarget": { "x": 0.5, "y": 0.4 },
       "delayMs": 500
     },
     {
       "id": "step-004",
       "url": "/deals/deal-001/touch/4",
-      "narration": "After approving the extracted fields, AtlusDeck generates a complete sales brief with executive summary, solution pillars, and ROI framing. Review the brief before final approval.",
-      "mockStage": "lowfi",
-      "waitForText": "Sales Brief",
+      "narration": "Click Submit to kick off the extraction process. AtlusDeck is now analyzing your transcript to pull out structured fields -- customer context, outcomes, constraints, stakeholders, timeline, and budget.",
+      "mockStage": "generating",
+      "waitForText": "Generation in progress",
+      "cursorTarget": { "x": 0.5, "y": 0.6 },
       "delayMs": 500
     },
     {
       "id": "step-005",
       "url": "/deals/deal-001/touch/4",
-      "narration": "Once the brief is approved, AtlusDeck assembles all three proposal artifacts: the presentation deck, talk track, and buyer FAQ document. Review each artifact before marking as ready.",
-      "mockStage": "hifi",
-      "waitForText": "Proposal Deck",
+      "narration": "The AI has extracted structured fields from your transcript. Take a moment to review everything -- customer context, business outcomes, constraints, stakeholders, timeline, and budget are all pulled directly from what you pasted.",
+      "mockStage": "skeleton",
+      "waitForText": "Extracted Transcript Fields",
       "delayMs": 500
     },
     {
       "id": "step-006",
       "url": "/deals/deal-001/touch/4",
-      "narration": "All artifacts are complete and saved to Google Drive. You can access the proposal deck, talk track, and buyer FAQ directly from the deal page. The entire workflow took just minutes instead of days.",
+      "narration": "Notice the level of detail in the extracted fields. Meridian Dynamics' need to reduce proposal turnaround from 5-7 days to under 2 hours is captured perfectly, along with their Q2 timeline and $180K budget.",
+      "mockStage": "skeleton",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.5, "x": 0.5, "y": 0.45 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-007",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "Approve the extracted fields and AtlusDeck generates draft outlines for all three artifacts at once -- the proposal deck, talk track, and buyer FAQ. This is the low-fidelity stage where you review the structure before polishing.",
+      "mockStage": "lowfi",
+      "waitForText": "Sales Brief",
+      "cursorTarget": { "x": 0.5, "y": 0.7 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-008",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "Here's the proposal deck draft section. The AI has structured the pitch around intelligent proposal generation, human-in-the-loop quality assurance, and Google Workspace integration -- all tailored to what Meridian Dynamics needs.",
+      "mockStage": "lowfi",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.4, "x": 0.5, "y": 0.35 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-009",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "Let's say the draft needs some work. Click Request Changes to send it back for refinement. Since all three artifacts are generated together, refining at this stage improves all of them at once -- that's the power of Touch 4's unified pipeline.",
+      "mockStage": "lowfi-refining",
+      "waitForText": "Generation in progress",
+      "cursorTarget": { "x": 0.5, "y": 0.7 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-010",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "The refined drafts are back. Notice the improvements -- tighter executive summary, more specific ROI framing, and clearer solution pillars. The AI incorporated your feedback across all three artifacts.",
+      "mockStage": "lowfi-refined",
+      "waitForText": "Sales Brief",
+      "delayMs": 500
+    },
+    {
+      "id": "step-011",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "Approve the refined drafts and AtlusDeck produces the final polished versions. This is the high-fidelity stage -- fully formatted proposal deck, detailed talk track, and comprehensive FAQ ready for your review.",
+      "mockStage": "hifi",
+      "waitForText": "Proposal Deck",
+      "cursorTarget": { "x": 0.5, "y": 0.7 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-012",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "Let's look at the proposal deck in detail. The slides are structured with your company context, solution pillars, ROI framing, and implementation timeline -- everything pulled from that single transcript.",
+      "mockStage": "artifacts-proposal",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.5, "x": 0.5, "y": 0.35 },
+      "callout": { "text": "Proposal deck -- ready for presentation", "x": 0.5, "y": 0.2 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-013",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "Here's the talk track -- your speaking notes for each section of the proposal. It includes the key talking points, transition phrases, and objection-handling guidance specific to Meridian Dynamics.",
+      "mockStage": "artifacts-talktrack",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.5, "x": 0.5, "y": 0.35 },
+      "callout": { "text": "Talk track -- your speaking guide", "x": 0.5, "y": 0.2 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-014",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "And the buyer FAQ -- anticipated questions from the Meridian Dynamics team with suggested answers. Covers pricing, timeline, integration, compliance, and scalability concerns.",
+      "mockStage": "artifacts-faq",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.5, "x": 0.5, "y": 0.35 },
+      "callout": { "text": "Buyer FAQ -- anticipate their questions", "x": 0.5, "y": 0.2 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-015",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "Give the final approval and all three artifacts are saved to Google Drive. The entire workflow -- from raw transcript to three polished, brand-compliant documents -- took minutes instead of days.",
       "mockStage": "completed",
       "waitForText": "Saved to Drive",
-      "delayMs": 500
+      "cursorTarget": { "x": 0.5, "y": 0.6 },
+      "delayMs": 500,
+      "emotion": "encouraging"
+    },
+    {
+      "id": "step-016",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "Here are your Drive links -- the proposal deck in Google Slides, plus the talk track and buyer FAQ in Google Docs. Everything is organized in your deal folder, ready to share with your team or send directly to the prospect.",
+      "mockStage": "completed",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.4, "x": 0.5, "y": 0.5 },
+      "callout": { "text": "All 3 artifacts saved to Drive", "x": 0.5, "y": 0.25 },
+      "delayMs": 500,
+      "emotion": "excited"
     }
   ]
 }

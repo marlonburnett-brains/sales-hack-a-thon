@@ -5,7 +5,7 @@
       "dealId": "deal-001",
       "touchType": "touch_4",
       "status": "in_progress",
-      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Meeting with Meridian Dynamics VP of Sales and CTO. Current proposal turnaround is 5-7 business days. Need to reduce to under 2 hours.\",\"runId\":\"mock-run-touch4\"}",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Meeting with Meridian Dynamics VP of Sales and CTO.\",\"runId\":\"mock-run-touch4\"}",
       "decision": null,
       "generatedContent": "{\"runId\":\"mock-run-touch4\"}",
       "outputRefs": null,
@@ -13,7 +13,7 @@
       "hitlStage": null,
       "stageContent": null,
       "createdAt": "2026-03-15T10:00:00.000Z",
-      "updatedAt": "2026-03-15T10:01:00.000Z"
+      "updatedAt": "2026-03-15T10:03:30.000Z"
     }
   ]
 }

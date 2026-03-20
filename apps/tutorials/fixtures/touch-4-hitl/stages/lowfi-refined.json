@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch4-001",
+      "dealId": "deal-001",
+      "touchType": "touch_4",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Meeting with Meridian Dynamics VP of Sales and CTO.\",\"runId\":\"mock-run-touch4\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch4\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "lowfi",
+      "stageContent": "{\"briefData\":{\"executiveSummary\":\"Meridian Dynamics' sales team loses an estimated $2.4M annually in missed opportunities due to 5-7 day proposal turnaround times. With 40+ active deals per quarter and only 3 proposal specialists, the bottleneck is structural -- not a staffing problem. AtlusDeck eliminates this constraint by automating proposal generation to under 2 hours while preserving the brand-consistent, personalized quality that Meridian's enterprise clients expect.\",\"solutionPillars\":[{\"name\":\"Intelligent Proposal Generation\",\"description\":\"AI-driven content assembly leveraging Meridian's approved templates, historical win data, and prospect-specific intelligence. Generates complete proposal decks, detailed talk tracks, and anticipatory FAQ documents -- all personalized to the prospect's industry vertical, identified pain points, and engagement stage.\"},{\"name\":\"Human-in-the-Loop Quality Assurance\",\"description\":\"Three-gate review workflow (skeleton, draft, final) gives sellers full editorial control at every stage. Request changes cascade across all artifacts simultaneously, ensuring consistency between the deck, talk track, and FAQ without manual cross-referencing.\"},{\"name\":\"Google Workspace Native Integration\",\"description\":\"Zero-friction integration with Meridian's existing Google Slides, Docs, and Drive infrastructure. Generated assets auto-save to the deal folder with proper sharing permissions, version history, and audit trails for compliance.\"}]},\"roiFramingData\":{\"outcomes\":[{\"outcome\":\"Reduce proposal turnaround from 5-7 days to under 2 hours (96% faster)\"},{\"outcome\":\"Increase win rate by 15% through data-driven personalization and faster response times\"},{\"outcome\":\"Scale proposal capacity 4x (from 40 to 160+ per quarter) without additional headcount\"},{\"outcome\":\"Achieve full ROI within 90 days -- projected $180K savings vs. $180K annual investment\"}]},\"proposalOutline\":\"12-slide proposal deck: title, Meridian overview, challenge quantification ($2.4M annual impact), AtlusDeck solution overview, 3 solution pillars (1 slide each), implementation timeline (April pilot to Q2 rollout), ROI summary with 90-day payback, dedicated success team, next steps with pilot kickoff date, appendix with SOC 2 and API details.\",\"talkTrackDraft\":\"Refined section-by-section speaking notes with stronger opening hook (lead with $2.4M impact figure), specific Meridian references throughout, transition phrases between pillars, CTO-specific talking points on API access and SOC 2, and closing ask tied to April pilot timeline.\",\"faqDraft\":\"15-question FAQ refined with Meridian-specific context: pricing tied to $180K approved budget, implementation aligned to April-June timeline, Google Workspace integration details, SOC 2 compliance timeline, API access for CRM integration, data residency and security controls, customization within brand guidelines, training plan for 3 proposal specialists, scalability to enterprise tier ($350K), support SLA with dedicated CSM, contract flexibility, pilot success criteria, competitive positioning vs. manual process, and expansion path to additional teams.\"}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:04:00.000Z"
+    }
+  ]
+}

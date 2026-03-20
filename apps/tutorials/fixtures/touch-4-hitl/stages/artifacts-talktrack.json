@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch4-001",
+      "dealId": "deal-001",
+      "touchType": "touch_4",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Meeting with Meridian Dynamics VP of Sales and CTO.\",\"runId\":\"mock-run-touch4\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch4\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "highfi",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit\",\"talkTrackUrl\":\"https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit\",\"faqUrl\":\"https://docs.google.com/document/d/mock-touch4-faq-meridian/edit\",\"activeArtifact\":\"talkTrack\",\"proposalDeck\":{\"title\":\"AtlusDeck for Meridian Dynamics: Intelligent Proposal Automation\",\"slideCount\":12},\"talkTrack\":{\"title\":\"Meridian Dynamics Proposal Talk Track\",\"sectionCount\":8,\"wordCount\":2400,\"sections\":[\"Opening Hook ($2.4M Impact)\",\"Pain Point Validation\",\"Solution Walkthrough\",\"Pillar Deep Dives\",\"ROI Presentation\",\"CTO Technical Assurance\",\"Implementation Roadmap\",\"Closing Ask\"],\"highlights\":{\"section1\":\"Opens with the $2.4M annual impact figure to anchor the conversation\",\"section4\":\"Deep dives include CTO-specific talking points on API access and SOC 2 compliance\",\"section7\":\"Implementation roadmap aligns precisely with April pilot to Q2 rollout timeline\"}},\"faqDocument\":{\"title\":\"Meridian Dynamics Buyer FAQ\",\"questionCount\":15},\"complianceResult\":{\"status\":\"passed\",\"issues\":[]}}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:05:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch4-001",
+      "dealId": "deal-001",
+      "touchType": "touch_4",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Meeting with Meridian Dynamics VP of Sales and CTO.\",\"runId\":\"mock-run-touch4\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch4\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "highfi",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit\",\"talkTrackUrl\":\"https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit\",\"faqUrl\":\"https://docs.google.com/document/d/mock-touch4-faq-meridian/edit\",\"activeArtifact\":\"faq\",\"proposalDeck\":{\"title\":\"AtlusDeck for Meridian Dynamics: Intelligent Proposal Automation\",\"slideCount\":12},\"talkTrack\":{\"title\":\"Meridian Dynamics Proposal Talk Track\",\"sectionCount\":8,\"wordCount\":2400},\"faqDocument\":{\"title\":\"Meridian Dynamics Buyer FAQ\",\"questionCount\":15,\"categories\":[\"Pricing & Contract\",\"Implementation & Timeline\",\"Integration & Technical\",\"Security & Compliance\",\"Support & Scalability\"],\"highlights\":{\"pricing\":\"Q: What is the pricing structure? A: $180K annual for standard tier, with enterprise expansion to $350K including API access and dedicated CSM.\",\"timeline\":\"Q: What is the implementation timeline? A: Pilot kicks off April 2026 with 3 proposal specialists. Full rollout by end of Q2 2026 across the sales organization.\",\"security\":\"Q: Is AtlusDeck SOC 2 compliant? A: Yes. SOC 2 Type II certification documentation will be provided 2 weeks before pilot start for procurement review.\",\"integration\":\"Q: How does AtlusDeck integrate with our Google Workspace? A: Native integration with Google Slides, Docs, and Drive. No additional middleware or connectors required.\",\"scalability\":\"Q: Can we scale to additional teams? A: Enterprise tier ($350K) supports unlimited users with API access for custom CRM integrations.\"}},\"complianceResult\":{\"status\":\"passed\",\"issues\":[]}}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:05:00.000Z"
+    }
+  ]
+}

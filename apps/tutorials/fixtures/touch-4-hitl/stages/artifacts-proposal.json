@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch4-001",
+      "dealId": "deal-001",
+      "touchType": "touch_4",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Meeting with Meridian Dynamics VP of Sales and CTO.\",\"runId\":\"mock-run-touch4\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch4\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "highfi",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit\",\"talkTrackUrl\":\"https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit\",\"faqUrl\":\"https://docs.google.com/document/d/mock-touch4-faq-meridian/edit\",\"activeArtifact\":\"proposal\",\"proposalDeck\":{\"title\":\"AtlusDeck for Meridian Dynamics: Intelligent Proposal Automation\",\"slideCount\":12,\"sections\":[\"Title & Branding\",\"Company Overview\",\"Challenge Quantification\",\"Solution Overview\",\"Intelligent Proposal Generation\",\"Human-in-the-Loop QA\",\"Google Workspace Integration\",\"Implementation Timeline\",\"ROI Summary\",\"Success Team\",\"Next Steps\",\"Appendix\"],\"highlights\":{\"slide3\":\"Challenge slide quantifies the $2.4M annual impact of slow proposal turnaround\",\"slide5\":\"Pillar 1 details AI-driven content assembly with template personalization\",\"slide9\":\"ROI slide shows 90-day payback projection with conservative estimates\"}},\"talkTrack\":{\"title\":\"Meridian Dynamics Proposal Talk Track\",\"sectionCount\":8,\"wordCount\":2400},\"faqDocument\":{\"title\":\"Meridian Dynamics Buyer FAQ\",\"questionCount\":15},\"complianceResult\":{\"status\":\"passed\",\"issues\":[]}}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:05:00.000Z"
+    }
+  ]
+}

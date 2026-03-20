@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch4-001",
+      "dealId": "deal-001",
+      "touchType": "touch_4",
+      "status": "not_started",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Meeting with Meridian Dynamics VP of Sales and CTO. Current proposal turnaround is 5-7 business days. Need to reduce to under 2 hours. Budget approved for Q2 at $180K annual with potential expansion to $350K. Must integrate with existing Google Workspace. Need SOC 2 compliance documentation. Pilot in April, full rollout by end of Q2 2026.\"}",
+      "decision": null,
+      "generatedContent": null,
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "idle",
+      "stageContent": "{\"transcriptText\":\"Meeting with Meridian Dynamics VP of Sales and CTO on March 12, 2026.\\n\\nAttendees: Rachel Torres (VP Sales), David Kim (CTO), James Liu (Head of Operations)\\n\\nKey Discussion Points:\\n- Current proposal turnaround is 5-7 business days, losing deals to faster competitors\\n- Need to reduce proposal generation to under 2 hours without sacrificing quality\\n- Budget approved for Q2 rollout at $180K annual, with potential expansion to $350K for enterprise tier\\n- Must integrate with existing Google Workspace environment (Slides, Docs, Drive)\\n- SOC 2 compliance documentation required before procurement can sign off\\n- Pilot starting April 2026, full rollout target by end of Q2 2026\\n- Want to improve win rate by 15% through personalized, data-driven proposals\\n- Need to scale proposal capacity without adding headcount\\n- CTO wants API access for custom integrations with their CRM\\n- VP Sales emphasized brand consistency across all generated materials\"}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:00:30.000Z"
+    }
+  ]
+}

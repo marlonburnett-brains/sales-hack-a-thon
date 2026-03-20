@@ -5,7 +5,7 @@
       "dealId": "deal-001",
       "touchType": "touch_4",
       "status": "not_started",
-      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Mock meeting transcript for tutorial capture.\"}",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\",\"transcript\":\"Meeting with Meridian Dynamics VP of Sales and CTO. Current proposal turnaround is 5-7 business days. Need to reduce to under 2 hours. Budget approved for Q2 at $180K annual with potential expansion to $350K. Must integrate with existing Google Workspace. Need SOC 2 compliance documentation. Pilot in April, full rollout by end of Q2 2026.\"}",
       "decision": null,
       "generatedContent": null,
       "outputRefs": null,
