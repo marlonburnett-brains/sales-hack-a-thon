@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
-status: in_progress
-stopped_at: Completed 70-02-PLAN.md
-last_updated: "2026-03-20T00:55:00.000Z"
+status: completed
+stopped_at: Completed 69-02-PLAN.md (gap-closure TTS + render for Phase 69)
+last_updated: "2026-03-20T01:05:59.428Z"
 last_activity: "2026-03-20 -- Phase 70 Plan 02 complete: Touch 4 expanded to 16 steps + Asset Review 17-step capstone tutorial"
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 23
   completed_plans: 22
   percent: 95
@@ -104,6 +104,7 @@ Recent decisions for v1.9:
 - [Phase 70]: Asset Review uses int-touch4-001 for compliance flow, int-touch1-001 for reject/regen flow
 - [Phase 70]: Compliance issues structured with brand_color (medium), missing_disclaimer (high), font_inconsistency (low)
 - [Phase 70]: Asset Review overrides include all 4 touches' interactions for capstone narrative
+- [Phase 69]: No source commits for gap-closure TTS/render plans -- all outputs gitignored
 
 ### Pending Todos
 
@@ -118,6 +119,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T00:55:00.000Z
-Stopped at: Completed 70-02-PLAN.md
+Last session: 2026-03-20T01:05:59.425Z
+Stopped at: Completed 69-02-PLAN.md (gap-closure TTS + render for Phase 69)
 Next action: Execute 70-03-PLAN.md (TTS narration and video rendering for all 5 high-complexity tutorials).

@@ -141,7 +141,7 @@
 - [x] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates (gap closure in progress) (completed 2026-03-19)
 - [x] **Phase 67: Low-Complexity Tutorials** - Author scripts, fixtures, and captures for Getting Started, Google Drive Settings, and Action Center tutorials (completed 2026-03-19)
 - [x] **Phase 68: Medium-Complexity Tutorials (Deals & Briefing)** - Author scripts, fixtures, and captures for Deals, Deal Overview, Deal Chat, and Pre-Call Briefing tutorials (completed 2026-03-20)
-- [ ] **Phase 69: Medium-Complexity Tutorials (Library & Settings)** - Author scripts, fixtures, and captures for Template Library, Slide Library, Deck Structures, Agent Prompts, and AtlusAI Integration tutorials
+- [x] **Phase 69: Medium-Complexity Tutorials (Library & Settings)** - Author scripts, fixtures, and captures for Template Library, Slide Library, Deck Structures, Agent Prompts, and AtlusAI Integration tutorials (completed 2026-03-20)
 - [ ] **Phase 70: High-Complexity Tutorials** - Author scripts, fixtures, and captures for Touch 1-4 HITL workflows and Asset Review tutorial
 
 ### Phase 62: Workspace & Mock Infrastructure
@@ -221,7 +221,7 @@ Plans:
 **Goal**: Five tutorials covering template/slide management, deck intelligence, agent configuration, and AtlusAI integration are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs async mock patterns for ingestion), Phase 66 (needs visual effects)
 **Requirements**: TUT-08, TUT-09, TUT-10, TUT-11, TUT-12
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 69-01-PLAN.md -- Scripts, fixtures, mock server extensions, and capture specs for all 5 tutorials
 - [ ] 69-02-PLAN.md -- TTS audio generation and MP4 rendering for all 5 tutorials
@@ -256,5 +256,5 @@ Plans:
 | 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
 | 67. Low-Complexity Tutorials | 3/3 | Complete   | 2026-03-19 | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | 2/2 | Complete    | 2026-03-20 | - |
-| 69. Medium-Complexity Tutorials (Library & Settings) | 1/2 | In Progress|  | - |
+| 69. Medium-Complexity Tutorials (Library & Settings) | 2/2 | Complete   | 2026-03-20 | - |
 | 70. High-Complexity Tutorials | 2/3 | In Progress|  | - |
