@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: In-App Tutorials & Feedback
 status: completed
-stopped_at: Phase 72 context gathered
-last_updated: "2026-03-20T21:28:12.226Z"
+stopped_at: Completed 72-02-PLAN.md
+last_updated: "2026-03-20T23:16:37.116Z"
 last_activity: 2026-03-20 -- Completed 71-02 (GCS upload & database seeding)
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 5
+  completed_plans: 4
   percent: 100
 ---
 
@@ -50,6 +50,11 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [71-01] AppFeedback has no updatedAt -- write-once feedback records
 - [71-02] Manifest-bridge pattern: upload script writes JSON consumed by seed script (decoupled operations)
 - [71-02] Sequential GCS uploads (not parallel) to avoid timeout on 5-19MB video files
+- [Phase 72]: Tutorial.thumbnailUrl remains nullable so browse UI can ship before every thumbnail is uploaded
+- [Phase 72]: Thumbnail backfill uses ffmpeg frame extraction at 1 second plus gcloud CLI uploads, matching the locked operational workflow
+- [Phase 72]: Seed reads tutorial-thumbnails-manifest.json opportunistically and falls back to null thumbnailUrl when absent
+- [Phase 72-02]: Fixed CATEGORY_META array in route handler drives category ordering independent of DB row order
+- [Phase 72-02]: Promise.all for concurrent Tutorial+TutorialView fetch; views scoped to userId
 
 ### Key Research Findings (v1.10)
 
@@ -73,6 +78,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T21:28:12.218Z
-Stopped at: Phase 72 context gathered
+Last session: 2026-03-20T23:16:37.112Z
+Stopped at: Completed 72-02-PLAN.md
 Next action: `/gsd:execute-phase 72` (Tutorial Browsing)

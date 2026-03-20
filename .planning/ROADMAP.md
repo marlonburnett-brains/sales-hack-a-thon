@@ -181,11 +181,12 @@ Plans:
   1. User navigates to /tutorials and sees tutorial cards grouped by category (Getting Started, Deal Workflows, Touch Points, Content Management, Settings & Admin, Review)
   2. Each category section displays a completion percentage reflecting how many tutorials the user has watched in that group
   3. Each tutorial card shows title, description, duration, and a visual indicator of whether the user has watched it
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 72-01: TBD
-- [ ] 72-02: TBD
+- [ ] 72-01-PLAN.md -- Add tutorial thumbnail schema support and thumbnail backfill workflow
+- [ ] 72-02-PLAN.md -- Implement typed tutorial browse endpoint and server action contract
+- [ ] 72-03-PLAN.md -- Build authenticated tutorials browse UI and placeholder slug route
 
 ### Phase 73: Video Playback & Progress Tracking
 **Goal**: Users can watch tutorial videos in-browser with their progress persisted and visible across sessions
@@ -248,7 +249,7 @@ Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depen
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62-70 | v1.9 | 24/24 | Complete | 2026-03-20 |
 | 71. Database & Video Hosting | v1.10 | Complete    | 2026-03-20 | 2026-03-20 |
-| 72. Tutorial Browsing | v1.10 | 0/TBD | Not started | - |
+| 72. Tutorial Browsing | 2/3 | In Progress|  | - |
 | 73. Video Playback & Progress | v1.10 | 0/TBD | Not started | - |
 | 74. Feedback System | v1.10 | 0/TBD | Not started | - |
 | 75. Sidebar Integration | v1.10 | 0/TBD | Not started | - |

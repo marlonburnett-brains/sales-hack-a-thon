@@ -16,9 +16,9 @@ Requirements for in-app tutorials & feedback. Each maps to roadmap phases.
 ### Tutorial Browsing
 
 - [ ] **BROWSE-01**: Tutorials nav item in sidebar with "New" dot badge indicating unwatched content
-- [ ] **BROWSE-02**: Tutorials page displays cards grouped by category (Getting Started, Deal Workflows, Touch Points, Content Management, Settings & Admin, Review)
-- [ ] **BROWSE-03**: Each category group shows completion percentage based on user's watched tutorials
-- [ ] **BROWSE-04**: Tutorial cards show title, description, duration, and watched/unwatched visual indicator
+- [x] **BROWSE-02**: Tutorials page displays cards grouped by category (Getting Started, Deal Workflows, Touch Points, Content Management, Settings & Admin, Review)
+- [x] **BROWSE-03**: Each category group shows completion percentage based on user's watched tutorials
+- [x] **BROWSE-04**: Tutorial cards show title, description, duration, and watched/unwatched visual indicator
 
 ### Video Playback
 
@@ -74,9 +74,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HOST-02 | Phase 71 | Complete |
 | HOST-03 | Phase 71 | Complete |
 | BROWSE-01 | Phase 75 | Pending |
-| BROWSE-02 | Phase 72 | Pending |
-| BROWSE-03 | Phase 72 | Pending |
-| BROWSE-04 | Phase 72 | Pending |
+| BROWSE-02 | Phase 72 | Complete |
+| BROWSE-03 | Phase 72 | Complete |
+| BROWSE-04 | Phase 72 | Complete |
 | PLAY-01 | Phase 73 | Pending |
 | PLAY-02 | Phase 73 | Pending |
 | PLAY-03 | Phase 73 | Pending |
