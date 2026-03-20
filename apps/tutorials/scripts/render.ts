@@ -107,9 +107,9 @@ function parseArgs(): { tutorialName: string; concurrency: number } {
 
 function preValidate(tutorialName: string): ValidatedAssets {
   const cwd = process.cwd();
-  const timingPath = path.join(cwd, "audio", tutorialName, "timing.json");
+  const timingPath = path.join(cwd, "output", "audio", tutorialName, "timing.json");
   const scriptPath = findScriptPath(tutorialName);
-  const screenshotDir = path.join(cwd, "output", tutorialName);
+  const screenshotDir = path.join(cwd, "output", "screenshots", tutorialName);
 
   if (!fs.existsSync(timingPath)) {
     console.error(
@@ -168,7 +168,7 @@ function preValidate(tutorialName: string): ValidatedAssets {
     }
   }
 
-  const audioDir = path.join(cwd, "audio", tutorialName);
+  const audioDir = path.join(cwd, "output", "audio", tutorialName);
   for (const step of manifest.steps) {
     const audioPath = path.join(audioDir, step.audioFile);
     if (!fs.existsSync(audioPath)) {
@@ -187,7 +187,7 @@ function preValidate(tutorialName: string): ValidatedAssets {
 
 function buildInputProps(tutorialName: string, assets: ValidatedAssets) {
   const { manifest, script } = assets;
-  const audioDir = path.join(process.cwd(), "audio", tutorialName);
+  const audioDir = path.join(process.cwd(), "output", "audio", tutorialName);
   const scriptStepsById = new Map(script.steps.map((step) => [step.id, step]));
   let previousCursorPoint: CursorPoint | undefined;
 
@@ -287,7 +287,7 @@ export async function renderTutorial(
     inputProps,
   });
 
-  const outputDir = path.join(process.cwd(), "videos");
+  const outputDir = path.join(process.cwd(), "output", "videos");
   fs.mkdirSync(outputDir, { recursive: true });
 
   const outputLocation = path.join(outputDir, `${tutorialName}.mp4`);
@@ -317,7 +317,7 @@ export async function renderTutorial(
   console.log(`Tutorial: ${tutorialName}`);
   console.log(`Steps: ${assets.manifest.steps.length}`);
   console.log(`Duration: ${durationSeconds}s`);
-  console.log(`Output: videos/${tutorialName}.mp4`);
+  console.log(`Output: output/videos/${tutorialName}.mp4`);
 }
 
 // ------------------------------------------------------------

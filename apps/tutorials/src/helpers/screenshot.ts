@@ -10,12 +10,12 @@ import { prepareForScreenshot } from "./determinism.js";
  * output directory structure, and determinism preparation.
  *
  * Output structure:
- *   output/{tutorialId}/step-001.png
- *   output/{tutorialId}/step-002.png
+ *   output/screenshots/{tutorialId}/step-001.png
+ *   output/screenshots/{tutorialId}/step-002.png
  *   ...
  */
 
-const OUTPUT_BASE = path.join(process.cwd(), "output");
+const OUTPUT_BASE = path.join(process.cwd(), "output", "screenshots");
 
 /**
  * Get the output path for a screenshot at a given step index.

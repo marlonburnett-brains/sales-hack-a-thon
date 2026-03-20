@@ -42,7 +42,7 @@ function parseArgs(): { concurrency: number } {
 
 function discoverTutorials(): string[] {
   const cwd = process.cwd();
-  const audioDir = path.join(cwd, "audio");
+  const audioDir = path.join(cwd, "output", "audio");
 
   if (!fs.existsSync(audioDir)) {
     return [];
@@ -56,7 +56,7 @@ function discoverTutorials(): string[] {
 
     const name = entry.name;
     const timingPath = path.join(audioDir, name, "timing.json");
-    const screenshotDir = path.join(cwd, "output", name);
+    const screenshotDir = path.join(cwd, "output", "screenshots", name);
     const scriptPath = path.join(cwd, "fixtures", name, "script.json");
 
     // Must have timing, screenshots, and a corresponding script.

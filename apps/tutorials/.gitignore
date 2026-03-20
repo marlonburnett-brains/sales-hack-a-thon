@@ -1,8 +1,6 @@
 output/
-audio/
 .auth/
 .venv/
 test-results/
 playwright-report/
 dist/
-videos/

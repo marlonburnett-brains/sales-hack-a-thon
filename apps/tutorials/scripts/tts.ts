@@ -141,7 +141,7 @@ async function main(): Promise<void> {
   // Per-Step Generation Loop
   // ────────────────────────────────────────────────────────────
 
-  const audioDir = path.join(process.cwd(), "audio", tutorialName);
+  const audioDir = path.join(process.cwd(), "output", "audio", tutorialName);
   fs.mkdirSync(audioDir, { recursive: true });
 
   const manifestPath = path.join(audioDir, "timing.json");
@@ -231,7 +231,7 @@ async function main(): Promise<void> {
   console.log(`Engine: ${engineName}`);
   console.log(`Steps: ${entries.length}${stepFilter ? " (single-step mode)" : ""}`);
   console.log(`Total duration: ${totalMs}ms (${totalSeconds}s)`);
-  console.log(`Output: audio/${tutorialName}/`);
+  console.log(`Output: output/audio/${tutorialName}/`);
 
   if (failedSteps.length > 0) {
     console.warn(`\nWarning: ${failedSteps.length} step(s) failed: ${failedSteps.join(", ")}`);

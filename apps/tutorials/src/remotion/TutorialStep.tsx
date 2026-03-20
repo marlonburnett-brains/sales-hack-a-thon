@@ -64,8 +64,8 @@ export const TutorialStep: React.FC<TutorialStepProps> = ({
   stepIndex,
   totalSteps,
 }) => {
-  const screenshotSrc = staticFile(`output/${tutorialName}/${stepId}.png`);
-  const audioSrc = staticFile(`audio/${tutorialName}/${audioFile}`);
+  const screenshotSrc = staticFile(`output/screenshots/${tutorialName}/${stepId}.png`);
+  const audioSrc = staticFile(`output/audio/${tutorialName}/${audioFile}`);
 
   // Transform overlay coordinates from screenshot-space to viewport-space
   const viewCallout = callout

@@ -137,7 +137,7 @@ async function main(): Promise<void> {
 
   console.log(`\nTutorial: ${script.title}`);
   console.log(`Steps: ${script.steps.length}`);
-  console.log(`Output: output/${tutorialName}/\n`);
+  console.log(`Output: output/screenshots/${tutorialName}/\n`);
 
   // ────────────────────────────────────────────────────────────
   // 2. Start mock agent server (handles Supabase auth + agent API)
@@ -207,7 +207,7 @@ async function main(): Promise<void> {
     // 5. Print summary
     // ────────────────────────────────────────────────────────────
 
-    const outputDir = path.join(process.cwd(), "output", tutorialName);
+    const outputDir = path.join(process.cwd(), "output", "screenshots", tutorialName);
     const screenshots = fs.existsSync(outputDir)
       ? fs.readdirSync(outputDir).filter((f) => f.endsWith(".png"))
       : [];

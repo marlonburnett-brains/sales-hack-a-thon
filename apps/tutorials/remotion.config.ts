@@ -1,6 +1,6 @@
 import { Config } from "@remotion/cli/config";
 
-// Tutorials app root as public dir so staticFile("output/...") and staticFile("audio/...") resolve
+// Tutorials app root as public dir so staticFile("output/screenshots/..."), staticFile("output/audio/...") resolve
 Config.setPublicDir(".");
 
 // M1 Pro memory safety default
