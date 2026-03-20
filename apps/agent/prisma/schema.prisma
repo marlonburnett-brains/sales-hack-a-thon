@@ -540,6 +540,7 @@ model Tutorial {
   description String
   category    String         // "getting_started" | "deal_workflows" | "touch_points" | "content_management" | "review" | "settings_admin"
   gcsUrl      String         // Full public GCS URL
+  thumbnailUrl String?
   durationSec Int            // Duration in seconds
   sortOrder   Int            // Global ordering 1-17
   stepCount   Int            @default(0)
