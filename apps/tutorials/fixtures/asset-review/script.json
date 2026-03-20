@@ -1,0 +1,151 @@
+{
+  "id": "asset-review",
+  "title": "Asset Review & Approval",
+  "description": "Review artifacts from all 4 touches in one place. Run brand compliance checks, fix flagged issues, reject and regenerate artifacts, and give final approval -- the capstone quality control workflow.",
+  "fixtures": "asset-review",
+  "steps": [
+    {
+      "id": "step-001",
+      "url": "/deals/deal-001/touch/4",
+      "narration": "You've seen how each touch generates its content -- from one-pagers to full proposals. Now let's review everything in one place. We'll start from the Touch 4 completed state, where you can see the review link.",
+      "mockStage": "review-queue",
+      "waitFor": "main",
+      "delayMs": 500,
+      "emotion": "cheerful"
+    },
+    {
+      "id": "step-002",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "Here's the asset review page for Touch 4's proposal. You can see the artifact details, completion status, and the review controls. This is where quality assurance happens before anything goes to the client.",
+      "mockStage": "review-queue",
+      "waitFor": "main",
+      "delayMs": 500
+    },
+    {
+      "id": "step-003",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "Take a closer look at the artifact overview. The proposal deck, talk track, and FAQ are all linked here -- each with their Google Drive URLs and generation metadata.",
+      "mockStage": "review-queue",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.4, "x": 0.5, "y": 0.35 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-004",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "Now let's run the brand compliance check. AtlusDeck automatically scans all generated artifacts against your organization's brand guidelines -- colors, fonts, disclaimers, and more.",
+      "mockStage": "compliance-check",
+      "waitForText": "Compliance",
+      "cursorTarget": { "x": 0.5, "y": 0.5 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-005",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "The compliance check found three issues. Each one has a severity level: the missing disclaimer is high severity, the brand color deviation is medium, and the font inconsistency is low. Let's review them.",
+      "mockStage": "compliance-issues",
+      "waitForText": "missing_disclaimer",
+      "delayMs": 500
+    },
+    {
+      "id": "step-006",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "Here are the flagged issues in detail. The compliance engine checks every slide and page against your brand standards. Severity levels help you prioritize what needs attention before approval.",
+      "mockStage": "compliance-issues",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.5, "x": 0.5, "y": 0.4 },
+      "callout": { "text": "Review flagged issues before approving", "x": 0.5, "y": 0.2 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-007",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "Let's focus on the high-severity issue -- the missing legal disclaimer on slide 8. This is required by your compliance team before any proposal goes external. We need to fix this one.",
+      "mockStage": "compliance-issues",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.6, "x": 0.5, "y": 0.55 },
+      "callout": { "text": "High severity: missing disclaimer on slide 8", "x": 0.5, "y": 0.35 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-008",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "Click Fix Issue and AtlusDeck regenerates just the affected section with the disclaimer added. The rest of the artifact stays intact -- it's a targeted fix, not a full regeneration.",
+      "mockStage": "regenerating",
+      "waitForText": "in_progress",
+      "cursorTarget": { "x": 0.5, "y": 0.55 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-009",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "The fix is complete and compliance has been re-checked -- all issues resolved. The disclaimer is now in place on slide 8, and the brand color and font issues were minor enough to pass on re-review.",
+      "mockStage": "re-review",
+      "waitForText": "passed",
+      "delayMs": 500
+    },
+    {
+      "id": "step-010",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "Notice the updated compliance result -- clean pass. The disclaimer has been added exactly where your compliance team requires it. The artifact is now ready for approval.",
+      "mockStage": "re-review",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.4, "x": 0.5, "y": 0.4 },
+      "callout": { "text": "Issue resolved -- disclaimer added", "x": 0.5, "y": 0.25 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-011",
+      "url": "/deals/deal-001/asset-review/int-touch4-001",
+      "narration": "Approve the Touch 4 proposal artifacts. They're now marked as reviewed and compliant in the system. Let's move on to review another touch's output.",
+      "mockStage": "approved",
+      "cursorTarget": { "x": 0.5, "y": 0.6 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-012",
+      "url": "/deals/deal-001/asset-review/int-touch1-001",
+      "narration": "Now let's look at Touch 1's one-pager. Same review process -- navigate to the asset review page for a different interaction. This pager was generated from the first-contact workflow.",
+      "mockStage": "compliance-check",
+      "waitFor": "main",
+      "delayMs": 500
+    },
+    {
+      "id": "step-013",
+      "url": "/deals/deal-001/asset-review/int-touch1-001",
+      "narration": "Good news here -- the pager's compliance check passed clean. All brand colors, fonts, and required elements are in place. But let's say you want to reject it for a different reason.",
+      "mockStage": "compliance-check",
+      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.4, "x": 0.5, "y": 0.4 },
+      "callout": { "text": "Compliance passed -- all checks green", "x": 0.5, "y": 0.25 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-014",
+      "url": "/deals/deal-001/asset-review/int-touch1-001",
+      "narration": "Click Reject to send the pager back for regeneration. You can provide a reason -- maybe the messaging doesn't align with the latest positioning, or the value prop needs sharpening.",
+      "mockStage": "reject-artifact",
+      "cursorTarget": { "x": 0.5, "y": 0.6 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-015",
+      "url": "/deals/deal-001/asset-review/int-touch1-001",
+      "narration": "The pager is going back through the generation pipeline with your feedback incorporated. AtlusDeck uses your rejection reason to guide the regeneration -- it's not starting from scratch.",
+      "mockStage": "regenerating",
+      "waitForText": "in_progress",
+      "delayMs": 500
+    },
+    {
+      "id": "step-016",
+      "url": "/deals/deal-001/asset-review/int-touch1-001",
+      "narration": "The regenerated pager is ready for re-review. Take a look at the updated content -- the AI incorporated your feedback while keeping the core structure intact.",
+      "mockStage": "re-review",
+      "delayMs": 500
+    },
+    {
+      "id": "step-017",
+      "url": "/deals/deal-001/asset-review/int-touch1-001",
+      "narration": "Approve the regenerated pager and it's done. That's the full asset review workflow -- compliance checks, targeted fixes, reject and regenerate, and final approval. Every artifact that leaves AtlusDeck has been through quality control.",
+      "mockStage": "approved",
+      "cursorTarget": { "x": 0.5, "y": 0.6 },
+      "delayMs": 500,
+      "emotion": "encouraging"
+    }
+  ]
+}

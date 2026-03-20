@@ -1,0 +1,45 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch1-001",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "approved",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch1-regen\"}",
+      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian-v2/edit\",\"dealFolderId\":\"mock-folder-meridian-001\"}",
+      "driveFileId": null,
+      "hitlStage": "ready",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian-v2/edit\"}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T16:15:00.000Z"
+    }
+  ],
+  "assetReview": {
+    "interaction": {
+      "id": "int-touch1-001",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "approved",
+      "hitlStage": "ready",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian-v2/edit\",\"approvedAt\":\"2026-03-15T16:15:00.000Z\",\"reviewerName\":\"Sarah Chen\"}",
+      "outputRefs": {
+        "deckUrl": "https://docs.google.com/presentation/d/mock-touch1-pager-meridian-v2/edit",
+        "dealFolderId": "mock-folder-meridian-001"
+      }
+    },
+    "deal": {
+      "id": "deal-001",
+      "name": "Q2 Digital Transformation Initiative",
+      "companyId": "comp-meridian-001",
+      "companyName": "Meridian Dynamics",
+      "industry": "Technology Consulting"
+    },
+    "brief": null,
+    "complianceResult": {
+      "passed": true,
+      "warnings": []
+    }
+  }
+}

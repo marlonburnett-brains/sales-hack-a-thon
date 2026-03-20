@@ -1,0 +1,42 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch1-001",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch1-regen\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": null,
+      "stageContent": null,
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T16:05:00.000Z"
+    }
+  ],
+  "assetReview": {
+    "interaction": {
+      "id": "int-touch1-001",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "in_progress",
+      "hitlStage": null,
+      "stageContent": null,
+      "outputRefs": null
+    },
+    "deal": {
+      "id": "deal-001",
+      "name": "Q2 Digital Transformation Initiative",
+      "companyId": "comp-meridian-001",
+      "companyName": "Meridian Dynamics",
+      "industry": "Technology Consulting"
+    },
+    "brief": null,
+    "complianceResult": {
+      "passed": null,
+      "warnings": []
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch1-001",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "rejected",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch1\"}",
+      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit\",\"dealFolderId\":\"mock-folder-meridian-001\"}",
+      "driveFileId": null,
+      "hitlStage": "ready",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit\",\"rejectionReason\":\"Value proposition messaging needs to be sharper. Focus more on the speed advantage (2 hours vs 5-7 days) as the lead message rather than burying it in the body copy.\"}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T16:00:00.000Z"
+    }
+  ],
+  "assetReview": {
+    "interaction": {
+      "id": "int-touch1-001",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "rejected",
+      "hitlStage": "ready",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit\"}",
+      "outputRefs": {
+        "deckUrl": "https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit",
+        "dealFolderId": "mock-folder-meridian-001"
+      },
+      "rejectionReason": "Value proposition messaging needs to be sharper. Focus more on the speed advantage (2 hours vs 5-7 days) as the lead message rather than burying it in the body copy."
+    },
+    "deal": {
+      "id": "deal-001",
+      "name": "Q2 Digital Transformation Initiative",
+      "companyId": "comp-meridian-001",
+      "companyName": "Meridian Dynamics",
+      "industry": "Technology Consulting"
+    },
+    "brief": null,
+    "complianceResult": {
+      "passed": true,
+      "warnings": []
+    }
+  }
+}

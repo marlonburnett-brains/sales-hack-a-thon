@@ -1,0 +1,66 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch4-001",
+      "dealId": "deal-001",
+      "touchType": "touch_4",
+      "status": "completed",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch4\"}",
+      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit\",\"talkTrackUrl\":\"https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit\",\"faqUrl\":\"https://docs.google.com/document/d/mock-touch4-faq-meridian/edit\",\"dealFolderId\":\"mock-folder-meridian-001\"}",
+      "driveFileId": null,
+      "hitlStage": "ready",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit\",\"talkTrackUrl\":\"https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit\",\"faqUrl\":\"https://docs.google.com/document/d/mock-touch4-faq-meridian/edit\"}",
+      "createdAt": "2026-03-15T13:00:00.000Z",
+      "updatedAt": "2026-03-15T15:00:00.000Z"
+    }
+  ],
+  "assetReview": {
+    "interaction": {
+      "id": "int-touch4-001",
+      "dealId": "deal-001",
+      "touchType": "touch_4",
+      "status": "completed",
+      "hitlStage": "ready",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit\",\"talkTrackUrl\":\"https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit\",\"faqUrl\":\"https://docs.google.com/document/d/mock-touch4-faq-meridian/edit\"}",
+      "outputRefs": {
+        "deckUrl": "https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit",
+        "talkTrackUrl": "https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit",
+        "faqUrl": "https://docs.google.com/document/d/mock-touch4-faq-meridian/edit",
+        "dealFolderId": "mock-folder-meridian-001"
+      }
+    },
+    "deal": {
+      "id": "deal-001",
+      "name": "Q2 Digital Transformation Initiative",
+      "companyId": "comp-meridian-001",
+      "companyName": "Meridian Dynamics",
+      "industry": "Technology Consulting"
+    },
+    "brief": null,
+    "complianceResult": {
+      "passed": false,
+      "warnings": [
+        {
+          "type": "brand_color",
+          "severity": "medium",
+          "message": "Slide 4 uses #2563EB instead of the approved brand blue #1E40AF. The solution overview header deviates from the corporate color palette.",
+          "slideNumber": 4
+        },
+        {
+          "type": "missing_disclaimer",
+          "severity": "high",
+          "message": "Required legal disclaimer is missing from slide 8 (ROI Summary). All externally shared proposals must include the standard disclaimer footer per compliance policy.",
+          "slideNumber": 8
+        },
+        {
+          "type": "font_inconsistency",
+          "severity": "low",
+          "message": "Body text on slide 6 uses Inter 14pt instead of the approved Inter 16pt. Minor typographic deviation from the brand style guide.",
+          "slideNumber": 6
+        }
+      ]
+    }
+  }
+}
