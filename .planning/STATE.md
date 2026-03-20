@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: In-App Tutorials & Feedback
-status: defining_requirements
-stopped_at: Defining requirements
+status: roadmap_created
+stopped_at: Roadmap created, ready to plan Phase 71
 last_updated: "2026-03-20"
-last_activity: "2026-03-20 -- Milestone v1.10 started"
+last_activity: "2026-03-20 -- Roadmap created for v1.10 (5 phases, 18 requirements)"
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours -- not 24 to 120 hours.
-**Current focus:** v1.10 In-App Tutorials & Feedback
+**Current focus:** v1.10 Phase 71 - Database & Video Hosting
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-20 — Milestone v1.10 started
+Phase: 71 (1 of 5) - Database & Video Hosting
+Plan: --
+Status: Ready to plan
+Last activity: 2026-03-20 -- Roadmap created for v1.10
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -44,6 +46,16 @@ Last activity: 2026-03-20 — Milestone v1.10 started
 
 All decisions logged in PROJECT.md Key Decisions table.
 
+### Key Research Findings (v1.10)
+
+- Use `VERTEX_SERVICE_ACCOUNT_KEY` for all GCS operations (never GOOGLE_SERVICE_ACCOUNT_KEY)
+- GCS bucket CORS must allow `Range` header for HTML5 video byte-range requests
+- Native HTML5 `<video>` with `dynamic({ ssr: false })` -- no react-player needed
+- Fire watched state on `ended` event only, not `timeupdate` (4Hz flood risk)
+- `FeedbackWidget` needs `key={tutorialId}` for state reset between tutorials
+- All 3 Prisma models (Tutorial, TutorialView, AppFeedback) in one forward-only migration
+- Zero new npm packages required -- shadcn/ui toggle-group only new component file
+
 ### Pending Todos
 
 None.
@@ -57,5 +69,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-20
-Stopped at: Defining requirements for v1.10
-Next action: Complete requirements definition and roadmap creation
+Stopped at: Roadmap created for v1.10 milestone
+Next action: `/gsd:plan-phase 71`

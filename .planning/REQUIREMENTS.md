@@ -70,30 +70,30 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HOST-01 | — | Pending |
-| HOST-02 | — | Pending |
-| HOST-03 | — | Pending |
-| BROWSE-01 | — | Pending |
-| BROWSE-02 | — | Pending |
-| BROWSE-03 | — | Pending |
-| BROWSE-04 | — | Pending |
-| PLAY-01 | — | Pending |
-| PLAY-02 | — | Pending |
-| PLAY-03 | — | Pending |
-| TRACK-01 | — | Pending |
-| TRACK-02 | — | Pending |
-| TRACK-03 | — | Pending |
-| TRACK-04 | — | Pending |
-| FEED-01 | — | Pending |
-| FEED-02 | — | Pending |
-| FEED-03 | — | Pending |
-| FEED-04 | — | Pending |
+| HOST-01 | Phase 71 | Pending |
+| HOST-02 | Phase 71 | Pending |
+| HOST-03 | Phase 71 | Pending |
+| BROWSE-01 | Phase 75 | Pending |
+| BROWSE-02 | Phase 72 | Pending |
+| BROWSE-03 | Phase 72 | Pending |
+| BROWSE-04 | Phase 72 | Pending |
+| PLAY-01 | Phase 73 | Pending |
+| PLAY-02 | Phase 73 | Pending |
+| PLAY-03 | Phase 73 | Pending |
+| TRACK-01 | Phase 73 | Pending |
+| TRACK-02 | Phase 73 | Pending |
+| TRACK-03 | Phase 73 | Pending |
+| TRACK-04 | Phase 73 | Pending |
+| FEED-01 | Phase 74 | Pending |
+| FEED-02 | Phase 74 | Pending |
+| FEED-03 | Phase 71 | Pending |
+| FEED-04 | Phase 74 | Pending |
 
 **Coverage:**
 - v1.10 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 after initial definition*
+*Last updated: 2026-03-20 after roadmap creation*

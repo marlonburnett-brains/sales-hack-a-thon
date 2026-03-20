@@ -12,6 +12,7 @@
 - ✅ v1.7 **Deals & HITL Pipeline** -- Phases 41-49 (shipped 2026-03-09) -- [Archive](milestones/v1.7-ROADMAP.md)
 - ✅ v1.8 **Structure-Driven Deck Generation** -- Phases 50-61 (shipped 2026-03-18) -- [Archive](milestones/v1.8-ROADMAP.md)
 - ✅ v1.9 **Tutorial Videos** -- Phases 62-70 (shipped 2026-03-20) -- [Archive](milestones/v1.9-ROADMAP.md)
+- 🚧 v1.10 **In-App Tutorials & Feedback** -- Phases 71-75 (in progress)
 
 ## Phases
 
@@ -145,7 +146,94 @@
 
 </details>
 
+### 🚧 v1.10 In-App Tutorials & Feedback (In Progress)
+
+**Milestone Goal:** Ship in-app tutorial video browsing with GCS-hosted MP4 playback, user progress tracking, and a reusable feedback system -- making the platform self-service learnable.
+
+- [ ] **Phase 71: Database & Video Hosting** - Prisma migration for all models, GCS upload automation, and DB seeding
+- [ ] **Phase 72: Tutorial Browsing** - Category-grouped browse page with tutorial cards and completion indicators
+- [ ] **Phase 73: Video Playback & Progress Tracking** - HTML5 video player with watched state, resume, and progress display
+- [ ] **Phase 74: Feedback System** - Reusable feedback widget with segmented control, wired to tutorial player
+- [ ] **Phase 75: Sidebar Integration** - Tutorials nav item with "New" badge for unwatched content
+
+## Phase Details
+
+### Phase 71: Database & Video Hosting
+**Goal**: Tutorial videos are uploaded to GCS with public URLs and all metadata is seeded in the database, ready for consumption by UI phases
+**Depends on**: Nothing (first phase of v1.10)
+**Requirements**: HOST-01, HOST-02, HOST-03, FEED-03
+**Success Criteria** (what must be TRUE):
+  1. All 17 tutorial MP4 files are accessible via public GCS URLs (direct browser navigation returns video)
+  2. Tutorial table contains 17 rows with title, description, category, duration, GCS URL, and sort order populated from fixture data
+  3. AppFeedback table exists with sourceType, sourceId, feedbackType, and comment columns ready for inserts
+  4. All schema changes are committed as forward-only Prisma migration (no db push)
+**Plans**: TBD
+
+Plans:
+- [ ] 71-01: TBD
+- [ ] 71-02: TBD
+
+### Phase 72: Tutorial Browsing
+**Goal**: Users can discover and browse all tutorials organized by category with visual progress indicators
+**Depends on**: Phase 71
+**Requirements**: BROWSE-02, BROWSE-03, BROWSE-04
+**Success Criteria** (what must be TRUE):
+  1. User navigates to /tutorials and sees tutorial cards grouped by category (Getting Started, Deal Workflows, Touch Points, Content Management, Settings & Admin, Review)
+  2. Each category section displays a completion percentage reflecting how many tutorials the user has watched in that group
+  3. Each tutorial card shows title, description, duration, and a visual indicator of whether the user has watched it
+**Plans**: TBD
+
+Plans:
+- [ ] 72-01: TBD
+- [ ] 72-02: TBD
+
+### Phase 73: Video Playback & Progress Tracking
+**Goal**: Users can watch tutorial videos in-browser with their progress persisted and visible across sessions
+**Depends on**: Phase 72
+**Requirements**: PLAY-01, PLAY-02, PLAY-03, TRACK-01, TRACK-02, TRACK-03, TRACK-04
+**Success Criteria** (what must be TRUE):
+  1. User clicks a tutorial card and sees a native HTML5 video player loading the MP4 directly from GCS (no Vercel proxy)
+  2. When a video plays to completion (ended event), the tutorial is marked as watched and the card on the browse page shows a checkmark
+  3. User sees "X of 17 tutorials completed" progress indicator on the tutorials page header
+  4. User who partially watches a video and returns later resumes from their last position
+  5. Video player renders correctly without hydration errors (client component with SSR disabled)
+**Plans**: TBD
+
+Plans:
+- [ ] 73-01: TBD
+- [ ] 73-02: TBD
+
+### Phase 74: Feedback System
+**Goal**: Users can submit structured feedback on any tutorial through a reusable widget that is documented for future extension
+**Depends on**: Phase 73
+**Requirements**: FEED-01, FEED-02, FEED-04
+**Success Criteria** (what must be TRUE):
+  1. Tutorial player page displays a FeedbackWidget with a segmented control (tutorial feedback / feature feedback) and a free-text textarea
+  2. User submits feedback and it is persisted in the AppFeedback table with correct sourceType, sourceId, feedbackType, and comment
+  3. Navigating between tutorials resets the feedback widget state (key={tutorialId} pattern)
+  4. FeedbackWidget is documented as a reusable component with sourceType/sourceId props for future attachment to other pages
+**Plans**: TBD
+
+Plans:
+- [ ] 74-01: TBD
+
+### Phase 75: Sidebar Integration
+**Goal**: Tutorials are discoverable from the global navigation with a badge signaling unwatched content
+**Depends on**: Phase 73
+**Requirements**: BROWSE-01
+**Success Criteria** (what must be TRUE):
+  1. Sidebar shows a "Tutorials" nav item that navigates to /tutorials
+  2. A "New" dot badge appears on the Tutorials nav item when the user has unwatched tutorials
+  3. The badge disappears once the user has watched all tutorials (or follows the existing Action Required badge pattern)
+**Plans**: TBD
+
+Plans:
+- [ ] 75-01: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depend on 73, can run in parallel)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -159,3 +247,8 @@
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62-70 | v1.9 | 24/24 | Complete | 2026-03-20 |
+| 71. Database & Video Hosting | v1.10 | 0/TBD | Not started | - |
+| 72. Tutorial Browsing | v1.10 | 0/TBD | Not started | - |
+| 73. Video Playback & Progress | v1.10 | 0/TBD | Not started | - |
+| 74. Feedback System | v1.10 | 0/TBD | Not started | - |
+| 75. Sidebar Integration | v1.10 | 0/TBD | Not started | - |
