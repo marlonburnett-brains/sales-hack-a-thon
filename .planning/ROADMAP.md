@@ -167,11 +167,11 @@
   2. Tutorial table contains 17 rows with title, description, category, duration, GCS URL, and sort order populated from fixture data
   3. AppFeedback table exists with sourceType, sourceId, feedbackType, and comment columns ready for inserts
   4. All schema changes are committed as forward-only Prisma migration (no db push)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 71-01: TBD
-- [ ] 71-02: TBD
+- [ ] 71-01-PLAN.md -- Prisma migration for Tutorial, TutorialView, and AppFeedback models
+- [ ] 71-02-PLAN.md -- GCS upload script, manifest generation, and database seeding
 
 ### Phase 72: Tutorial Browsing
 **Goal**: Users can discover and browse all tutorials organized by category with visual progress indicators
@@ -247,7 +247,7 @@ Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depen
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62-70 | v1.9 | 24/24 | Complete | 2026-03-20 |
-| 71. Database & Video Hosting | v1.10 | 0/TBD | Not started | - |
+| 71. Database & Video Hosting | v1.10 | 0/2 | Not started | - |
 | 72. Tutorial Browsing | v1.10 | 0/TBD | Not started | - |
 | 73. Video Playback & Progress | v1.10 | 0/TBD | Not started | - |
 | 74. Feedback System | v1.10 | 0/TBD | Not started | - |
