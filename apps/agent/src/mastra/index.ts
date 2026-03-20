@@ -4169,6 +4169,101 @@ When you suggest changes, output the COMPLETE updated prompt between delimiters 
           return c.json({ agentsUpdated });
         },
       }),
+
+      // ────────────────────────────────────────────────────────────
+      // Phase 72: Tutorial Browse
+      // ────────────────────────────────────────────────────────────
+
+      registerApiRoute("/tutorials", {
+        method: "GET",
+        handler: async (c) => {
+          const userId = await getVerifiedUserId(c, env.SUPABASE_URL);
+          if (!userId) {
+            return c.json({ error: "Unauthorized" }, 401);
+          }
+
+          // Fixed category metadata in locked order (Phase 72 spec)
+          const CATEGORY_META = [
+            { key: "getting_started",    label: "Getting Started" },
+            { key: "deal_workflows",     label: "Deal Workflows" },
+            { key: "touch_points",       label: "Touch Points" },
+            { key: "content_management", label: "Content Management" },
+            { key: "review",             label: "Review" },
+            { key: "settings_admin",     label: "Settings & Admin" },
+          ] as const;
+
+          // Fetch tutorials ordered by sortOrder and this user's views
+          const [tutorials, views] = await Promise.all([
+            prisma.tutorial.findMany({ orderBy: { sortOrder: "asc" } }),
+            prisma.tutorialView.findMany({ where: { userId } }),
+          ]);
+
+          // Build a watched lookup keyed by tutorialId
+          const watchedSet = new Set(
+            views.filter((v) => v.watched).map((v) => v.tutorialId),
+          );
+
+          // Group tutorials by category key
+          const byCategory = new Map<string, typeof tutorials>(
+            CATEGORY_META.map((m) => [m.key, []]),
+          );
+          for (const t of tutorials) {
+            byCategory.get(t.category)?.push(t);
+          }
+
+          // Build category payloads
+          const categories = CATEGORY_META.map((meta) => {
+            const catTutorials = byCategory.get(meta.key) ?? [];
+            const tutorialCount = catTutorials.length;
+            const watchedCount = catTutorials.filter((t) =>
+              watchedSet.has(t.id),
+            ).length;
+            const completionPercent =
+              tutorialCount === 0
+                ? 0
+                : Math.round((watchedCount / tutorialCount) * 100);
+
+            const tutorialCards = catTutorials.map((t) => ({
+              id: t.id,
+              slug: t.slug,
+              title: t.title,
+              description: t.description,
+              category: t.category,
+              durationSec: t.durationSec,
+              thumbnailUrl: t.thumbnailUrl ?? null,
+              watched: watchedSet.has(t.id),
+            }));
+
+            return {
+              key: meta.key,
+              label: meta.label,
+              tutorialCount,
+              watchedCount,
+              completionPercent,
+              tutorials: tutorialCards,
+            };
+          });
+
+          // Overall stats
+          const totalCount = tutorials.length;
+          const completedCount = tutorials.filter((t) =>
+            watchedSet.has(t.id),
+          ).length;
+          const overallPercent =
+            totalCount === 0
+              ? 0
+              : Math.round((completedCount / totalCount) * 100);
+
+          return c.json({
+            overall: {
+              totalCount,
+              completedCount,
+              completionPercent: overallPercent,
+            },
+            categories,
+          });
+        },
+      }),
     ],
   },
 });

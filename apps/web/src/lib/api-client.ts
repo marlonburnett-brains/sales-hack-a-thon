@@ -1545,3 +1545,36 @@ export async function publishBaseline(data: {
     body: JSON.stringify(data),
   });
 }
+
+// ────────────────────────────────────────────────────────────
+// Phase 72: Tutorial Browse
+// ────────────────────────────────────────────────────────────
+
+export interface TutorialBrowseCard {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  durationSec: number;
+  thumbnailUrl: string | null;
+  watched: boolean;
+}
+
+export interface TutorialBrowseCategory {
+  key: string;
+  label: string;
+  tutorialCount: number;
+  watchedCount: number;
+  completionPercent: number;
+  tutorials: TutorialBrowseCard[];
+}
+
+export interface TutorialBrowseResponse {
+  overall: { completedCount: number; totalCount: number; completionPercent: number };
+  categories: TutorialBrowseCategory[];
+}
+
+export async function listTutorials(): Promise<TutorialBrowseResponse> {
+  return fetchJSON<TutorialBrowseResponse>("/tutorials");
+}
