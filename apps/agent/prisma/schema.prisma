@@ -528,3 +528,53 @@ model UserSetting {
   @@unique([userId, key])
   @@index([userId])
 }
+
+// ────────────────────────────────────────────────────────────
+// Phase 71: Tutorial system & feedback
+// ────────────────────────────────────────────────────────────
+
+model Tutorial {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  title       String
+  description String
+  category    String         // "getting_started" | "deal_workflows" | "touch_points" | "content_management" | "review" | "settings_admin"
+  gcsUrl      String         // Full public GCS URL
+  durationSec Int            // Duration in seconds
+  sortOrder   Int            // Global ordering 1-17
+  stepCount   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  views       TutorialView[]
+
+  @@index([category])
+  @@index([sortOrder])
+}
+
+model TutorialView {
+  id           String    @id @default(cuid())
+  tutorialId   String
+  tutorial     Tutorial  @relation(fields: [tutorialId], references: [id])
+  userId       String    // Supabase auth user ID
+  watched      Boolean   @default(false)
+  lastPosition Float     @default(0) // Seconds into video for resume
+  watchedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([tutorialId, userId])
+  @@index([userId])
+}
+
+model AppFeedback {
+  id           String   @id @default(cuid())
+  sourceType   String   // "tutorial" or future extensible values
+  sourceId     String   // Tutorial ID or other entity ID
+  feedbackType String   // "tutorial_feedback" | "feature_feedback"
+  comment      String
+  userId       String?  // Nullable for anonymous
+  createdAt    DateTime @default(now())
+
+  @@index([sourceType, sourceId])
+  @@index([userId])
+}
