@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: completed
-stopped_at: Completed 70-03-PLAN.md (v1.9 milestone complete)
-last_updated: "2026-03-20T01:31:15.000Z"
-last_activity: "2026-03-20 -- Phase 70 Plan 03 complete: TTS narration + video rendering for all 5 high-complexity tutorials"
+stopped_at: Completed 70-04-PLAN.md (gap closure complete)
+last_updated: "2026-03-20T03:18:17.000Z"
+last_activity: "2026-03-20 -- Phase 70 Plan 04 complete: Gap closure -- fixture fix and full re-capture"
 progress:
   total_phases: 9
   completed_phases: 9
-  total_plans: 23
-  completed_plans: 23
+  total_plans: 24
+  completed_plans: 24
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 70 (9 of 9 in v1.9) (High-Complexity Tutorials)
-Plan: 3 of 3 in current phase (COMPLETE)
-Status: Phase 70 complete -- all 5 high-complexity tutorial videos rendered (v1.9 milestone complete)
-Last activity: 2026-03-20 -- Phase 70 Plan 03 complete: TTS narration + video rendering for all 5 high-complexity tutorials
+Plan: 4 of 4 in current phase (COMPLETE)
+Status: Phase 70 complete -- gap closure done, all verification gaps resolved (v1.9 milestone complete)
+Last activity: 2026-03-20 -- Phase 70 Plan 04 complete: Gap closure -- fixture fix and full re-capture
 
-Progress: [██████████] 100% (23/23 plans completed)
+Progress: [██████████] 100% (24/24 plans completed)
 
 ## Performance Metrics
 
@@ -106,6 +106,8 @@ Recent decisions for v1.9:
 - [Phase 70]: Asset Review overrides include all 4 touches' interactions for capstone narrative
 - [Phase 70]: Placeholder screenshots (copy of last captured) unblock rendering on OOM-constrained machines
 - [Phase 69]: No source commits for gap-closure TTS/render plans -- all outputs gitignored
+- [Phase 70]: Reduced deviceScaleFactor 2->1 for OOM mitigation during Playwright captures on M1 Pro 16GB
+- [Phase 70]: TTS re-run skipped when script.json unchanged and audio step counts match
 
 ### Pending Todos
 
@@ -120,6 +122,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T01:31:15.000Z
-Stopped at: Completed 70-03-PLAN.md (v1.9 milestone complete)
-Next action: v1.9 Tutorial Videos milestone is complete. All 23 plans across 9 phases delivered.
+Last session: 2026-03-20T03:18:17.000Z
+Stopped at: Completed 70-04-PLAN.md (gap closure complete)
+Next action: v1.9 Tutorial Videos milestone is complete. All 24 plans across 9 phases delivered (including gap closure).

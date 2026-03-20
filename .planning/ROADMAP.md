@@ -230,7 +230,7 @@ Plans:
 **Goal**: Five tutorials covering multi-stage HITL touch workflows and asset review are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
 **Requirements**: TUT-13, TUT-14, TUT-15, TUT-16, TUT-17
-**Plans:** 4 plans (3 complete + 1 gap closure)
+**Plans:** 4/4 plans complete
 Plans:
 - [ ] 70-01-PLAN.md -- Touch 1-3 HITL scripts, fixtures, mock server asset-review extension, and capture specs
 - [ ] 70-02-PLAN.md -- Touch 4 expanded script, Asset Review script, fixtures, and capture specs
@@ -258,4 +258,4 @@ Plans:
 | 67. Low-Complexity Tutorials | 3/3 | Complete   | 2026-03-19 | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | 2/2 | Complete    | 2026-03-20 | - |
 | 69. Medium-Complexity Tutorials (Library & Settings) | 2/2 | Complete    | 2026-03-20 | - |
-| 70. High-Complexity Tutorials | 3/3 | Complete   | 2026-03-20 | - |
+| 70. High-Complexity Tutorials | 4/4 | Complete   | 2026-03-20 | - |
