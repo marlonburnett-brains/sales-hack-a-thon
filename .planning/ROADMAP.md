@@ -258,4 +258,4 @@ Plans:
 | 67. Low-Complexity Tutorials | 3/3 | Complete   | 2026-03-19 | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | 2/2 | Complete    | 2026-03-20 | - |
 | 69. Medium-Complexity Tutorials (Library & Settings) | 2/2 | Complete    | 2026-03-20 | - |
-| 70. High-Complexity Tutorials | 4/4 | Complete   | 2026-03-20 | - |
+| 70. High-Complexity Tutorials | 4/4 | Complete    | 2026-03-20 | - |
