@@ -79,7 +79,7 @@
       "lastIngestedAt": null,
       "sourceModifiedAt": "2026-03-19T08:00:00.000Z",
       "slideCount": 0,
-      "ingestionStatus": "processing",
+      "ingestionStatus": "ingesting",
       "ingestionProgress": "{\"current\":4,\"total\":10,\"phase\":\"analyzing\"}",
       "contentClassification": null,
       "createdAt": "2026-03-19T10:00:00.000Z",

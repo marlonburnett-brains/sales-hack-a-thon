@@ -2,6 +2,55 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.9 — Tutorial Videos
+
+**Shipped:** 2026-03-20
+**Phases:** 9 | **Plans:** 24 | **Commits:** 132
+
+### What Was Built
+- Full-stack tutorial video pipeline: Playwright capture → Remotion composition → local TTS narration → deterministic MP4 output
+- Mock agent server covering 40+ API routes with stage-aware fixture loading for HITL workflow simulation
+- Dual TTS engines: Kokoro (draft/CPU, zero Python dependency) and Chatterbox-Turbo (production/MPS) with timing manifests
+- Remotion 4.0 composition with zoom/pan, text overlays, animated cursor, @remotion/transitions cross-fades, and intro/outro branding slates
+- 16 tutorial videos covering every AtlusDeck feature — Getting Started, Google Drive Settings, Action Center, Deals, Deal Overview, Deal Chat, Briefing, Template Library, Slide Library, Deck Structures, Agent Prompts, AtlusAI Integration, Touch 1-4 HITL, and Asset Review
+- Stage-aware fixture system supporting arbitrary stage names (not just HITL), enabling non-HITL tutorials (Drive settings, Action Center) to use the same fixture infrastructure
+
+### What Worked
+- **Fully isolated workspace:** apps/tutorials workspace with no imports from web/agent — clean dependency boundary, no risk of breaking production code
+- **Mock server first:** Building the comprehensive mock server upfront (40+ routes) meant all 16 tutorials could be authored without revisiting infrastructure
+- **Stage-aware fixture pattern:** Extending the HITL stage system to accept arbitrary string stage names unlocked non-HITL tutorials (unconfigured/configured, errors/resolved) without new abstractions
+- **Narrative continuity:** All deal-related tutorials using deal-001 (Meridian Dynamics) created a coherent story across 10+ tutorials
+- **Gap-closure plans:** Each phase included a gap-closure plan for TTS/render — keeping rendering as a separate plan kept script/fixture authoring fast
+- **Parallel phase execution:** Phases 68+69+70 (content tutorials) executed concurrently after infrastructure phases 62-66 completed
+
+### What Was Inefficient
+- **SUMMARY frontmatter still empty:** 10th milestone with `requirements_completed` and `one_liner` not populated — persistent tooling gap continues
+- **OOM constraints on M1 Pro 16GB:** Playwright captures with deviceScaleFactor=2 caused OOM crashes — had to reduce to 1x for high-complexity tutorials
+- **Placeholder screenshots:** Some capture runs produced OOM failures requiring placeholder screenshots (copy of last captured) — renders not pixel-perfect for affected tutorials
+- **Redundant effect schema fields:** Some phase 66 decisions documented twice in STATE.md (duplicate entries for cursor continuity, composition timing, render input props)
+- **No audit before archival:** Skipped milestone audit — all indicators showed 100% but audit would have validated cross-tutorial consistency
+
+### Patterns Established
+- **Stage-aware mock server:** Any mock route can return different fixture data based on current stage — works for HITL stages, settings states, and arbitrary custom stages
+- **Stage ref pattern:** Mutable variable in capture loop shared via closure with browser mocks — simple state management for step-by-step progression
+- **Dual TTS with engine flag:** Single `--engine kokoro|chatterbox` flag switches between draft and production TTS — clean abstraction over fundamentally different backends
+- **Normalized effect coordinates:** 0-1 values for zoom targets, callout positions, and cursor coordinates — resolution-independent effect authoring
+- **Timing manifest as composition input:** Audio durations drive Remotion frame counts — deterministic video length from audio content
+
+### Key Lessons
+1. **Mock server coverage pays exponential dividends:** 40+ routes built in Phase 62 enabled 16 tutorials without revisiting infrastructure — upfront investment in mocking is the highest-leverage tutorial pipeline decision.
+2. **Stage-aware fixtures generalize beyond HITL:** The stage system designed for Skeleton→Low-fi→High-fi workflows works equally well for any multi-state UI simulation (settings, actions, ingestion).
+3. **OOM is the M1 Pro 16GB ceiling for Playwright+Remotion:** High-resolution captures (2x DPR) with complex compositions exhaust memory — plan for 1x DPR on constrained machines.
+4. **Local TTS eliminates per-video costs:** Kokoro and Chatterbox produce broadcast-quality narration with zero API costs — the Python sidecar pattern handles GPU-accelerated inference cleanly.
+5. **Tutorial videos are a documentation artifact, not a testing artifact:** The pipeline captures UI state, not behavior — don't confuse deterministic screenshots with E2E test coverage.
+
+### Cost Observations
+- Model mix: ~55% sonnet (executors), ~30% haiku (researchers, fixture authoring), ~15% opus (orchestration, milestone)
+- Sessions: ~10 sessions across 2 days
+- Notable: Content tutorial phases (67-70) were highly parallel — 3 phases running concurrently with different tutorial complexity tiers
+
+---
+
 ## Milestone: v1.8 — Structure-Driven Deck Generation
 
 **Shipped:** 2026-03-18
@@ -455,6 +504,7 @@
 | v1.6 | 110 | 6 | Touch 4 artifact intelligence, live proof closure, contract hardening, and agent baseline cleanup |
 | v1.7 | 114 | 9 | Deal management platform, named agents, persistent chat, 3-stage HITL, Drive integration |
 | v1.8 | 75 | 12 | Structure-driven deck generation pipeline, multi-source assembly, modification planning/execution, 19 quick tasks |
+| v1.9 | 132 | 9 | Tutorial video pipeline: Playwright capture, Remotion composition, dual TTS, 16 tutorials covering all features |
 
 ### Cumulative Quality
 
@@ -469,16 +519,17 @@
 | v1.6 | 6 | 6 | 0 (all in-scope verifications passed after audit rerun) |
 | v1.7 | 9 | 9 | 0 (38/38 requirements, all E2E flows verified) |
 | v1.8 | 8 | 8 | 0 (42/62 requirements complete, 20 deferred to gap-closure phases) |
+| v1.9 | 9 | 9 | 0 (30/30 requirements complete, no audit performed) |
 
 ### Cumulative Stats
 
-| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | v1.6 | v1.7 | v1.8 | Total |
+| Metric | v1.0 | v1.1 | v1.2 | v1.3 | v1.4 | v1.5 | v1.6 | v1.7 | v1.8 | v1.9 | Total |
 |--------|------|------|------|------|------|------|------|------|------|-------|
-| Phases | 13 | 4 | 4 | 5 | 5 | 3 | 6 | 9 | 12 | 61 |
-| Plans | 27 | 6 | 10 | 10 | 12 | 8 | 20 | 30 | 12 | 135 |
-| Commits | 169 | 55 | 37 | 17 | ~60 | 49 | 110 | 114 | 75 | ~686 |
-| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~40,833 | ~50,876 | ~61,245 | ~74,111 | ~74,111 |
-| Days | 2 | 1 | 2 | 1 | 2 | 1 | 2 | 2 | 5 | 11 |
+| Phases | 13 | 4 | 4 | 5 | 5 | 3 | 6 | 9 | 12 | 9 | 70 |
+| Plans | 27 | 6 | 10 | 10 | 12 | 8 | 20 | 30 | 12 | 24 | 159 |
+| Commits | 169 | 55 | 37 | 17 | ~60 | 49 | 110 | 114 | 75 | 132 | ~818 |
+| LOC (TypeScript) | ~20,000 | ~20,665 | ~28,472 | ~30,203 | ~35,315 | ~40,833 | ~50,876 | ~61,245 | ~74,111 | ~82,000 | ~82,000 |
+| Days | 2 | 1 | 2 | 1 | 2 | 1 | 2 | 2 | 5 | 2 | 18 |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -509,3 +560,6 @@
 25. LLM hallucination on structured output IDs is predictable — always post-validate and override fields that must match input context exactly (v1.8)
 26. Gap-closure phases need execution commitment — planning them after audit without executing creates false confidence in coverage (v1.8)
 27. Dual schema pattern (Zod + GenAI) covers both Mastra and Gemini validation surfaces without duplication (v1.8)
+28. Comprehensive mock server coverage upfront pays exponential dividends — 40+ routes built once enabled 16 tutorials without revisiting infrastructure (v1.9)
+29. Stage-aware fixture patterns generalize beyond HITL — any multi-state UI simulation (settings, actions, ingestion) benefits from the same abstraction (v1.9)
+30. Local TTS eliminates per-video costs while maintaining broadcast quality — Kokoro/Chatterbox with Python sidecar handles GPU inference cleanly (v1.9)

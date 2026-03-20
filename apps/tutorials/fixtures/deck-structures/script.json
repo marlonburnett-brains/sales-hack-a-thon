@@ -27,8 +27,7 @@
       "id": "step-003",
       "url": "/settings/deck-structures/touch-1",
       "narration": "Confidence scores show how well each section maps to real templates in your library. The more templates you ingest for a touch type, the higher the confidence becomes.",
-      "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.35 }
+      "waitFor": "main"
     },
     {
       "id": "step-004",
@@ -40,8 +39,9 @@
     },
     {
       "id": "step-005",
+      "mockStage": "detail-touch3",
       "url": "/settings/deck-structures/touch-3",
-      "narration": "Let's look at another touch type. Touch 3 is your deep-dive proposal deck -- it has a different structure with more technical sections and a different confidence level.",
+      "narration": "Let's look at another touch type. Touch 3 is your deep-dive proposal deck -- notice it has seven sections instead of five, including Technical Architecture and ROI Analysis. The confidence here is 71 percent, rated Medium.",
       "waitFor": "main",
       "cursorTarget": { "x": 0.15, "y": 0.55 },
       "delayMs": 1000
@@ -49,7 +49,7 @@
     {
       "id": "step-006",
       "url": "/settings/deck-structures/touch-3",
-      "narration": "Each touch type develops its own structure based on the templates classified for that stage. Touch 3 proposals naturally emphasize technical depth and ROI analysis.",
+      "narration": "Each touch type develops its own structure based on the templates classified for that stage. Touch 3 proposals naturally include sections like Implementation Timeline and Next Steps and Pricing that wouldn't appear in a discovery deck.",
       "waitFor": "main"
     },
     {
@@ -76,9 +76,9 @@
       "id": "step-009",
       "mockStage": "chat-loading",
       "url": "/settings/deck-structures/touch-1",
-      "narration": "The AI is processing your request and updating the structure. This takes a moment as it recalculates section dependencies and revalidates the flow.",
+      "narration": "After submitting, the AI processes your request and recalculates section dependencies. Let's see the result.",
       "waitFor": "main",
-      "delayMs": 1500
+      "delayMs": 500
     },
     {
       "id": "step-010",

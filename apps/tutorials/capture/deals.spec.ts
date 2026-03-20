@@ -83,6 +83,10 @@ test.describe("Deals Tutorial Capture", () => {
           await page.waitForLoadState("networkidle").catch(() => {
             // networkidle may time out if polling -- acceptable
           });
+        } else if (step.mockStage) {
+          // Stage changed but same URL — reload to fetch fresh data from mock server
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await page.waitForLoadState("networkidle").catch(() => {});
         }
 
         // Ensure sidebar is expanded (if sidebar exists)

@@ -19,8 +19,17 @@
       "url": "/deals/deal-001/touch/4",
       "narration": "Here's the transcript input area. This is where you paste the notes from your meeting -- AtlusDeck will extract everything it needs from the raw text.",
       "mockStage": "idle",
-      "zoomTarget": { "selector": "textarea, [data-testid='transcript-input']", "scale": 1.4, "x": 0.5, "y": 0.4 },
-      "callout": { "text": "Paste your meeting transcript here", "x": 0.5, "y": 0.25 },
+      "zoomTarget": {
+        "selector": "textarea, [data-testid='transcript-input']",
+        "scale": 1.4,
+        "x": 0.5,
+        "y": 0.4
+      },
+      "callout": {
+        "text": "Paste your meeting transcript here",
+        "x": 0.5,
+        "y": 0.25
+      },
       "delayMs": 500
     },
     {
@@ -28,8 +37,18 @@
       "url": "/deals/deal-001/touch/4",
       "narration": "After pasting in your transcript, you can see the full meeting notes ready for processing. The text includes customer context, business outcomes, and all the details AtlusDeck will extract.",
       "mockStage": "transcript-pasted",
+      "actions": [
+        {
+          "type": "fill",
+          "selector": "#transcript",
+          "value": "Meeting with Meridian Dynamics VP of Sales and CTO on March 12, 2026.\n\nAttendees: Rachel Torres (VP Sales), David Kim (CTO), James Liu (Head of Operations)\n\nKey Discussion Points:\n- Current proposal turnaround is 5-7 business days, losing deals to faster competitors\n- Need to reduce proposal generation to under 2 hours without sacrificing quality\n- Budget approved for Q2 rollout at $180K annual, with potential expansion to $350K for enterprise tier\n- Must integrate with existing Google Workspace environment (Slides, Docs, Drive)\n- SOC 2 compliance documentation required before procurement can sign off\n- Pilot starting April 2026, full rollout target by end of Q2 2026\n- Want to improve win rate by 15% through personalized, data-driven proposals\n- Need to scale proposal capacity without adding headcount\n- CTO wants API access for custom integrations with their CRM\n- VP Sales emphasized brand consistency across all generated materials"
+        }
+      ],
       "waitForText": "Meridian Dynamics",
-      "cursorTarget": { "x": 0.5, "y": 0.4 },
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.4
+      },
       "delayMs": 500
     },
     {
@@ -38,7 +57,10 @@
       "narration": "Click Submit to kick off the extraction process. AtlusDeck is now analyzing your transcript to pull out structured fields -- customer context, outcomes, constraints, stakeholders, timeline, and budget.",
       "mockStage": "generating",
       "waitForText": "Generation in progress",
-      "cursorTarget": { "x": 0.5, "y": 0.6 },
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.6
+      },
       "delayMs": 500
     },
     {
@@ -54,7 +76,12 @@
       "url": "/deals/deal-001/touch/4",
       "narration": "Notice the level of detail in the extracted fields. Meridian Dynamics' need to reduce proposal turnaround from 5-7 days to under 2 hours is captured perfectly, along with their Q2 timeline and $180K budget.",
       "mockStage": "skeleton",
-      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.5, "x": 0.5, "y": 0.45 },
+      "zoomTarget": {
+        "selector": "[data-testid='stage-content'], .stage-content, main",
+        "scale": 1.5,
+        "x": 0.5,
+        "y": 0.45
+      },
       "delayMs": 500
     },
     {
@@ -63,7 +90,10 @@
       "narration": "Approve the extracted fields and AtlusDeck generates draft outlines for all three artifacts at once -- the proposal deck, talk track, and buyer FAQ. This is the low-fidelity stage where you review the structure before polishing.",
       "mockStage": "lowfi",
       "waitForText": "Sales Brief",
-      "cursorTarget": { "x": 0.5, "y": 0.7 },
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.7
+      },
       "delayMs": 500
     },
     {
@@ -71,7 +101,12 @@
       "url": "/deals/deal-001/touch/4",
       "narration": "Here's the proposal deck draft section. The AI has structured the pitch around intelligent proposal generation, human-in-the-loop quality assurance, and Google Workspace integration -- all tailored to what Meridian Dynamics needs.",
       "mockStage": "lowfi",
-      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.4, "x": 0.5, "y": 0.35 },
+      "zoomTarget": {
+        "selector": "[data-testid='stage-content'], .stage-content, main",
+        "scale": 1.4,
+        "x": 0.5,
+        "y": 0.35
+      },
       "delayMs": 500
     },
     {
@@ -80,7 +115,10 @@
       "narration": "Let's say the draft needs some work. Click Request Changes to send it back for refinement. Since all three artifacts are generated together, refining at this stage improves all of them at once -- that's the power of Touch 4's unified pipeline.",
       "mockStage": "lowfi-refining",
       "waitForText": "Generation in progress",
-      "cursorTarget": { "x": 0.5, "y": 0.7 },
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.7
+      },
       "delayMs": 500
     },
     {
@@ -97,7 +135,10 @@
       "narration": "Approve the refined drafts and AtlusDeck produces the final polished versions. This is the high-fidelity stage -- fully formatted proposal deck, detailed talk track, and comprehensive FAQ ready for your review.",
       "mockStage": "hifi",
       "waitForText": "Proposal Deck",
-      "cursorTarget": { "x": 0.5, "y": 0.7 },
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.7
+      },
       "delayMs": 500
     },
     {
@@ -105,8 +146,17 @@
       "url": "/deals/deal-001/touch/4",
       "narration": "Let's look at the proposal deck in detail. The slides are structured with your company context, solution pillars, ROI framing, and implementation timeline -- everything pulled from that single transcript.",
       "mockStage": "artifacts-proposal",
-      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.5, "x": 0.5, "y": 0.35 },
-      "callout": { "text": "Proposal deck -- ready for presentation", "x": 0.5, "y": 0.2 },
+      "zoomTarget": {
+        "selector": "[data-testid='stage-content'], .stage-content, main",
+        "scale": 1.5,
+        "x": 0.5,
+        "y": 0.35
+      },
+      "callout": {
+        "text": "Proposal deck -- ready for presentation",
+        "x": 0.5,
+        "y": 0.2
+      },
       "delayMs": 500
     },
     {
@@ -114,8 +164,23 @@
       "url": "/deals/deal-001/touch/4",
       "narration": "Here's the talk track -- your speaking notes for each section of the proposal. It includes the key talking points, transition phrases, and objection-handling guidance specific to Meridian Dynamics.",
       "mockStage": "artifacts-talktrack",
-      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.5, "x": 0.5, "y": 0.35 },
-      "callout": { "text": "Talk track -- your speaking guide", "x": 0.5, "y": 0.2 },
+      "actions": [
+        {
+          "type": "click",
+          "selector": "[role='tab']:has-text('Talk Track')"
+        }
+      ],
+      "zoomTarget": {
+        "selector": "[data-testid='stage-content'], .stage-content, main",
+        "scale": 1.5,
+        "x": 0.5,
+        "y": 0.35
+      },
+      "callout": {
+        "text": "Talk track -- your speaking guide",
+        "x": 0.5,
+        "y": 0.2
+      },
       "delayMs": 500
     },
     {
@@ -123,8 +188,23 @@
       "url": "/deals/deal-001/touch/4",
       "narration": "And the buyer FAQ -- anticipated questions from the Meridian Dynamics team with suggested answers. Covers pricing, timeline, integration, compliance, and scalability concerns.",
       "mockStage": "artifacts-faq",
-      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.5, "x": 0.5, "y": 0.35 },
-      "callout": { "text": "Buyer FAQ -- anticipate their questions", "x": 0.5, "y": 0.2 },
+      "actions": [
+        {
+          "type": "click",
+          "selector": "[role='tab']:has-text('FAQ')"
+        }
+      ],
+      "zoomTarget": {
+        "selector": "[data-testid='stage-content'], .stage-content, main",
+        "scale": 1.5,
+        "x": 0.5,
+        "y": 0.35
+      },
+      "callout": {
+        "text": "Buyer FAQ -- anticipate their questions",
+        "x": 0.5,
+        "y": 0.2
+      },
       "delayMs": 500
     },
     {
@@ -133,7 +213,10 @@
       "narration": "Give the final approval and all three artifacts are saved to Google Drive. The entire workflow -- from raw transcript to three polished, brand-compliant documents -- took minutes instead of days.",
       "mockStage": "completed",
       "waitForText": "Saved to Drive",
-      "cursorTarget": { "x": 0.5, "y": 0.6 },
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.6
+      },
       "delayMs": 500,
       "emotion": "encouraging"
     },
@@ -142,8 +225,17 @@
       "url": "/deals/deal-001/touch/4",
       "narration": "Here are your Drive links -- the proposal deck in Google Slides, plus the talk track and buyer FAQ in Google Docs. Everything is organized in your deal folder, ready to share with your team or send directly to the prospect.",
       "mockStage": "completed",
-      "zoomTarget": { "selector": "[data-testid='stage-content'], .stage-content, main", "scale": 1.4, "x": 0.5, "y": 0.5 },
-      "callout": { "text": "All 3 artifacts saved to Drive", "x": 0.5, "y": 0.25 },
+      "zoomTarget": {
+        "selector": "[data-testid='stage-content'], .stage-content, main",
+        "scale": 1.4,
+        "x": 0.5,
+        "y": 0.5
+      },
+      "callout": {
+        "text": "All 3 artifacts saved to Drive",
+        "x": 0.5,
+        "y": 0.25
+      },
       "delayMs": 500,
       "emotion": "excited"
     }

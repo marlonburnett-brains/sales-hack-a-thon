@@ -4,16 +4,16 @@
       "id": "int-touch1-001",
       "dealId": "deal-001",
       "touchType": "touch_1",
-      "status": "rejected",
+      "status": "pending_asset_review",
       "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\"}",
       "decision": null,
-      "generatedContent": "{\"runId\":\"mock-run-touch1\"}",
-      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit\",\"talkTrackUrl\":\"\",\"faqUrl\":\"\",\"dealFolderId\":\"mock-folder-meridian-001\"}",
+      "generatedContent": "{\"runId\":\"mock-run-touch1-regen\"}",
+      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian-v2/edit\",\"talkTrackUrl\":\"\",\"faqUrl\":\"\",\"dealFolderId\":\"mock-folder-meridian-001\"}",
       "driveFileId": null,
       "hitlStage": "ready",
-      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit\",\"rejectionReason\":\"Value proposition messaging needs to be sharper. Focus more on the speed advantage (2 hours vs 5-7 days) as the lead message rather than burying it in the body copy.\"}",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian-v2/edit\"}",
       "createdAt": "2026-03-15T10:00:00.000Z",
-      "updatedAt": "2026-03-15T16:00:00.000Z"
+      "updatedAt": "2026-03-15T16:10:00.000Z"
     }
   ],
   "assetReview": {
@@ -21,11 +21,11 @@
       "id": "int-touch1-001",
       "dealId": "deal-001",
       "touchType": "touch_1",
-      "status": "rejected",
+      "status": "pending_asset_review",
       "hitlStage": "ready",
-      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit\",\"rejectionReason\":\"Value proposition messaging needs to be sharper. Focus more on the speed advantage (2 hours vs 5-7 days) as the lead message rather than burying it in the body copy.\"}",
+      "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian-v2/edit\"}",
       "outputRefs": {
-        "deckUrl": "https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit",
+        "deckUrl": "https://docs.google.com/presentation/d/mock-touch1-pager-meridian-v2/edit",
         "talkTrackUrl": "",
         "faqUrl": "",
         "dealFolderId": "mock-folder-meridian-001"
@@ -44,12 +44,17 @@
         {
           "check": "brand_color",
           "severity": "pass",
-          "message": "Brand colors match approved palette. One-pager uses correct #1E40AF."
+          "message": "Brand colors match approved palette."
         },
         {
           "check": "disclaimer",
           "severity": "pass",
           "message": "Standard disclaimer present on pager footer."
+        },
+        {
+          "check": "messaging_alignment",
+          "severity": "pass",
+          "message": "Value proposition messaging updated. Speed advantage (2 hours vs 5-7 days) now leads the pager."
         }
       ]
     }

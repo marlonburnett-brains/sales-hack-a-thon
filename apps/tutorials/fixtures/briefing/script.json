@@ -1,13 +1,13 @@
 {
   "id": "briefing",
   "title": "Pre-Call Briefing",
-  "description": "Generate a pre-call briefing with company research, value hypotheses, and discovery questions, then review your briefing history.",
+  "description": "Explore meeting preparation briefings including company research, value hypotheses, and discovery questions, then review your briefing history.",
   "fixtures": "briefing",
   "steps": [
     {
       "id": "step-001",
       "url": "/deals/deal-001/briefing",
-      "narration": "The pre-call briefing page helps you prepare for upcoming meetings. Right now there's no briefing generated yet, so you see the empty state with a prompt to get started.",
+      "narration": "The Meeting Prep page helps you prepare for upcoming calls. Right now there are no briefings yet, so you see the empty state along with the shared assistant banner explaining how to get started.",
       "mockStage": "idle",
       "waitFor": "main",
       "delayMs": 1500,
@@ -16,89 +16,96 @@
     {
       "id": "step-002",
       "url": "/deals/deal-001/briefing",
-      "narration": "The Generate Briefing area lets you specify the buyer's role and meeting context. This helps the AI tailor its research and recommendations to your specific situation.",
+      "narration": "The shared assistant banner explains that the docked deal assistant follows you across overview, briefing, and touch pages. You can ask for tailored prep, save notes, or request similar case matches.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.4 },
-      "callout": { "text": "Provide context for a tailored briefing", "x": 0.5, "y": 0.25 }
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.3 },
+      "callout": { "text": "Use the assistant for briefing work", "x": 0.5, "y": 0.15 }
     },
     {
       "id": "step-003",
       "url": "/deals/deal-001/briefing",
-      "narration": "Click Generate to start the briefing process. The AI will research the company, analyze the deal context, and produce actionable preparation materials.",
+      "narration": "A briefing is now being generated. You can see it appear in the Previous Briefings section with a running status badge while the AI pulls company data and analyzes the deal context.",
       "mockStage": "generating",
       "waitFor": "main",
-      "cursorTarget": { "x": 0.5, "y": 0.55 },
-      "delayMs": 500
+      "delayMs": 1000
     },
     {
       "id": "step-004",
       "url": "/deals/deal-001/briefing",
-      "narration": "The briefing is being generated. This typically takes thirty to sixty seconds as the AI pulls company data, analyzes your deal history, and drafts personalized recommendations.",
+      "narration": "The running briefing card shows it's targeting a VP of Technology buyer role for an initial discovery call. This context shapes the AI's research focus and the talking points it generates.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.45 },
-      "delayMs": 1000
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.5 }
     },
     {
       "id": "step-005",
       "url": "/deals/deal-001/briefing",
-      "narration": "The briefing is complete. Let's walk through each section. At the top is the company research summary with industry position, recent news, and competitive context.",
+      "narration": "The briefing is complete. Click the card to expand it and see the full generated content. The status badge now shows completed with the date and buyer role.",
       "mockStage": "complete",
       "waitFor": "main",
-      "delayMs": 1000
+      "actions": [
+        { "type": "click", "selector": "button:has(svg.lucide-file-text)" }
+      ],
+      "delayMs": 800
     },
     {
       "id": "step-006",
       "url": "/deals/deal-001/briefing",
-      "narration": "The company research section covers Meridian Dynamics' position as a mid-market technology consulting firm, their recent expansion of cloud practice, and competitive landscape against larger firms.",
+      "narration": "The company research section shows Meridian Dynamics as a mid-market technology consulting firm with over two hundred and fifty employees. They recently expanded their cloud practice and partnered with Snowflake.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.6, "x": 0.5, "y": 0.35 },
-      "callout": { "text": "Company-specific research", "x": 0.3, "y": 0.22 }
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.55 },
+      "callout": { "text": "Company-specific research", "x": 0.3, "y": 0.4 }
     },
     {
       "id": "step-007",
       "url": "/deals/deal-001/briefing",
-      "narration": "Scroll down to the value hypotheses section. These are data-backed talking points tailored to what matters most to Meridian Dynamics based on the deal context.",
+      "narration": "Scrolling down to the value hypotheses. These are tailored talking points: legacy ERP modernization could save forty percent on integration costs, and a unified data platform would reduce handoff time by sixty percent.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.55 }
+      "actions": [
+        { "type": "keyboard", "key": "PageDown" }
+      ],
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.4 },
+      "delayMs": 300
     },
     {
       "id": "step-008",
       "url": "/deals/deal-001/briefing",
-      "narration": "Each value hypothesis is specific and actionable. Legacy ERP modernization savings, unified data platform benefits, and a cloud migration path aligned with their growth plans.",
+      "narration": "Each value hypothesis is specific and actionable, grounded in the deal context. The cloud migration path is aligned with Meridian's Q3 growth projections for containerized architecture.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.6, "x": 0.5, "y": 0.55 },
-      "callout": { "text": "Actionable value propositions", "x": 0.3, "y": 0.42 }
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.5 },
+      "callout": { "text": "Actionable value propositions", "x": 0.3, "y": 0.35 }
     },
     {
       "id": "step-009",
       "url": "/deals/deal-001/briefing",
-      "narration": "The discovery questions section gives you conversation starters designed to uncover the buyer's priorities and decision criteria.",
+      "narration": "The discovery questions give you conversation starters tailored to Meridian's situation. What's driving the transformation timeline, how are teams sharing customer data, and what does Q3 success look like.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.72 }
+      "actions": [
+        { "type": "keyboard", "key": "PageDown" }
+      ],
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.4 },
+      "delayMs": 300
     },
     {
       "id": "step-010",
       "url": "/deals/deal-001/briefing",
-      "narration": "These questions are tailored to Meridian's situation. What's driving the transformation timeline, how are teams sharing customer data, and what does success look like for Q3.",
+      "narration": "Now let's look at the briefing history. Multiple briefings have been generated for this deal, each tailored to a different buyer role and meeting context.",
+      "mockStage": "history",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.6, "x": 0.5, "y": 0.72 }
+      "delayMs": 1000
     },
     {
       "id": "step-011",
       "url": "/deals/deal-001/briefing",
-      "narration": "Navigate to your briefing history to see past preparations. Each entry shows the date, buyer role, and meeting context so you can track your preparation across multiple meetings.",
-      "mockStage": "history",
+      "narration": "The history shows three past briefings. The first targeted the VP of Technology for discovery, the second a Director of Engineering for a technical deep dive, and the third a follow-up on proposal review.",
       "waitFor": "main",
-      "delayMs": 1000,
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.5 }
+      "zoomTarget": { "selector": "main", "scale": 1.3, "x": 0.5, "y": 0.55 }
     },
     {
       "id": "step-012",
       "url": "/deals/deal-001/briefing",
-      "narration": "The history list shows three past briefings with different buyer roles and dates. Click any entry to review the full briefing content from that preparation session.",
+      "narration": "Each briefing card is expandable to review the full content. With the deal assistant at the bottom, you can always ask for more preparation or save notes right from this page.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.5 },
-      "cursorTarget": { "x": 0.5, "y": 0.45 },
+      "zoomTarget": { "selector": "main", "scale": 1.3, "x": 0.5, "y": 0.85 },
       "emotion": "calm"
     }
   ]

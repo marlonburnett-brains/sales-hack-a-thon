@@ -9,7 +9,7 @@
       "decision": null,
       "generatedContent": "{\"runId\":\"mock-run-touch3\"}",
       "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch3-capability-deck/edit\",\"dealFolderId\":\"mock-folder-touch3\"}",
-      "driveFileId": null,
+      "driveFileId": "mock-drive-file-touch3",
       "hitlStage": "ready",
       "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch3-capability-deck/edit\",\"dealFolderId\":\"mock-folder-touch3\"}",
       "createdAt": "2026-03-15T10:00:00.000Z",

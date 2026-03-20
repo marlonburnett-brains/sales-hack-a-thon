@@ -11,7 +11,7 @@
 - ✅ v1.6 **Touch 4 Artifact Intelligence** -- Phases 35-40 (shipped 2026-03-08) -- [Archive](milestones/v1.6-ROADMAP.md)
 - ✅ v1.7 **Deals & HITL Pipeline** -- Phases 41-49 (shipped 2026-03-09) -- [Archive](milestones/v1.7-ROADMAP.md)
 - ✅ v1.8 **Structure-Driven Deck Generation** -- Phases 50-61 (shipped 2026-03-18) -- [Archive](milestones/v1.8-ROADMAP.md)
-- 🚧 v1.9 **Tutorial Videos** -- Phases 62-70 (in progress) -- [Detail](milestones/v1.9-ROADMAP.md)
+- ✅ v1.9 **Tutorial Videos** -- Phases 62-70 (shipped 2026-03-20) -- [Archive](milestones/v1.9-ROADMAP.md)
 
 ## Phases
 
@@ -130,112 +130,20 @@
 
 </details>
 
-### v1.9 Tutorial Videos (In Progress)
+<details>
+<summary>✅ v1.9 Tutorial Videos (Phases 62-70) -- SHIPPED 2026-03-20</summary>
 
-**Milestone Goal:** Produce automated, deterministic tutorial videos for every AtlusDeck feature using Playwright-driven UI capture, Remotion video composition, and local TTS narration.
+- [x] Phase 62: Workspace & Mock Infrastructure (3/3 plans) -- completed 2026-03-19
+- [x] Phase 63: HITL & Async Mock Capture (2/2 plans) -- completed 2026-03-19
+- [x] Phase 64: TTS Pipeline (3/3 plans) -- completed 2026-03-19
+- [x] Phase 65: Remotion Composition Core (2/2 plans) -- completed 2026-03-19
+- [x] Phase 66: Visual Effects & Polish (3/3 plans) -- completed 2026-03-19
+- [x] Phase 67: Low-Complexity Tutorials (3/3 plans) -- completed 2026-03-19
+- [x] Phase 68: Medium-Complexity Tutorials - Deals & Briefing (2/2 plans) -- completed 2026-03-20
+- [x] Phase 69: Medium-Complexity Tutorials - Library & Settings (2/2 plans) -- completed 2026-03-20
+- [x] Phase 70: High-Complexity Tutorials (4/4 plans) -- completed 2026-03-20
 
-- [x] **Phase 62: Workspace & Mock Infrastructure** - Scaffold apps/tutorials workspace with mock agent server, page.route() helpers, auth bypass, fixture factories, and deterministic screenshot capture (completed 2026-03-19)
-- [x] **Phase 63: HITL & Async Mock Capture** - Add mock patterns for multi-stage HITL workflows and polling/async status sequences (completed 2026-03-19)
-- [x] **Phase 64: TTS Pipeline** - Integrate Kokoro (draft) and Chatterbox-Turbo (production) TTS engines with timing manifest generation (completed 2026-03-19)
-- [x] **Phase 65: Remotion Composition Core** - Build shared TutorialStep component, per-tutorial Remotion compositions, and MP4 render pipeline (completed 2026-03-19)
-- [x] **Phase 66: Visual Effects & Polish** - Add zoom/pan effects, text overlays, cursor animation, cross-fade transitions, and intro/outro slates (gap closure in progress) (completed 2026-03-19)
-- [x] **Phase 67: Low-Complexity Tutorials** - Author scripts, fixtures, and captures for Getting Started, Google Drive Settings, and Action Center tutorials (completed 2026-03-19)
-- [x] **Phase 68: Medium-Complexity Tutorials (Deals & Briefing)** - Author scripts, fixtures, and captures for Deals, Deal Overview, Deal Chat, and Pre-Call Briefing tutorials (completed 2026-03-20)
-- [x] **Phase 69: Medium-Complexity Tutorials (Library & Settings)** - Author scripts, fixtures, and captures for Template Library, Slide Library, Deck Structures, Agent Prompts, and AtlusAI Integration tutorials (completed 2026-03-20)
-- [x] **Phase 70: High-Complexity Tutorials** - Author scripts, fixtures, and captures for Touch 1-4 HITL workflows and Asset Review tutorial (completed 2026-03-20)
-
-### Phase 62: Workspace & Mock Infrastructure
-**Goal**: Developer can run Playwright against the real Next.js app with fully mocked backend and capture deterministic screenshots
-**Depends on**: Nothing (first phase of v1.9)
-**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, INFRA-07, CAPT-01, CAPT-02
-**Success Criteria** (what must be TRUE):
-  1. Running `pnpm --filter tutorials capture <tutorial-name>` produces a set of numbered screenshots in the output directory for a pilot tutorial
-  2. All server-side API calls (Server Actions, agent routes) return fixture data from the mock agent server with no live backend required
-  3. All browser-side API calls return fixture JSON via page.route() helpers with no external network requests
-  4. Playwright navigates past the Google OAuth login wall using mocked session cookies without any real authentication
-  5. Screenshots are visually deterministic across repeated runs (CSS animations disabled, network idle waits enforced)
-**Plans:** 4 plans (3 complete + 1 gap closure)
-Plans:
-- [x] 62-01-PLAN.md -- Scaffold workspace, tutorial script schema, and fixture factories
-- [x] 62-02-PLAN.md -- Mock agent server, auth bypass, route mocks, and determinism utilities
-- [x] 62-03-PLAN.md -- Capture orchestration, Getting Started pilot tutorial, and end-to-end verification
-
-### Phase 63: HITL & Async Mock Capture
-**Goal**: Playwright can capture multi-stage HITL workflows and polling-based async flows with pre-authored fixture sequences
-**Depends on**: Phase 62
-**Requirements**: CAPT-03, CAPT-04
-**Plans:** 3 plans (2 complete + 1 gap closure)
-Plans:
-- [ ] 63-01-PLAN.md -- Stage/sequence infrastructure for mock server, schema extensions, fixture loader
-- [ ] 63-02-PLAN.md -- Pilot Touch 4 HITL tutorial fixtures, capture spec, and end-to-end verification
-
-### Phase 64: TTS Pipeline
-**Goal**: Developer can generate narration audio files from script text using either draft or production TTS engine
-**Depends on**: Phase 62 (needs tutorial script format from INFRA-02)
-**Requirements**: TTS-01, TTS-02, TTS-03, TTS-04
-**Plans:** 4 plans (3 complete + 1 gap closure)
-Plans:
-- [ ] 64-01-PLAN.md -- Type contracts, Kokoro draft engine, ffmpeg post-processing, timing manifest module
-- [ ] 64-02-PLAN.md -- Chatterbox-Turbo Python sidecar setup and TypeScript wrapper
-- [ ] 64-03-PLAN.md -- TTS orchestrator CLI, package.json scripts, turbo.json task, end-to-end verification
-
-### Phase 65: Remotion Composition Core
-**Goal**: Developer can render a complete tutorial MP4 from screenshots and narration audio with synchronized playback
-**Depends on**: Phase 62, Phase 64 (needs screenshots and audio)
-**Requirements**: COMP-01, COMP-02, COMP-03
-**Plans:** 3 plans (2 complete + 1 gap closure)
-Plans:
-- [ ] 65-01-PLAN.md -- Install Remotion dependencies and create composition components (TutorialStep, TutorialComposition, Root)
-- [ ] 65-02-PLAN.md -- Render CLI pipeline (render.ts, render-all.ts, package.json scripts, turbo.json)
-
-### Phase 66: Visual Effects & Polish
-**Goal**: Tutorial videos include professional visual enhancements that guide the viewer's attention and provide context
-**Depends on**: Phase 65
-**Requirements**: COMP-04, COMP-05, COMP-06, COMP-07, COMP-08
-**Plans:** 4 plans (3 complete + 1 gap closure)
-Plans:
-- [x] 66-01-PLAN.md -- Install transitions package, extend deterministic effect schema data, and add reusable Remotion effect primitives
-- [x] 66-02-PLAN.md -- Integrate TransitionSeries timeline, wire effect layers into the composition, and verify a pilot render
-- [ ] 66-03-PLAN.md -- Gap closure: fix fixture data shapes, mock server deal/interaction joins, template classifications, and settings narration
-
-### Phase 67: Low-Complexity Tutorials
-**Goal**: Three introductory tutorials covering first-time user experience and basic settings are captured, narrated, and rendered as MP4 videos
-**Depends on**: Phase 66 (needs visual effects for production quality)
-**Requirements**: TUT-01, TUT-02, TUT-03
-**Plans:** 4 plans (3 complete + 1 gap closure)
-Plans:
-- [ ] 67-01-PLAN.md -- Mock server extensions, Getting Started refinement, Google Drive Settings tutorial
-- [ ] 67-02-PLAN.md -- Action Center tutorial with stage-based resolution flow and end-to-end verification
-- [ ] 67-03-PLAN.md -- Gap closure: TTS narration and MP4 render for Google Drive Settings and Action Center tutorials
-
-### Phase 68: Medium-Complexity Tutorials (Deals & Briefing)
-**Goal**: Four tutorials covering deal management and pre-call briefing workflows are captured, narrated, and rendered as MP4 videos
-**Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
-**Requirements**: TUT-04, TUT-05, TUT-06, TUT-07
-**Plans:** 2/2 plans complete
-Plans:
-- [ ] 68-01-PLAN.md -- Scripts, fixtures, mock server extensions, and capture specs for all 4 tutorials
-- [ ] 68-02-PLAN.md -- TTS audio generation and MP4 rendering for all 4 tutorials
-
-### Phase 69: Medium-Complexity Tutorials (Library & Settings)
-**Goal**: Five tutorials covering template/slide management, deck intelligence, agent configuration, and AtlusAI integration are captured, narrated, and rendered as MP4 videos
-**Depends on**: Phase 63 (needs async mock patterns for ingestion), Phase 66 (needs visual effects)
-**Requirements**: TUT-08, TUT-09, TUT-10, TUT-11, TUT-12
-**Plans:** 2/2 plans complete
-Plans:
-- [ ] 69-01-PLAN.md -- Scripts, fixtures, mock server extensions, and capture specs for all 5 tutorials
-- [ ] 69-02-PLAN.md -- TTS audio generation and MP4 rendering for all 5 tutorials
-
-### Phase 70: High-Complexity Tutorials
-**Goal**: Five tutorials covering multi-stage HITL touch workflows and asset review are captured, narrated, and rendered as MP4 videos
-**Depends on**: Phase 63 (needs HITL mock patterns), Phase 66 (needs visual effects)
-**Requirements**: TUT-13, TUT-14, TUT-15, TUT-16, TUT-17
-**Plans:** 4/4 plans complete
-Plans:
-- [ ] 70-01-PLAN.md -- Touch 1-3 HITL scripts, fixtures, mock server asset-review extension, and capture specs
-- [ ] 70-02-PLAN.md -- Touch 4 expanded script, Asset Review script, fixtures, and capture specs
-- [ ] 70-03-PLAN.md -- TTS audio generation and MP4 rendering for all 5 tutorials
-- [ ] 70-04-PLAN.md -- Gap closure: fix regenerating.json fixture defect and re-run captures/renders
+</details>
 
 ## Progress
 
@@ -250,12 +158,4 @@ Plans:
 | 35-40 | v1.6 | 20/20 | Complete | 2026-03-08 |
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
-| 62 | v1.9 | Complete    | 2026-03-19 | 2026-03-19 |
-| 63. HITL & Async Mock Capture | 2/2 | Complete    | 2026-03-19 | - |
-| 64. TTS Pipeline | 3/3 | Complete    | 2026-03-19 | - |
-| 65. Remotion Composition Core | 2/2 | Complete    | 2026-03-19 | - |
-| 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
-| 67. Low-Complexity Tutorials | 3/3 | Complete   | 2026-03-19 | - |
-| 68. Medium-Complexity Tutorials (Deals & Briefing) | 2/2 | Complete    | 2026-03-20 | - |
-| 69. Medium-Complexity Tutorials (Library & Settings) | 2/2 | Complete    | 2026-03-20 | - |
-| 70. High-Complexity Tutorials | 4/4 | Complete    | 2026-03-20 | - |
+| 62-70 | v1.9 | 24/24 | Complete | 2026-03-20 |

@@ -69,9 +69,9 @@
       "id": "step-008",
       "mockStage": "version-history",
       "url": "/settings/agents/agent-precall-001",
-      "narration": "Navigate to the version history to see all published versions. Each version shows when it was published, who published it, and a summary of what changed.",
+      "narration": "Navigate to the History tab to see all published versions. Each version shows when it was published, who published it, and a summary of what changed.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.55 }
+      "actions": [{ "type": "click", "selector": "[role='tab']:has-text('History')" }]
     },
     {
       "id": "step-009",

@@ -20,8 +20,17 @@
       "narration": "Start by selecting the capability areas that matter most to this deal. For Meridian Dynamics, we will choose Cloud Infrastructure, Data Analytics, and Security.",
       "mockStage": "idle",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.35 },
-      "callout": { "text": "Select areas relevant to this deal", "x": 0.5, "y": 0.3 },
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.4,
+        "x": 0.5,
+        "y": 0.35
+      },
+      "callout": {
+        "text": "Select areas relevant to this deal",
+        "x": 0.5,
+        "y": 0.3
+      },
       "delayMs": 300
     },
     {
@@ -31,7 +40,10 @@
       "mockStage": "generating",
       "waitForText": "Generation in progress",
       "delayMs": 500,
-      "cursorTarget": { "x": 0.5, "y": 0.4 }
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.4
+      }
     },
     {
       "id": "step-004",
@@ -47,8 +59,17 @@
       "narration": "Notice how the structure maps capabilities to deck sections. Cloud Infrastructure gets migration and IaC slides, Data Analytics gets platform and BI slides, and Security gets zero trust and compliance slides.",
       "mockStage": "skeleton",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.5 },
-      "callout": { "text": "Capabilities map to deck sections", "x": 0.55, "y": 0.4 },
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.5,
+        "x": 0.5,
+        "y": 0.5
+      },
+      "callout": {
+        "text": "Capabilities map to deck sections",
+        "x": 0.55,
+        "y": 0.4
+      },
       "delayMs": 300
     },
     {
@@ -58,7 +79,10 @@
       "mockStage": "lowfi",
       "waitForText": "lowfi",
       "delayMs": 500,
-      "cursorTarget": { "x": 0.5, "y": 0.3 }
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.3
+      }
     },
     {
       "id": "step-007",
@@ -66,7 +90,12 @@
       "narration": "Zoom in on the Cloud Infrastructure slides. The draft content covers migration methodology, cost reduction metrics, and infrastructure automation capabilities.",
       "mockStage": "lowfi",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.35 },
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.5,
+        "x": 0.5,
+        "y": 0.35
+      },
       "delayMs": 300
     },
     {
@@ -76,7 +105,10 @@
       "mockStage": "lowfi-refining",
       "waitFor": "main",
       "delayMs": 500,
-      "cursorTarget": { "x": 0.5, "y": 0.6 }
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.6
+      }
     },
     {
       "id": "step-009",
@@ -92,8 +124,17 @@
       "narration": "Compare the refined slides. Notice the personalized references to Meridian's AWS environment, client engagement data, and service boundaries throughout.",
       "mockStage": "lowfi-refined",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.45 },
-      "callout": { "text": "Personalized to Meridian's context", "x": 0.55, "y": 0.35 },
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.4,
+        "x": 0.5,
+        "y": 0.45
+      },
+      "callout": {
+        "text": "Personalized to Meridian's context",
+        "x": 0.55,
+        "y": 0.35
+      },
       "delayMs": 300
     },
     {
@@ -103,7 +144,10 @@
       "mockStage": "hifi",
       "waitFor": "main",
       "delayMs": 500,
-      "cursorTarget": { "x": 0.5, "y": 0.3 }
+      "cursorTarget": {
+        "x": 0.5,
+        "y": 0.3
+      }
     },
     {
       "id": "step-012",
@@ -111,7 +155,12 @@
       "narration": "The final deck is stunning. Each capability section has its own accent color while maintaining overall brand consistency. Cloud in blue, Data in purple, Security in red.",
       "mockStage": "hifi",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.4 },
+      "zoomTarget": {
+        "selector": "main",
+        "scale": 1.4,
+        "x": 0.5,
+        "y": 0.4
+      },
       "delayMs": 300
     },
     {

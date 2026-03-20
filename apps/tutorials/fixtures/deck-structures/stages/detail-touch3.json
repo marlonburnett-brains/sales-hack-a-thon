@@ -1,0 +1,32 @@
+{
+  "deckStructures": [
+    { "touchType": "touch_1", "label": "Touch 1 - Discovery", "exampleCount": 8, "confidence": 0.82, "confidenceLabel": "High", "confidenceColor": "green" },
+    { "touchType": "touch_2", "label": "Touch 2 - Solution", "exampleCount": 5, "confidence": 0.71, "confidenceLabel": "Medium", "confidenceColor": "yellow" },
+    { "touchType": "touch_3", "label": "Touch 3 - Proposal", "exampleCount": 6, "confidence": 0.78, "confidenceLabel": "High", "confidenceColor": "green" },
+    { "touchType": "touch_4", "label": "Touch 4 - Close", "exampleCount": 4, "confidence": 0.65, "confidenceLabel": "Medium", "confidenceColor": "yellow" }
+  ],
+  "deckStructureDetail": {
+    "touchType": "touch_3",
+    "structure": {
+      "sections": [
+        { "order": 1, "name": "Executive Summary", "purpose": "High-level proposal summary and strategic fit", "isOptional": false, "variationCount": 2, "slideIds": ["slide-030"] },
+        { "order": 2, "name": "Problem Statement", "purpose": "Current challenges and pain points identified during discovery", "isOptional": false, "variationCount": 3, "slideIds": ["slide-031", "slide-032"] },
+        { "order": 3, "name": "Technical Architecture", "purpose": "Proposed solution architecture and technology stack", "isOptional": false, "variationCount": 2, "slideIds": ["slide-033", "slide-034"] },
+        { "order": 4, "name": "Implementation Timeline", "purpose": "Phased delivery plan with milestones and dependencies", "isOptional": false, "variationCount": 2, "slideIds": ["slide-035"] },
+        { "order": 5, "name": "ROI Analysis", "purpose": "Projected return on investment and cost-benefit breakdown", "isOptional": false, "variationCount": 3, "slideIds": ["slide-036", "slide-037"] },
+        { "order": 6, "name": "Case Studies", "purpose": "Similar engagements demonstrating delivery capability", "isOptional": true, "variationCount": 4, "slideIds": ["slide-038", "slide-039"] },
+        { "order": 7, "name": "Next Steps & Pricing", "purpose": "Commercial terms, engagement model, and sign-off process", "isOptional": false, "variationCount": 2, "slideIds": ["slide-040"] }
+      ],
+      "sequenceRationale": "The proposal opens with the Executive Summary to frame strategic fit, then the Problem Statement grounds the discussion in real pain points. Technical Architecture and Implementation Timeline build confidence in the delivery approach. ROI Analysis justifies the investment, supported by optional Case Studies for proof. Next Steps & Pricing closes with clear commercial terms."
+    },
+    "exampleCount": 6,
+    "confidence": 0.71,
+    "confidenceColor": "yellow",
+    "confidenceLabel": "Medium",
+    "chatMessages": [],
+    "chatContext": null,
+    "slideIdToThumbnail": {},
+    "inferredAt": "2026-03-12T09:30:00.000Z",
+    "lastChatAt": null
+  }
+}

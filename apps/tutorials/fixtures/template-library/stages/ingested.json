@@ -85,5 +85,202 @@
       "createdAt": "2026-03-19T10:00:00.000Z",
       "updatedAt": "2026-03-19T10:05:00.000Z"
     }
-  ]
+  ],
+  "slidesByTemplate": {
+    "tmpl-006": [
+      {
+        "id": "partner-slide-001",
+        "slideIndex": 0,
+        "slideObjectId": "partner-slide-object-001",
+        "contentText": "Partnership Enablement Playbook\nScale channel onboarding with a repeatable co-sell motion.",
+        "classificationJson": "{\"industries\":[\"Technology\"],\"solutionPillars\":[\"Cloud Transformation\"],\"buyerPersonas\":[\"VP Partnerships\"],\"funnelStages\":[\"consideration\"],\"contentType\":\"title\",\"slideCategory\":\"overview\",\"classifiedBy\":\"gemini\"}",
+        "confidence": 94,
+        "needsReReview": false,
+        "reviewStatus": "approved",
+        "industry": "Technology",
+        "solutionPillar": "Cloud Transformation",
+        "persona": "VP Partnerships",
+        "funnelStage": "consideration",
+        "contentType": "title",
+        "description": "{\"purpose\":\"Introduce the partner enablement narrative and the value of a standardized co-sell motion.\",\"visualComposition\":\"Large title block with a supporting subtitle and a simple hero illustration.\",\"keyContent\":\"Playbook title, onboarding promise, and a concise value statement.\",\"useCases\":\"Opening slide for partner kickoff meetings or enablement reviews.\"}",
+        "elements": [
+          {
+            "id": "partner-slide-001-el-1",
+            "elementId": "title-box",
+            "elementType": "text",
+            "positionX": 914400,
+            "positionY": 1005840,
+            "width": 6400800,
+            "height": 914400,
+            "contentText": "Partnership Enablement Playbook",
+            "fontSize": 28,
+            "fontColor": "#0f172a",
+            "isBold": true
+          },
+          {
+            "id": "partner-slide-001-el-2",
+            "elementId": "subtitle-box",
+            "elementType": "text",
+            "positionX": 914400,
+            "positionY": 2011680,
+            "width": 5852160,
+            "height": 640080,
+            "contentText": "Scale channel onboarding with a repeatable co-sell motion.",
+            "fontSize": 18,
+            "fontColor": "#334155",
+            "isBold": false
+          },
+          {
+            "id": "partner-slide-001-el-3",
+            "elementId": "hero-graphic",
+            "elementType": "image",
+            "positionX": 7406640,
+            "positionY": 1463040,
+            "width": 2011680,
+            "height": 1737360,
+            "contentText": "Partner workflow illustration",
+            "fontSize": null,
+            "fontColor": null,
+            "isBold": false
+          }
+        ]
+      },
+      {
+        "id": "partner-slide-002",
+        "slideIndex": 1,
+        "slideObjectId": "partner-slide-object-002",
+        "contentText": "90-Day Launch Plan\nAlign enablement, pipeline review, and executive sponsorship milestones.",
+        "classificationJson": "{\"industries\":[\"Technology\"],\"solutionPillars\":[\"Digital Innovation\"],\"buyerPersonas\":[\"Channel Manager\"],\"funnelStages\":[\"consideration\"],\"contentType\":\"timeline\",\"slideCategory\":\"plan\",\"classifiedBy\":\"gemini\"}",
+        "confidence": 91,
+        "needsReReview": false,
+        "reviewStatus": "approved",
+        "industry": "Technology",
+        "solutionPillar": "Digital Innovation",
+        "persona": "Channel Manager",
+        "funnelStage": "consideration",
+        "contentType": "timeline",
+        "description": "{\"purpose\":\"Lay out the phased onboarding sequence for a new partner launch.\",\"visualComposition\":\"Horizontal milestone timeline with three color-coded phases and success metrics.\",\"keyContent\":\"First 30, 60, and 90 day milestones covering training, co-selling, and pipeline activation.\",\"useCases\":\"Program planning sessions with channel leaders and alliance managers.\"}",
+        "elements": [
+          {
+            "id": "partner-slide-002-el-1",
+            "elementId": "timeline-title",
+            "elementType": "text",
+            "positionX": 914400,
+            "positionY": 731520,
+            "width": 4572000,
+            "height": 640080,
+            "contentText": "90-Day Launch Plan",
+            "fontSize": 24,
+            "fontColor": "#0f172a",
+            "isBold": true
+          },
+          {
+            "id": "partner-slide-002-el-2",
+            "elementId": "timeline-bar",
+            "elementType": "shape",
+            "positionX": 1097280,
+            "positionY": 2377440,
+            "width": 7315200,
+            "height": 365760,
+            "contentText": "Milestone timeline",
+            "fontSize": null,
+            "fontColor": null,
+            "isBold": false
+          },
+          {
+            "id": "partner-slide-002-el-3",
+            "elementId": "metric-box",
+            "elementType": "text",
+            "positionX": 7315200,
+            "positionY": 1188720,
+            "width": 2011680,
+            "height": 1097280,
+            "contentText": "3 launch phases\n2 executive reviews\n1 shared pipeline dashboard",
+            "fontSize": 16,
+            "fontColor": "#1e293b",
+            "isBold": false
+          }
+        ]
+      },
+      {
+        "id": "partner-slide-003",
+        "slideIndex": 2,
+        "slideObjectId": "partner-slide-object-003",
+        "contentText": "Partner Success Signals\nTrack sourced opportunities, co-sell velocity, and certification coverage.",
+        "classificationJson": "{\"industries\":[\"Technology\"],\"solutionPillars\":[\"Cloud Transformation\"],\"buyerPersonas\":[\"VP Partnerships\"],\"funnelStages\":[\"decision\"],\"contentType\":\"metrics\",\"slideCategory\":\"evidence\",\"classifiedBy\":\"gemini\"}",
+        "confidence": 89,
+        "needsReReview": false,
+        "reviewStatus": "unreviewed",
+        "industry": "Technology",
+        "solutionPillar": "Cloud Transformation",
+        "persona": "VP Partnerships",
+        "funnelStage": "decision",
+        "contentType": "metrics",
+        "description": "{\"purpose\":\"Show the KPI framework used to judge partner readiness and expansion.\",\"visualComposition\":\"Three metric cards with supporting trend callouts and a summary banner.\",\"keyContent\":\"Opportunity creation, sales cycle speed, and certification attainment.\",\"useCases\":\"Quarterly business reviews and partner health checks.\"}",
+        "elements": [
+          {
+            "id": "partner-slide-003-el-1",
+            "elementId": "metrics-title",
+            "elementType": "text",
+            "positionX": 914400,
+            "positionY": 731520,
+            "width": 5486400,
+            "height": 640080,
+            "contentText": "Partner Success Signals",
+            "fontSize": 24,
+            "fontColor": "#0f172a",
+            "isBold": true
+          },
+          {
+            "id": "partner-slide-003-el-2",
+            "elementId": "metrics-grid",
+            "elementType": "table",
+            "positionX": 914400,
+            "positionY": 1645920,
+            "width": 7315200,
+            "height": 2011680,
+            "contentText": "Sourced pipeline, co-sell velocity, certification coverage",
+            "fontSize": 15,
+            "fontColor": "#334155",
+            "isBold": false
+          },
+          {
+            "id": "partner-slide-003-el-3",
+            "elementId": "summary-banner",
+            "elementType": "shape",
+            "positionX": 914400,
+            "positionY": 4023360,
+            "width": 8229600,
+            "height": 548640,
+            "contentText": "Shared scorecard keeps every regional lead aligned.",
+            "fontSize": null,
+            "fontColor": null,
+            "isBold": false
+          }
+        ]
+      }
+    ]
+  },
+  "thumbnailsByTemplate": {
+    "tmpl-006": [
+      {
+        "slideObjectId": "partner-slide-object-001",
+        "slideIndex": 0,
+        "thumbnailUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'><rect width='1280' height='720' fill='%23f8fafc'/><rect x='56' y='56' width='1168' height='608' rx='28' fill='white' stroke='%23cbd5e1'/><text x='96' y='180' font-family='Arial' font-size='56' font-weight='700' fill='%230f172a'>Partnership Enablement</text><text x='96' y='246' font-family='Arial' font-size='34' fill='%23334155'>Scale channel onboarding with a repeatable</text><text x='96' y='288' font-family='Arial' font-size='34' fill='%23334155'>co-sell motion.</text><rect x='862' y='154' width='250' height='250' rx='26' fill='%23dbeafe'/><circle cx='930' cy='232' r='34' fill='%2393c5fd'/><circle cx='1038' cy='232' r='34' fill='%2360a5fa'/><rect x='914' y='304' width='140' height='16' rx='8' fill='%231d4ed8'/></svg>",
+        "cached": true
+      },
+      {
+        "slideObjectId": "partner-slide-object-002",
+        "slideIndex": 1,
+        "thumbnailUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'><rect width='1280' height='720' fill='%23f8fafc'/><rect x='56' y='56' width='1168' height='608' rx='28' fill='white' stroke='%23cbd5e1'/><text x='96' y='150' font-family='Arial' font-size='52' font-weight='700' fill='%230f172a'>90-Day Launch Plan</text><line x1='136' y1='374' x2='1120' y2='374' stroke='%2394a3b8' stroke-width='10'/><circle cx='286' cy='374' r='34' fill='%2360a5fa'/><circle cx='626' cy='374' r='34' fill='%2322c55e'/><circle cx='966' cy='374' r='34' fill='%23f59e0b'/><text x='208' y='460' font-family='Arial' font-size='28' fill='%23334155'>30 days</text><text x='548' y='460' font-family='Arial' font-size='28' fill='%23334155'>60 days</text><text x='888' y='460' font-family='Arial' font-size='28' fill='%23334155'>90 days</text></svg>",
+        "cached": true
+      },
+      {
+        "slideObjectId": "partner-slide-object-003",
+        "slideIndex": 2,
+        "thumbnailUrl": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1280 720'><rect width='1280' height='720' fill='%23f8fafc'/><rect x='56' y='56' width='1168' height='608' rx='28' fill='white' stroke='%23cbd5e1'/><text x='96' y='150' font-family='Arial' font-size='52' font-weight='700' fill='%230f172a'>Partner Success Signals</text><rect x='110' y='216' width='304' height='224' rx='22' fill='%23dbeafe'/><rect x='488' y='216' width='304' height='224' rx='22' fill='%23dcfce7'/><rect x='866' y='216' width='304' height='224' rx='22' fill='%23fef3c7'/><text x='188' y='332' font-family='Arial' font-size='54' font-weight='700' fill='%231e3a8a'>24</text><text x='566' y='332' font-family='Arial' font-size='54' font-weight='700' fill='%23166534'>17d</text><text x='934' y='332' font-family='Arial' font-size='54' font-weight='700' fill='%2392400e'>92%</text></svg>",
+        "cached": true
+      }
+    ]
+  }
 }

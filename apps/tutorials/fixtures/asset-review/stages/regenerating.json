@@ -1,45 +1,43 @@
 {
   "interactions": [
     {
-      "id": "int-touch1-001",
+      "id": "int-touch4-001",
       "dealId": "deal-001",
-      "touchType": "touch_1",
+      "touchType": "touch_4",
       "status": "in_progress",
       "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\"}",
       "decision": null,
-      "generatedContent": "{\"runId\":\"mock-run-touch1-regen\"}",
-      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit\",\"dealFolderId\":\"mock-folder-meridian-001\"}",
+      "generatedContent": "{\"runId\":\"mock-run-touch4-regen\"}",
+      "outputRefs": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit\",\"talkTrackUrl\":\"https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit\",\"faqUrl\":\"https://docs.google.com/document/d/mock-touch4-faq-meridian/edit\",\"dealFolderId\":\"mock-folder-meridian-001\"}",
       "driveFileId": null,
       "hitlStage": null,
       "stageContent": null,
-      "createdAt": "2026-03-15T10:00:00.000Z",
-      "updatedAt": "2026-03-15T16:05:00.000Z"
+      "createdAt": "2026-03-15T13:00:00.000Z",
+      "updatedAt": "2026-03-15T15:05:00.000Z"
     }
   ],
   "assetReview": {
     "interaction": {
-      "id": "int-touch1-001",
+      "id": "int-touch4-001",
       "dealId": "deal-001",
-      "touchType": "touch_1",
+      "touchType": "touch_4",
       "status": "in_progress",
       "hitlStage": null,
       "stageContent": null,
       "outputRefs": {
-        "deckUrl": "https://docs.google.com/presentation/d/mock-touch1-pager-meridian/edit",
+        "deckUrl": "https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit",
+        "talkTrackUrl": "https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit",
+        "faqUrl": "https://docs.google.com/document/d/mock-touch4-faq-meridian/edit",
         "dealFolderId": "mock-folder-meridian-001"
       }
     },
     "deal": {
       "id": "deal-001",
       "name": "Q2 Digital Transformation Initiative",
-      "companyId": "comp-meridian-001",
       "companyName": "Meridian Dynamics",
       "industry": "Technology Consulting"
     },
     "brief": null,
-    "complianceResult": {
-      "passed": null,
-      "warnings": []
-    }
+    "complianceResult": null
   }
 }

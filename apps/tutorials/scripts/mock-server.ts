@@ -209,7 +209,7 @@ export function createMockServer(tutorialName: string): Express {
   app.get("/deals", (req: Request, res: Response) => {
     let result = [...fixtures.deals];
     const { status, assignee, userId, ownerId } = req.query;
-    if (status && typeof status === "string") {
+    if (status && typeof status === "string" && status !== "all") {
       result = result.filter((d) => d.status === status);
     }
     if (ownerId && typeof ownerId === "string") {
@@ -439,6 +439,8 @@ export function createMockServer(tutorialName: string): Express {
       let status: string;
       switch (currentStage) {
         case "generating":
+        case "lowfi-refining":
+        case "skeleton-refining":
           status = "running";
           break;
         case "skeleton":
@@ -549,10 +551,58 @@ export function createMockServer(tutorialName: string): Express {
   // ────────────────────────────────────────────────────────────
 
   app.get("/templates/:templateId/slides", (_req: Request, res: Response) => {
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const templateId = _req.params.templateId;
+    const stageSlidesByTemplate = (stageFixtures as Record<string, unknown> | null)?.slidesByTemplate as
+      | Record<string, unknown>
+      | undefined;
+    const baseSlidesByTemplate = (fixtures as Record<string, unknown>).slidesByTemplate as
+      | Record<string, unknown>
+      | undefined;
+
+    if (stageSlidesByTemplate && Array.isArray(stageSlidesByTemplate[templateId])) {
+      res.json(stageSlidesByTemplate[templateId]);
+      return;
+    }
+
+    if (stageFixtures?.slides) {
+      res.json(stageFixtures.slides);
+      return;
+    }
+
+    if (baseSlidesByTemplate && Array.isArray(baseSlidesByTemplate[templateId])) {
+      res.json(baseSlidesByTemplate[templateId]);
+      return;
+    }
+
     res.json(fixtures.slides ?? []);
   });
 
   app.get("/templates/:templateId/thumbnails", (_req: Request, res: Response) => {
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const templateId = _req.params.templateId;
+    const stageThumbnailsByTemplate = (stageFixtures as Record<string, unknown> | null)
+      ?.thumbnailsByTemplate as Record<string, unknown> | undefined;
+    const baseThumbnailsByTemplate = (fixtures as Record<string, unknown>).thumbnailsByTemplate as
+      | Record<string, unknown>
+      | undefined;
+
+    if (
+      stageThumbnailsByTemplate &&
+      Array.isArray(stageThumbnailsByTemplate[templateId])
+    ) {
+      res.json({ thumbnails: stageThumbnailsByTemplate[templateId], caching: false });
+      return;
+    }
+
+    if (
+      baseThumbnailsByTemplate &&
+      Array.isArray(baseThumbnailsByTemplate[templateId])
+    ) {
+      res.json({ thumbnails: baseThumbnailsByTemplate[templateId], caching: false });
+      return;
+    }
+
     res.json({ thumbnails: [], caching: false });
   });
 

@@ -89,6 +89,8 @@ export async function mockBrowserAPIs(
       const stage = options.stageGetter();
       switch (stage) {
         case "generating":
+        case "lowfi-refining":
+        case "skeleton-refining":
           workflowStatus = "running";
           break;
         case "skeleton":

@@ -7,7 +7,7 @@
     {
       "id": "step-001",
       "url": "/templates",
-      "narration": "Welcome to the Template Library. This is where you register and manage your Google Slides templates. You can see we already have four templates that have been ingested and analyzed by the AI.",
+      "narration": "Welcome to the Template Library. This is where you register and manage your Google Slides templates. You can see we have five templates listed -- four have already been ingested and one is still waiting to be analyzed.",
       "waitFor": "main",
       "delayMs": 1500,
       "emotion": "professional"
@@ -15,7 +15,7 @@
     {
       "id": "step-002",
       "url": "/templates",
-      "narration": "Each template card shows the ingestion status and slide count. The green checkmarks mean these templates have been fully analyzed -- their slides are classified and ready for deck generation.",
+      "narration": "Each template card shows the ingestion status and slide count. The green Ready badges mean these templates have been fully analyzed -- their slides are classified and ready for deck generation.",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.35 },
       "callout": { "text": "Ingested templates are ready for deck generation", "x": 0.5, "y": 0.15 }
@@ -39,7 +39,6 @@
       "actions": [
         { "type": "fill", "selector": "input[type='url'], input[name='googleSlidesUrl'], input[placeholder*='slides']", "value": "https://docs.google.com/presentation/d/1abc-new-template-xyz/edit" }
       ],
-      "zoomTarget": { "selector": "[role='dialog']", "scale": 1.5, "x": 0.5, "y": 0.35 },
       "cursorTarget": { "x": 0.5, "y": 0.35 },
       "delayMs": 500
     },
@@ -48,7 +47,9 @@
       "url": "/templates",
       "narration": "Select the touch type classification for this template. Touch types determine which stage of the sales cycle this template is designed for.",
       "waitFor": "[role='dialog']",
-      "zoomTarget": { "selector": "[role='dialog']", "scale": 1.5, "x": 0.5, "y": 0.55 },
+      "actions": [
+        { "type": "click", "selector": "[role='dialog'] button:has-text('Touch 1'), [role='dialog'] button:has-text('T1')" }
+      ],
       "cursorTarget": { "x": 0.5, "y": 0.55 }
     },
     {
@@ -63,7 +64,7 @@
       "id": "step-007",
       "mockStage": "ingesting",
       "url": "/templates",
-      "narration": "The new template is now being ingested. You can see the progress indicator showing that the AI is analyzing each slide -- extracting text, identifying elements, and classifying content.",
+      "narration": "The new template is now being ingested. You can see the ingestion status indicator showing that the AI is analyzing the slides.",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.7 },
       "callout": { "text": "AI is analyzing slides in real time", "x": 0.5, "y": 0.55 },
@@ -79,22 +80,25 @@
     },
     {
       "id": "step-009",
-      "url": "/templates",
-      "narration": "The ingestion results include AI-generated descriptions for each slide, element maps showing text and image locations, and classifications by industry, persona, and funnel stage. This intelligence powers smarter deck generation.",
-      "waitFor": "main",
+      "url": "/templates/tmpl-006/slides",
+      "narration": "Open the ingested template to review the results slide by slide. Each slide now includes an AI description plus classifications for industry, persona, funnel stage, and content type.",
+      "waitFor": "button[aria-label='Previous slide']",
       "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.75 },
       "callout": { "text": "AI descriptions, element maps, and classifications", "x": 0.5, "y": 0.6 }
     },
     {
       "id": "step-010",
-      "url": "/templates",
-      "narration": "Templates you register here will appear in the Slide Library, where you can browse individual slides and their metadata. The more templates you ingest, the smarter your deck generation becomes.",
-      "waitFor": "main"
+      "url": "/templates/tmpl-006/slides",
+      "narration": "You can also inspect the element map for each slide to see where text and images were detected. That metadata makes slide selection and downstream deck generation much more precise.",
+      "waitFor": "button[aria-label='Previous slide']",
+      "actions": [
+        { "type": "click", "selector": "button:has-text('Elements (3)')" }
+      ]
     },
     {
       "id": "step-011",
       "url": "/templates",
-      "narration": "Back on the grid, you can see all five templates now -- including the one we just registered. The Template Library is your foundation for building intelligent, personalized decks.",
+      "narration": "Back on the grid, all five templates now show a Ready status -- including the Partnership Enablement Playbook we just registered. The Template Library is your foundation for building intelligent, personalized decks.",
       "waitFor": "main",
       "delayMs": 1000
     },

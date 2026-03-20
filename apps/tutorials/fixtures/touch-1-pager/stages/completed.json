@@ -9,9 +9,9 @@
       "decision": null,
       "generatedContent": "{\"runId\":\"mock-run-touch1\"}",
       "outputRefs": "{\"pagerUrl\":\"https://docs.google.com/document/d/mock-touch1-pager/edit\",\"dealFolderId\":\"mock-folder-touch1\"}",
-      "driveFileId": null,
+      "driveFileId": "mock-drive-file-touch1",
       "hitlStage": "ready",
-      "stageContent": "{\"pagerUrl\":\"https://docs.google.com/document/d/mock-touch1-pager/edit\",\"dealFolderId\":\"mock-folder-touch1\"}",
+      "stageContent": "{\"driveUrl\":\"https://docs.google.com/document/d/mock-touch1-pager/edit\",\"dealFolderId\":\"mock-folder-touch1\"}",
       "createdAt": "2026-03-15T10:00:00.000Z",
       "updatedAt": "2026-03-15T10:06:00.000Z"
     }

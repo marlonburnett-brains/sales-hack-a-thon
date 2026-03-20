@@ -1,5 +1,22 @@
 # Milestones
 
+## v1.9 Tutorial Videos (Shipped: 2026-03-20)
+
+**Phases:** 9 (62-70) | **Plans:** 24 | **Commits:** 132 | **Files changed:** 264 | **LOC:** ~7,936 TypeScript (apps/tutorials)
+**Timeline:** 2 days (2026-03-18 → 2026-03-20)
+
+**Key accomplishments:**
+- Full-stack tutorial video pipeline: Playwright-driven UI capture, Remotion 4.0 video composition, and local TTS narration producing deterministic MP4 tutorials
+- Fully mocked backend with mock agent server covering 40+ API routes and stage-aware fixture loading — zero live backend required for capture
+- Dual TTS engines: Kokoro (draft/CPU, zero Python dependency) and Chatterbox-Turbo (production/MPS) with timing manifest generation for frame-accurate audio sync
+- Professional video effects: zoom/pan highlights, text overlays with callouts, animated cursor, cross-fade transitions via @remotion/transitions, and intro/outro branding slates
+- 16 complete tutorials covering every AtlusDeck feature — from Getting Started through complex 6-phase HITL Touch 4 workflow and Asset Review capstone
+- Multi-stage HITL capture with pre-authored fixture sequences simulating Skeleton → Low-fi → High-fi workflows for Touch 1-4 and compliance/reject flows
+
+**Archives:** [v1.9-ROADMAP.md](milestones/v1.9-ROADMAP.md) | [v1.9-REQUIREMENTS.md](milestones/v1.9-REQUIREMENTS.md)
+
+---
+
 ## v1.8 Structure-Driven Deck Generation (Shipped: 2026-03-18)
 
 **Phases:** 8 completed (50-57), 4 deferred (58-61) | **Plans:** 12 | **Quick Tasks:** 19 | **Commits:** 75 | **LOC:** ~74,111 TypeScript/TSX/Prisma (total)

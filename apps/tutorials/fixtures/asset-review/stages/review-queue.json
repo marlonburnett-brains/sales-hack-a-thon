@@ -21,7 +21,7 @@
       "id": "int-touch4-001",
       "dealId": "deal-001",
       "touchType": "touch_4",
-      "status": "completed",
+      "status": "pending_asset_review",
       "hitlStage": "ready",
       "stageContent": "{\"deckUrl\":\"https://docs.google.com/presentation/d/mock-touch4-proposal-meridian/edit\",\"talkTrackUrl\":\"https://docs.google.com/document/d/mock-touch4-talktrack-meridian/edit\",\"faqUrl\":\"https://docs.google.com/document/d/mock-touch4-faq-meridian/edit\"}",
       "outputRefs": {
@@ -34,14 +34,10 @@
     "deal": {
       "id": "deal-001",
       "name": "Q2 Digital Transformation Initiative",
-      "companyId": "comp-meridian-001",
       "companyName": "Meridian Dynamics",
       "industry": "Technology Consulting"
     },
     "brief": null,
-    "complianceResult": {
-      "passed": true,
-      "warnings": []
-    }
+    "complianceResult": null
   }
 }

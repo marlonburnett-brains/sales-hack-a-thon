@@ -1,13 +1,13 @@
 {
   "id": "slide-library",
   "title": "Slide Library",
-  "description": "Browse slides from ingested templates, view classification metadata, and search for content by topic, industry, or persona.",
+  "description": "Browse slides from ingested templates, filter by review status, explore classification metadata, and discover similar content across your library.",
   "fixtures": "slide-library",
   "steps": [
     {
       "id": "step-001",
       "url": "/slides",
-      "narration": "The Slide Library gives you a searchable view of every slide across your ingested templates. Here you can see slides organized in a grid, each with its classification badges and review status.",
+      "narration": "Welcome to the Slide Library. This grid shows every slide extracted from your ingested templates. Along the top you can see filter tabs -- All, Unreviewed, Approved, and Needs Correction -- each with a count so you know exactly how many slides are in each review state.",
       "waitFor": "main",
       "delayMs": 1500,
       "emotion": "professional"
@@ -15,66 +15,78 @@
     {
       "id": "step-002",
       "url": "/slides",
-      "narration": "Notice the classification badges on each slide card. These show the industry, solution pillar, and content type that the AI identified during ingestion. The colored dots indicate review status -- green for approved, gray for unreviewed.",
+      "narration": "Each slide card displays a thumbnail, slide number, and a color-coded status badge -- green for Approved, amber for Unreviewed, and red for Needs Correction. Below the thumbnail you'll see the template name it came from, a confidence percentage, and classification chips in blue for industry and purple for solution pillar.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.3, "y": 0.35 },
-      "callout": { "text": "AI-generated classification badges", "x": 0.3, "y": 0.15 }
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.3, "y": 0.4 }
     },
     {
       "id": "step-003",
       "url": "/slides",
-      "narration": "Click any slide card to view its full details and metadata. Let's look at the Cloud Migration Strategy slide to see what the AI extracted.",
+      "narration": "Let's filter to just the approved slides. Click the Approved tab and the grid instantly narrows to only slides that have been reviewed and confirmed.",
       "waitFor": "main",
-      "cursorTarget": { "x": 0.3, "y": 0.35 },
-      "delayMs": 500
+      "actions": [
+        { "type": "click", "selector": "button:has-text('Approved')" }
+      ],
+      "delayMs": 800
     },
     {
       "id": "step-004",
       "url": "/slides",
-      "narration": "The slide detail view shows the full classification breakdown. You can see the industry, solution pillar, persona, funnel stage, and content type. The confidence score tells you how certain the AI is about its classification.",
+      "narration": "Now select the Needs Correction filter. Slides flagged here had their AI classification marked for human review -- someone needs to verify or fix the metadata before they're used in deck generation.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.5 },
-      "callout": { "text": "Classification: Industry, Persona, Funnel Stage", "x": 0.5, "y": 0.3 }
+      "actions": [
+        { "type": "click", "selector": "button:has-text('Needs Correction')" }
+      ],
+      "delayMs": 1000
     },
     {
       "id": "step-005",
       "url": "/slides",
-      "narration": "You can update a slide's classification if the AI got it wrong. This feedback loop helps the system learn and improves future classifications.",
+      "narration": "Let's go back to the full view. Click All to see every slide in the library again.",
       "waitFor": "main",
-      "cursorTarget": { "x": 0.6, "y": 0.6 }
+      "actions": [
+        { "type": "click", "selector": "button:has-text('All')" }
+      ],
+      "delayMs": 500
     },
     {
       "id": "step-006",
       "url": "/slides",
-      "narration": "Use the search bar to find slides by topic. Let's search for slides related to case studies to see how content discovery works.",
+      "narration": "Notice the template name on each card -- slides come from templates like Cloud Transformation Proposal, Customer Success Case Studies, and Technical Architecture Overview. Each template was registered in the Template Library and ingested by the AI to populate these slides.",
       "waitFor": "main",
-      "cursorTarget": { "x": 0.5, "y": 0.08 },
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.1 }
+      "cursorTarget": { "x": 0.3, "y": 0.55 }
     },
     {
       "id": "step-007",
       "url": "/slides",
-      "narration": "The search results show slides matching your query, ranked by relevance. You can see case study slides from different templates -- each with their own industry focus and proof points.",
+      "narration": "Every slide card has a Find Similar button. Click it to discover related content across your entire template library -- useful when you're looking for alternative slides on the same topic.",
       "waitFor": "main",
+      "actions": [
+        { "type": "click", "selector": "button:has-text('Find Similar')" }
+      ],
       "delayMs": 1000
     },
     {
       "id": "step-008",
       "url": "/slides",
-      "narration": "Click a search result to find similar slides. This helps you discover related content across your entire template library that you might want to include in a deck.",
-      "waitFor": "main",
-      "cursorTarget": { "x": 0.3, "y": 0.35 }
+      "narration": "The similarity modal shows slides from across your templates that share related content. This is powerful for content discovery -- you might find a case study from one template that pairs perfectly with an architecture slide from another.",
+      "waitFor": "[role='dialog']",
+      "zoomTarget": { "selector": "[role='dialog']", "scale": 1.3, "x": 0.5, "y": 0.5 }
     },
     {
       "id": "step-009",
       "url": "/slides",
-      "narration": "Slides come from templates you've registered in the Template Library. The more templates you ingest, the richer your slide library becomes -- giving the AI more options when generating personalized decks.",
-      "waitFor": "main"
+      "narration": "Close the modal and you're back on the grid. Keep in mind that the slides here are the building blocks the AI uses when generating decks -- the richer your Template Library, the more options the system has to choose from.",
+      "waitFor": "main",
+      "actions": [
+        { "type": "keyboard", "key": "Escape" }
+      ],
+      "delayMs": 500
     },
     {
       "id": "step-010",
       "url": "/slides",
-      "narration": "That's the Slide Library. Browse, search, and review your slide content to ensure the AI has the best possible building blocks for deck generation.",
+      "narration": "That's the Slide Library. Use the filter tabs to triage review status, check classification metadata on each card, and discover related slides with Find Similar. It all feeds into smarter, more personalized deck generation.",
       "waitFor": "main",
       "delayMs": 1000,
       "emotion": "calm"

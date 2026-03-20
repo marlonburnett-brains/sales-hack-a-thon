@@ -10,8 +10,8 @@
       "generatedContent": "{\"runId\":\"mock-run-touch3\"}",
       "outputRefs": null,
       "driveFileId": null,
-      "hitlStage": "lowfi",
-      "stageContent": "{\"capabilitySlides\":[],\"refining\":true}",
+      "hitlStage": "generating",
+      "stageContent": null,
       "createdAt": "2026-03-15T10:00:00.000Z",
       "updatedAt": "2026-03-15T10:03:30.000Z"
     }

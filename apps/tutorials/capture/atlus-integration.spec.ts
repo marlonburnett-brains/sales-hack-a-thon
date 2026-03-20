@@ -46,12 +46,19 @@ test.describe("AtlusAI Integration Tutorial Capture", () => {
 
       await test.step(`Step ${i + 1}: ${step.id}`, async () => {
         if (step.mockStage) {
+          const previousStage = currentStageRef;
           currentStageRef = step.mockStage;
           await fetch(`${MOCK_SERVER_URL}/mock/set-stage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ stage: step.mockStage }),
           });
+
+          // Force reload when stage changes on the same URL so SSR re-fetches mock data
+          if (step.url && step.url === currentUrl && previousStage !== step.mockStage) {
+            await page.reload({ waitUntil: "domcontentloaded" });
+            await page.waitForLoadState("networkidle").catch(() => {});
+          }
         }
 
         if (step.resetSequences) {

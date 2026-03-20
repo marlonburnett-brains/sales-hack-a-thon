@@ -1,13 +1,13 @@
 {
   "id": "deal-overview",
   "title": "Deal Overview",
-  "description": "Explore the deal overview page to review metrics, activity timeline, and manage collaborators for a deal.",
+  "description": "Explore the deal overview page to review metrics, activity timeline, status management, and navigate between deal sections.",
   "fixtures": "deal-overview",
   "steps": [
     {
       "id": "step-001",
       "url": "/deals/deal-001/overview",
-      "narration": "The deal overview gives you a complete picture of the Meridian Dynamics engagement. At the top you can see the deal header with status, owner, and company information.",
+      "narration": "The deal overview gives you a complete picture of the Meridian Dynamics engagement. The header shows the company name, current status badge, industry, and the deal name below.",
       "waitFor": "main",
       "delayMs": 1500,
       "emotion": "professional"
@@ -15,56 +15,63 @@
     {
       "id": "step-002",
       "url": "/deals/deal-001/overview",
-      "narration": "The metrics cards show your deal progress at a glance. Touches completed, days in pipeline, and last activity date help you gauge momentum without digging into details.",
+      "narration": "The metrics cards track four key indicators: touches completed out of four, days in pipeline, when the last activity happened, and total interactions. These give you a quick health check on any deal.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.3 },
-      "callout": { "text": "Key deal metrics", "x": 0.5, "y": 0.2 }
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.28 },
+      "callout": { "text": "Key deal metrics", "x": 0.5, "y": 0.18 }
     },
     {
       "id": "step-003",
       "url": "/deals/deal-001/overview",
-      "narration": "Scroll down to the activity timeline. Each entry represents a touch point or interaction, showing the type of engagement and when it happened.",
+      "narration": "The activity section shows every interaction for this deal in a timeline. You can see pre-call briefings, Touch 1 discovery sessions, and Touch 2 presentations, each with their status and date.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.55 }
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.58 }
     },
     {
       "id": "step-004",
       "url": "/deals/deal-001/overview",
-      "narration": "Zoom in on a timeline entry to see the details. This pre-call briefing was completed on February 12th, giving the team research and discovery questions before the initial meeting.",
+      "narration": "Click the status badge in the header to update the deal status. You can change it to open, won, lost, or abandoned as the engagement progresses.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.7, "x": 0.5, "y": 0.5 },
-      "cursorTarget": { "x": 0.5, "y": 0.5 }
+      "actions": [
+        { "type": "click", "selector": "button:has(svg.lucide-chevron-down)" }
+      ],
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.35, "y": 0.08 },
+      "cursorTarget": { "x": 0.35, "y": 0.08 },
+      "delayMs": 300
     },
     {
       "id": "step-005",
       "url": "/deals/deal-001/overview",
-      "narration": "The collaborator section shows who is working on this deal. Click to manage team members and add new collaborators.",
+      "narration": "The assignment picker in the upper right lets you manage who works on this deal. You can change the owner and add collaborators so the right people have access.",
       "waitFor": "main",
-      "cursorTarget": { "x": 0.8, "y": 0.35 },
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.8, "y": 0.35 }
+      "actions": [
+        { "type": "keyboard", "key": "Escape" }
+      ],
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.85, "y": 0.08 },
+      "cursorTarget": { "x": 0.85, "y": 0.08 },
+      "delayMs": 300
     },
     {
       "id": "step-006",
-      "url": "/deals/deal-001/overview",
-      "narration": "Add a collaborator by selecting from your team. This gives them visibility into the deal and lets them contribute to the preparation workflow.",
+      "url": "/deals/deal-001/briefing",
+      "narration": "Navigate to the Briefing tab to access meeting preparation. This page shows the shared assistant banner and any previous briefings generated for this deal.",
       "waitFor": "main",
-      "cursorTarget": { "x": 0.8, "y": 0.42 },
-      "callout": { "text": "Add team members to collaborate", "x": 0.75, "y": 0.3 }
+      "delayMs": 1000
     },
     {
       "id": "step-007",
-      "url": "/deals/deal-001/overview",
-      "narration": "The updated collaborator list now shows all team members with access. Each person can independently run touches and review generated content.",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "The Touch tabs let you run different stages of engagement. Touch 1 is your discovery and one-pager generation, with each subsequent touch building on the previous work.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.8, "y": 0.38 }
+      "delayMs": 1000
     },
     {
       "id": "step-008",
       "url": "/deals/deal-001/overview",
-      "narration": "At the bottom, the deal status area lets you take action on the deal. You can update the status, view generation history, or start a new touch.",
+      "narration": "Back on the overview, the persistent deal assistant at the bottom follows you across all deal pages. Use it to ask questions, save notes, or prepare for meetings without leaving context.",
       "waitFor": "main",
-      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.75 },
-      "cursorTarget": { "x": 0.5, "y": 0.75 },
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.88 },
+      "delayMs": 1000,
       "emotion": "calm"
     }
   ]

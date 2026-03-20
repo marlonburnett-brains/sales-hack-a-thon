@@ -10,9 +10,9 @@ Sellers walk into every meeting prepared and walk out of every meeting with a po
 
 ## Current State
 
-Shipped `v1.8 Structure-Driven Deck Generation` on 2026-03-18. The generation pipeline now uses DeckStructure blueprints to resolve sections, select best-fit slides via metadata scoring with pgvector tiebreaking, assemble slides from multiple source presentations (primary copy-and-prune + secondary element reconstruction), plan per-slide modifications using element maps via a named LLM agent, and execute surgical text replacements scoped to individual page elements. A 7-step Mastra workflow with 3 HITL suspend points (Skeleton/Low-fi/High-fi) orchestrates the pipeline, and three-way touch routing (structure-driven/legacy/low-confidence) gates all 4 touch types. 19 quick tasks shipped post-pipeline including LLM model switch (Gemini 3 Flash), visual QA with auto-correction, section-aware draft generation, transcript insights integration, and JWT auth replacement.
+Shipped `v1.9 Tutorial Videos` on 2026-03-20. Built a complete tutorial video production pipeline in `apps/tutorials` using Playwright-driven UI capture against a fully mocked backend (40+ API routes), Remotion 4.0 video composition with professional visual effects (zoom/pan, overlays, animated cursor, transitions, branding slates), and dual local TTS engines (Kokoro for draft/CPU, Chatterbox-Turbo for production/MPS). Produced 16 tutorial videos covering every AtlusDeck feature — from Getting Started through complex 6-phase HITL Touch 4 workflow and Asset Review capstone. All capture runs are deterministic with stage-aware fixture loading for multi-stage HITL simulation.
 
-Four gap-closure phases (58-61) were deferred: secondary-slide ID handoff, Touch 1 draft preservation, live HITL wiring, and legacy fallback routing.
+Previous milestone: v1.8 shipped structure-driven deck generation with DeckStructure blueprints, multi-source slide assembly, per-slide modification planning, and 3-stage HITL workflow. Four gap-closure phases (58-61) remain deferred.
 
 ## Requirements
 
@@ -170,17 +170,13 @@ Four gap-closure phases (58-61) were deferred: secondary-slide ID handoff, Touch
 - ✓ 3-stage HITL: Skeleton (blueprint+selections), Low-fi (assembled deck), High-fi (surgical mods) -- v1.8
 - ✓ Three-way touch routing (structure-driven/legacy/low-confidence) for all 4 touch types -- v1.8
 
+**Tutorial Video Pipeline** -- v1.9
+- ✓ Playwright capture harness with fully mocked backend (40+ API routes, stage-aware fixtures) -- v1.9
+- ✓ Remotion 4.0 video composition with zoom/pan, overlays, animated cursor, transitions, and branding slates -- v1.9
+- ✓ Dual local TTS: Kokoro (draft/CPU) and Chatterbox-Turbo (production/MPS) with timing manifests -- v1.9
+- ✓ 16 tutorial videos covering all AtlusDeck features from Getting Started through Touch 4 HITL and Asset Review -- v1.9
+
 ### Active
-
-#### Current Milestone: v1.9 Tutorial Videos
-
-**Goal:** Produce automated, deterministic tutorial videos for every AtlusDeck feature using Playwright-driven UI capture, Remotion video composition, and local TTS narration.
-
-**Target features:**
-- Playwright test harness with fully mocked API responses for all backend/agent calls
-- Remotion video composition pipeline with narration, overlays, zoom effects, and transitions
-- Local TTS integration (Kokoro for drafting, Chatterbox-Turbo for production)
-- ~16 tutorial scripts covering all platform features and workflows
 
 #### Deferred from v1.8
 - [ ] Secondary-slide modification with assembled slide IDs (deferred from v1.8 Phase 58)
@@ -206,7 +202,7 @@ Four gap-closure phases (58-61) were deferred: secondary-slide ID handoff, Touch
 
 ## Context
 
-**Current state:** v1.8 shipped. ~74,111 LOC TypeScript/TSX/Prisma. 61 phases, 135 plans across 9 milestones over 11 days (2026-03-03 -> 2026-03-13). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI). LLM switched from GPT-OSS 120b to Gemini 3 Flash during v1.8 quick tasks.
+**Current state:** v1.9 shipped. ~82,000 LOC TypeScript/TSX/Prisma (including ~7,936 in apps/tutorials). 70 phases, 159 plans across 10 milestones over 18 days (2026-03-03 -> 2026-03-20). Deployed to production (Vercel + Railway) with CI/CD automation (CircleCI). Tutorial video pipeline produces 16 deterministic MP4 tutorials from mocked UI captures.
 
 **Tech stack (shipped):** pnpm/Turborepo monorepo, Next.js 15 (web on Vercel), Mastra AI 1.8 (agent on Railway), GPT-OSS 120b on Vertex AI (LLM), Gemini (slide classification fallback), Vertex AI text-embedding-005 (embeddings), Zod v4 (structured outputs), Prisma + Supabase PostgreSQL + pgvector (data + vectors), Mastra PostgresStore (workflow state), Google Workspace API (Slides + Docs + Drive), AtlusAI via Mastra MCP client (RAG + knowledge base + semantic search), Supabase Auth + Google OAuth (user auth), CircleCI (CI/CD), shadcn/ui (components), Sonner (toast notifications), @mastra/mcp (MCP SSE transport).
 
@@ -312,4 +308,4 @@ Four gap-closure phases (58-61) were deferred: secondary-slide ID handoff, Touch
 | Transcript insights integration | Extract insights from transcripts and inject into modification planner context | ✓ Good — modifications informed by actual conversation content |
 
 ---
-*Last updated: 2026-03-18 after v1.9 milestone start*
+*Last updated: 2026-03-20 after v1.9 milestone completion*
