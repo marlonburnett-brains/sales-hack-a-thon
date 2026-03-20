@@ -4,6 +4,16 @@
 
 A deployed agentic AI platform for Lumenalta sellers covering all four touch points in the 2026 GTM sales strategy — from first-contact pagers through intro decks and capability alignment decks to fully custom solution proposals with human-in-the-loop review. The system now operates as a full deal-management platform: sellers manage deals through a pipeline view with status lifecycle, navigate deal details via breadcrumbs and sidebar sub-pages (Overview, Briefing, Touch 1-4), and generate artifacts through a 3-stage HITL workflow (Skeleton → Low-fi → High-fi) with AI chat refinement at each stage. A persistent AI chat bar across all deal pages enables context capture, transcript upload with binding, deal data queries, and knowledge base search. All LLM interactions route through named agents with DB-backed versioned system prompts, manageable via a Settings UI with draft/publish workflow and version history rollback. Generated artifacts save to user-selected Google Drive folders with org-wide sharing defaults. Templates can be registered from Google Slides, AI-ingested with vector embeddings, multi-axis classification, rich AI descriptions, and structured element maps, then previewed with human rating and tag correction, and searched by similarity. Content is classified as Template or Example with touch type binding, enabling AI-inferred deck structures per touch type with confidence scoring and conversational chat refinement. AtlusAI content is accessed via Mastra MCP client with pooled token auth, 3-tier access detection, and a discovery UI for browsing/searching/ingesting content via semantic search. The platform is deployed to Vercel (web) and Railway (agent) with CI/CD automation via CircleCI, Google OAuth authentication restricted to @lumenalta.com, and Supabase PostgreSQL with pgvector for durable and vector storage.
 
+## Current Milestone: v1.10 In-App Tutorials & Feedback
+
+**Goal:** Ship in-app tutorial video browsing with GCS-hosted MP4 playback, user progress tracking, and a reusable feedback system — making the platform self-service learnable.
+
+**Target features:**
+- GCS upload automation with public URL storage in DB
+- Tutorials page with grouped/sequenced browsing, MP4 web player, and "New" nav badge
+- User view tracking (watched/unwatched state persisted per user)
+- Reusable feedback system (segmented control + free-text) starting on tutorials page
+
 ## Core Value
 
 Sellers walk into every meeting prepared and walk out of every meeting with a polished, brand-compliant proposal deck in under 2 hours — not 24 to 120 hours.
@@ -178,6 +188,16 @@ Previous milestone: v1.8 shipped structure-driven deck generation with DeckStruc
 
 ### Active
 
+#### v1.10 In-App Tutorials & Feedback
+- [ ] GCS upload automation for tutorial videos with public URL generation
+- [ ] Tutorial metadata and public URLs stored in database
+- [ ] Tutorials left-nav menu item with "New" badge
+- [ ] Tutorial browsing UX with logical grouping and sequencing
+- [ ] In-app MP4 video player for tutorials
+- [ ] User view tracking with watched/unwatched visual state
+- [ ] Reusable feedback system (segmented control: tutorial feedback / feature feedback + free-text)
+- [ ] Feedback stored in database with documentation
+
 #### Deferred from v1.8
 - [ ] Secondary-slide modification with assembled slide IDs (deferred from v1.8 Phase 58)
 - [ ] Touch 1 approved draft content through modification planning (deferred from v1.8 Phase 59)
@@ -308,4 +328,4 @@ Previous milestone: v1.8 shipped structure-driven deck generation with DeckStruc
 | Transcript insights integration | Extract insights from transcripts and inject into modification planner context | ✓ Good — modifications informed by actual conversation content |
 
 ---
-*Last updated: 2026-03-20 after v1.9 milestone completion*
+*Last updated: 2026-03-20 after v1.10 milestone start*
