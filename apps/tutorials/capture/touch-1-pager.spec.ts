@@ -175,7 +175,7 @@ test.describe("Touch 1 Pager Tutorial Capture", () => {
     }
 
     // Verify output
-    const outputDir = path.join(process.cwd(), "output", TUTORIAL_ID);
+    const outputDir = path.join(process.cwd(), "output", "screenshots", TUTORIAL_ID);
     const screenshots = fs.existsSync(outputDir)
       ? fs.readdirSync(outputDir).filter((f) => f.endsWith(".png"))
       : [];

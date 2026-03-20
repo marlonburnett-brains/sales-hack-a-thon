@@ -34,11 +34,11 @@ Agent(
        Extract narration text, mockStage, actions, and url for each step.
 
     2. Resize all screenshots for efficient context usage:
-       for f in apps/tutorials/output/{tutorial}/step-*.png; do
+       for f in apps/tutorials/output/screenshots/{tutorial}/step-*.png; do
          convert \"$f\" -resize 800x \"$f.small.png\"
        done
 
-    3. For EACH step, read the resized screenshot (apps/tutorials/output/{tutorial}/step-{NNN}.png.small.png)
+    3. For EACH step, read the resized screenshot (apps/tutorials/output/screenshots/{tutorial}/step-{NNN}.png.small.png)
        and compare against the narration:
        - Does the screenshot show what the narration describes?
        - Is the correct page/component visible?
@@ -47,7 +47,7 @@ Agent(
        - Is zoom used appropriately (adds value, not random/excessive)?
 
     4. Clean up resized files:
-       rm apps/tutorials/output/{tutorial}/*.small.png
+       rm apps/tutorials/output/screenshots/{tutorial}/*.small.png
 
     5. Report for each step:
        Step X: [OK | MISMATCH]
@@ -181,7 +181,7 @@ pnpm --filter tutorials render {tutorial2}
 - Stage fixtures: `apps/tutorials/fixtures/{name}/stages/{stage}.json`
 - Capture specs: `apps/tutorials/capture/{name}.spec.ts`
 - Mock server: `apps/tutorials/scripts/mock-server.ts`
-- Screenshots output: `apps/tutorials/output/{name}/step-{NNN}.png`
+- Screenshots output: `apps/tutorials/output/screenshots/{name}/step-{NNN}.png`
 - Web pages: `apps/web/src/app/(authenticated)/...`
 - The capture loop sets mockStage via `POST /mock/set-stage`, then navigates if URL changed
 - Zoom, callout, and cursor effects are Remotion render-time only — they will NOT appear in screenshots
