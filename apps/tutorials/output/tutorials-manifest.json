@@ -1,0 +1,87 @@
+[
+  {
+    "slug": "action-center",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/action-center.mp4",
+    "durationSec": 82
+  },
+  {
+    "slug": "agent-prompts",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/agent-prompts.mp4",
+    "durationSec": 158
+  },
+  {
+    "slug": "asset-review",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/asset-review.mp4",
+    "durationSec": 214
+  },
+  {
+    "slug": "atlus-integration",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/atlus-integration.mp4",
+    "durationSec": 127
+  },
+  {
+    "slug": "briefing",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/briefing.mp4",
+    "durationSec": 158
+  },
+  {
+    "slug": "deal-chat",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/deal-chat.mp4",
+    "durationSec": 155
+  },
+  {
+    "slug": "deal-overview",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/deal-overview.mp4",
+    "durationSec": 96
+  },
+  {
+    "slug": "deals",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/deals.mp4",
+    "durationSec": 132
+  },
+  {
+    "slug": "deck-structures",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/deck-structures.mp4",
+    "durationSec": 150
+  },
+  {
+    "slug": "getting-started",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/getting-started.mp4",
+    "durationSec": 100
+  },
+  {
+    "slug": "google-drive-settings",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/google-drive-settings.mp4",
+    "durationSec": 63
+  },
+  {
+    "slug": "slide-library",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/slide-library.mp4",
+    "durationSec": 147
+  },
+  {
+    "slug": "template-library",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/template-library.mp4",
+    "durationSec": 136
+  },
+  {
+    "slug": "touch-1-pager",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/touch-1-pager.mp4",
+    "durationSec": 166
+  },
+  {
+    "slug": "touch-2-intro-deck",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/touch-2-intro-deck.mp4",
+    "durationSec": 135
+  },
+  {
+    "slug": "touch-3-capability-deck",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/touch-3-capability-deck.mp4",
+    "durationSec": 143
+  },
+  {
+    "slug": "touch-4-hitl",
+    "gcsUrl": "https://storage.googleapis.com/atlusdeck-tutorials/touch-4-hitl.mp4",
+    "durationSec": 198
+  }
+]

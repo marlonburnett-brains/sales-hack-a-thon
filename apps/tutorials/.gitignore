@@ -1,4 +1,6 @@
-output/
+output/*
+!output/tutorials-manifest.json
+!output/tutorial-thumbnails-manifest.json
 .auth/
 .venv/
 test-results/

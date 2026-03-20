@@ -1,0 +1,70 @@
+[
+  {
+    "slug": "action-center",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/action-center.jpg"
+  },
+  {
+    "slug": "agent-prompts",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/agent-prompts.jpg"
+  },
+  {
+    "slug": "asset-review",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/asset-review.jpg"
+  },
+  {
+    "slug": "atlus-integration",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/atlus-integration.jpg"
+  },
+  {
+    "slug": "briefing",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/briefing.jpg"
+  },
+  {
+    "slug": "deal-chat",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/deal-chat.jpg"
+  },
+  {
+    "slug": "deal-overview",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/deal-overview.jpg"
+  },
+  {
+    "slug": "deals",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/deals.jpg"
+  },
+  {
+    "slug": "deck-structures",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/deck-structures.jpg"
+  },
+  {
+    "slug": "getting-started",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/getting-started.jpg"
+  },
+  {
+    "slug": "google-drive-settings",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/google-drive-settings.jpg"
+  },
+  {
+    "slug": "slide-library",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/slide-library.jpg"
+  },
+  {
+    "slug": "template-library",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/template-library.jpg"
+  },
+  {
+    "slug": "touch-1-pager",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/touch-1-pager.jpg"
+  },
+  {
+    "slug": "touch-2-intro-deck",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/touch-2-intro-deck.jpg"
+  },
+  {
+    "slug": "touch-3-capability-deck",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/touch-3-capability-deck.jpg"
+  },
+  {
+    "slug": "touch-4-hitl",
+    "thumbnailUrl": "https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/touch-4-hitl.jpg"
+  }
+]
