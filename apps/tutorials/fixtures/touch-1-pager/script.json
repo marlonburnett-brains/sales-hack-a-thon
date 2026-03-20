@@ -1,7 +1,7 @@
 {
   "id": "touch-1-pager",
   "title": "Touch 1: First-Contact Pager Generation",
-  "description": "Walk through the complete Touch 1 first-contact pager workflow: from generation through the 3-gate HITL review (skeleton, lowfi, hifi), a lowfi refine demo, and the manual upload alternative.",
+  "description": "Walk through the complete Touch 1 first-contact pager workflow: from generation through the 3-gate HITL review, a lowfi regeneration demo, and final delivery actions.",
   "fixtures": "touch-1-pager",
   "touchType": "touch-1",
   "steps": [
@@ -17,7 +17,7 @@
     {
       "id": "step-002",
       "url": "/deals/deal-001/touch/1",
-      "narration": "Notice the pager generation controls at the top. This is where the AI will build a personalized one-pager using your deal context and approved templates.",
+      "narration": "This page centers the pager generation controls and deal context in one place. It is the starting point for building a personalized one-pager from approved inputs.",
       "mockStage": "idle",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.3 },
@@ -36,15 +36,15 @@
     {
       "id": "step-004",
       "url": "/deals/deal-001/touch/1",
-      "narration": "The skeleton gate is your first review checkpoint. The AI has extracted the core sections for your pager: Challenge, Proposed Solution, and Value Proposition. Review each section before approving.",
+      "narration": "The outline gate is your first review checkpoint. Here the AI surfaces a draft headline, a value proposition, and key capability bullets so you can confirm the story before moving on.",
       "mockStage": "skeleton",
-      "waitForText": "skeleton",
+      "waitForText": "Outline",
       "delayMs": 500
     },
     {
       "id": "step-005",
       "url": "/deals/deal-001/touch/1",
-      "narration": "Take a closer look at the outline content. Each section captures a key aspect of your prospect engagement. Make sure the framing matches your sales strategy before moving forward.",
+      "narration": "Use this review moment to validate the outline framing in context. Make sure the headline, value proposition, and key capability bullets align with your sales strategy before moving forward.",
       "mockStage": "skeleton",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.5 },
@@ -54,16 +54,16 @@
     {
       "id": "step-006",
       "url": "/deals/deal-001/touch/1",
-      "narration": "After approving the skeleton, the AI generates a full draft pager with expanded content for each section. This is the lowfi gate -- your second review checkpoint.",
+      "narration": "After approving the outline, the workflow moves into the draft gate with expanded section cards, supporting copy, and metrics for a fuller review.",
       "mockStage": "lowfi",
-      "waitForText": "lowfi",
+      "waitForText": "Structured Draft",
       "delayMs": 500,
       "cursorTarget": { "x": 0.5, "y": 0.3 }
     },
     {
       "id": "step-007",
       "url": "/deals/deal-001/touch/1",
-      "narration": "Here you can see the full draft content with headline, subheadline, and all four sections. The draft is ready for your feedback.",
+      "narration": "Here you can see the structured draft with a headline, section cards, detailed body copy, metrics, and key points. This is the main review surface before you approve or regenerate.",
       "mockStage": "lowfi",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.5 },
@@ -72,9 +72,15 @@
     {
       "id": "step-008",
       "url": "/deals/deal-001/touch/1",
-      "narration": "Let's try the refine feature. Click Request Changes to send feedback to the AI. It will regenerate the content while preserving the overall structure.",
-      "mockStage": "lowfi-refining",
+      "narration": "If you want another pass, open the Re-generate flow and add optional feedback. This lets you request a stronger draft without leaving the review stage.",
+      "mockStage": "lowfi",
       "waitFor": "main",
+      "actions": [
+        { "type": "click", "selector": "button:has-text(\"Re-generate\")" },
+        { "type": "click", "selector": "button:has-text(\"Just Re-generate\")" },
+        { "type": "wait", "selector": "textarea" },
+        { "type": "fill", "selector": "textarea", "value": "Tighten the headline and lead with turnaround metrics." }
+      ],
       "delayMs": 500,
       "cursorTarget": { "x": 0.5, "y": 0.6 }
     },
@@ -89,7 +95,7 @@
     {
       "id": "step-010",
       "url": "/deals/deal-001/touch/1",
-      "narration": "Take a closer look at the refined content. The headline is more compelling and each section has been tightened with specific metrics and clearer calls to action.",
+      "narration": "The refined draft is back on screen with a stronger headline and tighter sections. Use this checkpoint to confirm the updated metrics and messaging before moving to the final gate.",
       "mockStage": "lowfi-refined",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.45 },
@@ -99,7 +105,7 @@
     {
       "id": "step-011",
       "url": "/deals/deal-001/touch/1",
-      "narration": "After approving the refined draft, the AI generates the final polished pager with brand-compliant formatting, proper fonts, and accent colors. This is the hifi gate -- your last review before delivery.",
+      "narration": "After the draft is approved, the workflow pauses at the final gate. From here you can open the finished artifact and confirm it is ready before marking the touch complete.",
       "mockStage": "hifi",
       "waitFor": "main",
       "delayMs": 500,
@@ -108,7 +114,7 @@
     {
       "id": "step-012",
       "url": "/deals/deal-001/touch/1",
-      "narration": "The final pager looks great with full branding applied. Every element -- from fonts to colors -- follows your company's style guide automatically.",
+      "narration": "The final review stage centers on the artifact link and approval controls, giving you one last checkpoint before the pager is marked ready.",
       "mockStage": "hifi",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.4 },
@@ -117,7 +123,7 @@
     {
       "id": "step-013",
       "url": "/deals/deal-001/touch/1",
-      "narration": "All done! Your first-contact pager has been saved to Google Drive. Click the link to open it directly or share it with your prospect.",
+      "narration": "All done! Your first-contact pager has been saved to Google Drive. Use the link on screen to open the delivered artifact right away.",
       "mockStage": "completed",
       "waitForText": "Saved to Drive",
       "delayMs": 500,
@@ -126,19 +132,19 @@
     {
       "id": "step-014",
       "url": "/deals/deal-001/touch/1",
-      "narration": "There's also a manual upload option if you prefer to use your own document instead of generating one. Let's take a look at that alternative.",
-      "mockStage": "manual-upload",
+      "narration": "Once the pager is saved, you can immediately kick off another version from the same screen using Generate Another.",
+      "mockStage": "completed",
       "waitFor": "main",
       "delayMs": 500
     },
     {
       "id": "step-015",
       "url": "/deals/deal-001/touch/1",
-      "narration": "The manual upload area lets you drag and drop or browse for your own pager document. This is useful when you have a pre-existing document that just needs to be attached to the deal.",
-      "mockStage": "manual-upload",
+      "narration": "The completion view keeps the Drive link and rerun controls together, so it is easy to open the delivered artifact or start a fresh generation with updated messaging.",
+      "mockStage": "completed",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.5 },
-      "callout": { "text": "Upload your own document instead", "x": 0.5, "y": 0.45 },
+      "callout": { "text": "Re-run or open the final artifact", "x": 0.5, "y": 0.45 },
       "delayMs": 300
     }
   ]

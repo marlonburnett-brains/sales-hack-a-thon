@@ -8,7 +8,7 @@
     {
       "id": "step-001",
       "url": "/deals/deal-001/touch/3",
-      "narration": "Navigate to the Touch 3 Capability Deck page for the Meridian Dynamics deal. This is where you build a detailed deck showcasing specific capability areas relevant to your prospect.",
+      "narration": "Navigate to the Touch 3 Capability Alignment page for the Meridian Dynamics deal. This is where you build a detailed deck showcasing specific capability areas relevant to your prospect.",
       "mockStage": "idle",
       "waitFor": "main",
       "delayMs": 500,
@@ -17,7 +17,7 @@
     {
       "id": "step-002",
       "url": "/deals/deal-001/touch/3",
-      "narration": "Start by selecting the capability areas that matter most to this deal. For Meridian Dynamics, we will choose Cloud Infrastructure, Data Analytics, and Security.",
+      "narration": "The landing state shows Meridian Dynamics ready for Touch 3 generation. From here, you can launch the capability deck workflow and refine the output at each review gate.",
       "mockStage": "idle",
       "waitFor": "main",
       "zoomTarget": {
@@ -36,7 +36,7 @@
     {
       "id": "step-003",
       "url": "/deals/deal-001/touch/3",
-      "narration": "With capability areas selected, the AI begins assembling a structure-driven deck. It maps each area to dedicated slide sections with targeted messaging.",
+      "narration": "Once generation starts, the workflow switches into an in-progress state while AtlusDeck assembles the capability deck and prepares the first review gate.",
       "mockStage": "generating",
       "waitForText": "Generation in progress",
       "delayMs": 500,
@@ -56,7 +56,7 @@
     {
       "id": "step-005",
       "url": "/deals/deal-001/touch/3",
-      "narration": "Notice how the structure maps capabilities to deck sections. Cloud Infrastructure gets migration and IaC slides, Data Analytics gets platform and BI slides, and Security gets zero trust and compliance slides.",
+      "narration": "Notice how the outline groups the story into clear capability sections for Cloud Infrastructure, Data Analytics, Security, and a closing summary section.",
       "mockStage": "skeleton",
       "waitFor": "main",
       "zoomTarget": {
@@ -101,7 +101,7 @@
     {
       "id": "step-008",
       "url": "/deals/deal-001/touch/3",
-      "narration": "Let's refine the capability content. The lowfi refine is especially powerful here because it lets you sharpen the messaging for each capability area before final production.",
+      "narration": "When you request a lowfi refinement, the workflow returns to a short in-progress state while it sharpens the draft messaging before final production.",
       "mockStage": "lowfi-refining",
       "waitFor": "main",
       "delayMs": 500,
@@ -140,9 +140,9 @@
     {
       "id": "step-011",
       "url": "/deals/deal-001/touch/3",
-      "narration": "After approving the refined content, the AI produces the final polished capability deck with section-specific color coding and full brand treatment.",
+      "narration": "After approving the refined content, the final deck preview loads with Meridian-specific branding and an eight-slide structure ready for review.",
       "mockStage": "hifi",
-      "waitFor": "main",
+      "waitForText": "Open in Google Slides",
       "delayMs": 500,
       "cursorTarget": {
         "x": 0.5,
@@ -152,9 +152,9 @@
     {
       "id": "step-012",
       "url": "/deals/deal-001/touch/3",
-      "narration": "The final deck is stunning. Each capability section has its own accent color while maintaining overall brand consistency. Cloud in blue, Data in purple, Security in red.",
+      "narration": "The preview reinforces the capability themes with branded section accents: Cloud in blue, Data in purple, and Security in red.",
       "mockStage": "hifi",
-      "waitFor": "main",
+      "waitForText": "Open in Google Slides",
       "zoomTarget": {
         "selector": "main",
         "scale": 1.4,
@@ -166,9 +166,9 @@
     {
       "id": "step-013",
       "url": "/deals/deal-001/touch/3",
-      "narration": "Your capability deck is complete and saved to Google Drive. Eight slides covering three capability areas, fully personalized to Meridian Dynamics and ready for presentation.",
+      "narration": "The capability deck is now saved to Google Drive, with the eight-slide preview available on-page and ready to open for presentation.",
       "mockStage": "completed",
-      "waitForText": "Saved to Drive",
+      "waitForText": "1 / 8",
       "delayMs": 500,
       "emotion": "encouraging"
     }

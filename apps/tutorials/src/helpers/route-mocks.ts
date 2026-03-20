@@ -148,11 +148,29 @@ export async function mockBrowserAPIs(
   await page.route(
     "**/api/presentations/*/thumbnails*",
     async (route: Route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ thumbnails: [], caching: false }),
-      });
+      const mockPort = process.env.MOCK_SERVER_PORT ?? "4112";
+      const url = new URL(route.request().url());
+      const presentationId = url.pathname
+        .split("/api/presentations/")[1]
+        ?.split("/thumbnails")[0];
+
+      try {
+        const resp = await fetch(
+          `http://localhost:${mockPort}/presentations/${presentationId}/thumbnails${url.search}`
+        );
+        const data = await resp.json();
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(data),
+        });
+      } catch {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ thumbnails: [], caching: false }),
+        });
+      }
     }
   );
 

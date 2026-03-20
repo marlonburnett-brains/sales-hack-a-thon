@@ -607,6 +607,35 @@ export function createMockServer(tutorialName: string): Express {
   });
 
   app.get("/presentations/:presentationId/thumbnails", (_req: Request, res: Response) => {
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const presentationId = _req.params.presentationId;
+    const stagePresentationThumbnails = (stageFixtures as Record<string, unknown> | null)
+      ?.presentationThumbnailsById as Record<string, unknown> | undefined;
+    const basePresentationThumbnails = (fixtures as Record<string, unknown>)
+      .presentationThumbnailsById as Record<string, unknown> | undefined;
+
+    if (
+      stagePresentationThumbnails &&
+      Array.isArray(stagePresentationThumbnails[presentationId])
+    ) {
+      res.json({
+        thumbnails: stagePresentationThumbnails[presentationId],
+        caching: false,
+      });
+      return;
+    }
+
+    if (
+      basePresentationThumbnails &&
+      Array.isArray(basePresentationThumbnails[presentationId])
+    ) {
+      res.json({
+        thumbnails: basePresentationThumbnails[presentationId],
+        caching: false,
+      });
+      return;
+    }
+
     res.json({ thumbnails: [], caching: false });
   });
 

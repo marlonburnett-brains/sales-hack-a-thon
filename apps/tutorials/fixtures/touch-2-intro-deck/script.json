@@ -17,7 +17,7 @@
     {
       "id": "step-002",
       "url": "/deals/deal-001/touch/2",
-      "narration": "The intro deck starts with strategy resolution. The AI analyzes your deal context to determine the best narrative arc and slide structure for this prospect.",
+      "narration": "Before generation starts, the page is grounded in the Meridian Dynamics deal context and ready for the AI to assemble an intro deck tailored to this prospect.",
       "mockStage": "idle",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.3 },
@@ -27,7 +27,7 @@
     {
       "id": "step-003",
       "url": "/deals/deal-001/touch/2",
-      "narration": "After clicking generate, the AI builds the deck structure. It selects slides from your template library and arranges them based on the prospect's industry and engagement stage.",
+      "narration": "After clicking generate, the workflow moves into an in-progress state while the AI assembles the intro deck for Meridian Dynamics.",
       "mockStage": "generating",
       "waitForText": "Generation in progress",
       "delayMs": 500,
@@ -54,7 +54,7 @@
     {
       "id": "step-006",
       "url": "/deals/deal-001/touch/2",
-      "narration": "Let's try the refine feature at the skeleton gate. This is particularly powerful for intro decks because you can restructure the entire narrative before any content is generated.",
+      "narration": "When you request a refinement at the skeleton gate, the page returns to the same in-progress state while the AI revises the outline before any slide content is drafted.",
       "mockStage": "skeleton-refining",
       "waitFor": "main",
       "delayMs": 500,
@@ -71,7 +71,7 @@
     {
       "id": "step-008",
       "url": "/deals/deal-001/touch/2",
-      "narration": "After approving the refined skeleton, the AI generates draft content for each slide. This is the lowfi gate -- review the slide previews with their content blocks.",
+      "narration": "After approving the refined skeleton, the workflow enters the draft gate. Review the ordered slide list and the draft notes the AI generated for each section.",
       "mockStage": "lowfi",
       "waitForText": "lowfi",
       "delayMs": 500,
@@ -80,7 +80,7 @@
     {
       "id": "step-009",
       "url": "/deals/deal-001/touch/2",
-      "narration": "Here you can see the content blocks for each slide. The AI has populated bullet points, statistics, and messaging that align with Meridian Dynamics' specific challenges.",
+      "narration": "Here you can see the draft notes for each slide. The AI has populated metrics and messaging that align with Meridian Dynamics' specific challenges.",
       "mockStage": "lowfi",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.45 },
@@ -90,7 +90,7 @@
     {
       "id": "step-010",
       "url": "/deals/deal-001/touch/2",
-      "narration": "Zoom in on one of the slide previews. The draft content is ready for your approval or refinement before the final polished version is generated.",
+      "narration": "At this draft gate, the ordered slide list stays available for review before the final polished deck is generated.",
       "mockStage": "lowfi",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.6, "x": 0.5, "y": 0.55 },
@@ -99,7 +99,7 @@
     {
       "id": "step-011",
       "url": "/deals/deal-001/touch/2",
-      "narration": "After approving the draft content, the AI generates the final polished slides with full branding, corporate theme, and professional formatting.",
+      "narration": "After approving the draft content, the final gate shows a live preview of the generated intro deck along with a direct link to Google Slides.",
       "mockStage": "hifi",
       "waitFor": "main",
       "delayMs": 500,
@@ -108,7 +108,7 @@
     {
       "id": "step-012",
       "url": "/deals/deal-001/touch/2",
-      "narration": "The final deck looks polished with your corporate theme applied. Colors, fonts, and layout all follow your brand guidelines automatically.",
+      "narration": "The final preview shows the polished presentation styling, including branded layouts, metrics, and section formatting for the Meridian Dynamics deck.",
       "mockStage": "hifi",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.4 },
@@ -117,7 +117,7 @@
     {
       "id": "step-013",
       "url": "/deals/deal-001/touch/2",
-      "narration": "Your intro deck is complete and saved to Google Slides. Click the link to open it directly or present it at your next meeting with Meridian Dynamics.",
+      "narration": "Your intro deck is complete and saved to Drive. Use the final artifact link to open it directly before your next meeting with Meridian Dynamics.",
       "mockStage": "completed",
       "waitForText": "Saved to Drive",
       "delayMs": 500,
