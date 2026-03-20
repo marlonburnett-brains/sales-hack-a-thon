@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: In-App Tutorials & Feedback
 status: completed
-stopped_at: Completed 72-02-PLAN.md
-last_updated: "2026-03-20T23:16:37.116Z"
+stopped_at: Completed 72-03-PLAN.md
+last_updated: "2026-03-20T23:26:52.652Z"
 last_activity: 2026-03-20 -- Completed 71-02 (GCS upload & database seeding)
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 100
 ---
 
@@ -55,6 +55,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 72]: Seed reads tutorial-thumbnails-manifest.json opportunistically and falls back to null thumbnailUrl when absent
 - [Phase 72-02]: Fixed CATEGORY_META array in route handler drives category ordering independent of DB row order
 - [Phase 72-02]: Promise.all for concurrent Tutorial+TutorialView fetch; views scoped to userId
+- [Phase 72-03]: tutorials-browse-view.tsx lives in components/ not app/ for test relative import resolution
+- [Phase 72-03]: Slug page calls listTutorialsAction() to validate slug; notFound() for unknowns
 
 ### Key Research Findings (v1.10)
 
@@ -78,6 +80,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T23:16:37.112Z
-Stopped at: Completed 72-02-PLAN.md
+Last session: 2026-03-20T23:26:52.649Z
+Stopped at: Completed 72-03-PLAN.md
 Next action: `/gsd:execute-phase 72` (Tutorial Browsing)

@@ -151,7 +151,7 @@
 **Milestone Goal:** Ship in-app tutorial video browsing with GCS-hosted MP4 playback, user progress tracking, and a reusable feedback system -- making the platform self-service learnable.
 
 - [x] **Phase 71: Database & Video Hosting** - Prisma migration for all models, GCS upload automation, and DB seeding -- completed 2026-03-20
-- [ ] **Phase 72: Tutorial Browsing** - Category-grouped browse page with tutorial cards and completion indicators
+- [x] **Phase 72: Tutorial Browsing** - Category-grouped browse page with tutorial cards and completion indicators (completed 2026-03-20)
 - [ ] **Phase 73: Video Playback & Progress Tracking** - HTML5 video player with watched state, resume, and progress display
 - [ ] **Phase 74: Feedback System** - Reusable feedback widget with segmented control, wired to tutorial player
 - [ ] **Phase 75: Sidebar Integration** - Tutorials nav item with "New" badge for unwatched content
@@ -249,7 +249,7 @@ Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depen
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62-70 | v1.9 | 24/24 | Complete | 2026-03-20 |
 | 71. Database & Video Hosting | v1.10 | Complete    | 2026-03-20 | 2026-03-20 |
-| 72. Tutorial Browsing | 2/3 | In Progress|  | - |
+| 72. Tutorial Browsing | 3/3 | Complete   | 2026-03-20 | - |
 | 73. Video Playback & Progress | v1.10 | 0/TBD | Not started | - |
 | 74. Feedback System | v1.10 | 0/TBD | Not started | - |
 | 75. Sidebar Integration | v1.10 | 0/TBD | Not started | - |
