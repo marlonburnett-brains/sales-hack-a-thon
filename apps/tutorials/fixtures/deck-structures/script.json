@@ -16,7 +16,7 @@
     {
       "id": "step-002",
       "mockStage": "detail",
-      "url": "/settings/deck-structures/touch_1",
+      "url": "/settings/deck-structures/touch-1",
       "narration": "Here's the Touch 1 deck structure. The AI has inferred five sections based on patterns in your ingested templates. Notice the confidence score of 82 percent in the upper right -- that's rated High.",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.7, "y": 0.12 },
@@ -25,14 +25,14 @@
     },
     {
       "id": "step-003",
-      "url": "/settings/deck-structures/touch_1",
+      "url": "/settings/deck-structures/touch-1",
       "narration": "Confidence scores show how well each section maps to real templates in your library. The more templates you ingest for a touch type, the higher the confidence becomes.",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.35 }
     },
     {
       "id": "step-004",
-      "url": "/settings/deck-structures/touch_1",
+      "url": "/settings/deck-structures/touch-1",
       "narration": "Each section shows its purpose and the number of slide variations available. The Introduction section has three variations, meaning the AI found three different intro slides across your templates that could fill this slot.",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.25 },
@@ -40,7 +40,7 @@
     },
     {
       "id": "step-005",
-      "url": "/settings/deck-structures/touch_3",
+      "url": "/settings/deck-structures/touch-3",
       "narration": "Let's look at another touch type. Touch 3 is your deep-dive proposal deck -- it has a different structure with more technical sections and a different confidence level.",
       "waitFor": "main",
       "cursorTarget": { "x": 0.15, "y": 0.55 },
@@ -48,14 +48,14 @@
     },
     {
       "id": "step-006",
-      "url": "/settings/deck-structures/touch_3",
+      "url": "/settings/deck-structures/touch-3",
       "narration": "Each touch type develops its own structure based on the templates classified for that stage. Touch 3 proposals naturally emphasize technical depth and ROI analysis.",
       "waitFor": "main"
     },
     {
       "id": "step-007",
       "mockStage": "detail",
-      "url": "/settings/deck-structures/touch_1",
+      "url": "/settings/deck-structures/touch-1",
       "narration": "Back on Touch 1, let's refine the structure using the chat. You can ask the AI to reorder sections, add new ones, or remove optional sections.",
       "waitFor": "main",
       "cursorTarget": { "x": 0.5, "y": 0.85 },
@@ -63,11 +63,11 @@
     },
     {
       "id": "step-008",
-      "url": "/settings/deck-structures/touch_1",
+      "url": "/settings/deck-structures/touch-1",
       "narration": "Type a refinement request. We'll ask to move the Executive Summary before the Introduction -- a common adjustment when you want to lead with your value proposition.",
       "waitFor": "main",
       "actions": [
-        { "type": "fill", "selector": "textarea, input[type='text'][placeholder*='message'], input[type='text'][placeholder*='chat'], [contenteditable='true']", "value": "Move the Executive Summary before the Introduction" }
+        { "type": "fill", "selector": "textarea[placeholder*='Suggest changes']", "value": "Move the Executive Summary before the Introduction" }
       ],
       "cursorTarget": { "x": 0.5, "y": 0.88 },
       "zoomTarget": { "selector": "main", "scale": 1.3, "x": 0.5, "y": 0.85 }
@@ -75,7 +75,7 @@
     {
       "id": "step-009",
       "mockStage": "chat-loading",
-      "url": "/settings/deck-structures/touch_1",
+      "url": "/settings/deck-structures/touch-1",
       "narration": "The AI is processing your request and updating the structure. This takes a moment as it recalculates section dependencies and revalidates the flow.",
       "waitFor": "main",
       "delayMs": 1500
@@ -83,7 +83,7 @@
     {
       "id": "step-010",
       "mockStage": "chat-refined",
-      "url": "/settings/deck-structures/touch_1",
+      "url": "/settings/deck-structures/touch-1",
       "narration": "The AI reordered the sections based on your request. The Executive Summary now leads the deck, followed by the Introduction. The rationale has been updated to explain the new flow.",
       "waitFor": "main",
       "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.3 },
@@ -92,13 +92,13 @@
     },
     {
       "id": "step-011",
-      "url": "/settings/deck-structures/touch_1",
+      "url": "/settings/deck-structures/touch-1",
       "narration": "Chat-based refinement lets you customize deck structures without manually dragging sections around. Each conversation turn is saved, so you can see the history of changes.",
       "waitFor": "main"
     },
     {
       "id": "step-012",
-      "url": "/settings/deck-structures/touch_1",
+      "url": "/settings/deck-structures/touch-1",
       "narration": "That's Deck Structures. The AI infers the best section order from your templates, and you can fine-tune it through natural language conversation.",
       "waitFor": "main",
       "delayMs": 1000,
