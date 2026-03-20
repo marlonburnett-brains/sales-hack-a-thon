@@ -1,172 +1,186 @@
 # Project Research Summary
 
-**Project:** Lumenalta Agentic Sales Orchestration -- v1.9 Tutorial Video Production
-**Domain:** Automated tutorial video production pipeline (Playwright capture + Remotion composition + local TTS)
-**Researched:** 2026-03-18
+**Project:** AtlusDeck v1.10 — In-App Tutorials & Feedback
+**Domain:** In-app tutorial video browsing, GCS-hosted MP4 playback, user progress tracking, and reusable feedback widget integrated into an existing Next.js 15 + Mastra + Prisma SaaS
+**Researched:** 2026-03-20
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v1.9 adds a fully offline, deterministic tutorial video production pipeline to the existing AtlusDeck monorepo. The pipeline captures pixel-perfect screenshots of the real Next.js app using Playwright with mocked APIs, generates narration audio from human-authored scripts using local TTS models, and composes final MP4 videos using Remotion (React-based programmatic video). The approach is well-supported by mature, actively maintained tools and avoids any cloud TTS costs or live infrastructure dependencies. All 16+ tutorials covering the platform's deal management, touch workflows, template/slide library, and integrations can be produced from a single developer's M1 Pro laptop.
+AtlusDeck v1.10 adds a self-service learning layer to an established enterprise SaaS platform — 17 pre-rendered MP4 tutorial videos hosted on Google Cloud Storage, an in-app browse/playback experience, per-user watched state, and a reusable feedback widget. The expert approach for this class of feature is well-established: direct-serve video from a CDN (GCS public URLs) with native HTML5 `<video>` playback, binary watched/unwatched tracking per user via a lightweight DB model, and a segmented-control feedback widget backed by a polymorphic feedback table. None of these require new npm packages — the entire feature set builds on the existing dependency graph (Next.js 15, Prisma, shadcn/ui, googleapis, Supabase Auth).
 
-The recommended approach creates a new `apps/tutorials` Turborepo workspace that isolates Remotion's Webpack bundler, heavy TTS model weights, and video rendering dependencies from the deployed web and agent apps. A two-tier TTS strategy uses kokoro-js (pure JavaScript, CPU) for fast draft iteration and Chatterbox-Turbo (Python sidecar, MPS/GPU) for production-quality narration. The pipeline follows a strict four-stage flow: author scripts, capture screenshots (Playwright) and generate audio (TTS) in parallel, then compose and render with Remotion.
+The recommended implementation follows a strict dependency chain: Prisma migration first, then the GCS upload automation (which seeds the Tutorial table with public URLs) in parallel with the agent API routes, then the web Server Actions, then the UI components, and finally the sidebar integration. The architecture is deliberately minimal — Server Components fetch from the agent via `fetchAgent()`, Client Components handle optimistic state and video events, and the `FeedbackWidget` is made truly reusable via a `context`/`contextId` prop pattern with a polymorphic `AppFeedback` DB model.
 
-The two critical risks are: (1) Playwright's `page.route()` cannot intercept Next.js Server Actions or server-side fetches -- a lightweight mock agent server is required alongside browser-level route interception, and (2) Chatterbox-Turbo's CUDA-trained weights require careful MPS adaptation on Apple Silicon with CPU-first loading and component-by-component GPU migration. Both risks have documented mitigations and should be addressed in the first two phases. Mock fixture data management across 16 tutorials is the largest sustained effort and must be architected with factories and schema validation from the start.
+The highest-risk areas are all infrastructure-level and front-loaded: GCS bucket CORS must be configured before the video player is built (byte-range requests require explicit `Range` header allowance), the correct service account (`VERTEX_SERVICE_ACCOUNT_KEY`, never `GOOGLE_SERVICE_ACCOUNT_KEY`) must be used for all GCS operations, and all three new Prisma models must be created via forward-only migration per CLAUDE.md discipline. If these three infrastructure gates are cleared in Phase 1 and Phase 2a, all subsequent UI phases are low-risk and follow well-established patterns already in the codebase.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-The pipeline adds four new npm package groups (Remotion core/renderer/bundler/CLI, kokoro-js, wav-encoder) and one Python package (chatterbox-tts) to the monorepo. Playwright is already installed at v1.58.2. All Remotion packages must be pinned to the exact same version (4.0.436) -- version mismatch causes runtime errors. See [STACK.md](./STACK.md) for full details.
+v1.10 requires zero new npm packages in `apps/web`. All capabilities are achievable with the existing stack. The one new component is a `shadcn/ui` `toggle-group` (generated via `pnpm dlx shadcn@latest add toggle-group`) — this uses the already-installed unified `radix-ui` package (Feb 2026 update) and adds no new dependency. The GCS upload automation runs as a standalone `tsx` script in `apps/tutorials/scripts/` and reuses the `googleapis` REST client already in `apps/agent`.
 
 **Core technologies:**
-- **Remotion 4.0.436**: React-based programmatic video composition -- natural fit for the existing React 19 codebase, deterministic frame-by-frame control, bundled FFmpeg
-- **Playwright 1.58.x**: UI capture with `page.route()` API mocking -- already installed, pixel-perfect screenshots, no new dependencies
-- **kokoro-js 1.2.1**: Draft TTS in pure JavaScript via ONNX Runtime -- fast iteration loop (~3s generation), no Python needed
-- **Chatterbox-Turbo 0.1.6**: Production TTS via Python sidecar -- near-human narration quality, paralinguistic tags, MIT licensed, beats ElevenLabs in blind tests
-
-**Critical version constraints:** React 19 compatibility requires Remotion >= 4.0.236. Chatterbox requires Python 3.11 and torch==2.5.1 installed before chatterbox-tts (with `--no-deps`) to avoid MPS conflicts on Apple Silicon.
+- `googleapis` (existing, `^144.0.0`): GCS upload via `google.storage({ version: "v1", auth })` — same pattern as production `gcs-thumbnails.ts`; no new SDK
+- Native HTML5 `<video>` (browser API): MP4 playback — Next.js recommends native `<video>` for directly-served files; no `react-player` or `video.js` needed for public GCS URLs
+- Prisma (existing, `^6.3.1`): Three new models (`Tutorial`, `TutorialView`, `AppFeedback`) via forward-only migration; stay on 6.x (Prisma 7.x has vector migration regression)
+- `shadcn/ui` ToggleGroup (new component file, no new npm package): Segmented control for feedback — wraps `@radix-ui/react-toggle-group`, fully Tailwind-compatible
+- Sonner, Supabase Auth, Next.js Server Actions (all existing): reused for feedback toasts, userId auth, and data mutations
 
 ### Expected Features
 
-See [FEATURES.md](./FEATURES.md) for full analysis.
+**Must have (table stakes — v1.10 launch):**
+- GCS upload automation uploading all 17 MP4s and storing public URLs in the `Tutorial` table
+- Tutorials browse page (`/tutorials`) with category-grouped, sequentially-ordered tutorial cards
+- Tutorials nav item in sidebar with "New" dot badge (dot, not count — avoids badge fatigue)
+- In-browser MP4 player using native `<video controls>` on a dedicated `/tutorials/[id]` page
+- `TutorialView` model: record `userId + tutorialId + watchedAt` on video `ended` event via Server Action
+- Watched visual state on tutorial cards (checkmark overlay or "Watched" label)
+- `AppFeedback` model with segmented control (helpful/not-helpful/bug/suggestion) + optional free-text textarea
 
-**Must have (table stakes):**
-- Structured tutorial script format (JSON) as single source of truth for the entire pipeline
-- Playwright mock harness with `page.route()` interception + mock agent server for server-side calls
-- Auth/session mocking (Google OAuth bypass via cookies)
-- Mock fixture corpus for all 16 tutorials (biggest single effort)
-- Per-step screenshot capture with animation disabling and network idle waits
-- kokoro-js TTS draft narration with per-step .wav output
-- Remotion `<Sequence>` composition with `<Audio>` narration sync
-- Final MP4 render via Remotion CLI
-
-**Should have (differentiators):**
-- Chatterbox-Turbo production narration (significant quality upgrade)
-- Zoom/pan effects on UI regions via CSS transforms and `interpolate()`
-- Text overlays and callout annotations
-- Cursor animation showing click targets
-- `<TransitionSeries>` cross-fades between steps
+**Should have (add after validation — v1.x):**
+- Category progress indicator ("3 of 6 watched") — drives momentum without a full LMS
+- "Next unwatched" nudge per category — reduces decision friction after partial progress
+- Feedback widget extended to other feature pages (Settings, Templates, Deals) after tutorial feedback proves the model
 
 **Defer (v2+):**
-- Automated UI drift detection / CI re-recording
-- Multi-language narration
-- Tutorial versioning per app version
-- Interactive in-app walkthroughs
+- Custom video player with speed control or chapter navigation
+- Resume-from-timestamp (unnecessary for 1-5 min tutorials)
+- In-app admin video upload UI (CLI script covers the ~20-seller authoring case)
+- Email/push notifications for new tutorials
 
 ### Architecture Approach
 
-The pipeline lives in a new `apps/tutorials` Turborepo workspace with a step-indexed data model: narration scripts, screenshots, audio files, and Remotion sequences all share the same step numbering. Playwright launches the real `apps/web` dev server via its `webServer` config, intercepts all API calls with fixtures, and captures screenshots. TTS runs independently. Remotion compositions consume both outputs. No modifications to `apps/web` or `apps/agent` are required. See [ARCHITECTURE.md](./ARCHITECTURE.md) for full details.
+The architecture follows strict layering already established in the codebase: Server Components load data via Server Actions that call `fetchAgent()` to the Mastra Hono agent, which queries Prisma. Client Components (`TutorialsClient`, `TutorialPlayer`, `FeedbackWidget`) handle only interactivity — optimistic watched-state toggles, video event handling, and form state. Video playback is direct-from-GCS (Browser to GCS; no Vercel function in the path). The `FeedbackWidget` is made genuinely reusable via `sourceType`/`sourceId` props backed by the polymorphic `AppFeedback` model. The sidebar "New" badge follows the existing `pendingCount` pattern: a Next.js API route polled via `useEffect` in the Client Component sidebar.
 
 **Major components:**
-1. **Narration Scripts** (`scripts/`) -- human-authored JSON defining steps, narration text, timing, zoom targets
-2. **Mock Fixtures** (`fixtures/`) -- JSON responses mirroring real API route structure, with shared base entities and tutorial-specific overrides
-3. **Playwright Captures** (`captures/`) -- test specs that navigate the mocked app and take per-step screenshots
-4. **TTS Generator** (`audio/`) -- dual-engine (kokoro-js draft / Chatterbox production) producing .wav per step
-5. **Remotion Compositions** (`src/`) -- one composition per tutorial, shared components for TutorialStep, ZoomEffect, TextOverlay
-6. **Pipeline Orchestration** (`pipeline/`) -- scripts chaining capture, TTS, and render with per-tutorial or batch execution
+1. `Tutorial` / `TutorialView` / `AppFeedback` Prisma models — source of truth for all feature data; forward-only migration required before any other code can reference them
+2. `upload-to-gcs.ts` script — reads `apps/tutorials/output/videos/*.mp4`, uploads to GCS, upserts `Tutorial` rows; the first-dependency gate for playable video
+3. Agent routes (5 GET/POST endpoints) + `tutorial-repo.ts` / `feedback-repo.ts` — data layer; isolated repo files keep `mastra/index.ts` manageable
+4. `tutorial-actions.ts` / `feedback-actions.ts` — Server Actions wrapping `fetchAgent()` calls; identical pattern to all existing pages
+5. `TutorialsClient` / `TutorialCard` / `TutorialPlayer` / `FeedbackWidget` — client-side components; `TutorialPlayer` must be `"use client"` with `dynamic({ ssr: false })`
+6. `sidebar.tsx` (modified) + `/api/tutorials/new-badge` route — badge integration following existing `pendingCount` useEffect pattern
 
 ### Critical Pitfalls
 
-See [PITFALLS.md](./PITFALLS.md) for all 6 critical pitfalls with full recovery strategies.
+1. **Wrong GCS service account** — use `VERTEX_SERVICE_ACCOUNT_KEY` for all storage operations; `GOOGLE_SERVICE_ACCOUNT_KEY` has no `devstorage` permissions and will 403 in production; add a grep check on PRs to catch this in any new GCS utility file
+2. **GCS bucket CORS not configured for `Range` header** — HTML5 `<video>` issues byte-range requests; configure bucket CORS via `gcloud storage buckets update --cors-file cors.json` with `Range` and `Accept-Ranges` in `responseHeader`; cannot use Google Cloud Console for this
+3. **HTML5 `<video>` in Server Component causing hydration mismatch** — always wrap video elements in `"use client"` and use `dynamic(() => import('./TutorialPlayer'), { ssr: false })`; failure causes a blank tutorial page
+4. **`prisma db push` bypassing migration history** — always use `prisma migrate dev --name <name>` per CLAUDE.md; `db push` causes schema drift that breaks CircleCI `migrate deploy` on Supabase
+5. **Progress tracking on `timeupdate` flooding the DB** — `timeupdate` fires ~4Hz; attach the Server Action call to the `ended` event only; the `TutorialView` model is binary watched/unwatched, not continuous progress
 
-1. **Server Actions not interceptable by `page.route()`** -- AtlusDeck uses 13 server action files and multiple API routes making server-to-server fetches. Must build a lightweight mock agent server and point `AGENT_SERVICE_URL` to it during capture. This is the single most important thing to get right in Phase 1.
-
-2. **Remotion memory exhaustion on 16GB M1 Pro** -- Default concurrency assumes it owns the machine. Cap at `--concurrency=2`, never run capture and render simultaneously, close other apps during final renders.
-
-3. **Audio-visual desynchronization** -- TTS audio duration is unpredictable. Never hardcode `durationInFrames`. Generate all audio first, measure with `getAudioDurationInSeconds()`, build a timing manifest, and use `<Series>` for automatic chaining.
-
-4. **Chatterbox CUDA-to-MPS loading failure** -- Model weights contain CUDA references. Must load to CPU first, then move components (t3, s3gen, ve) to MPS individually. Fall back to CPU if MPS proves unstable.
-
-5. **Fixture data explosion** -- 16 tutorials x 10-30 steps x 3-5 endpoints = potentially 2,400 fixture files. Use fixture factories, shared base entities, and Zod schema validation from day one.
+---
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+The build order has a strict sequential core with one parallel opportunity after Phase 1. Research identifies 6 natural phases.
 
-### Phase 1: Mock Infrastructure and Workspace Setup
-**Rationale:** Everything depends on working mocks. The mock agent server (for server-side fetches) and Playwright capture harness (for browser-side intercepts) are prerequisites for every subsequent phase. The `apps/tutorials` workspace must exist before any Remotion or TTS work begins.
-**Delivers:** New `apps/tutorials` workspace, mock agent server, shared `page.route()` helpers, auth mocking, animation-disabling CSS, screenshot determinism, fixture factory pattern with Zod validation, fixture data for 2-3 pilot tutorials.
-**Addresses:** Tutorial script format, Playwright mock harness, auth bypass, mock fixtures (pilot set), per-step screenshot capture, `.gitignore` for generated artifacts.
-**Avoids:** Server Action interception failure (Pitfall 1), fixture data explosion (Pitfall 5), screenshot timing instability (Pitfall 6).
+### Phase 1: Database Foundation
+**Rationale:** Every downstream feature depends on the Prisma schema being in place. No code can reference `Tutorial`, `TutorialView`, or `AppFeedback` before the migration runs. This is also where the highest-severity pitfall (`db push`) must be guarded against.
+**Delivers:** Three new Prisma models (`Tutorial`, `TutorialView`, `AppFeedback`) with correct indexes, forward-only migration file committed to git alongside the schema change
+**Addresses:** Scaffolds the DB for all P1 features; establishes group/sortOrder design for tutorial catalog
+**Avoids:** Prisma migration drift (PITFALLS Pitfall 4)
 
-### Phase 2: TTS Pipeline (Draft and Production Audio)
-**Rationale:** Audio must exist before Remotion compositions can be built, because `durationInFrames` depends on actual audio file lengths. Validating Chatterbox on M1 hardware early de-risks the production narration path.
-**Delivers:** kokoro-js integration for draft .wav generation, Chatterbox-Turbo Python sidecar with MPS validation, timing manifest generation, dual-engine TTS pipeline with `--engine` flag.
-**Uses:** kokoro-js 1.2.1 (npm), chatterbox-tts 0.1.6 (pip), wav-encoder, Python 3.11 venv.
-**Implements:** TTS Generator component, timing manifest that feeds Remotion compositions.
-**Avoids:** Audio-visual desync (Pitfall 3), Chatterbox CUDA/MPS failure (Pitfall 4).
+### Phase 2a: GCS Upload Automation
+**Rationale:** Can run in parallel with Phase 2b. Seeds the `Tutorial` table with real GCS URLs that all UI phases depend on for playable video. Bucket CORS and IAM must be verified before marking complete — these block the video player, not just the script.
+**Delivers:** `apps/tutorials/scripts/upload-to-gcs.ts` uploading all 17 MP4s with idempotent upsert; bucket CORS configured with `Range` header; IAM `allUsers objectViewer` binding verified; 17 Tutorial rows in DB with valid `gcsUrl`
+**Addresses:** FEATURES GCS upload automation + DB seeding (P1)
+**Avoids:** Wrong service account (Pitfall 1), CORS not configured (Pitfall 2), bucket not publicly readable (Pitfall 7), Vercel video proxying (Pitfall 5)
 
-### Phase 3: Remotion Composition and Render Pipeline
-**Rationale:** With screenshots and audio available from Phases 1-2, compositions can now be built. Memory-safe render configuration must be established before scaling to all 16 tutorials.
-**Delivers:** Remotion workspace config, shared TutorialStep component, first complete tutorial video ("Getting Started"), `--concurrency=2` render config, Turborepo task integration (capture/tts/render).
-**Implements:** Remotion Compositions and Pipeline Orchestration components.
-**Avoids:** Remotion memory exhaustion (Pitfall 2), Remotion/Next.js bundler conflict (Anti-Pattern 4).
+### Phase 2b: Agent API Routes
+**Rationale:** Parallel with Phase 2a. No dependency on real GCS URLs — routes can be tested with seeded fixture data. Establishes the data layer before the web layer is built.
+**Delivers:** 5 new agent routes (`GET /tutorials`, `GET /tutorials/:id`, `GET /tutorials/new-badge`, `POST /tutorials/:id/view`, `POST /feedback`) plus `tutorial-repo.ts` and `feedback-repo.ts`
+**Addresses:** Data API for all P1 features
+**Avoids:** Inline group/segment strings scattered across files (ARCHITECTURE Anti-Pattern 5)
 
-### Phase 4: Full Tutorial Corpus (All 16 Tutorials)
-**Rationale:** With the pipeline proven end-to-end on 1-3 tutorials, scale to all 16 by expanding fixture data, scripts, and capture specs. This is primarily an authoring effort, not an engineering effort.
-**Delivers:** Complete fixture sets for all 16 tutorials (prioritized by mock complexity: low first, then medium, then high HITL workflows), narration scripts, capture specs, and rendered MP4s.
-**Addresses:** All remaining mock fixture data, HITL stage mocking for Touch 1-4, remaining tutorial scripts.
+### Phase 3: Web Server Actions and API Client
+**Rationale:** Depends on Phase 2b (agent routes must be registered before Server Actions call them). This is the web-side data layer — mirrors the existing `action-required-actions.ts` pattern exactly.
+**Delivers:** `tutorial-actions.ts`, `feedback-actions.ts`, and additions to `api-client.ts` (`fetchTutorials`, `markTutorialViewed`, `submitFeedback`, `fetchTutorialNewBadge`)
+**Uses:** Server Actions pattern, `fetchAgent()` wrapper, Supabase session auth for userId
+**Avoids:** Client-side data fetching for initial load (ARCHITECTURE Anti-Pattern 3)
 
-### Phase 5: Visual Polish and Production Quality
-**Rationale:** Only after all tutorials exist in basic form should visual enhancements be added. These are additive and do not require re-recording.
-**Delivers:** Chatterbox production narration for all tutorials (replacing Kokoro drafts), zoom/pan effects, text overlays, cursor animations, `<TransitionSeries>` transitions, intro/outro slates.
-**Addresses:** All P2 differentiator features from FEATURES.md.
+### Phase 4: Tutorial Browse and Player UI
+**Rationale:** Depends on Phase 3 (Server Actions) and Phase 2a (real GCS URLs for playable video). This is the core user-facing deliverable — the tutorials browse page and video player with watched state.
+**Delivers:** `app/(authenticated)/tutorials/page.tsx`, `app/(authenticated)/tutorials/[id]/page.tsx`, `TutorialsClient`, `TutorialCard`, `TutorialPlayer`; optimistic watched/unwatched state toggling on video `ended` event
+**Addresses:** FEATURES tutorial list page, MP4 player, watched/unwatched state (all P1)
+**Avoids:** SSR hydration mismatch (Pitfall 3), `timeupdate` DB flood (Pitfall 6), Vercel video proxying (Pitfall 5)
+
+### Phase 5: Feedback Widget
+**Rationale:** Depends on Phase 3 (feedback Server Action) and Phase 4 (player page to host the widget). Deliberately isolated because the reusable `FeedbackWidget` has a state management nuance — the `key={tutorialId}` prop reset pattern — that is easier to verify in isolation before integrating into the player page.
+**Delivers:** `FeedbackWidget` component (shadcn/ui ToggleGroup segmented control + Textarea + submit), wired to `submitFeedbackAction`; `toggle-group` component added via `pnpm dlx shadcn@latest add toggle-group`; Sonner toast confirmation
+**Addresses:** FEATURES feedback widget (P1)
+**Avoids:** Feedback state leaking across tutorials (Pitfall 8), feedback userId spoofing (PITFALLS security section)
+
+### Phase 6: Sidebar Integration
+**Rationale:** Must come last — the Tutorials nav item links to `/tutorials` which must exist (Phase 4). The "New" badge polls `/api/tutorials/new-badge` which depends on Phase 3. Modifying the sidebar last minimizes risk to global navigation during development.
+**Delivers:** Tutorials nav item in `sidebar.tsx`, "New" dot badge via `useEffect` + `/api/tutorials/new-badge/route.ts`; badge-clear logic on tutorials page visit
+**Addresses:** FEATURES sidebar nav item, "New" badge (P1)
+**Avoids:** Calling Server Actions from the Client Component sidebar (ARCHITECTURE Anti-Pattern 6)
 
 ### Phase Ordering Rationale
 
-- **Phases 1-3 are strictly sequential** due to hard dependencies: mocks before screenshots, audio before compositions, both before rendering.
-- **Phase 4 is the longest phase** (fixture authoring for 16 tutorials) but is parallelizable across tutorials and requires minimal engineering decisions.
-- **Phase 5 is fully decoupled** from Phase 4 content authoring and can even overlap with late Phase 4 work on complex tutorials.
-- **The mock agent server (Phase 1) is the single highest-risk item.** If it proves harder than expected (complex server action mocking), it gates everything. Budget extra time here.
+- Phases 2a and 2b are the only true parallel opportunity — both depend only on the Prisma migration (Phase 1) being applied and are independent of each other
+- Phases 3 through 6 are strictly sequential: Server Actions depend on agent routes, UI depends on Server Actions, sidebar depends on the destination page existing
+- GCS infrastructure concerns (CORS, IAM, service account) are front-loaded into Phase 2a so they cannot block later UI phases mid-sprint
+- The `FeedbackWidget` is a separate phase (5) from the browse/player UI (4) to isolate the React state management concern (`key` prop reset) from the data loading complexity
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 1:** Mock agent server design needs careful analysis of all 13 server action files and API route handlers to ensure complete coverage. Recommend `/gsd:research-phase` to catalog every endpoint that makes server-side fetches.
-- **Phase 2:** Chatterbox MPS stability on M1 Pro is community-documented, not officially supported. Validate early with a 60-second continuous narration test before committing to Chatterbox for production.
-- **Phase 4:** Touch 4 tutorial has "Very High" mock complexity (6-phase pipeline with 3 output artifacts). May need dedicated research to map all fixture requirements.
+Phases that need pre-implementation verification:
+- **Phase 2a (GCS Upload):** Verify whether the target bucket uses uniform bucket-level access or legacy ACLs before deciding on `predefinedAcl` vs IAM binding strategy; also verify if the existing `GCS_THUMBNAIL_BUCKET` CORS already includes `Range` headers before creating a separate video bucket
+- **Phase 6 (Sidebar Badge):** Confirm the "New" badge clear strategy — localStorage heuristic vs. a `lastTutorialVisitAt` timestamp on User — and whether the latter requires an additional Prisma migration
 
-Phases with standard patterns (skip research-phase):
-- **Phase 3:** Remotion composition patterns are thoroughly documented. Standard `<Sequence>` + `<Audio>` + `staticFile()` patterns apply directly.
-- **Phase 5:** Visual enhancements (zoom, overlays, transitions) use standard Remotion APIs with extensive examples in official docs.
+Phases with standard patterns (skip research-phase during planning):
+- **Phase 1 (Database Foundation):** Prisma forward-only migration is fully documented and already practiced in this codebase; models follow established conventions
+- **Phase 2b (Agent Routes):** `registerApiRoute` pattern is well-established in `mastra/index.ts`; repo isolation is a straightforward refactor
+- **Phase 3 (Server Actions):** Identical to existing `action-required-actions.ts` pattern; no new patterns required
+- **Phase 4 (Tutorial UI):** Server Component + Client Component split is established; native `<video>` with `dynamic({ ssr: false })` is the documented Next.js pattern
+- **Phase 5 (Feedback Widget):** shadcn/ui `ToggleGroup` is documented; `key` prop reset is standard React
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Remotion and Playwright are mature, well-documented. kokoro-js is newer but ONNX-based with clear Node.js API. |
-| Features | HIGH | Feature landscape is well-defined by the existing app's 16 tutorial topics. MVP vs. polish boundary is clear. |
-| Architecture | HIGH | Turborepo workspace pattern is established in the codebase. Remotion monorepo integration has community templates. |
-| Pitfalls | HIGH | Server Action limitation verified against Next.js GitHub discussions. Remotion OOM documented in official docs. Chatterbox MPS issues confirmed by GitHub issues. |
+| Stack | HIGH | All findings based on direct codebase inspection + official Next.js, shadcn/ui, and Radix docs; zero new packages required eliminates version conflict risk |
+| Features | HIGH | 17 MP4s already produced from v1.9; feature scope is bounded and well-understood; competitor analysis (Loom, Intercom) confirms expected UX patterns |
+| Architecture | HIGH | Based on direct inspection of 8 existing source files in the running codebase; no inference from generic patterns |
+| Pitfalls | HIGH | All 8 critical pitfalls verified via official GCS docs, Next.js GitHub discussions, Prisma docs, and codebase analysis; each has a documented recovery strategy |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Chatterbox MPS stability on M1 Pro 16GB:** Community adaptation exists but is not officially supported by Resemble AI. Validate with a real 60-second narration test in Phase 2 before committing. If unstable, Kokoro provides acceptable fallback quality.
-- **Mock agent server completeness:** The exact list of server-side endpoints that need mocking (beyond the 13 known server action files) requires a full audit of `apps/web` API routes during Phase 1 planning.
-- **Render time estimates:** "1-2 min per minute of output" is based on community reports, not benchmarked on this project's composition complexity. Run `npx remotion benchmark` in Phase 3.
-- **kokoro-js CPU performance on M1:** Claimed ~3s for ~5s of audio, but no specific M1 benchmarks. Low risk since it is only used for drafts.
+- **GCS bucket configuration:** Research confirms the CORS and IAM patterns but cannot determine without inspecting the GCP console whether to reuse `GCS_THUMBNAIL_BUCKET` or create a dedicated `GCS_TUTORIAL_BUCKET`. Resolve at the start of Phase 2a.
+- **Tutorial group/sortOrder mapping:** The upload script must derive `group` and `sortOrder` from the 17 fixture slugs (e.g., `getting-started-01` → group "Core", order 1). Verify the exact slug naming convention in `apps/tutorials/fixtures/` before Phase 2a implementation.
+- **"New" badge clear strategy:** Two approaches are viable — clear on first visit to `/tutorials` (requires tracking visit timestamp) or use a 14-day window heuristic (no schema change). Decide in Phase 6 planning; the heuristic approach avoids an additional migration.
+
+---
 
 ## Sources
 
-### Primary (HIGH confidence)
-- [Remotion official docs](https://www.remotion.dev/) -- framework capabilities, rendering, audio sync, performance, memory
-- [Playwright Mock APIs](https://playwright.dev/docs/mock) -- `page.route()` capabilities and limitations
-- [Chatterbox GitHub](https://github.com/resemble-ai/chatterbox) -- official repo, architecture, version requirements
-- [Next.js Server Action mocking discussion #67136](https://github.com/vercel/next.js/discussions/67136) -- confirms `page.route()` limitation
+### Primary (HIGH confidence — official docs + codebase)
+- `apps/agent/src/lib/gcs-thumbnails.ts` — GCS upload pattern with `VERTEX_SERVICE_ACCOUNT_KEY`
+- `apps/agent/src/mastra/index.ts` — `registerApiRoute` conventions and route family patterns
+- `apps/web/src/components/sidebar.tsx` — badge pattern via `useEffect` + `fetch`
+- `apps/agent/prisma/schema.prisma` — model naming, index patterns, migration history
+- `apps/web/src/lib/actions/action-required-actions.ts` — Server Action pattern for agent calls
+- `apps/web/src/lib/api-client.ts` — `fetchAgent()` wrapper with Bearer JWT
+- `apps/tutorials/fixtures/*/script.json` — 17 tutorial metadata structures confirmed
+- [Next.js Video Guide](https://nextjs.org/docs/app/guides/videos) — native `<video>` recommendation, `preload`, `dynamic({ ssr: false })`
+- [shadcn/ui Toggle Group docs](https://ui.shadcn.com/docs/components/radix/toggle-group) — install command, `type="single"` segmented control behavior
+- [GCS CORS Configuration](https://docs.cloud.google.com/storage/docs/using-cors) — `Range` header requirement, `gcloud` CLI pattern; Console cannot configure CORS
+- [GCS Uniform Bucket-Level Access](https://docs.cloud.google.com/storage/docs/uniform-bucket-level-access) — IAM vs ACL model, `allUsers objectViewer` binding
+- [Vercel Functions Limitations](https://vercel.com/docs/functions/limitations) — 10s/60s timeout, 4.5MB body limit confirms no video proxying via functions
+- CLAUDE.md — `VERTEX_SERVICE_ACCOUNT_KEY` for all paid GCP services; `prisma migrate dev` forward-only discipline
 
-### Secondary (MEDIUM confidence)
-- [kokoro-js npm](https://www.npmjs.com/package/kokoro-js) -- v1.2.1, Node.js server-side usage with `device: "cpu"`
-- [Chatterbox Apple Silicon adaptation](https://huggingface.co/Jimmi42/chatterbox-tts-apple-silicon-code) -- MPS fixes (community, not official)
-- [Remotion monorepo template](https://github.com/Takamasa045/remotion-studio-monorepo) -- pnpm workspace pattern
-
-### Tertiary (LOW confidence, validate during implementation)
-- kokoro-js CPU performance on M1 ARM64 -- inferred from general ONNX support, not benchmarked
-- Chatterbox MPS install order -- community-documented, not official Resemble AI guidance
-- Remotion render time estimates -- community reports, varies by composition complexity
+### Secondary (MEDIUM confidence — community + multi-source)
+- [Prisma db push reset issue #16141](https://github.com/prisma/prisma/discussions/16141) — confirmed drift risk from `db push`
+- [Next.js Hydration Mismatch Discussion #53020](https://github.com/vercel/next.js/discussions/53020) — `<video>` element as hydration mismatch cause in App Router
+- [MDN: HTMLMediaElement timeupdate event](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/timeupdate_event) — ~4Hz fire rate confirmed; throttle required for server calls
 
 ---
-*Research completed: 2026-03-18*
+*Research completed: 2026-03-20*
 *Ready for roadmap: yes*

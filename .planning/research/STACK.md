@@ -1,204 +1,321 @@
 # Stack Research
 
-**Domain:** Automated tutorial video production pipeline for existing Next.js/React monorepo
-**Researched:** 2026-03-18
-**Confidence:** HIGH (Remotion, Playwright) / MEDIUM (kokoro-js Node.js) / MEDIUM (Chatterbox MPS)
+**Domain:** In-app tutorial video browsing, GCS-hosted MP4 playback, user progress tracking, and reusable feedback widget
+**Researched:** 2026-03-20
+**Confidence:** HIGH (GCS upload, HTML5 video, Radix ToggleGroup) / HIGH (user tracking pattern reuses existing Prisma conventions)
 
 ## Scope
 
-This covers only NEW additions/changes for v1.9 (Tutorial Video Production). The existing stack (Next.js 15, Mastra, Prisma, shadcn/ui, etc.) is validated and unchanged. See prior STACK.md entries for existing stack research.
+This covers only NEW additions/changes for v1.10 (In-App Tutorials & Feedback). The existing stack (Next.js 15, Mastra, Prisma, shadcn/ui, googleapis, Supabase Auth, etc.) is validated and unchanged. Prior STACK.md (2026-03-18) covers v1.9 tutorial video production tooling.
 
 **Focus areas:**
-1. Remotion -- React-based programmatic video composition and MP4 rendering
-2. Playwright -- UI capture with fully mocked API responses (already installed)
-3. kokoro-js -- JavaScript TTS for fast draft narration iteration
-4. Chatterbox-Turbo -- Python TTS for production-quality narration
-5. Glue libraries for audio encoding and monorepo integration
+1. GCS upload automation for MP4 videos — scripted upload to existing GCS bucket using existing `googleapis` REST client pattern
+2. HTML5 video player for MP4 playback in Next.js 15 — native `<video>` vs third-party
+3. User view/progress tracking — Prisma model + Server Action, reusing existing `userId` (Supabase Auth) pattern
+4. Reusable feedback widget — segmented control + free-text using existing shadcn/ui primitives
 
 ---
 
 ## Executive Summary
 
-v1.9 requires **four new npm packages** (Remotion core + renderer + bundler + CLI), **one npm TTS package** (kokoro-js), **one audio encoding utility** (wav-encoder), and **one Python package** (chatterbox-tts) installed in a separate venv. Playwright is already installed at the root level (`^1.58.2`).
+v1.10 requires **zero new npm packages** in `apps/web`. All four capabilities are achievable with the existing stack:
 
-The key architectural decision: create a new `apps/video` workspace in the Turborepo monorepo. Remotion has its own Webpack bundler that conflicts with Next.js, video dependencies are heavy and should never deploy to Vercel/Railway, and video rendering runs exclusively on local dev machines.
+- **GCS upload**: Extend the existing `googleapis` REST upload pattern from `gcs-thumbnails.ts`. A standalone Node.js/tsx script in `apps/agent/src/scripts/upload-tutorials.ts` uploads MP4s using the same `google.storage({ version: "v1" })` client and `VERTEX_SERVICE_ACCOUNT_KEY`. No `@google-cloud/storage` needed — the REST API pattern is already proven in production.
+- **Video player**: Native HTML5 `<video>` tag in a `"use client"` React component. No `react-player` or Video.js needed — GCS-hosted MP4s are direct URLs with no authentication, CORS, or adaptive streaming requirements. Next.js official docs recommend native `<video>` for self-hosted/directly-served files.
+- **User view tracking**: Two new Prisma models (`Tutorial` and `TutorialView`) with a Server Action to mark watched. Follows the exact same `userId` (Supabase Auth string) + `createdAt` pattern as `UserGoogleToken`, `UserSetting`, and `UserAtlusToken`.
+- **Feedback widget**: `shadcn/ui` `ToggleGroup` (`type="single"`) for the segmented control + a `<Textarea>` for free-text. Already available: `@radix-ui/react-toggle-group` (or the unified `radix-ui` package post Feb-2026). Add `toggle-group` component via `pnpm dlx shadcn@latest add toggle-group`. One new Prisma model (`UserFeedback`).
 
-The TTS strategy uses a two-tier approach: kokoro-js (JavaScript, CPU, fast) for draft iteration, and Chatterbox-Turbo (Python, MPS/GPU, high quality) for final production narration. Chatterbox runs as a Python sidecar process invoked via `child_process.execSync` from Node.js scripts.
+The upload script is the only genuinely "new" piece — a local `tsx` script run once per release, not a server-side dependency.
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies (New)
+### Core Technologies (New or Extended)
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| [Remotion](https://www.remotion.dev/) | 4.0.436 (pin exact) | React-based programmatic video composition and MP4 rendering | React 19 compatible (project uses React 19). Compositions are JSX `<Sequence>` components -- natural fit for a React codebase. Deterministic video from code with no GUI dependency. Actively maintained (daily npm publishes). Uses FFmpeg under the hood for encoding. |
-| [kokoro-js](https://www.npmjs.com/package/kokoro-js) | 1.2.1 | Draft narration TTS -- fast iteration on script timing and pacing | Pure JavaScript via ONNX runtime (Transformers.js). Runs in Node.js with `device: "cpu"`. Stays in the TypeScript/Node ecosystem -- no Python needed for the fast-iteration loop. 82M params, ~128MB ONNX weights, generates ~5s audio in ~3s on CPU. |
-| [Chatterbox-Turbo](https://github.com/resemble-ai/chatterbox) | 0.1.6 (pip) | Production-quality TTS narration with emotion/paralinguistic tags | Sub-200ms inference on GPU. Paralinguistic tags `[laugh]`, `(excited)` add realism. Preferred over ElevenLabs in 63.8% of blind tests. 350M params, single-step diffusion. MIT license. |
-| [Playwright](https://playwright.dev/) | 1.58.x | Browser automation for UI screenshot capture with mocked APIs | **Already installed** in root `package.json` at `^1.58.2`. `page.route()` intercepts all API calls with fixture JSON. `page.screenshot()` captures pixel-perfect UI states. No new install needed. |
+| `googleapis` (existing) | `^144.0.0` (already in agent) | GCS upload of MP4 tutorial videos | Already used in production for GCS thumbnail operations in `gcs-thumbnails.ts`. Pattern: `google.storage({ version: "v1" })` + `storage.objects.insert()` with `predefinedAcl: "publicRead"`. No new package needed. |
+| Native HTML5 `<video>` | N/A (browser API) | MP4 playback in Next.js 15 | Next.js official docs recommend native `<video>` for self-hosted/directly served files. GCS public URLs have no auth, CORS, or adaptive streaming requirements. Full control over styling. No SSR hydration mismatch issues. |
+| Prisma (existing) | `^6.3.1` (stay on 6.x) | `Tutorial`, `TutorialView`, `UserFeedback` models | Already in production. Forward-only migration per CLAUDE.md discipline. Three new models, no schema changes to existing models. |
+| shadcn/ui `toggle-group` (new component) | Radix `@radix-ui/react-toggle-group` (already in node_modules via unified `radix-ui` package) | Segmented control for feedback category selection | Radix `ToggleGroup` with `type="single"` is exactly a segmented control. Primitive already installed. `pnpm dlx shadcn@latest add toggle-group` generates the component file — no new npm package required since Feb 2026 unified radix-ui package update. |
 
-### Supporting Libraries (New npm)
+### Supporting Libraries (No New Installs Required)
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| `@remotion/cli` | 4.0.436 (match core) | CLI for `npx remotion render` and `npx remotion studio` | Rendering final MP4s and previewing compositions during development |
-| `@remotion/renderer` | 4.0.436 (match core) | Programmatic Node.js API for `bundle()` + `renderMedia()` | Automating render pipeline in scripts (alternative to CLI for batch rendering) |
-| `@remotion/bundler` | 4.0.436 (match core) | Webpack bundler for Remotion compositions | Required by `@remotion/renderer` -- called before `renderMedia()` |
-| `@remotion/captions` | 4.0.436 (match core) | Caption/subtitle generation and timing | Adding synchronized text overlays that match narration word timing |
-| `wav-encoder` | latest | Encode Float32Array PCM data to WAV files | kokoro-js outputs raw audio data; needs WAV encoding before Remotion can consume it |
+| `tsx` (existing in `apps/tutorials`) | `^4.19.0` | Run GCS upload script locally | Script entrypoint: `tsx scripts/upload.ts`. Already installed in `apps/tutorials`. Prefer running as an agent script instead (see Installation section). |
+| shadcn/ui `Textarea` (existing) | Radix-based (already in project) | Free-text feedback input | Already exists as a copy-pasted shadcn component in the project. No new install. |
+| Sonner (existing) | `^2.0.7` | Toast confirmation after feedback submission | Already installed in `apps/web`. |
+| `react-hook-form` (existing) | `^7.71.2` | Optional: form state for feedback widget | Already installed. Prefer `useState` + Server Action for simplicity on a 2-field form; use RHF only if the feedback form grows to 3+ fields. |
 
 ### Development Tools
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| Remotion Studio (`npx remotion studio`) | Visual preview of video compositions in browser | Hot-reloads JSX changes. Use during development to iterate on layout, timing, and transitions without full renders. |
-| `npx playwright install chromium` | Download Chromium browser binary for UI capture | Run once after install. Only Chromium needed -- skip Firefox and WebKit. |
-| Python 3.11 + venv | Isolated environment for Chatterbox-Turbo PyTorch deps | Completely separate from Node.js. Use `python3.11 -m venv .venv/chatterbox` in project root. |
+| `tsx` script (one-time per release) | Upload rendered MP4s from `apps/tutorials/output/` to GCS | Run locally: `pnpm --filter agent exec tsx src/scripts/upload-tutorials.ts`. Outputs GCS public URLs for seeding the DB. |
+| Prisma migrate dev | Add `Tutorial`, `TutorialView`, `UserFeedback` models | Follow CLAUDE.md: `prisma migrate dev --name add-tutorial-and-feedback-models`. Never `db push`. |
 
 ---
 
-## Monorepo Integration
+## GCS Upload Pattern (Existing `googleapis` Approach)
 
-### New Workspace: `apps/video`
+The project already has a production-proven GCS upload function in `apps/agent/src/lib/gcs-thumbnails.ts`. Use the same pattern for MP4 uploads.
 
-Create a new Turborepo workspace for all video production code:
+For MP4 videos (50-200MB), use streaming upload rather than buffering the entire file into memory:
 
+```typescript
+// apps/agent/src/scripts/upload-tutorials.ts (new script)
+import { createReadStream, readdirSync } from "node:fs";
+import { google } from "googleapis";
+import { env } from "../env";
+
+const BUCKET = env.GCS_TUTORIAL_BUCKET ?? env.GCS_THUMBNAIL_BUCKET!;
+
+function getStorageClient() {
+  const credentials = JSON.parse(env.VERTEX_SERVICE_ACCOUNT_KEY);
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/devstorage.full_control"],
+  });
+  return google.storage({ version: "v1", auth });
+}
+
+async function uploadMp4(filePath: string, slug: string): Promise<string> {
+  const storage = getStorageClient();
+  const key = `tutorials/${slug}.mp4`;
+  await storage.objects.insert({
+    bucket: BUCKET,
+    name: key,
+    predefinedAcl: "publicRead",
+    requestBody: { contentType: "video/mp4", cacheControl: "public, max-age=31536000" },
+    media: { mimeType: "video/mp4", body: createReadStream(filePath) },
+  });
+  return `https://storage.googleapis.com/${BUCKET}/${key}`;
+}
 ```
-apps/video/
-  package.json              # Remotion + kokoro-js deps
-  remotion.config.ts        # Remotion configuration (entry point, codec, etc.)
-  tsconfig.json
-  src/
-    compositions/           # Remotion <Composition> components (one per tutorial)
-      index.ts              # registerRoot with all compositions
-      GettingStarted.tsx    # Example composition
-    scripts/                # Tutorial narration scripts (.txt per step)
-    fixtures/               # Mock API response JSON files (shared with Playwright)
-    capture/                # Playwright screenshot capture scripts
-    tts/                    # TTS generation scripts (kokoro-js + chatterbox wrapper)
-    audio/                  # Generated .wav files (gitignored)
-    screenshots/            # Playwright captures (gitignored)
-    output/                 # Final .mp4 files (gitignored)
-  playwright.config.ts      # Playwright config for capture (NOT testing)
+
+### ACL Strategy
+
+Use `predefinedAcl: "publicRead"` on upload. The existing bucket already serves thumbnails publicly using public URLs constructed as `https://storage.googleapis.com/${bucket}/${key}` — consistent with the existing pattern. Verify the bucket does not have uniform bucket-level access (which disables object-level ACLs) — if so, the bucket IAM policy already grants allUsers READ, so the `predefinedAcl` parameter is simply ignored.
+
+---
+
+## HTML5 Video Player Decision
+
+**Use native `<video>` tag in a `"use client"` component. No third-party library.**
+
+Rationale:
+- GCS public MP4 URLs are direct-serve. No DRM, no adaptive bitrate (HLS/DASH), no YouTube/Vimeo embedding — all the reasons to reach for `react-player` or Video.js don't apply.
+- Next.js official documentation explicitly recommends native `<video>` for self-hosted/directly served files and reserves third-party players for advanced needs.
+- `react-player` v3.4.0 works with React 19 but requires `"use client"` and adds ~80KB to the bundle for features not needed here.
+- Native controls (`controls` attribute) are accessible (keyboard navigation, screen reader compatible) without configuration.
+- `preload="metadata"` loads duration without loading the full video — important for a page with multiple tutorials listed.
+
+```tsx
+// apps/web/src/components/tutorial-player.tsx
+"use client";
+
+interface TutorialPlayerProps {
+  src: string;        // GCS public URL: https://storage.googleapis.com/...
+  title: string;
+  onEnded?: () => void; // trigger mark-watched Server Action
+}
+
+export function TutorialPlayer({ src, title, onEnded }: TutorialPlayerProps) {
+  return (
+    <video
+      key={src}            // force remount when switching between tutorials
+      controls
+      preload="metadata"   // load duration/dimensions, not full video
+      playsInline
+      className="w-full rounded-lg aspect-video bg-black"
+      aria-label={title}
+      onEnded={onEnded}
+    >
+      <source src={src} type="video/mp4" />
+    </video>
+  );
+}
 ```
 
-### Why a Separate Workspace
+---
 
-1. **Remotion uses its own Webpack bundler** -- mixing with Next.js causes config conflicts and build failures.
-2. **Video deps are heavy** -- ONNX models (~128MB), Remotion renderer, PyTorch venv (~2GB) must not bloat the web/agent deploys.
-3. **Different execution target** -- video rendering runs locally on dev machines, never deploys to Vercel or Railway.
-4. **Clean dependency boundary** -- `apps/video` can import types from `@lumenalta/schemas` but has no runtime dependency on web or agent.
+## User View Tracking Pattern
+
+Three new Prisma models following existing `userId` (Supabase Auth string) conventions:
+
+```prisma
+// New model: Tutorial metadata + GCS URL registry
+model Tutorial {
+  id           String   @id @default(cuid())
+  slug         String   @unique  // e.g., "getting-started", "touch-4-hitl"
+  title        String
+  description  String?
+  groupLabel   String   // e.g., "Getting Started", "Deal Pipeline"
+  groupOrder   Int      // sort order of the group
+  sequence     Int      // sort order within the group
+  gcsUrl       String   // Public GCS URL: https://storage.googleapis.com/...
+  durationSecs Int?     // Optional: video duration in seconds
+  isNew        Boolean  @default(true)  // drives "New" nav badge; cleared by admin
+  publishedAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  views TutorialView[]
+
+  @@index([groupLabel, sequence])
+}
+
+// New model: Per-user watched/unwatched state
+model TutorialView {
+  id         String   @id @default(cuid())
+  tutorialId String
+  tutorial   Tutorial @relation(fields: [tutorialId], references: [id])
+  userId     String   // Supabase Auth user ID (same pattern as UserSetting.userId)
+  viewedAt   DateTime @default(now())
+
+  @@unique([tutorialId, userId])  // one record per user per tutorial
+  @@index([userId])
+  @@index([tutorialId])
+}
+
+// New model: Reusable feedback (context field identifies source)
+model UserFeedback {
+  id          String   @id @default(cuid())
+  userId      String   // Supabase Auth user ID
+  context     String   // "tutorial" | "feature" | future contexts
+  contextId   String?  // Optional: tutorial slug, feature name, etc.
+  category    String   // Segmented control value: "helpful" | "not-helpful" | "bug" | "suggestion"
+  freeText    String?  // Free-text input (nullable)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([context, contextId])
+}
+```
+
+**Server Action pattern** (consistent with existing Next.js 15 Server Actions in the project):
+
+```typescript
+// apps/web/src/app/actions/tutorials.ts
+"use server";
+import { prisma } from "@/lib/db";
+import { getUser } from "@/lib/auth";
+
+export async function markTutorialWatched(tutorialId: string) {
+  const user = await getUser();
+  if (!user) return;
+  await prisma.tutorialView.upsert({
+    where: { tutorialId_userId: { tutorialId, userId: user.id } },
+    create: { tutorialId, userId: user.id },
+    update: { viewedAt: new Date() },
+  });
+}
+
+export async function submitFeedback(data: {
+  context: string;
+  contextId?: string;
+  category: string;
+  freeText?: string;
+}) {
+  const user = await getUser();
+  if (!user) return;
+  await prisma.userFeedback.create({
+    data: { userId: user.id, ...data },
+  });
+}
+```
+
+---
+
+## Feedback Widget Pattern
+
+Use `shadcn/ui` ToggleGroup (segmented control) + Textarea. No new npm packages.
+
+```bash
+# Add the component once (generates the file, no new npm install)
+pnpm dlx shadcn@latest add toggle-group
+```
+
+```tsx
+// apps/web/src/components/feedback-widget.tsx
+"use client";
+import { useState } from "react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { submitFeedback } from "@/app/actions/tutorials";
+
+const CATEGORIES = [
+  { value: "helpful", label: "Helpful" },
+  { value: "not-helpful", label: "Not Helpful" },
+  { value: "bug", label: "Bug" },
+  { value: "suggestion", label: "Suggestion" },
+] as const;
+
+interface FeedbackWidgetProps {
+  context: string;    // "tutorial" | "feature"
+  contextId?: string; // tutorial slug or feature name
+}
+
+export function FeedbackWidget({ context, contextId }: FeedbackWidgetProps) {
+  const [category, setCategory] = useState<string>("");
+  const [freeText, setFreeText] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  async function handleSubmit() {
+    if (!category) return;
+    await submitFeedback({ context, contextId, category, freeText: freeText || undefined });
+    setSubmitted(true);
+    toast.success("Feedback submitted. Thank you!");
+  }
+
+  if (submitted) return <p className="text-sm text-muted-foreground">Thank you for your feedback!</p>;
+
+  return (
+    <div className="space-y-3">
+      <ToggleGroup type="single" value={category} onValueChange={setCategory} variant="outline">
+        {CATEGORIES.map((c) => (
+          <ToggleGroupItem key={c.value} value={c.value}>{c.label}</ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      <Textarea
+        placeholder="Additional details (optional)"
+        value={freeText}
+        onChange={(e) => setFreeText(e.target.value)}
+        rows={3}
+      />
+      <Button size="sm" onClick={handleSubmit} disabled={!category}>
+        Submit Feedback
+      </Button>
+    </div>
+  );
+}
+```
 
 ---
 
 ## Installation
 
 ```bash
-# 1. Create video workspace
-mkdir -p apps/video/src/{compositions,scripts,fixtures,capture,tts,audio,screenshots,output}
+# Step 1: Add shadcn toggle-group component (generates component file, no new npm install)
+cd apps/web
+pnpm dlx shadcn@latest add toggle-group
 
-# 2. Initialize package.json
-cd apps/video && pnpm init
+# Step 2: Add Prisma migration for new models
+cd apps/agent
+pnpm prisma migrate dev --name add-tutorial-feedback-models
 
-# 3. Remotion packages (ALL must be pinned to exact same version -- no ^ prefix)
-pnpm add remotion@4.0.436 @remotion/cli@4.0.436 @remotion/renderer@4.0.436 \
-  @remotion/bundler@4.0.436 @remotion/captions@4.0.436
+# Step 3: Add GCS_TUTORIAL_BUCKET env var to apps/agent/.env (optional if reusing GCS_THUMBNAIL_BUCKET)
+# GCS_TUTORIAL_BUCKET=your-bucket-name
 
-# 4. React (must match project -- Remotion 4.0.436 supports React 19)
-pnpm add react@^19.0.0 react-dom@^19.0.0
-
-# 5. TTS (kokoro-js for draft narration in Node.js)
-pnpm add kokoro-js@1.2.1
-
-# 6. Audio encoding
-pnpm add wav-encoder
-
-# 7. Dev dependencies
-pnpm add -D typescript@^5.7.3 @types/react@^19.0.7 @types/react-dom@^19.0.3 \
-  @lumenalta/tsconfig@workspace:*
-
-# 8. Playwright browser binaries (Playwright itself already in root)
-npx playwright install chromium
-
-# 9. Chatterbox-Turbo (Python sidecar)
-python3.11 -m venv .venv/chatterbox
-source .venv/chatterbox/bin/activate
-pip install torch==2.5.1 torchaudio==2.5.1          # MPS-compatible PyTorch FIRST
-pip install chatterbox-tts==0.1.6 --no-deps          # Then chatterbox without torch override
-pip install $(python -c "
-import importlib.metadata
-deps = importlib.metadata.requires('chatterbox-tts') or []
-skip = {'torch', 'torchaudio'}
-for d in deps:
-    name = d.split()[0].split('>')[0].split('<')[0].split('=')[0].split('!')[0]
-    if name.lower() not in skip:
-        print(name)
-" | tr '\n' ' ')
-deactivate
+# Step 4: Run upload script after rendering tutorial MP4s (one-time per release)
+pnpm --filter agent exec tsx src/scripts/upload-tutorials.ts
 ```
 
-### Gitignore Additions
-
-```gitignore
-# Tutorial video production
-apps/video/src/audio/
-apps/video/src/screenshots/
-apps/video/src/output/
-.venv/
-```
-
----
-
-## Python Sidecar Pattern for Chatterbox
-
-Chatterbox-Turbo is Python-only with heavy PyTorch dependencies. Do NOT try to bridge via Node.js native modules or WASM. Invoke as a subprocess:
-
-```typescript
-// apps/video/src/tts/chatterbox.ts
-import { execSync } from 'child_process';
-import path from 'path';
-
-const VENV_PYTHON = path.resolve(process.cwd(), '../../.venv/chatterbox/bin/python');
-const GENERATE_SCRIPT = path.resolve(__dirname, 'chatterbox_generate.py');
-
-export function generateProductionAudio(
-  scriptPath: string,
-  outputPath: string,
-  voiceRefPath?: string
-): void {
-  const voiceArg = voiceRefPath ? ` --voice "${voiceRefPath}"` : '';
-  execSync(
-    `${VENV_PYTHON} ${GENERATE_SCRIPT} --input "${scriptPath}" --output "${outputPath}"${voiceArg}`,
-    { stdio: 'inherit', timeout: 120_000 }
-  );
-}
-```
-
-```python
-# apps/video/src/tts/chatterbox_generate.py
-import argparse, torch, torchaudio
-from chatterbox.tts import ChatterboxTTS
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--input', required=True, help='Path to .txt script file')
-    parser.add_argument('--output', required=True, help='Path for output .wav file')
-    parser.add_argument('--voice', default=None, help='Optional voice reference .wav')
-    args = parser.parse_args()
-
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
-    model = ChatterboxTTS.from_pretrained(device=device)
-
-    with open(args.input) as f:
-        text = f.read()
-
-    wav = model.generate(text, audio_prompt_path=args.voice)
-    torchaudio.save(args.output, wav, model.sr)
-
-if __name__ == "__main__":
-    main()
-```
+No `npm install` of any new package is required. The entire v1.10 feature set is built on the existing dependency graph.
 
 ---
 
@@ -206,117 +323,61 @@ if __name__ == "__main__":
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| Remotion (React video) | FFmpeg raw CLI | Only if you need frame-level control beyond React composition. Remotion uses FFmpeg internally -- adding raw FFmpeg is redundant. |
-| Remotion (React video) | Motion Canvas | If you want a timeline-based animation editor UI. But Motion Canvas lacks Remotion's rendering pipeline maturity, React ecosystem integration, and active daily maintenance. |
-| kokoro-js (JS TTS drafts) | kokoro-onnx (Python) | If you want an all-Python TTS toolchain. But kokoro-js keeps the fast-iteration draft loop in Node.js, avoiding Python startup overhead for every regeneration. |
-| kokoro-js (JS TTS drafts) | Piper TTS | If Kokoro voice quality is insufficient. Piper has more voice variety but requires separate ONNX models per voice and has no JavaScript SDK. |
-| Chatterbox-Turbo (prod TTS) | ElevenLabs API | If you want zero local setup. But ElevenLabs costs money per character, requires internet, and violates the "fully offline, deterministic" pipeline goal. |
-| Chatterbox-Turbo (prod TTS) | Coqui XTTS | If Chatterbox MPS support proves unreliable on M1. Coqui XTTS also supports MPS but has weaker emotion/paralinguistic tag control. |
-| Separate `apps/video` workspace | Code inside `apps/web` | Never -- Remotion's Webpack bundler conflicts with Next.js, and video deps should never ship to Vercel. |
-| Screenshots (Playwright) | Video recording (Playwright) | Never for final output -- Playwright video recording has variable frame timing. Screenshots give pixel-perfect control over duration in Remotion. |
+| Native `<video>` tag | `react-player` v3.4.0 | If you need YouTube/Vimeo embedding, HLS/DASH adaptive streaming, or cross-browser quirk normalization. None of these apply to direct GCS MP4s. |
+| Native `<video>` tag | `video.js` | If you need DRM, live streaming, or a plugin ecosystem. Overkill for static tutorial MP4s. |
+| `googleapis` REST (existing) | `@google-cloud/storage` npm package | `@google-cloud/storage` has a cleaner API (`bucket.upload(filePath)` vs manual `objects.insert`) but adds a new package and a new auth initialization pattern. The `googleapis` approach is already proven and doesn't require new credentials setup. Use `@google-cloud/storage` only if switching the entire GCS layer across the project. |
+| `shadcn/ui` ToggleGroup | Custom button group with `useState` | If you need pixel-precise visual treatment that ToggleGroup variants don't support. The Radix primitive handles `aria-pressed` accessibility automatically; a custom implementation requires replicating that. |
+| Server Action for view tracking | API route + `fetch` | Server Actions are the established Next.js 15 App Router pattern already used in this project. API routes add unnecessary network overhead for fire-and-forget tracking. |
+| Single `UserFeedback` model with `context` field | Separate `TutorialFeedback` / `FeatureFeedback` models | Single-model approach keeps the schema lean and makes the feedback widget genuinely reusable across contexts without future schema changes. |
+| Agent script for GCS upload | Script in `apps/tutorials` | The agent already has `googleapis`, `VERTEX_SERVICE_ACCOUNT_KEY`, and `env.ts` configured. Adding `googleapis` to `apps/tutorials` would duplicate a heavy dependency. |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| ElevenLabs / any cloud TTS | Costs money per character, requires internet, non-deterministic across runs | kokoro-js (draft) + Chatterbox-Turbo (production) -- both fully local |
-| Puppeteer | Playwright already installed at v1.58.2; Puppeteer's API mocking (`page.setRequestInterception`) is weaker than Playwright's `page.route()` | Playwright |
-| `@remotion/player` | Player embeds video preview in web UIs -- not needed for offline batch rendering | `@remotion/renderer` + `@remotion/cli` |
-| Python ONNX runtime for Kokoro drafts | Adds Python dependency to the fast-iteration loop. kokoro-js runs natively in Node.js | kokoro-js npm package |
-| `remotion-skills` (transitions) | Unmaintained community package | Build custom `<Transition>` React components -- they're just JSX |
-| Mixing Remotion config in apps/web | Webpack conflicts with Next.js bundler, bloats production deploy | Separate `apps/video` workspace |
-| Playwright video recording for capture | Variable frame timing, no per-step control | `page.screenshot()` per step, compose in Remotion |
-| System FFmpeg installation | Remotion bundles its own FFmpeg. System FFmpeg may version-conflict | Let Remotion manage FFmpeg |
+| `@google-cloud/storage` npm package | Adds ~2MB new dependency when `googleapis` already handles GCS via REST API in production. Duplicates auth initialization work already done in `gcs-thumbnails.ts`. | `google.storage({ version: "v1", auth })` pattern from existing `gcs-thumbnails.ts` |
+| `react-player` / `video.js` | ~80-300KB bundle cost for features (adaptive streaming, platform embeds, plugin ecosystem) that GCS public MP4s don't need. SSR hydration mismatches require `dynamic(() => import(...), { ssr: false })` workaround. | Native `<video>` with `controls` attribute and `"use client"` |
+| `@radix-ui/react-themes` Segmented Control | This is a separate opinionated design system package that conflicts with shadcn/ui's Tailwind-based approach. The `SegmentedControl` from `@radix-ui/react-themes` requires wrapping the app in `<Theme>`. | `shadcn/ui` `ToggleGroup` (wraps `@radix-ui/react-toggle-group`, fully compatible with existing Tailwind design system) |
+| `prisma db push` | CLAUDE.md discipline: dev DB treated as production. All schema changes via `prisma migrate dev`. | `prisma migrate dev --name add-tutorial-feedback-models` |
+| Storing MP4 binary data in PostgreSQL | PostgreSQL is not a video host. Binary blobs in DB cause massive storage costs, slow queries, and connection pool exhaustion on a 50-200MB video. | GCS public URL stored as a `String` in the `Tutorial.gcsUrl` field |
+| Time-based "new" logic (e.g., `publishedAt > now() - 7 days`) | Fragile for users who joined recently or rarely log in. Hard to test. | `isNew: Boolean` on `Tutorial` — explicit flag cleared by script or admin action. Simple, deterministic, easy to reason about. |
 
 ---
 
 ## Version Compatibility
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| `remotion@4.0.436` | `react@19.x`, `react-dom@19.x` | React 19 supported since Remotion 4.0.0. Must use >= 4.0.236 for correct React 19 ref types. Project is on React 19.2.4. |
-| `remotion@4.0.x` | All `@remotion/*` packages | **All @remotion packages MUST be pinned to the exact same version.** Remove all `^` prefixes. Version mismatch causes runtime errors. |
-| `kokoro-js@1.2.1` | Node.js 18+ | Uses `@huggingface/transformers` internally. Set `device: "cpu"` for Node.js server-side use (no WebGPU in Node). First model load downloads ~128MB ONNX weights to cache. |
-| `chatterbox-tts@0.1.6` | Python 3.10-3.11, `torch==2.5.1` | Officially tested on Python 3.11 Debian. Pinned torch version -- do NOT upgrade torch independently. |
-| `chatterbox-tts@0.1.6` | Apple Silicon MPS (M1/M2/M3) | MPS works but requires installing PyTorch with MPS support FIRST, then chatterbox-tts with `--no-deps` to avoid torch version override. See installation section. |
-| `@playwright/test@1.58.2` | Chromium (bundled binary) | Run `npx playwright install chromium`. Only Chromium needed for capture. |
-| Remotion renderer | FFmpeg (bundled by Remotion) | Remotion bundles its own FFmpeg binary. Do NOT install system FFmpeg -- version conflicts cause encoding failures. |
-| `wav-encoder` | kokoro-js raw output | kokoro-js generates() returns raw Float32Array PCM. wav-encoder converts to .wav files that Remotion's `<Audio>` component can consume. |
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `shadcn/ui` `toggle-group` | `radix-ui` unified package (Feb 2026 update) | As of Feb 2026, shadcn/ui uses the unified `radix-ui` package. `pnpm dlx shadcn@latest add toggle-group` generates a component that imports from `radix-ui`. Both old (`@radix-ui/react-toggle-group`) and new (`radix-ui`) import paths work if both are installed. |
+| Prisma `^6.3.1` | Three new models (`Tutorial`, `TutorialView`, `UserFeedback`) | No vector columns; standard Prisma CRUD. Stay on 6.x per CLAUDE.md — Prisma 7.x has vector migration regression (#28867). Migration is forward-only. |
+| Native `<video>` | GCS public MP4 URLs | GCS serves MP4 with `Content-Type: video/mp4`. No CORS configuration needed — browser fetches the GCS URL as a cross-origin resource load (standard for `<video src="...">`, not subject to CORS fetch restrictions). No Vercel server-side proxying required. |
+| `googleapis ^144.0.0` | `VERTEX_SERVICE_ACCOUNT_KEY` | Use `VERTEX_SERVICE_ACCOUNT_KEY` (NOT `GOOGLE_SERVICE_ACCOUNT_KEY`) for GCS operations per CLAUDE.md credential separation rules. Required OAuth scope: `https://www.googleapis.com/auth/devstorage.full_control`. |
 
 ---
 
-## Apple Silicon (M1 Pro, 16GB) Specific Notes
+## Environment Variables (New)
 
-### Chatterbox-Turbo MPS
-
-The pinned `torch==2.5.1` in chatterbox-tts can conflict with MPS-compatible PyTorch builds if installed in the wrong order. The installation section above handles this correctly.
-
-**Verification command:**
-```bash
-source .venv/chatterbox/bin/activate
-python -c "import torch; print('MPS available:', torch.backends.mps.is_available())"
-```
-
-If MPS is unavailable (rare with correct install order), Chatterbox falls back to CPU. CPU inference is slower (~10-30s per utterance vs sub-200ms on MPS) but functional for batch production of ~16 tutorials.
-
-### kokoro-js on M1
-
-ONNX Runtime has native ARM64 (Apple Silicon) support. The `device: "cpu"` codepath works efficiently on M1 without special configuration. Expect ~3s generation time for ~5s of audio output.
-
-### Remotion Rendering on M1
-
-Remotion rendering is CPU-bound (headless Chromium screenshot + FFmpeg encoding). M1 Pro handles tutorial-length videos (2-5 min each) comfortably. Expect ~1-2 min render time per minute of output video. 16GB RAM is sufficient -- Remotion's peak usage is ~2-4GB during rendering.
-
----
-
-## Stack Patterns
-
-### Draft Iteration (Script Timing)
-- Use kokoro-js directly in Node.js scripts
-- Generate .wav, preview in Remotion Studio with `npx remotion studio`
-- Fast feedback: change script text, regenerate audio, hot-reload video preview
-- **Why:** kokoro-js has no Python dependency, ~3s generation, instant iteration loop
-
-### Production Rendering (Final Videos)
-- Generate final narration with Chatterbox-Turbo Python sidecar
-- Render MP4 with `npx remotion render` or `renderMedia()` API
-- **Why:** Chatterbox produces higher quality, more natural speech with emotion tags
-
-### UI Capture (Playwright Screenshots)
-- Start Next.js dev server: `pnpm --filter web dev`
-- Run Playwright scripts that navigate the real app with all API calls intercepted via `page.route()` returning fixture JSON
-- Capture `page.screenshot()` at each workflow step (NOT video recording)
-- **Why:** Screenshots give pixel-perfect timing control in Remotion. Playwright video recording has variable frame timing that makes synchronizing narration difficult.
-
-### Fixture Sharing
-- Mock API response JSON files live in `apps/video/src/fixtures/`
-- Playwright capture scripts and Remotion compositions both reference fixtures
-- **Why:** Same mocked data ensures captures match what the video composition expects
+| Variable | Location | Purpose | Notes |
+|----------|----------|---------|-------|
+| `GCS_TUTORIAL_BUCKET` | `apps/agent/.env` | GCS bucket name for tutorial MP4s | Can reuse `GCS_THUMBNAIL_BUCKET` with a `tutorials/` key prefix, OR use a dedicated bucket. Add as `z.string().optional()` in `env.ts`. Recommend separate bucket to isolate video storage costs from thumbnail storage. |
 
 ---
 
 ## Sources
 
-### HIGH Confidence
-- [Remotion official site](https://www.remotion.dev/) -- framework capabilities, rendering pipeline
-- [Remotion React 19 docs](https://www.remotion.dev/docs/react-19) -- confirmed React 19 compatibility from v4.0.0
-- [Remotion npm](https://www.npmjs.com/package/remotion) -- version 4.0.436 current as of 2026-03-18
-- [@remotion/renderer docs](https://www.remotion.dev/docs/renderer) -- Node.js rendering API
-- [Playwright Mock APIs docs](https://playwright.dev/docs/mock) -- `page.route()` API documentation
-- [Chatterbox GitHub](https://github.com/resemble-ai/chatterbox) -- official repo, architecture details
-- [Chatterbox PyPI](https://pypi.org/project/chatterbox-tts/) -- version 0.1.6, Python 3.10+ requirement
+### HIGH Confidence (Official Documentation + Codebase)
+- [Next.js Video Guide](https://nextjs.org/docs/app/guides/videos) — Official recommendation: native `<video>` for self-hosted files, `react-player` only for advanced needs. Verified 2026-03-20.
+- [shadcn/ui Toggle Group docs](https://ui.shadcn.com/docs/components/radix/toggle-group) — Install command, API, `type="single"` for segmented control behavior. Verified 2026-03-20.
+- [Radix UI Toggle Group primitive](https://www.radix-ui.com/primitives/docs/components/toggle-group) — Accessibility (`aria-pressed`), single/multiple selection modes.
+- [shadcn/ui February 2026 changelog](https://ui.shadcn.com/docs/changelog/2026-02-radix-ui) — Confirms unified `radix-ui` package adoption in Feb 2026.
+- `apps/agent/src/lib/gcs-thumbnails.ts` (codebase) — Production-proven GCS upload pattern using `googleapis` REST API with `VERTEX_SERVICE_ACCOUNT_KEY`. No `@google-cloud/storage` package in use.
+- `apps/agent/src/env.ts` (codebase) — Confirmed `VERTEX_SERVICE_ACCOUNT_KEY` is the correct credential for GCS per CLAUDE.md rule.
+- `apps/agent/package.json`, `apps/web/package.json` (codebase) — Confirmed no `@google-cloud/storage` or `react-player` installed; all described packages already present.
 
-### MEDIUM Confidence
-- [kokoro-js npm](https://www.npmjs.com/package/kokoro-js) -- version 1.2.1; Node.js server-side use is secondary to browser use but documented with `device: "cpu"` option
-- [Kokoro-82M ONNX on HuggingFace](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX) -- model weights and capabilities
-- [Chatterbox Apple Silicon adaptation](https://huggingface.co/Jimmi42/chatterbox-tts-apple-silicon-code) -- MPS compatibility (community fork, not official Resemble AI)
-- [avr-tts-kokoro Express.js server](https://github.com/agentvoiceresponse/avr-tts-kokoro) -- confirms kokoro TTS works in Node.js server context
-
-### LOW Confidence (Validate During Implementation)
-- kokoro-js `device: "cpu"` performance on M1 -- based on general ONNX ARM64 support claims, not specific benchmarks
-- Chatterbox MPS install order -- based on community adaptation, not official Resemble AI docs
-- Remotion render time estimates (~1-2 min per minute of output) -- based on general community reports, varies with composition complexity
+### MEDIUM Confidence (Verified via Multiple Sources)
+- `react-player` v3.4.0 — Current version confirmed via npm search result, React 19 compatible. Rejected because native `<video>` is sufficient.
+- GCS `predefinedAcl: "publicRead"` for MP4 upload — Confirmed by multiple Node.js GCS upload guides; consistent with existing `uploadThumbnailToGCS` upload approach.
 
 ---
-*Stack research for: AtlusDeck v1.9 Tutorial Video Production Pipeline*
-*Researched: 2026-03-18*
+*Stack research for: AtlusDeck v1.10 In-App Tutorials & Feedback*
+*Researched: 2026-03-20*

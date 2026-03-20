@@ -1,563 +1,630 @@
 # Architecture Research
 
-**Domain:** Tutorial Video Production Pipeline (Playwright capture + Remotion composition + Local TTS)
-**Researched:** 2026-03-18
-**Confidence:** HIGH
+**Domain:** In-app tutorial browsing, MP4 video playback, user progress tracking, and reusable feedback — integrated into an existing Next.js 15 / Mastra Hono monorepo
+**Researched:** 2026-03-20
+**Confidence:** HIGH (based on direct codebase inspection of the target app)
+
+---
 
 ## System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Tutorial Pipeline (apps/tutorials)               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────┐    │
-│  │  Scripts &    │   │  Playwright   │   │  TTS (Python        │    │
-│  │  Fixtures     │   │  Capture      │   │  subprocess)        │    │
-│  │              │   │              │   │                      │    │
-│  │ narration/   │   │ captures/    │   │ audio/               │    │
-│  │ fixtures/    │   │  *.png       │   │  *.wav               │    │
-│  └──────┬───────┘   └──────┬───────┘   └──────────┬───────────┘    │
-│         │                  │                       │               │
-│         └──────────────────┼───────────────────────┘               │
-│                            ↓                                       │
-│              ┌──────────────────────────┐                          │
-│              │   Remotion Composition    │                          │
-│              │                          │                          │
-│              │  src/                    │                          │
-│              │    compositions/         │                          │
-│              │    components/           │                          │
-│              │  public/ (staticFile)    │                          │
-│              └──────────┬───────────────┘                          │
-│                         ↓                                          │
-│              ┌──────────────────────────┐                          │
-│              │   Output: .mp4 videos    │                          │
-│              │   out/                   │                          │
-│              └──────────────────────────┘                          │
-│                                                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│  apps/web (Next.js 15) — launched by Playwright against localhost   │
-│  No modifications needed — fully mocked via page.route()            │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         apps/web (Next.js 15, Vercel)                     │
+├──────────────────────────────────────────────────────────────────────────┤
+│  app/(authenticated)/tutorials/                                            │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────────────┐    │
+│  │  page.tsx        │  │  [id]/page.tsx   │  │  components/           │    │
+│  │  (browse grid)   │  │  (video player)  │  │  TutorialCard          │    │
+│  │                  │  │                  │  │  TutorialPlayer        │    │
+│  │  Server Component│  │  Server Component│  │  TutorialsClient       │    │
+│  │  loads Tutorial[]│  │  loads single    │  │  FeedbackWidget        │    │
+│  └────────┬─────────┘  └────────┬─────────┘  └────────────────────────┘    │
+│           │                     │                                           │
+│           ▼                     ▼                                           │
+│  lib/actions/tutorial-actions.ts   lib/actions/feedback-actions.ts         │
+│  (Server Actions — auth + agent call)                                      │
+├──────────────────────────────────────────────────────────────────────────┤
+│                         lib/api-client.ts (fetchAgent wrapper)             │
+└───────────────────────────────┬──────────────────────────────────────────┘
+                                │ HTTPS / Bearer JWT
+┌───────────────────────────────▼──────────────────────────────────────────┐
+│                     apps/agent (Mastra Hono, Railway)                      │
+├──────────────────────────────────────────────────────────────────────────┤
+│  mastra/index.ts — registerApiRoute                                        │
+│  ┌──────────────────────────────────────────────────────────────────┐      │
+│  │  GET  /tutorials          — list all with per-user watched state  │      │
+│  │  GET  /tutorials/:id      — single tutorial + watched state       │      │
+│  │  POST /tutorials/:id/view — mark tutorial as viewed               │      │
+│  │  POST /feedback           — submit segmented + free-text feedback │      │
+│  └──────────────────────────────────────────────────────────────────┘      │
+├──────────────────────────────────────────────────────────────────────────┤
+│  lib/tutorial-repo.ts    lib/feedback-repo.ts                              │
+│  (Prisma query functions, isolated from index.ts)                          │
+└───────────────────────────────┬──────────────────────────────────────────┘
+                                │ Prisma
+┌───────────────────────────────▼──────────────────────────────────────────┐
+│                  Supabase PostgreSQL                                        │
+│  ┌──────────────┐   ┌──────────────────┐   ┌────────────────────────┐    │
+│  │  Tutorial     │   │  TutorialView    │   │  AppFeedback           │    │
+│  │  (metadata    │   │  (per-user       │   │  (segmented control +  │    │
+│  │   + GCS URL)  │   │   watch state)   │   │   free-text, poly-     │    │
+│  └──────────────┘   └──────────────────┘   │   morphic by source)   │    │
+│                                             └────────────────────────┘    │
+└──────────────────────────────────────────────────────────────────────────┘
+                                │
+┌───────────────────────────────▼──────────────────────────────────────────┐
+│  Google Cloud Storage (VERTEX_SERVICE_ACCOUNT_KEY — never GOOGLE_SA_KEY)  │
+│  Bucket: atlusdeck-tutorials                                               │
+│  Object path: tutorials/{id}.mp4                                           │
+│  ACL: publicRead per object                                                │
+│  Public URL: https://storage.googleapis.com/{bucket}/tutorials/{id}.mp4   │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Decision: `apps/tutorials` (New Turborepo App)
+---
 
-**Recommendation:** Create `apps/tutorials` as a new Turborepo workspace app. Not a package, not root scripts.
+## Component Responsibilities
 
-**Why not `packages/tutorials`?**
-- Packages are shared libraries consumed by other packages/apps. The tutorial pipeline is a standalone build artifact producer (MP4 videos), not a library imported by `apps/web` or `apps/agent`.
-- Packages in this monorepo (`schemas`, `eslint-config`, `tsconfig`) are dependency-only.
-
-**Why not root scripts?**
-- Root-level scripts are ad-hoc utilities (the existing `scripts/secrets.sh`). The tutorial pipeline has its own dependencies (Remotion, Playwright config, TTS models), its own build/render commands, and its own output artifacts.
-- Putting Remotion deps at root would pollute the web/agent dependency trees.
-
-**Why `apps/tutorials`?**
-- Consistent with monorepo convention: `apps/*` are independently buildable/runnable workspaces.
-- Gets its own `package.json` with Remotion, Playwright, and kokoro-js dependencies isolated from web/agent.
-- Turborepo can orchestrate it: `turbo run render --filter=tutorials`.
-- The `pnpm-workspace.yaml` already includes `apps/*` -- no config change needed.
-- Playwright needs to launch `apps/web` via `next dev` or a built server -- this is a cross-app dependency, natural for `apps/` siblings.
-
-### Component Responsibilities
-
-| Component | Responsibility | Location |
+| Component | Responsibility | Lives In |
 |-----------|----------------|----------|
-| **Narration Scripts** | Written text for each tutorial step, with timing markers | `apps/tutorials/scripts/{tutorial-name}/` |
-| **Mock Fixtures** | JSON responses for every intercepted API route | `apps/tutorials/fixtures/` |
-| **Playwright Captures** | Drive real browser, intercept APIs, take screenshots per step | `apps/tutorials/captures/` |
-| **TTS Generator** | Convert narration text to .wav audio files via Kokoro/Chatterbox | `apps/tutorials/audio/` |
-| **Remotion Compositions** | Stitch screenshots + audio + overlays into final video | `apps/tutorials/src/` |
-| **Render Pipeline** | Orchestration scripts that run capture -> TTS -> render | `apps/tutorials/pipeline/` |
-| **Output** | Final .mp4 files | `apps/tutorials/out/` |
+| `Tutorial` Prisma model | Source of truth for title, description, GCS URL, group label, sort order, `isNew` flag | `apps/agent/prisma/schema.prisma` |
+| `TutorialView` Prisma model | Per-user watched/unwatched state; one row per (userId, tutorialId) | `apps/agent/prisma/schema.prisma` |
+| `AppFeedback` Prisma model | Polymorphic feedback rows: segment label, free-text, source context (tutorial ID or feature slug) | `apps/agent/prisma/schema.prisma` |
+| Agent tutorial routes | GET /tutorials, GET /tutorials/:id, POST /tutorials/:id/view | `apps/agent/src/mastra/index.ts` |
+| Agent feedback route | POST /feedback | `apps/agent/src/mastra/index.ts` |
+| `tutorial-repo.ts` | Prisma query functions for Tutorial + TutorialView | `apps/agent/src/lib/` |
+| `feedback-repo.ts` | Prisma query functions for AppFeedback | `apps/agent/src/lib/` |
+| `tutorial-actions.ts` | Server Actions wrapping agent calls; used by Server Components | `apps/web/src/lib/actions/` |
+| `feedback-actions.ts` | Server Actions for feedback submission | `apps/web/src/lib/actions/` |
+| `app/(authenticated)/tutorials/page.tsx` | Server Component — fetches tutorial list + user view states, renders grid | `apps/web/src/app/(authenticated)/tutorials/` |
+| `app/(authenticated)/tutorials/[id]/page.tsx` | Server Component — fetches single tutorial, renders player + feedback | `apps/web/src/app/(authenticated)/tutorials/[id]/` |
+| `TutorialsClient` | Client Component — grid with optimistic watched state toggle | `apps/web/src/components/tutorials/` |
+| `TutorialCard` | Shows title, group label, duration, watched badge | `apps/web/src/components/tutorials/` |
+| `TutorialPlayer` | `<video>` element with `src={gcsUrl}`, controls; fires view action once on play | `apps/web/src/components/tutorials/` |
+| `FeedbackWidget` | Segmented control + free-text textarea + submit; reusable by source | `apps/web/src/components/tutorials/` |
+| `/api/tutorials/new-badge` Next.js route | Returns `{ hasNew: boolean }` for sidebar badge | `apps/web/src/app/api/tutorials/new-badge/route.ts` |
+| `sidebar.tsx` | MODIFIED: adds Tutorials nav item + "New" badge via existing useEffect pattern | `apps/web/src/components/sidebar.tsx` |
+| `upload-to-gcs.ts` script | Reads `apps/tutorials/output/videos/*.mp4`, uploads to GCS, upserts Tutorial rows in DB | `apps/tutorials/scripts/` |
+
+---
 
 ## Recommended Project Structure
 
+New files and modifications only:
+
 ```
+apps/agent/
+├── prisma/
+│   └── schema.prisma                       # MODIFIED: +Tutorial +TutorialView +AppFeedback
+├── prisma/migrations/
+│   └── YYYYMMDD_add_tutorial_models/
+│       └── migration.sql                   # NEW: forward-only migration
+└── src/
+    ├── lib/
+    │   ├── tutorial-repo.ts                # NEW: Prisma queries for Tutorial + TutorialView
+    │   └── feedback-repo.ts                # NEW: Prisma queries for AppFeedback
+    └── mastra/
+        └── index.ts                        # MODIFIED: +4 new registerApiRoute calls
+
+apps/web/
+└── src/
+    ├── app/
+    │   ├── (authenticated)/
+    │   │   └── tutorials/
+    │   │       ├── page.tsx                # NEW: Server Component browse page
+    │   │       ├── tutorials-client.tsx    # NEW: Client Component grid
+    │   │       └── [id]/
+    │   │           └── page.tsx            # NEW: Server Component player page
+    │   └── api/
+    │       └── tutorials/
+    │           └── new-badge/
+    │               └── route.ts            # NEW: badge poll endpoint for sidebar
+    ├── components/
+    │   ├── tutorials/
+    │   │   ├── tutorial-card.tsx           # NEW
+    │   │   ├── tutorial-player.tsx         # NEW
+    │   │   └── feedback-widget.tsx         # NEW (reusable)
+    │   └── sidebar.tsx                     # MODIFIED: +nav item +badge
+    └── lib/
+        └── actions/
+            ├── tutorial-actions.ts         # NEW: Server Actions
+            └── feedback-actions.ts         # NEW: Server Actions
+
 apps/tutorials/
-├── package.json              # Remotion, Playwright, kokoro-js deps
-├── remotion.config.ts        # Remotion CLI config
-├── playwright.config.ts      # Playwright config (baseURL: localhost:3000)
-├── tsconfig.json
-│
-├── scripts/                  # Narration scripts per tutorial
-│   ├── getting-started/
-│   │   ├── narration.json    # [{step: 1, text: "...", durationMs: 4000}, ...]
-│   │   └── metadata.json    # {title, description, fps, resolution}
-│   ├── creating-deals/
-│   │   ├── narration.json
-│   │   └── metadata.json
-│   └── ...                   # ~16 tutorial directories
-│
-├── fixtures/                 # Mock API responses (shared across tutorials)
-│   ├── api/                  # Mirrors apps/web API route structure
-│   │   ├── deals/
-│   │   │   ├── list.json
-│   │   │   └── [dealId]/
-│   │   │       ├── detail.json
-│   │   │       └── chat/
-│   │   │           └── response.json
-│   │   ├── agents/
-│   │   │   └── chat/
-│   │   │       └── stream.json
-│   │   ├── deck-structures/
-│   │   ├── presentations/
-│   │   ├── generation-logs/
-│   │   └── workflows/
-│   ├── agent/                # Mocks for apps/agent Hono routes
-│   │   ├── touch1/
-│   │   ├── touch2/
-│   │   ├── touch3/
-│   │   └── touch4/
-│   ├── auth/                 # Mock OAuth/session responses
-│   │   └── session.json
-│   └── google/               # Mock Google Drive/Slides responses
-│       ├── drive-files.json
-│       └── slides-get.json
-│
-├── captures/                 # Playwright test files + screenshot output
-│   ├── tests/                # Playwright test specs
-│   │   ├── getting-started.spec.ts
-│   │   ├── creating-deals.spec.ts
-│   │   ├── touch1-pager.spec.ts
-│   │   ├── touch4-proposal.spec.ts
-│   │   └── ...
-│   ├── helpers/
-│   │   ├── mock-routes.ts    # Shared page.route() interception setup
-│   │   ├── auth-mock.ts      # Mock authenticated session
-│   │   └── wait-helpers.ts   # Stability waits before screenshots
-│   └── screenshots/          # Output: step-numbered PNGs per tutorial
-│       ├── getting-started/
-│       │   ├── 001-login-page.png
-│       │   ├── 002-dashboard.png
-│       │   └── ...
-│       └── ...
-│
-├── audio/                    # TTS output
-│   ├── getting-started/
-│   │   ├── step-001.wav
-│   │   ├── step-002.wav
-│   │   └── ...
-│   └── ...
-│
-├── src/                      # Remotion video compositions
-│   ├── index.ts              # Remotion entry point (registerRoot)
-│   ├── Root.tsx              # All compositions registered here
-│   ├── compositions/         # One composition per tutorial
-│   │   ├── GettingStarted.tsx
-│   │   ├── CreatingDeals.tsx
-│   │   ├── Touch1Pager.tsx
-│   │   ├── Touch4Proposal.tsx
-│   │   └── ...
-│   ├── components/           # Shared Remotion components
-│   │   ├── TutorialStep.tsx  # Screenshot + audio + overlay for one step
-│   │   ├── ZoomEffect.tsx    # Animated zoom into UI regions
-│   │   ├── TextOverlay.tsx   # Callout text overlays
-│   │   ├── Transition.tsx    # Cross-fade or wipe between steps
-│   │   ├── IntroSlate.tsx    # Title card at video start
-│   │   └── OutroSlate.tsx    # End card with CTA
-│   └── lib/
-│       ├── load-tutorial.ts  # Load narration + screenshots for a tutorial
-│       └── timing.ts         # Calculate frame counts from durations
-│
-├── pipeline/                 # Orchestration scripts
-│   ├── capture.ts            # Run Playwright for one/all tutorials
-│   ├── tts.ts                # Run TTS for one/all tutorials
-│   ├── render.ts             # Run Remotion render for one/all tutorials
-│   └── build-all.ts          # Full pipeline: capture -> tts -> render
-│
-├── public/                   # Remotion staticFile() assets
-│   ├── brand/                # Lumenalta logos, colors
-│   └── music/                # Background music tracks (optional)
-│
-└── out/                      # Final rendered videos (gitignored)
-    ├── getting-started.mp4
-    ├── creating-deals.mp4
-    └── ...
+└── scripts/
+    └── upload-to-gcs.ts                    # NEW: GCS upload automation
 ```
 
-### Structure Rationale
+---
 
-- **`scripts/`:** Narration scripts are the authoring surface. Each tutorial is a directory with structured JSON (not plain text) so Remotion compositions can programmatically read step text, timing, and zoom targets.
-- **`fixtures/`:** Mirrors the real API route structure from `apps/web/src/app/api/` and `apps/agent`. This makes it obvious which endpoint a fixture mocks and simplifies maintenance when routes change.
-- **`captures/tests/`:** Playwright specs are the "recording scripts" -- they navigate the real app, interact with mocked UI, and take screenshots. Separating `tests/` from `screenshots/` output keeps specs clean.
-- **`src/`:** Standard Remotion project layout. Each composition file is one tutorial video. Shared components handle the repeating pattern: screenshot + audio + overlay per step.
-- **`pipeline/`:** Orchestration layer. Each script is independently runnable (`pnpm --filter tutorials run capture -- --tutorial getting-started`) but `build-all.ts` chains them.
-- **`public/`:** Remotion's `staticFile()` requires assets in `public/` adjacent to the Remotion `package.json`. Brand assets live here.
+## New Prisma Models
+
+### Tutorial
+
+```prisma
+// ─────────────────────────────────────────────────────────
+// v1.10: In-App Tutorial Videos
+// ─────────────────────────────────────────────────────────
+
+model Tutorial {
+  id          String         @id              // matches fixture id: "getting-started"
+  title       String
+  description String
+  group       String                          // "Core" | "Deals" | "Touches" | "Advanced"
+  sortOrder   Int                             // within group
+  gcsUrl      String                          // https://storage.googleapis.com/...
+  durationSec Int?                            // populated at upload time
+  isNew       Boolean        @default(true)   // cleared after 14 days or manual toggle
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  views       TutorialView[]
+
+  @@index([group, sortOrder])
+}
+```
+
+### TutorialView
+
+```prisma
+model TutorialView {
+  id         String   @id @default(cuid())
+  userId     String                          // Supabase user ID
+  tutorialId String
+  tutorial   Tutorial @relation(fields: [tutorialId], references: [id])
+  watchedAt  DateTime @default(now())
+
+  @@unique([userId, tutorialId])             // upsert-safe: re-watching doesn't dupe
+  @@index([userId])
+  @@index([tutorialId])
+}
+```
+
+**Design rationale:** One row per (userId, tutorialId). The `@@unique` constraint means `prisma.tutorialView.upsert()` is idempotent — re-watching a tutorial updates `watchedAt` without creating a duplicate. The `userId` is the Supabase user ID extracted from the verified JWT, consistent with how all other user-scoped data (UserGoogleToken, UserAtlusToken, UserSetting) stores identity.
+
+### AppFeedback
+
+```prisma
+model AppFeedback {
+  id         String   @id @default(cuid())
+  userId     String                          // Supabase user ID
+  segment    String                          // "tutorial_feedback" | "feature_feedback"
+  sourceType String                          // "tutorial" | "feature"
+  sourceId   String?                         // tutorial id or feature slug (no FK — not all sources are DB entities)
+  freeText   String                          // required, min 1 char
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([segment])
+  @@index([sourceType, sourceId])
+}
+```
+
+**Design rationale:** Polymorphic by `sourceType`/`sourceId` rather than separate models. This makes `FeedbackWidget` genuinely reusable across the tutorials page and any future feature feedback surface — the widget just passes `{ sourceType: "tutorial", sourceId: tutorialId }` or `{ sourceType: "feature", sourceId: "deck-structures" }`. No FK constraint on `sourceId` since feature slugs are not DB-backed entities.
+
+---
 
 ## Architectural Patterns
 
-### Pattern 1: Fixture-First Mock Architecture
+### Pattern 1: Server Component → Server Action → fetchAgent
 
-**What:** All API responses are pre-authored JSON fixtures loaded by a shared `mock-routes.ts` helper that calls `page.route()` for every known endpoint pattern before each Playwright test begins.
+**What:** All data-loading pages in this app are Server Components. They call Server Actions (in `lib/actions/`), which call `fetchAgent()` from `api-client.ts`, which hits the Mastra Hono server. This exact pattern is used by every existing page (deals, templates, slides, discovery, actions) and must be followed without exception.
 
-**When to use:** Every Playwright capture test.
+**When to use:** All tutorial list and detail pages. Never use `useEffect` + `fetch` for initial data loading.
 
-**Trade-offs:**
-- PRO: Fully deterministic -- same fixtures = same screenshots every time.
-- PRO: Zero infrastructure needed (no DB, no agent, no Google APIs).
-- CON: Fixtures must be manually updated when API response shapes change.
-- CON: Fixtures can drift from real API contracts.
+**Example (mirroring existing actions page pattern):**
 
-**Mitigation for drift:** Import Zod schemas from `@lumenalta/schemas` in a fixture validation script that checks all fixture JSON files conform to the real response types. Run this as a CI check.
-
-**Example:**
 ```typescript
-// captures/helpers/mock-routes.ts
-import { Page } from '@playwright/test';
-import dealsList from '../../fixtures/api/deals/list.json';
-import sessionData from '../../fixtures/auth/session.json';
+// apps/web/src/app/(authenticated)/tutorials/page.tsx
+export const dynamic = "force-dynamic";
 
-export async function setupMockRoutes(page: Page) {
-  // Auth - simulate logged-in session
-  await page.route('**/auth/v1/token*', route =>
-    route.fulfill({ json: sessionData })
-  );
+export default async function TutorialsPage() {
+  const tutorials = await listTutorialsAction();
+  return <TutorialsClient initialTutorials={tutorials} />;
+}
+```
 
-  // Deals list
-  await page.route('**/api/deals*', route =>
-    route.fulfill({ json: dealsList })
-  );
+```typescript
+// apps/web/src/lib/actions/tutorial-actions.ts
+"use server";
+import { fetchTutorials } from "@/lib/api-client";
+import { createClient } from "@/lib/supabase/server";
 
-  // Agent service calls
-  await page.route('**/agent/**', route =>
-    route.fulfill({ json: { status: 'ok' } })
+export async function listTutorialsAction() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return fetchTutorials(user?.id);
+}
+
+export async function markTutorialViewedAction(tutorialId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await markTutorialViewed(tutorialId, user.id);
+  revalidatePath("/tutorials");
+}
+```
+
+### Pattern 2: Client Component with Optimistic View Tracking
+
+**What:** The "watched" badge flips immediately on play (optimistic update via `useState`), then a `startTransition` + Server Action records it in the DB asynchronously. No loading spinner for a non-critical tracking event.
+
+**When to use:** `TutorialPlayer` fires this once per session (guarded by `useRef<boolean>`).
+
+**Trade-offs:** If the Server Action fails, the badge shows watched=true but no DB row exists. Acceptable trade-off for view tracking — it is not a financial transaction. The badge reverts on next page load if the action failed.
+
+```tsx
+// apps/web/src/components/tutorials/tutorial-player.tsx
+"use client";
+import { useRef, startTransition } from "react";
+
+export function TutorialPlayer({
+  src,
+  onViewed,
+}: {
+  src: string;
+  onViewed: () => void;
+}) {
+  const hasTracked = useRef(false);
+
+  function handlePlay() {
+    if (hasTracked.current) return;
+    hasTracked.current = true;
+    startTransition(() => { onViewed(); });
+  }
+
+  return (
+    <video
+      src={src}
+      controls
+      className="w-full rounded-lg"
+      onPlay={handlePlay}
+    />
   );
 }
 ```
 
-### Pattern 2: Step-Indexed Pipeline
+### Pattern 3: Native `<video>` Element — No Third-Party Player
 
-**What:** Each tutorial is a sequence of numbered steps. Narration scripts, screenshots, audio files, and Remotion sequences all share the same step index (001, 002, 003...). This creates a natural 1:1:1:1 mapping across pipeline stages.
+**What:** Standard HTML5 `<video controls>` with `src` pointing directly to the public GCS URL. No react-player, video.js, or iframe embed.
 
-**When to use:** Always -- this is the core data model.
+**When to use:** This is the correct and only approach for this use case. Files are public GCS MP4s ranging from 5–20MB. The native video element handles buffering, keyboard shortcuts (space to pause, arrow keys), fullscreen, and responsive sizing across all modern browsers.
 
-**Trade-offs:**
-- PRO: Adding/removing a step is straightforward -- renumber and re-run.
-- PRO: Each pipeline stage can run independently given the previous stage's output exists.
-- CON: Inserting a step mid-sequence requires renumbering (mitigated by using sparse numbering like 010, 020, 030).
+**Why not a library:** Adding a 50–200KB JS video player library to wrap a `<video>` tag is pure overhead. There is no adaptive bitrate requirement, no chapter navigation, no analytics SDK — nothing that would justify a third-party dependency.
 
-**Example:**
+### Pattern 4: GCS Upload via googleapis — Not @google-cloud/storage
+
+**What:** The existing GCS integration (`apps/agent/src/lib/gcs-thumbnails.ts`) uses `google.storage({ version: "v1", auth })` from the `googleapis` package — not the `@google-cloud/storage` npm package. The upload script must reuse this exact pattern.
+
+**Why:** The `googleapis` package is already a dependency in `apps/agent`. Using `@google-cloud/storage` would add a second GCS SDK with a different API surface and additional bundle weight. The existing `getStorageClient()` factory in `gcs-thumbnails.ts` should be extracted to a shared lib function and reused.
+
+**Credential requirement:** `VERTEX_SERVICE_ACCOUNT_KEY` — never `GOOGLE_SERVICE_ACCOUNT_KEY`. GCS is a paid GCP service. This constraint is in CLAUDE.md.
+
 ```typescript
-// scripts/getting-started/narration.json
-[
-  {
-    "step": 1,
-    "action": "screenshot",
-    "text": "Welcome to AtlusDeck. Start by signing in with your Lumenalta Google account.",
-    "durationMs": 4000,
-    "zoom": { "selector": ".login-button", "scale": 1.5 }
-  },
-  {
-    "step": 2,
-    "action": "screenshot",
-    "text": "After signing in, you will see the deal pipeline, your home base for managing all active opportunities.",
-    "durationMs": 5000,
-    "zoom": null
-  }
-]
+// apps/tutorials/scripts/upload-to-gcs.ts (outline)
+// 1. For each apps/tutorials/output/videos/{id}.mp4:
+//    a. Derive tutorialId from filename (strip .mp4)
+//    b. Read apps/tutorials/fixtures/{id}/script.json -> { title, description }
+//    c. Derive group from tutorialId prefix (getting-started -> "Core", deals -> "Deals", etc.)
+//    d. Upload to GCS: bucket=atlusdeck-tutorials, key=tutorials/{id}.mp4
+//       - contentType: video/mp4
+//       - predefinedAcl: publicRead
+//    e. Upsert Tutorial row in DB via Prisma:
+//       { id, title, description, group, sortOrder, gcsUrl, isNew: true }
+// 2. Print summary table of uploaded tutorials + public URLs
 ```
 
-### Pattern 3: Cross-App Playwright Launch
+### Pattern 5: Sidebar "New" Badge via API Route + useEffect
 
-**What:** Playwright in `apps/tutorials` starts the `apps/web` Next.js dev server as a dependency, then runs capture tests against it. This is configured via Playwright's `webServer` config option.
+**What:** The existing `Action Required` badge in `sidebar.tsx` uses `useEffect(() => fetch("/api/actions/count"), [pathname])`. The Tutorials "New" badge follows the exact same pattern: a Next.js API route (`/api/tutorials/new-badge`) calls the agent or queries the DB to return `{ hasNew: boolean }`.
 
-**When to use:** Every capture run.
+**Why an API route instead of a Server Action:** The sidebar is a Client Component (`"use client"`). Client Components cannot call Server Actions directly for side-effect-free reads — they must use a fetch to a Route Handler. The existing `pendingCount` implementation proves this pattern works.
 
-**Trade-offs:**
-- PRO: Real app, real components, real routing -- screenshots are 100% faithful.
-- PRO: No modifications needed to `apps/web` code.
-- CON: `apps/web` dev server startup adds ~10-15 seconds.
-- CON: Must ensure `apps/web` env vars don't try to connect to real services (but all calls are intercepted by `page.route()` anyway).
-
-**Example:**
 ```typescript
-// apps/tutorials/playwright.config.ts
-import { defineConfig } from '@playwright/test';
+// apps/web/src/app/api/tutorials/new-badge/route.ts
+import { NextResponse } from "next/server";
+import { fetchTutorialNewBadge } from "@/lib/api-client";
 
-export default defineConfig({
-  testDir: './captures/tests',
-  outputDir: './captures/screenshots',
-  use: {
-    baseURL: 'http://localhost:3000',
-    screenshot: 'off', // We take manual screenshots, not automatic
-    video: 'off',      // We compose video via Remotion, not Playwright
-  },
-  webServer: {
-    command: 'pnpm --filter web run dev',
-    port: 3000,
-    reuseExistingServer: true,
-    timeout: 30000,
-  },
-});
-```
-
-### Pattern 4: TTS as Dual-Engine (JS Draft / Python Production)
-
-**What:** TTS generation supports two engines. **Kokoro via kokoro-js** (npm package, pure JavaScript, runs on CPU) for fast draft iteration. **Chatterbox via Python subprocess** for production-quality narration. The pipeline script accepts an `--engine` flag to switch between them.
-
-**When to use:** Draft with Kokoro during script development; render with Chatterbox once scripts are locked.
-
-**Trade-offs:**
-- PRO: `kokoro-js` requires zero Python setup -- fast onboarding for script iteration.
-- PRO: Chatterbox produces near-human narration with emotion tags.
-- CON: Chatterbox requires Python 3.11+ and GPU (M1 Metal/MPS) for speed.
-- CON: Two different audio quality levels means draft timing may shift slightly with production voices.
-
-**Example:**
-```typescript
-// pipeline/tts.ts
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-
-const exec = promisify(execFile);
-
-async function generateAudio(
-  text: string,
-  outputPath: string,
-  engine: 'kokoro' | 'chatterbox'
-) {
-  if (engine === 'kokoro') {
-    // Pure JS -- no Python required
-    const { KokoroTTS } = await import('kokoro-js');
-    const tts = await KokoroTTS.from_pretrained(
-      'onnx-community/Kokoro-82M-v1.0-ONNX',
-      { dtype: 'q8' }
-    );
-    const audio = await tts.generate(text, { voice: 'af_heart' });
-    audio.save(outputPath);
-  } else {
-    // Python subprocess for production quality
-    await exec('python', [
-      'pipeline/chatterbox_generate.py',
-      '--text', text,
-      '--output', outputPath,
-    ]);
-  }
+export async function GET() {
+  const { hasNew } = await fetchTutorialNewBadge();
+  return NextResponse.json({ hasNew });
 }
 ```
+
+Then in `sidebar.tsx`, add alongside the existing `pendingCount` useEffect:
+```typescript
+const [hasNewTutorials, setHasNewTutorials] = useState(false);
+useEffect(() => {
+  fetch("/api/tutorials/new-badge")
+    .then(r => r.json())
+    .then((d: { hasNew?: boolean }) => setHasNewTutorials(d.hasNew ?? false))
+    .catch(() => {});
+}, [pathname]);
+```
+
+---
 
 ## Data Flow
 
-### Full Pipeline Flow
+### Tutorial Browse Flow
 
 ```
-Step 1: AUTHOR
-  narration.json (human-written per tutorial)
-      |
-Step 2: CAPTURE (Playwright)                   Step 3: TTS (Kokoro or Chatterbox)
-  Start apps/web dev server                       Read narration.json step text
-  -> page.route() intercepts ALL API calls        -> Generate .wav per step
-  -> Navigate through tutorial steps              -> Output: audio/{tutorial}/step-{N}.wav
-  -> page.screenshot() at each step
-  -> Output: captures/screenshots/{tutorial}/
-      |                                               |
-      +---------------------+-------------------------+
-                            |
-                            v
-                  Step 4: COMPOSE (Remotion)
-                    Load screenshots + audio + narration metadata
-                    -> Build <Sequence> per step
-                    -> Add overlays, zoom effects, transitions
-                    -> npx remotion render
-                    -> Output: out/{tutorial}.mp4
+User navigates to /tutorials
+    ↓
+TutorialsPage (Server Component)
+    ↓ calls
+listTutorialsAction() (Server Action)
+    ↓ calls
+fetchAgent("GET /tutorials?userId=...")
+    ↓ agent queries
+prisma.tutorial.findMany({ include: { views: { where: { userId } } } })
+    ↓ returns
+Tutorial[] each with { ...tutorial, watched: boolean }
+    ↓
+TutorialsClient renders grouped grid
+    groupBy(tutorial.group), sortBy(tutorial.sortOrder)
+    ↓
+TutorialCard per tutorial
+    watched badge if TutorialView exists for current user
+    "NEW" badge if tutorial.isNew
 ```
 
-Steps 2 and 3 are independent and can run in parallel. Step 4 requires both to complete.
-
-### Fixture-to-Route Mapping
-
-The mock fixtures mirror the real API surface. Key routes to mock:
+### Video Play + View Tracking Flow
 
 ```
-Real route (apps/web)                    Fixture file (apps/tutorials)
-------------------------------------     ------------------------------------
-GET  /api/deals                       -> fixtures/api/deals/list.json
-GET  /api/deals/[id]                  -> fixtures/api/deals/[dealId]/detail.json
-POST /api/deals/[id]/chat             -> fixtures/api/deals/[dealId]/chat/response.json
-POST /api/agents/chat                 -> fixtures/api/agents/chat/stream.json
-GET  /api/deck-structures             -> fixtures/api/deck-structures/list.json
-GET  /api/presentations               -> fixtures/api/presentations/list.json
-POST /api/generation-logs             -> fixtures/api/generation-logs/create.json
-POST /api/workflows/[touchType]/start -> fixtures/api/workflows/start.json
-GET  [AGENT_URL]/api/touch1/*         -> fixtures/agent/touch1/*.json
-GET  [AGENT_URL]/api/touch4/*         -> fixtures/agent/touch4/*.json
-POST [SUPABASE_URL]/auth/v1/token     -> fixtures/auth/session.json
+User clicks play on <video> element
+    ↓
+TutorialPlayer.handlePlay() fires (once per session, guarded by useRef)
+    ↓ startTransition (non-blocking)
+markTutorialViewedAction(tutorialId) (Server Action)
+    ↓ calls
+fetchAgent("POST /tutorials/:id/view", { userId })
+    ↓ agent executes
+prisma.tutorialView.upsert({
+  where: { userId_tutorialId: { userId, tutorialId } },
+  create: { userId, tutorialId, watchedAt: new Date() },
+  update: { watchedAt: new Date() }
+})
+    ↓ background
+revalidatePath("/tutorials")   // badge updates on next navigation
 ```
 
-### Build Order (Dependency Graph)
+### Feedback Submission Flow
 
 ```
-                 ┌─────────────────────┐
-                 │  1. Author Scripts   │  (human, no deps)
-                 │  narration.json      │
-                 │  metadata.json       │
-                 └────────┬────────────┘
-                          │
-              ┌───────────┼───────────┐
-              |                       |
-              v                       v
-  ┌───────────────────┐   ┌───────────────────┐
-  │ 2a. Capture (PW)  │   │ 2b. TTS Audio     │  (parallel)
-  │  screenshots/     │   │  audio/            │
-  └─────────┬─────────┘   └─────────┬─────────┘
-            │                       │
-            └───────────┬───────────┘
-                        v
-            ┌───────────────────────┐
-            │ 3. Remotion Render    │  (depends on 2a + 2b)
-            │  out/*.mp4            │
-            └───────────────────────┘
+User selects segment + types text + clicks Submit
+    ↓
+FeedbackWidget (Client Component) — optimistic "Submitting..." state
+    ↓ startTransition
+submitFeedbackAction({ segment, sourceType, sourceId, freeText }) (Server Action)
+    ↓ calls
+fetchAgent("POST /feedback", { userId, segment, sourceType, sourceId, freeText })
+    ↓ agent executes
+prisma.appFeedback.create({ data: { userId, segment, sourceType, sourceId, freeText } })
+    ↓ returns
+{ success: true }
+    ↓
+Widget resets to empty state + fires toast("Thanks for your feedback!", { id: "feedback" })
 ```
 
-### Turborepo Integration
+### GCS Upload Automation Flow
 
-Add to `turbo.json`:
-```json
-{
-  "tasks": {
-    "capture": {
-      "dependsOn": ["web#build"],
-      "outputs": ["captures/screenshots/**"],
-      "cache": false
-    },
-    "tts": {
-      "outputs": ["audio/**"],
-      "cache": false
-    },
-    "render": {
-      "dependsOn": ["capture", "tts"],
-      "outputs": ["out/**"],
-      "cache": false
-    }
-  }
-}
+```
+Developer runs: pnpm --filter tutorials tsx scripts/upload-to-gcs.ts
+    ↓
+Read: apps/tutorials/output/videos/*.mp4 (17 files)
+    ↓ for each file
+  Derive tutorialId from filename (strip .mp4)
+  Read fixtures/{id}/script.json → { title, description }
+  Derive group + sortOrder from tutorialId
+    ↓
+  Upload to GCS:
+    bucket: process.env.GCS_TUTORIALS_BUCKET
+    key: tutorials/{id}.mp4
+    contentType: video/mp4
+    predefinedAcl: publicRead
+    → publicUrl: https://storage.googleapis.com/{bucket}/tutorials/{id}.mp4
+    ↓
+  Prisma upsert Tutorial row:
+    { id, title, description, group, sortOrder, gcsUrl, durationSec, isNew: true }
+    (upsert: update gcsUrl if id exists — idempotent re-runs)
+    ↓
+Print: ✓ 17 tutorials uploaded
+       Table of { id, group, url }
 ```
 
-Add to `apps/tutorials/package.json`:
-```json
-{
-  "name": "tutorials",
-  "private": true,
-  "scripts": {
-    "capture": "playwright test",
-    "capture:one": "playwright test --grep",
-    "tts": "tsx pipeline/tts.ts",
-    "tts:draft": "tsx pipeline/tts.ts --engine kokoro",
-    "tts:prod": "tsx pipeline/tts.ts --engine chatterbox",
-    "render": "tsx pipeline/render.ts",
-    "render:one": "tsx pipeline/render.ts --tutorial",
-    "studio": "npx remotion studio",
-    "build-all": "tsx pipeline/build-all.ts",
-    "validate-fixtures": "tsx pipeline/validate-fixtures.ts"
-  }
-}
+### Sidebar "New" Badge Refresh Flow
+
 ```
+User navigates to any page (pathname changes)
+    ↓
+sidebar.tsx useEffect([pathname]) fires
+    ↓
+fetch("/api/tutorials/new-badge")
+    ↓
+Next.js route: GET /api/tutorials/new-badge
+    ↓
+fetchAgent("GET /tutorials/new-badge")
+    ↓
+agent: prisma.tutorial.count({ where: { isNew: true } }) > 0
+    ↓
+{ hasNew: true/false }
+    ↓
+sidebar renders green dot on Tutorials nav item if hasNew
+```
+
+---
 
 ## Integration Points
 
-### With Existing Monorepo
+### New vs Modified
 
-| Integration | Type | Notes |
-|-------------|------|-------|
-| `apps/web` dev server | Playwright `webServer` config launches it | No code changes to web needed |
-| `@lumenalta/schemas` | Import Zod types for fixture validation | Optional but recommended to prevent drift |
-| `apps/web` API routes | Fixture JSON mirrors route response shapes | Fixtures must be updated when APIs change |
-| `apps/agent` Hono routes | Fixtures mock agent responses via URL pattern | Agent server is NOT started; all intercepted |
-| Supabase Auth | Mock session cookies via `page.route()` | No real Supabase connection needed |
-| Google APIs | Mock Drive/Slides responses in fixtures | No real Google credentials needed |
-| Turborepo | New tasks: `capture`, `tts`, `render` | Cache disabled (deterministic but large output) |
+| Item | New or Modified | Details |
+|------|-----------------|---------|
+| `Tutorial` Prisma model | NEW | Requires `prisma migrate dev --name add-tutorial-models` |
+| `TutorialView` Prisma model | NEW | Same migration |
+| `AppFeedback` Prisma model | NEW | Same migration |
+| `GCS_TUTORIALS_BUCKET` env var | NEW | Added to `apps/agent/src/env.ts` — separate from GCS_THUMBNAIL_BUCKET |
+| `GET /tutorials` agent route | NEW | Returns Tutorial[] with per-user watched flag |
+| `GET /tutorials/:id` agent route | NEW | Single tutorial + watched flag |
+| `GET /tutorials/new-badge` agent route | NEW | Returns `{ hasNew: boolean }` |
+| `POST /tutorials/:id/view` agent route | NEW | Upserts TutorialView |
+| `POST /feedback` agent route | NEW | Creates AppFeedback row |
+| `tutorial-repo.ts` | NEW | Prisma query functions |
+| `feedback-repo.ts` | NEW | Prisma query functions |
+| `tutorial-actions.ts` | NEW | Server Actions |
+| `feedback-actions.ts` | NEW | Server Actions |
+| `app/(authenticated)/tutorials/page.tsx` | NEW | Browse page |
+| `app/(authenticated)/tutorials/[id]/page.tsx` | NEW | Player page |
+| `TutorialsClient` component | NEW | Optimistic client component |
+| `TutorialCard` component | NEW | |
+| `TutorialPlayer` component | NEW | |
+| `FeedbackWidget` component | NEW | |
+| `/api/tutorials/new-badge` route | NEW | Next.js Route Handler for sidebar |
+| `sidebar.tsx` | MODIFIED | Add Tutorials nav item + "New" badge |
+| `api-client.ts` | MODIFIED | Add fetchTutorials, markTutorialViewed, submitFeedback, fetchTutorialNewBadge |
+| `apps/tutorials/scripts/upload-to-gcs.ts` | NEW | GCS upload automation script |
 
-### New vs Modified Components
+### External Services
 
-| Component | Status | Details |
-|-----------|--------|---------|
-| `apps/tutorials/` | **NEW** | Entire new app workspace |
-| `apps/web/` | **UNMODIFIED** | Playwright launches it as-is via dev server |
-| `apps/agent/` | **UNMODIFIED** | Not started; all agent calls mocked in fixtures |
-| `packages/schemas/` | **UNMODIFIED** | Optionally imported for fixture validation |
-| `turbo.json` | **MODIFIED** | Add `capture`, `tts`, `render` task definitions |
-| `package.json` (root) | **UNMODIFIED** | `@playwright/test` already installed at root |
-| `.gitignore` | **MODIFIED** | Add `apps/tutorials/out/`, `apps/tutorials/audio/`, `apps/tutorials/captures/screenshots/` |
+| Service | Integration Pattern | Credential |
+|---------|---------------------|------------|
+| GCS (upload from script) | `googleapis` v1 storage `objects.insert` with `predefinedAcl: publicRead` | `VERTEX_SERVICE_ACCOUNT_KEY` |
+| GCS (video playback) | Direct public HTTPS URL in `<video src>` — no auth | None (public object) |
+| Supabase PostgreSQL | Prisma ORM via `apps/agent/src/lib/db.ts`, forward-only migrations | `DATABASE_URL` / `DIRECT_URL` |
 
-### External Dependencies (New)
+### Internal Boundaries
 
-| Dependency | Scope | Install Location |
-|------------|-------|------------------|
-| `remotion` + `@remotion/cli` + `@remotion/bundler` | npm | `apps/tutorials` |
-| `kokoro-js` | npm | `apps/tutorials` (draft TTS, pure JS) |
-| `@remotion/media-utils` | npm | `apps/tutorials` (audio duration detection) |
-| `tsx` | npm devDep | `apps/tutorials` (run pipeline scripts) |
-| `chatterbox-tts` | pip (Python) | System-level virtualenv (production TTS) |
-| Python 3.11+ | System | Required only for Chatterbox production audio |
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| Web → Agent (tutorial data) | `fetchAgent()` in `api-client.ts` with Bearer JWT — same as all other data | Must add `fetchTutorials`, `fetchTutorialById`, `markTutorialViewed`, `submitFeedback`, `fetchTutorialNewBadge` |
+| Agent → DB (tutorial queries) | Prisma via `tutorial-repo.ts` and `feedback-repo.ts` | Isolated in repo files to keep `index.ts` manageable |
+| Sidebar → New-badge API | `fetch("/api/tutorials/new-badge")` in `useEffect` | Sidebar is Client Component — cannot call Server Actions for reads |
+| Upload script → DB | Direct Prisma import in `apps/tutorials/scripts/` | Script runs locally with `.env` from `apps/agent`; needs `DATABASE_URL` |
+| Upload script → GCS | `googleapis` storage client with `VERTEX_SERVICE_ACCOUNT_KEY` | Can import or inline the `getStorageClient()` pattern from `gcs-thumbnails.ts` |
 
-## Scaling Considerations
+---
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 1-5 tutorials | Single developer runs full pipeline locally. Kokoro-js draft TTS is sufficient. |
-| 5-16 tutorials | Parallelize captures (Playwright sharding). Consider CI runner for renders. |
-| 16+ tutorials | CI/CD pipeline with caching. Separate "capture" and "render" stages. Store screenshots as artifacts. |
+## Build Order (Dependency Map)
 
-### Scaling Priorities
+The v1.10 features have a strict dependency chain. Phases that share no deps can run in parallel.
 
-1. **First bottleneck: Render time.** Remotion renders are CPU-intensive. A 5-minute tutorial at 30fps = 9,000 frames to render. On M1 Pro, expect ~10-20 minutes per tutorial. Mitigation: render only changed tutorials (hash narration.json + screenshots to detect changes).
-2. **Second bottleneck: Fixture maintenance.** As `apps/web` API routes evolve, fixtures drift. Mitigation: automated fixture validation against Zod schemas from `@lumenalta/schemas`.
+```
+Phase A: Prisma models + migration
+  (Tutorial, TutorialView, AppFeedback models in schema.prisma)
+  (prisma migrate dev --name add-tutorial-models)
+    │
+    ├─── Phase B: GCS upload script + DB seed
+    │    (apps/tutorials/scripts/upload-to-gcs.ts)
+    │    (upserts Tutorial rows with gcsUrls)
+    │    Depends on: Phase A (Tutorial model must exist)
+    │
+    └─── Phase C: Agent routes + repo functions
+         (tutorial-repo.ts, feedback-repo.ts)
+         (4 new registerApiRoute calls in index.ts)
+         Depends on: Phase A (cannot query models that don't exist)
+              │
+              └─── Phase D: Web API client + Server Actions
+                   (fetchTutorials, markTutorialViewed, submitFeedback in api-client.ts)
+                   (tutorial-actions.ts, feedback-actions.ts)
+                   Depends on: Phase C (agent routes must be registered)
+                        │
+                        └─── Phase E: Web pages + components
+                             (tutorials/page.tsx, [id]/page.tsx)
+                             (TutorialsClient, TutorialCard, TutorialPlayer, FeedbackWidget)
+                             Depends on: Phase D (Server Actions must exist)
+                                  │
+                                  └─── Phase F: Sidebar integration + new-badge API
+                                       (sidebar.tsx nav item + badge)
+                                       (/api/tutorials/new-badge/route.ts)
+                                       Depends on: Phase E (destination page must exist)
+```
+
+**Minimum viable order:** A → (B and C in parallel) → D → E → F
+
+**Phase B (upload script) is a prerequisite for real data** but does not block code writing for phases C–F. The agent routes and web components can be built against fixture data while the upload script is being developed.
+
+---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Capturing Video with Playwright Instead of Screenshots
+### Anti-Pattern 1: Using GOOGLE_SERVICE_ACCOUNT_KEY for GCS
 
-**What people do:** Use Playwright's built-in video recording (`video: 'on'`) to capture tutorial footage directly.
-**Why it's wrong:** Playwright video is screen-capture quality (low FPS, no control over zoom/transitions/overlays). You get a single unedited recording with no ability to add narration sync, callouts, or branded intro/outro.
-**Do this instead:** Capture high-resolution screenshots per step, then compose with Remotion where you have full programmatic control over every frame.
+**What people do:** Use `GOOGLE_SERVICE_ACCOUNT_KEY` when writing to GCS because it's the "Google" credential already set.
 
-### Anti-Pattern 2: Starting apps/agent for Tutorial Capture
+**Why it's wrong:** `GOOGLE_SERVICE_ACCOUNT_KEY` has only Google Workspace scopes (Drive, Slides, Docs). It does not have `devstorage` permissions. Uploads will return 403. This constraint is in CLAUDE.md and project memory.
 
-**What people do:** Run both `apps/web` and `apps/agent` during captures so "real" agent responses come back.
-**Why it's wrong:** Introduces non-determinism (LLM responses vary), requires credentials, requires database, makes captures slow and fragile.
-**Do this instead:** Mock ALL agent routes via `page.route()` with fixture JSON. The agent service is never started during tutorial capture.
+**Do this instead:** Use `VERTEX_SERVICE_ACCOUNT_KEY` with `scopes: ["https://www.googleapis.com/auth/devstorage.full_control"]` — identical to the existing `getStorageClient()` function in `gcs-thumbnails.ts`.
 
-### Anti-Pattern 3: Monolithic Fixture File
+### Anti-Pattern 2: prisma db push for New Models
 
-**What people do:** Put all mock data in a single `mocks.json` file.
-**Why it's wrong:** Becomes unmaintainable at ~16 tutorials with dozens of endpoints each. Hard to find which fixture corresponds to which route.
-**Do this instead:** Mirror the real API route structure in the fixtures directory. One file per endpoint per response variant.
+**What people do:** Run `prisma db push` because it's a single command that "just works" for adding new models.
 
-### Anti-Pattern 4: Putting Remotion in apps/web
+**Why it's wrong:** Violates CLAUDE.md explicitly. The dev database is treated as production. `db push` bypasses migration history, causing schema drift that requires manual recovery (`prisma migrate resolve --applied`).
 
-**What people do:** Add Remotion to the web app's dependencies and create compositions alongside Next.js pages.
-**Why it's wrong:** Remotion has its own webpack bundler that conflicts with Next.js. It adds ~50MB of dependencies to the production web app that will never be used in production. Build times increase for every web deploy.
-**Do this instead:** Isolate Remotion in its own app workspace where its bundler config does not interfere with Next.js.
+**Do this instead:** `prisma migrate dev --name add-tutorial-models`. Commit the generated migration file alongside the schema change. Use `--create-only` to inspect the SQL first if the migration is non-trivial.
 
-### Anti-Pattern 5: Hardcoded Screenshot Timing
+### Anti-Pattern 3: Client-Side Data Fetching for Tutorial List
 
-**What people do:** Use fixed `await page.waitForTimeout(2000)` before every screenshot.
-**Why it's wrong:** Either too slow (wastes time) or too fast (captures loading states). UI components render at different speeds.
-**Do this instead:** Wait for specific selectors, network idle, or animation completion before capturing. Use `page.waitForSelector()` and `page.waitForLoadState('networkidle')`.
+**What people do:** Build the tutorials page as a Client Component with `useEffect(() => fetch('/api/tutorials'))` for initial data loading.
 
-### Anti-Pattern 6: Committing Generated Artifacts to Git
+**Why it's wrong:** Every other page in this app uses Server Components for initial data. Client-side fetching causes a loading flash on first render, increases time-to-content, and is inconsistent with the codebase pattern.
 
-**What people do:** Commit screenshots, audio files, or rendered videos to the repository.
-**Why it's wrong:** Binary files bloat the repo. Screenshots and audio are regenerable from scripts + fixtures. Videos are ~50-200MB each.
-**Do this instead:** Gitignore all generated output (`captures/screenshots/`, `audio/`, `out/`). Only commit source files: narration scripts, fixtures, Playwright specs, Remotion compositions, and pipeline orchestration.
+**Do this instead:** Server Component → Server Action → `fetchAgent()`. The Client Component (`TutorialsClient`) only handles interactivity (optimistic watched toggles, feedback submit state).
+
+### Anti-Pattern 4: Third-Party Video Player
+
+**What people do:** Install `react-player` or `video.js` for "better" video experience.
+
+**Why it's wrong:** Tutorial videos are plain MP4 files under 20MB served from a public CDN URL. A 50–200KB JS library to wrap `<video>` is unnecessary weight. The native HTML5 video element handles buffering, fullscreen, keyboard shortcuts, and responsive sizing without any library.
+
+**Do this instead:** `<video controls src={gcsUrl} className="w-full rounded-lg" />`. If a poster image is needed, extract the first frame as a JPEG during the upload script run and upload it alongside the MP4.
+
+### Anti-Pattern 5: Inline Group/Segment Strings Scattered Across Files
+
+**What people do:** Hardcode `"Core"`, `"Deals"`, `"tutorial_feedback"` as string literals in multiple files.
+
+**Why it's wrong:** With 17 tutorials across 4–5 groups and multiple feedback segments, inconsistent casing or typos break grouping and filtering. These values need to be consistent from DB to API to UI.
+
+**Do this instead:** Define `TUTORIAL_GROUPS` and `FEEDBACK_SEGMENTS` as constants in `packages/schemas/src/constants.ts` alongside the existing `ACTION_TYPES` and `ARTIFACT_TYPES` constants. Use them in both the upload script (populating the DB) and the UI.
+
+### Anti-Pattern 6: Calling Server Actions from the Sidebar for Badge Reads
+
+**What people do:** Import and call a Server Action inside `sidebar.tsx` to check `hasNewTutorials`.
+
+**Why it's wrong:** `sidebar.tsx` is a Client Component (`"use client"`). Client Components cannot invoke Server Actions for data reads — only for mutations invoked by user events. Calling a Server Action in `useEffect` is not supported.
+
+**Do this instead:** Use a Next.js API route (`/api/tutorials/new-badge`) and `fetch()` inside `useEffect`, identical to the existing `pendingCount` pattern for Action Required.
+
+---
+
+## Scaling Considerations
+
+This milestone serves ~20 sellers. Scale is not a concern for v1.10.
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| ~20 users (current) | Public GCS objects, no CDN needed, no signed URLs |
+| 200 users | Add Cloud CDN in front of GCS bucket if egress costs appear |
+| 2000+ users | Move to a proper video CDN (Cloudflare Stream, Mux) with adaptive bitrate streaming |
+
+At 20 users watching a few tutorials per week, GCS egress (17 files × avg 12MB × 20 users × 2 views/month) ≈ 8GB/month ≈ $0.96/month at $0.12/GB — negligible.
+
+---
 
 ## Sources
 
-- [Remotion: Installing in existing project](https://www.remotion.dev/docs/brownfield) - Official docs on brownfield installation
-- [Remotion: Composition docs](https://www.remotion.dev/docs/composition) - Composition and Sequence patterns
-- [Remotion: Rendering](https://www.remotion.dev/docs/render) - CLI render workflow
-- [Remotion: staticFile()](https://www.remotion.dev/docs/staticfile) - Asset loading from public/
-- [Remotion monorepo template](https://github.com/Takamasa045/remotion-studio-monorepo) - Community monorepo pattern with pnpm
-- [Playwright: Mock APIs](https://playwright.dev/docs/mock) - page.route() interception patterns
-- [Playwright: Fixtures](https://playwright.dev/docs/test-fixtures) - Test fixture architecture
-- [Playwright: Configuration](https://playwright.dev/docs/test-use-options) - webServer and screenshot config
-- [kokoro-js npm package](https://www.npmjs.com/package/kokoro-js) - Pure JS TTS for Node.js (v1.2.1)
-- [Kokoro-82M ONNX model](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX) - ONNX model for kokoro-js
-- [Chatterbox TTS (Resemble AI)](https://github.com/resemble-ai/chatterbox) - Production TTS model (0.5B params)
-- [chatterbox-tts PyPI](https://pypi.org/project/chatterbox-tts/) - Python package for Chatterbox
+- Direct inspection of `apps/agent/src/lib/gcs-thumbnails.ts` — GCS upload pattern (HIGH confidence)
+- Direct inspection of `apps/agent/src/mastra/index.ts` — `registerApiRoute` patterns and route family conventions (HIGH confidence)
+- Direct inspection of `apps/web/src/components/sidebar.tsx` — badge pattern via `useEffect` + `fetch` (HIGH confidence)
+- Direct inspection of `apps/agent/prisma/schema.prisma` — model naming conventions, index patterns, forward-only migration history (HIGH confidence)
+- Direct inspection of `apps/web/src/lib/actions/action-required-actions.ts` — Server Action pattern (HIGH confidence)
+- Direct inspection of `apps/web/src/lib/api-client.ts` — `fetchAgent()` wrapper with Bearer JWT (HIGH confidence)
+- Direct inspection of `apps/tutorials/fixtures/*/script.json` — tutorial metadata structure: `{ id, title, description, steps }` (HIGH confidence)
+- Direct inspection of `apps/agent/src/env.ts` — existing env var patterns, `GCS_THUMBNAIL_BUCKET` as precedent for new `GCS_TUTORIALS_BUCKET` (HIGH confidence)
+- CLAUDE.md: NEVER `prisma db push`; `VERTEX_SERVICE_ACCOUNT_KEY` for all paid GCP services including GCS (HIGH confidence)
 
 ---
-*Architecture research for: Tutorial Video Production Pipeline (v1.9)*
-*Researched: 2026-03-18*
+
+*Architecture research for: v1.10 In-App Tutorials & Feedback*
+*Researched: 2026-03-20*
