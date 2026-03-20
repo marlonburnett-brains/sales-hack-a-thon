@@ -221,7 +221,7 @@ Plans:
 **Goal**: Five tutorials covering template/slide management, deck intelligence, agent configuration, and AtlusAI integration are captured, narrated, and rendered as MP4 videos
 **Depends on**: Phase 63 (needs async mock patterns for ingestion), Phase 66 (needs visual effects)
 **Requirements**: TUT-08, TUT-09, TUT-10, TUT-11, TUT-12
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 69-01-PLAN.md -- Scripts, fixtures, mock server extensions, and capture specs for all 5 tutorials
 - [ ] 69-02-PLAN.md -- TTS audio generation and MP4 rendering for all 5 tutorials
@@ -256,5 +256,5 @@ Plans:
 | 66. Visual Effects & Polish | 3/3 | Complete    | 2026-03-19 | - |
 | 67. Low-Complexity Tutorials | 3/3 | Complete   | 2026-03-19 | - |
 | 68. Medium-Complexity Tutorials (Deals & Briefing) | 2/2 | Complete    | 2026-03-20 | - |
-| 69. Medium-Complexity Tutorials (Library & Settings) | 0/2 | Not started | - | - |
+| 69. Medium-Complexity Tutorials (Library & Settings) | 1/2 | In Progress|  | - |
 | 70. High-Complexity Tutorials | 1/3 | In Progress|  | - |

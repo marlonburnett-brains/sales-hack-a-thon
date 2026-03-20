@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
 status: completed
-stopped_at: Completed 70-01-PLAN.md
-last_updated: "2026-03-20T00:43:45.609Z"
+stopped_at: Completed 69-01-PLAN.md
+last_updated: "2026-03-20T00:44:48.236Z"
 last_activity: "2026-03-20 -- Phase 70 Plan 01 complete: 3 HITL tutorial scripts, 25 stage fixtures, 3 capture specs"
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 23
-  completed_plans: 19
+  completed_plans: 20
   percent: 87
 ---
 
@@ -96,6 +96,10 @@ Recent decisions for v1.9:
 - [Phase 68]: Gap-closure plans producing only gitignored artifacts (audio/video) have no source commits per task
 - [Phase 70]: Touch 1 refine at lowfi gate, Touch 2 refine at skeleton gate, Touch 3 refine at lowfi gate
 - [Phase 70]: Asset-review route extended with stage-aware pattern for Plan 02
+- [Phase 69]: Shared content library with 5 templates and 17 slides auto-loaded by fixture loader for all tutorials
+- [Phase 69]: 9 mock server routes stage-aware for templates, deck-structures, agent-configs, and discovery domains
+- [Phase 69]: Agent prompts 7-stage lifecycle: both agentConfigDetail and agentConfigVersions in each stage fixture for parallel SSR
+- [Phase 69]: Deck structure URLs use touch-1 hyphen (Next.js slug) while API uses touch_1 underscore (VALID_SLUGS mapping)
 
 ### Pending Todos
 
@@ -110,6 +114,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T00:43:45.606Z
-Stopped at: Completed 70-01-PLAN.md
+Last session: 2026-03-20T00:44:48.233Z
+Stopped at: Completed 69-01-PLAN.md
 Next action: Execute 70-02-PLAN.md (Touch 4 HITL + Asset Review tutorial).

@@ -54,11 +54,11 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 - [x] **TUT-05**: "Deal Overview" tutorial — metrics cards, activity timeline, collaborator management
 - [x] **TUT-06**: "Deal Chat" tutorial — context-aware questions, transcript upload, saving notes, binding notes to touches
 - [x] **TUT-07**: "Pre-Call Briefing" tutorial — generate company research, value hypotheses, discovery questions, view history
-- [ ] **TUT-08**: "Template Library" tutorial — register templates from Drive, classify by touch type, trigger ingestion, monitor progress
-- [ ] **TUT-09**: "Slide Library" tutorial — browse slides, view details/metadata, search by content, update classifications
-- [ ] **TUT-10**: "Deck Structures" tutorial — view inferred structures, confidence scores, section flow, chat-based refinement
-- [ ] **TUT-11**: "Agent Prompts" tutorial — view/edit prompts, publish drafts, rollback versions, baseline prompt management
-- [ ] **TUT-12**: "AtlusAI Integration" tutorial — connect account, browse/search discovery content, ingest assets
+- [x] **TUT-08**: "Template Library" tutorial — register templates from Drive, classify by touch type, trigger ingestion, monitor progress
+- [x] **TUT-09**: "Slide Library" tutorial — browse slides, view details/metadata, search by content, update classifications
+- [x] **TUT-10**: "Deck Structures" tutorial — view inferred structures, confidence scores, section flow, chat-based refinement
+- [x] **TUT-11**: "Agent Prompts" tutorial — view/edit prompts, publish drafts, rollback versions, baseline prompt management
+- [x] **TUT-12**: "AtlusAI Integration" tutorial — connect account, browse/search discovery content, ingest assets
 
 ### Tutorial Content — High Complexity
 
@@ -135,11 +135,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TUT-05 | Phase 68 | Complete |
 | TUT-06 | Phase 68 | Complete |
 | TUT-07 | Phase 68 | Complete |
-| TUT-08 | Phase 69 | Pending |
-| TUT-09 | Phase 69 | Pending |
-| TUT-10 | Phase 69 | Pending |
-| TUT-11 | Phase 69 | Pending |
-| TUT-12 | Phase 69 | Pending |
+| TUT-08 | Phase 69 | Complete |
+| TUT-09 | Phase 69 | Complete |
+| TUT-10 | Phase 69 | Complete |
+| TUT-11 | Phase 69 | Complete |
+| TUT-12 | Phase 69 | Complete |
 | TUT-13 | Phase 70 | Complete |
 | TUT-14 | Phase 70 | Complete |
 | TUT-15 | Phase 70 | Complete |
