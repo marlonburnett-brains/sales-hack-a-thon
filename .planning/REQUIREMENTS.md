@@ -9,9 +9,9 @@ Requirements for in-app tutorials & feedback. Each maps to roadmap phases.
 
 ### Video Hosting
 
-- [ ] **HOST-01**: Upload script automates MP4 upload to GCS with public URL generation for all 17 tutorials
+- [x] **HOST-01**: Upload script automates MP4 upload to GCS with public URL generation for all 17 tutorials
 - [x] **HOST-02**: Tutorial Prisma model stores metadata (title, description, category, duration, GCS URL, sort order)
-- [ ] **HOST-03**: Upload script seeds Tutorial records from existing script.json fixtures (title, description, step count)
+- [x] **HOST-03**: Upload script seeds Tutorial records from existing script.json fixtures (title, description, step count)
 
 ### Tutorial Browsing
 
@@ -70,9 +70,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HOST-01 | Phase 71 | Pending |
+| HOST-01 | Phase 71 | Complete |
 | HOST-02 | Phase 71 | Complete |
-| HOST-03 | Phase 71 | Pending |
+| HOST-03 | Phase 71 | Complete |
 | BROWSE-01 | Phase 75 | Pending |
 | BROWSE-02 | Phase 72 | Pending |
 | BROWSE-03 | Phase 72 | Pending |
