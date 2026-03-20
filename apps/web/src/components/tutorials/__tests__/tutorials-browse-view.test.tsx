@@ -105,8 +105,9 @@ describe("TutorialsBrowseView – category sections", () => {
     // X of Y progress copy
     expect(screen.getByText(/1 of 3/i)).toBeInTheDocument();
 
-    // Progress bar element (role="progressbar")
-    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+    // Progress bar elements (one in header, one in category section)
+    const progressBars = screen.getAllByRole("progressbar");
+    expect(progressBars.length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows a completed accent when the category is 100% complete", () => {
@@ -126,8 +127,8 @@ describe("TutorialsBrowseView – category sections", () => {
 
     render(<TutorialsBrowseView data={data} />);
 
-    // When 100% complete the text changes to "2 of 2 - Complete!"
-    expect(screen.getByText(/complete/i)).toBeInTheDocument();
+    // When 100% complete the category shows "Complete!" in the X of Y text
+    expect(screen.getByText(/complete!/i)).toBeInTheDocument();
   });
 });
 
