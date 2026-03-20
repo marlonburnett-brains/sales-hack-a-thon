@@ -5,7 +5,7 @@ milestone_name: Tutorial Videos
 status: complete
 stopped_at: Milestone v1.9 archived
 last_updated: "2026-03-20"
-last_activity: "2026-03-20 -- Milestone v1.9 Tutorial Videos archived and completed"
+last_activity: "2026-03-20 -- Completed quick task 32: Reorganize tutorial output directories under output/"
 progress:
   total_phases: 9
   completed_phases: 9
@@ -55,6 +55,12 @@ None.
 - Content library access: 14/17 Drive shortcut targets need Viewer access (not code-blocking)
 - Prisma version constraint: Stay on 6.19.x -- Prisma 7.x has vector migration regression (#28867)
 - 4 deferred gap-closure phases (58-61) carry forward as Active requirements
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 32 | Reorganize tutorial output directories under output/ | 2026-03-20 | 22ef652 | [32-reorganize-tutorial-output-directories-u](./quick/32-reorganize-tutorial-output-directories-u/) |
 
 ## Session Continuity
 
