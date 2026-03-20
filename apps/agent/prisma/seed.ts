@@ -1,3 +1,6 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+
 import { PrismaClient } from "@prisma/client";
 
 import { seedPublishedAgentCatalog } from "../src/lib/agent-catalog-defaults";
@@ -129,6 +132,100 @@ async function main() {
     seededCount++;
   }
   console.log(`Content sources: ${seededCount} known sources seeded (status: not_accessible)`);
+
+  // ── Tutorials: seed from fixtures + manifest ──
+
+  const TUTORIAL_CATALOG: Array<{
+    slug: string;
+    category: string;
+    sortOrder: number;
+  }> = [
+    { slug: "getting-started", category: "getting_started", sortOrder: 1 },
+    { slug: "deals", category: "deal_workflows", sortOrder: 2 },
+    { slug: "deal-overview", category: "deal_workflows", sortOrder: 3 },
+    { slug: "deal-chat", category: "deal_workflows", sortOrder: 4 },
+    { slug: "briefing", category: "deal_workflows", sortOrder: 5 },
+    { slug: "touch-1-pager", category: "touch_points", sortOrder: 6 },
+    { slug: "touch-2-intro-deck", category: "touch_points", sortOrder: 7 },
+    { slug: "touch-3-capability-deck", category: "touch_points", sortOrder: 8 },
+    { slug: "touch-4-hitl", category: "touch_points", sortOrder: 9 },
+    { slug: "template-library", category: "content_management", sortOrder: 10 },
+    { slug: "slide-library", category: "content_management", sortOrder: 11 },
+    { slug: "deck-structures", category: "content_management", sortOrder: 12 },
+    { slug: "atlus-integration", category: "content_management", sortOrder: 13 },
+    { slug: "asset-review", category: "review", sortOrder: 14 },
+    { slug: "action-center", category: "review", sortOrder: 15 },
+    { slug: "agent-prompts", category: "settings_admin", sortOrder: 16 },
+    { slug: "google-drive-settings", category: "settings_admin", sortOrder: 17 },
+  ];
+
+  const manifestPath = path.resolve(
+    __dirname,
+    "../../tutorials/output/tutorials-manifest.json",
+  );
+
+  if (!fs.existsSync(manifestPath)) {
+    console.warn(
+      "tutorials-manifest.json not found -- run upload-to-gcs.ts first. Skipping tutorial seed.",
+    );
+  } else {
+    const manifest: Array<{
+      slug: string;
+      gcsUrl: string;
+      durationSec: number;
+    }> = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+
+    const manifestMap = new Map(manifest.map((m) => [m.slug, m]));
+    let tutorialSeeded = 0;
+
+    for (const entry of TUTORIAL_CATALOG) {
+      // Read fixture script.json for title, description, stepCount
+      const scriptPath = path.resolve(
+        __dirname,
+        `../../tutorials/fixtures/${entry.slug}/script.json`,
+      );
+
+      if (!fs.existsSync(scriptPath)) {
+        console.warn(`  Fixture not found for ${entry.slug}, skipping`);
+        continue;
+      }
+
+      const script: { title: string; description: string; steps: unknown[] } =
+        JSON.parse(fs.readFileSync(scriptPath, "utf-8"));
+
+      const manifestEntry = manifestMap.get(entry.slug);
+      if (!manifestEntry) {
+        console.warn(`  Manifest entry not found for ${entry.slug}, skipping`);
+        continue;
+      }
+
+      await prisma.tutorial.upsert({
+        where: { slug: entry.slug },
+        update: {
+          title: script.title,
+          description: script.description,
+          category: entry.category,
+          gcsUrl: manifestEntry.gcsUrl,
+          durationSec: manifestEntry.durationSec,
+          sortOrder: entry.sortOrder,
+          stepCount: script.steps.length,
+        },
+        create: {
+          slug: entry.slug,
+          title: script.title,
+          description: script.description,
+          category: entry.category,
+          gcsUrl: manifestEntry.gcsUrl,
+          durationSec: manifestEntry.durationSec,
+          sortOrder: entry.sortOrder,
+          stepCount: script.steps.length,
+        },
+      });
+      tutorialSeeded++;
+    }
+
+    console.log(`Tutorials: ${tutorialSeeded} of 17 seeded successfully`);
+  }
 
   console.log("\nDemo data seeded successfully!");
   console.log(`\nDemo scenario ready:`);
