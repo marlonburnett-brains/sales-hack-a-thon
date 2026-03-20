@@ -65,8 +65,8 @@ Requirements for the tutorial video production pipeline. Each maps to roadmap ph
 - [x] **TUT-13**: "Touch 1: First-Contact Pager" tutorial — 3-stage HITL, review/approve/refine at each gate, manual upload override
 - [x] **TUT-14**: "Touch 2: Intro Deck" tutorial — strategy resolution, slide selection, ordering, final Google Slides assembly
 - [x] **TUT-15**: "Touch 3: Capability Deck" tutorial — capability area selection, structure-driven assembly, approval flow
-- [ ] **TUT-16**: "Touch 4: Transcript-to-Proposal" tutorial — full 6-phase pipeline with 3 output artifacts (proposal, talk track, FAQ)
-- [ ] **TUT-17**: "Asset Review & Approval" tutorial — review generated artifacts, brand compliance checks, approve/reject workflows
+- [x] **TUT-16**: "Touch 4: Transcript-to-Proposal" tutorial — full 6-phase pipeline with 3 output artifacts (proposal, talk track, FAQ)
+- [x] **TUT-17**: "Asset Review & Approval" tutorial — review generated artifacts, brand compliance checks, approve/reject workflows
 
 ## v2 Requirements
 
@@ -143,8 +143,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TUT-13 | Phase 70 | Complete |
 | TUT-14 | Phase 70 | Complete |
 | TUT-15 | Phase 70 | Complete |
-| TUT-16 | Phase 70 | Pending |
-| TUT-17 | Phase 70 | Pending |
+| TUT-16 | Phase 70 | Complete |
+| TUT-17 | Phase 70 | Complete |
 
 **Coverage:**
 - v1.9 requirements: 30 total

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Tutorial Videos
-status: completed
-stopped_at: Completed 69-01-PLAN.md
-last_updated: "2026-03-20T00:44:48.236Z"
-last_activity: "2026-03-20 -- Phase 70 Plan 01 complete: 3 HITL tutorial scripts, 25 stage fixtures, 3 capture specs"
+status: in_progress
+stopped_at: Completed 70-02-PLAN.md
+last_updated: "2026-03-20T00:55:00.000Z"
+last_activity: "2026-03-20 -- Phase 70 Plan 02 complete: Touch 4 expanded to 16 steps + Asset Review 17-step capstone tutorial"
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 23
-  completed_plans: 20
-  percent: 87
+  completed_plans: 22
+  percent: 95
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-18)
 ## Current Position
 
 Phase: 70 (9 of 9 in v1.9) (High-Complexity Tutorials)
-Plan: 1 of 3 in current phase (COMPLETE)
-Status: Phase 70 Plan 01 complete -- Touch 1-3 HITL fixture data + capture specs
-Last activity: 2026-03-20 -- Phase 70 Plan 01 complete: 3 HITL tutorial scripts, 25 stage fixtures, 3 capture specs
+Plan: 2 of 3 in current phase (COMPLETE)
+Status: Phase 70 Plan 02 complete -- Touch 4 expanded 16-step + Asset Review 17-step capstone
+Last activity: 2026-03-20 -- Phase 70 Plan 02 complete: Touch 4 expanded to 16 steps + Asset Review 17-step capstone tutorial
 
-Progress: [████████░░] 87% (20/23 plans completed so far)
+Progress: [██████████] 95% (22/23 plans completed so far)
 
 ## Performance Metrics
 
@@ -100,6 +100,10 @@ Recent decisions for v1.9:
 - [Phase 69]: 9 mock server routes stage-aware for templates, deck-structures, agent-configs, and discovery domains
 - [Phase 69]: Agent prompts 7-stage lifecycle: both agentConfigDetail and agentConfigVersions in each stage fixture for parallel SSR
 - [Phase 69]: Deck structure URLs use touch-1 hyphen (Next.js slug) while API uses touch_1 underscore (VALID_SLUGS mapping)
+- [Phase 70]: Touch 4 refine demo at lowfi gate -- affects all 3 artifacts simultaneously
+- [Phase 70]: Asset Review uses int-touch4-001 for compliance flow, int-touch1-001 for reject/regen flow
+- [Phase 70]: Compliance issues structured with brand_color (medium), missing_disclaimer (high), font_inconsistency (low)
+- [Phase 70]: Asset Review overrides include all 4 touches' interactions for capstone narrative
 
 ### Pending Todos
 
@@ -114,6 +118,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T00:44:48.233Z
-Stopped at: Completed 69-01-PLAN.md
-Next action: Execute 70-02-PLAN.md (Touch 4 HITL + Asset Review tutorial).
+Last session: 2026-03-20T00:55:00.000Z
+Stopped at: Completed 70-02-PLAN.md
+Next action: Execute 70-03-PLAN.md (TTS narration and video rendering for all 5 high-complexity tutorials).
