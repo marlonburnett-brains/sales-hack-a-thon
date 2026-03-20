@@ -10,7 +10,7 @@ Requirements for in-app tutorials & feedback. Each maps to roadmap phases.
 ### Video Hosting
 
 - [ ] **HOST-01**: Upload script automates MP4 upload to GCS with public URL generation for all 17 tutorials
-- [ ] **HOST-02**: Tutorial Prisma model stores metadata (title, description, category, duration, GCS URL, sort order)
+- [x] **HOST-02**: Tutorial Prisma model stores metadata (title, description, category, duration, GCS URL, sort order)
 - [ ] **HOST-03**: Upload script seeds Tutorial records from existing script.json fixtures (title, description, step count)
 
 ### Tutorial Browsing
@@ -37,7 +37,7 @@ Requirements for in-app tutorials & feedback. Each maps to roadmap phases.
 
 - [ ] **FEED-01**: Reusable FeedbackWidget component with segmented control (Tutorial feedback / Feature feedback) and free-text textarea
 - [ ] **FEED-02**: FeedbackWidget attached to tutorial player page, keyed per tutorial
-- [ ] **FEED-03**: AppFeedback Prisma model stores feedback with sourceType, sourceId, feedbackType, and comment
+- [x] **FEED-03**: AppFeedback Prisma model stores feedback with sourceType, sourceId, feedbackType, and comment
 - [ ] **FEED-04**: Feedback system documented for future extension to other pages
 
 ## Future Requirements
@@ -71,7 +71,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | HOST-01 | Phase 71 | Pending |
-| HOST-02 | Phase 71 | Pending |
+| HOST-02 | Phase 71 | Complete |
 | HOST-03 | Phase 71 | Pending |
 | BROWSE-01 | Phase 75 | Pending |
 | BROWSE-02 | Phase 72 | Pending |
@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRACK-04 | Phase 73 | Pending |
 | FEED-01 | Phase 74 | Pending |
 | FEED-02 | Phase 74 | Pending |
-| FEED-03 | Phase 71 | Pending |
+| FEED-03 | Phase 71 | Complete |
 | FEED-04 | Phase 74 | Pending |
 
 **Coverage:**

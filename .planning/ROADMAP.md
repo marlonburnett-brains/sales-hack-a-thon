@@ -247,7 +247,7 @@ Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depen
 | 41-49 | v1.7 | 30/30 | Complete | 2026-03-09 |
 | 50-61 | v1.8 | 12/12 | Complete (4 deferred) | 2026-03-18 |
 | 62-70 | v1.9 | 24/24 | Complete | 2026-03-20 |
-| 71. Database & Video Hosting | v1.10 | 0/2 | Not started | - |
+| 71. Database & Video Hosting | 1/2 | In Progress|  | - |
 | 72. Tutorial Browsing | v1.10 | 0/TBD | Not started | - |
 | 73. Video Playback & Progress | v1.10 | 0/TBD | Not started | - |
 | 74. Feedback System | v1.10 | 0/TBD | Not started | - |
