@@ -76,7 +76,17 @@ export function loadFixtures(tutorialName: string): FixtureSet {
     path.join(sharedDir, "users.json")
   ) ?? [];
 
+  // Load optional shared fixtures (templates, slides)
+  const templates = loadJsonFile<FixtureSet["templates"]>(
+    path.join(sharedDir, "templates.json")
+  ) ?? undefined;
+  const slides = loadJsonFile<FixtureSet["slides"]>(
+    path.join(sharedDir, "slides.json")
+  ) ?? undefined;
+
   let fixtures: FixtureSet = { companies, deals, users };
+  if (templates) fixtures.templates = templates;
+  if (slides) fixtures.slides = slides;
 
   // Apply tutorial-specific overrides if they exist
   const overridesPath = path.join(FIXTURES_DIR, tutorialName, "overrides.json");

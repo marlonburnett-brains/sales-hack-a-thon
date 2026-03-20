@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch1-001",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch1\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "lowfi",
+      "stageContent": "{\"pagerDraft\":{\"headline\":\"Accelerate Your Sales Proposal Workflow\",\"subheadline\":\"How Meridian Dynamics Can Close Deals Faster with AI-Powered Automation\",\"sections\":[{\"title\":\"The Challenge\",\"body\":\"Your sales team spends 5-7 business days assembling proposals for each new opportunity. Meanwhile, competitors with faster turnaround are winning deals that should be yours. Manual proposal creation doesn't scale -- every new opportunity competes for the same limited bandwidth.\"},{\"title\":\"Our Solution\",\"body\":\"AtlusDeck's AI-powered platform generates complete, brand-compliant proposal documents in under 2 hours. From first-contact pagers to full capability decks, every deliverable is personalized to your prospect's industry and pain points using your approved templates and messaging.\"},{\"title\":\"Why It Matters\",\"body\":\"Reduce proposal turnaround by 95%. Increase prospect engagement rates by 20%. Scale your proposal capacity 4x without adding headcount. Every document maintains brand consistency and reflects your latest positioning.\"},{\"title\":\"Next Steps\",\"body\":\"Schedule a 30-minute demo to see AtlusDeck generate a proposal for one of your current opportunities in real time.\"}]}}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:03:00.000Z"
+    }
+  ]
+}

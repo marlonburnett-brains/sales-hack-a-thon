@@ -1,0 +1,108 @@
+{
+  "id": "atlus-integration",
+  "title": "AtlusAI Integration",
+  "description": "Connect your AtlusAI account, browse external content, search for documents, and ingest assets into your template library.",
+  "fixtures": "atlus-integration",
+  "steps": [
+    {
+      "id": "step-001",
+      "mockStage": "disconnected",
+      "url": "/discovery",
+      "narration": "The Discovery page is where you access content from AtlusAI. Right now, AtlusAI isn't connected yet -- you can see the notification prompting you to set up the integration.",
+      "waitFor": "main",
+      "delayMs": 1500,
+      "emotion": "professional"
+    },
+    {
+      "id": "step-002",
+      "url": "/settings/integrations",
+      "narration": "Let's go to the Integrations settings page to connect AtlusAI. This is where you manage all external service connections for your AtlusDeck workspace.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.15, "y": 0.65 },
+      "delayMs": 1000
+    },
+    {
+      "id": "step-003",
+      "url": "/settings/integrations",
+      "narration": "Clicking Connect would redirect you to AtlusAI to authorize access. The OAuth flow is handled securely -- AtlusDeck only requests read access to browse and search content from your AtlusAI library.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.4 },
+      "callout": { "text": "Secure OAuth authorization", "x": 0.5, "y": 0.25 }
+    },
+    {
+      "id": "step-004",
+      "mockStage": "connected",
+      "url": "/discovery",
+      "narration": "After authorizing, the Discovery page now shows content from your AtlusAI library. You can browse documents organized by type and recency.",
+      "waitFor": "main",
+      "delayMs": 1500
+    },
+    {
+      "id": "step-005",
+      "mockStage": "browse",
+      "url": "/discovery",
+      "narration": "The browse view shows available documents from AtlusAI. Each document shows its title, author, and publication date. These are research reports, industry analyses, and presentation templates curated by AtlusAI.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.35 },
+      "callout": { "text": "Browse AtlusAI content library", "x": 0.5, "y": 0.12 }
+    },
+    {
+      "id": "step-006",
+      "url": "/discovery",
+      "narration": "Click any document to see more details about its content. This helps you decide which assets are worth ingesting into your template library.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.3, "y": 0.35 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-007",
+      "url": "/discovery",
+      "narration": "Use the search bar to find specific content. Let's search for cloud migration resources to see what AtlusAI has available.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.5, "y": 0.08 },
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.1 }
+    },
+    {
+      "id": "step-008",
+      "mockStage": "search-results",
+      "url": "/discovery",
+      "narration": "Search results show documents matching your query, ranked by relevance. You can see cloud migration trend reports, ROI frameworks, and architecture references that could enhance your deck generation.",
+      "waitFor": "main",
+      "delayMs": 1000
+    },
+    {
+      "id": "step-009",
+      "url": "/discovery",
+      "narration": "Select a document you want to ingest. This will import the content into your AtlusDeck template library, making its slides available for deck generation.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.3, "y": 0.3 },
+      "callout": { "text": "Select content to ingest", "x": 0.5, "y": 0.15 }
+    },
+    {
+      "id": "step-010",
+      "mockStage": "ingesting",
+      "url": "/discovery",
+      "narration": "The ingestion process has started. AtlusDeck is importing the document, extracting slides, and running AI classification. This is the same ingestion pipeline used for your own Google Slides templates.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.3 },
+      "delayMs": 1500
+    },
+    {
+      "id": "step-011",
+      "mockStage": "ingested",
+      "url": "/discovery",
+      "narration": "Ingestion is complete. The document's slides are now part of your library, classified and ready to be used in deck generation. You can see the ingested indicator next to the document.",
+      "waitFor": "main",
+      "callout": { "text": "Content successfully ingested", "x": 0.5, "y": 0.15 },
+      "delayMs": 1000
+    },
+    {
+      "id": "step-012",
+      "url": "/discovery",
+      "narration": "That's the AtlusAI Integration. Connect your account, discover relevant content, and ingest it into your library to give the AI more building blocks for personalized decks.",
+      "waitFor": "main",
+      "delayMs": 1000,
+      "emotion": "calm"
+    }
+  ]
+}

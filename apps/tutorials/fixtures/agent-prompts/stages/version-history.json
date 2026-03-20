@@ -1,0 +1,55 @@
+{
+  "agentConfigs": [
+    { "agentId": "agent-precall-001", "name": "Pre-Call Research Agent", "responsibility": "Generates company research, value hypotheses, and discovery questions for pre-call briefings", "family": "pre-call", "isShared": false }
+  ],
+  "agentConfigDetail": {
+    "agentId": "agent-precall-001",
+    "name": "Pre-Call Research Agent",
+    "responsibility": "Generates company research, value hypotheses, and discovery questions for pre-call briefings",
+    "family": "pre-call",
+    "isShared": false,
+    "publishedVersion": {
+      "id": "ver-003",
+      "version": 3,
+      "baselinePrompt": "You are an AI sales research assistant for Lumenalta, a technology consulting firm specializing in cloud transformation, digital innovation, and platform engineering.",
+      "rolePrompt": "Your role is to research companies and generate pre-call briefings. Use a warm, conversational tone. Speak as a trusted advisor rather than an analyst. Structure your output with clear sections: Company Research, Value Hypotheses, and Discovery Questions. Reference specific data points naturally in your narrative rather than citing them formally. Focus on telling the story of the prospect's technology journey and where Lumenalta can be a meaningful partner in their transformation.",
+      "compiledPrompt": null,
+      "changeSummary": "Updated tone from formal/analytical to warm/conversational advisor style",
+      "publishedAt": "2026-03-19T10:05:00.000Z",
+      "publishedBy": "user-tutorial-001"
+    },
+    "draft": null
+  },
+  "agentConfigVersions": [
+    {
+      "id": "ver-003",
+      "version": 3,
+      "rolePrompt": "Your role is to research companies and generate pre-call briefings. Use a warm, conversational tone...",
+      "changeSummary": "Updated tone from formal/analytical to warm/conversational advisor style",
+      "isPublished": true,
+      "publishedAt": "2026-03-19T10:05:00.000Z",
+      "publishedBy": "user-tutorial-001",
+      "createdAt": "2026-03-19T10:05:00.000Z"
+    },
+    {
+      "id": "ver-002",
+      "version": 2,
+      "rolePrompt": "Your role is to research companies and generate pre-call briefings. Use formal, analytical language. Include industry-specific research guidelines and competitive landscape analysis. Structure your output with clear sections: Company Research, Industry Context, Competitive Landscape, Value Hypotheses, and Discovery Questions.",
+      "changeSummary": "Added industry-specific research guidelines and competitive landscape analysis",
+      "isPublished": false,
+      "publishedAt": "2026-03-10T14:00:00.000Z",
+      "publishedBy": "user-tutorial-001",
+      "createdAt": "2026-03-10T14:00:00.000Z"
+    },
+    {
+      "id": "ver-001",
+      "version": 1,
+      "rolePrompt": "Your role is to research companies and generate pre-call briefings. Use formal, analytical language. Structure your output with clear sections: Company Research, Value Hypotheses, and Discovery Questions.",
+      "changeSummary": "Initial published version",
+      "isPublished": false,
+      "publishedAt": "2026-03-01T10:00:00.000Z",
+      "publishedBy": "user-tutorial-001",
+      "createdAt": "2026-03-01T10:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "agentConfigs": [
+    { "agentId": "agent-precall-001", "name": "Pre-Call Research Agent", "responsibility": "Generates company research, value hypotheses, and discovery questions for pre-call briefings", "family": "pre-call", "isShared": false },
+    { "agentId": "agent-briefing-002", "name": "Briefing Compiler Agent", "responsibility": "Compiles research findings into structured pre-call briefing documents", "family": "pre-call", "isShared": false },
+    { "agentId": "agent-slide-003", "name": "Slide Selection Agent", "responsibility": "Selects optimal slides from the library based on deal context and deck structure", "family": "deck-generation", "isShared": false },
+    { "agentId": "agent-content-004", "name": "Content Assembly Agent", "responsibility": "Assembles selected slides into cohesive deck narratives with transitions", "family": "deck-generation", "isShared": false },
+    { "agentId": "agent-compliance-005", "name": "Compliance Review Agent", "responsibility": "Reviews generated decks for brand compliance, data accuracy, and legal requirements", "family": "quality", "isShared": true },
+    { "agentId": "agent-chat-006", "name": "Deal Chat Agent", "responsibility": "Provides conversational AI assistance for deal-related questions and analysis", "family": "assistant", "isShared": false },
+    { "agentId": "agent-structure-007", "name": "Structure Inference Agent", "responsibility": "Analyzes templates to infer optimal deck section structures per touch type", "family": "deck-generation", "isShared": true },
+    { "agentId": "agent-classify-008", "name": "Slide Classification Agent", "responsibility": "Classifies slides by industry, persona, funnel stage, and content type during ingestion", "family": "ingestion", "isShared": true }
+  ]
+}

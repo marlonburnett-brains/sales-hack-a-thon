@@ -317,8 +317,16 @@ export function createMockServer(tutorialName: string): Express {
     res.json({ success: true, runId: "mock-run-id", interactionId: _req.params.id });
   });
 
-  // Asset Review
+  // Asset Review (stage-aware: checks stage fixtures for assetReview field first)
   app.get("/interactions/:id/asset-review", (req: Request, res: Response) => {
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const stageAssetReview = (stageFixtures as Record<string, unknown>)?.assetReview;
+    if (stageAssetReview) {
+      res.json(stageAssetReview);
+      return;
+    }
+
+    // Fallback: hardcoded default response
     res.json({
       interaction: {
         id: req.params.id,
@@ -479,7 +487,13 @@ export function createMockServer(tutorialName: string): Express {
   // ────────────────────────────────────────────────────────────
 
   app.get("/templates", (_req: Request, res: Response) => {
-    res.json(fixtures.templates ?? []);
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const stageTemplates = (stageFixtures as Record<string, unknown>)?.templates;
+    if (Array.isArray(stageTemplates)) {
+      res.json(stageTemplates);
+    } else {
+      res.json(fixtures.templates ?? []);
+    }
   });
 
   app.post("/templates", (_req: Request, res: Response) => {
@@ -723,15 +737,33 @@ export function createMockServer(tutorialName: string): Express {
   // ────────────────────────────────────────────────────────────
 
   app.get("/discovery/access-check", (_req: Request, res: Response) => {
-    res.json({ hasAccess: true });
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const access = (stageFixtures as Record<string, unknown>)?.discoveryAccess;
+    if (access) {
+      res.json(access);
+    } else {
+      res.json({ hasAccess: true });
+    }
   });
 
   app.get("/discovery/browse", (_req: Request, res: Response) => {
-    res.json({ documents: [], ingestedHashes: [] });
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const browse = (stageFixtures as Record<string, unknown>)?.discoveryBrowse;
+    if (browse) {
+      res.json(browse);
+    } else {
+      res.json({ documents: [], ingestedHashes: [] });
+    }
   });
 
   app.post("/discovery/search", (_req: Request, res: Response) => {
-    res.json({ results: [], ingestedHashes: [] });
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const search = (stageFixtures as Record<string, unknown>)?.discoverySearch;
+    if (search) {
+      res.json(search);
+    } else {
+      res.json({ results: [], ingestedHashes: [] });
+    }
   });
 
   app.post("/discovery/ingest", (_req: Request, res: Response) => {
@@ -747,23 +779,35 @@ export function createMockServer(tutorialName: string): Express {
   // ────────────────────────────────────────────────────────────
 
   app.get("/deck-structures", (_req: Request, res: Response) => {
-    res.json([]);
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const structures = (stageFixtures as Record<string, unknown>)?.deckStructures;
+    if (Array.isArray(structures)) {
+      res.json(structures);
+    } else {
+      res.json([]);
+    }
   });
 
   app.get("/deck-structures/:touchType", (req: Request, res: Response) => {
-    res.json({
-      touchType: req.params.touchType,
-      structure: { sections: [], sequenceRationale: "Mock rationale" },
-      exampleCount: 0,
-      confidence: 0,
-      confidenceColor: "red",
-      confidenceLabel: "No data",
-      chatMessages: [],
-      chatContext: null,
-      slideIdToThumbnail: {},
-      inferredAt: null,
-      lastChatAt: null,
-    });
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const detail = (stageFixtures as Record<string, unknown>)?.deckStructureDetail;
+    if (detail) {
+      res.json(detail);
+    } else {
+      res.json({
+        touchType: req.params.touchType,
+        structure: { sections: [], sequenceRationale: "Mock rationale" },
+        exampleCount: 0,
+        confidence: 0,
+        confidenceColor: "red",
+        confidenceLabel: "No data",
+        chatMessages: [],
+        chatContext: null,
+        slideIdToThumbnail: {},
+        inferredAt: null,
+        lastChatAt: null,
+      });
+    }
   });
 
   app.post("/deck-structures/:touchType/infer", (_req: Request, res: Response) => {
@@ -802,23 +846,41 @@ export function createMockServer(tutorialName: string): Express {
   // ────────────────────────────────────────────────────────────
 
   app.get("/agent-configs", (_req: Request, res: Response) => {
-    res.json([]);
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const stageAgents = (stageFixtures as Record<string, unknown>)?.agentConfigs;
+    if (Array.isArray(stageAgents)) {
+      res.json(stageAgents);
+    } else {
+      res.json([]);
+    }
   });
 
   app.get("/agent-configs/:agentId", (req: Request, res: Response) => {
-    res.json({
-      agentId: req.params.agentId,
-      name: "Mock Agent",
-      responsibility: "Mock responsibility",
-      family: "mock",
-      isShared: false,
-      publishedVersion: null,
-      draft: null,
-    });
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const detail = (stageFixtures as Record<string, unknown>)?.agentConfigDetail;
+    if (detail) {
+      res.json(detail);
+    } else {
+      res.json({
+        agentId: req.params.agentId,
+        name: "Mock Agent",
+        responsibility: "Mock responsibility",
+        family: "mock",
+        isShared: false,
+        publishedVersion: null,
+        draft: null,
+      });
+    }
   });
 
   app.get("/agent-configs/:agentId/versions", (_req: Request, res: Response) => {
-    res.json([]);
+    const stageFixtures = loadStageFixtures(tutorialName, currentStage);
+    const versions = (stageFixtures as Record<string, unknown>)?.agentConfigVersions;
+    if (Array.isArray(versions)) {
+      res.json(versions);
+    } else {
+      res.json([]);
+    }
   });
 
   app.post("/agent-configs/:agentId/draft", (_req: Request, res: Response) => {

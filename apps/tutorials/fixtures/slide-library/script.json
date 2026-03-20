@@ -1,0 +1,83 @@
+{
+  "id": "slide-library",
+  "title": "Slide Library",
+  "description": "Browse slides from ingested templates, view classification metadata, and search for content by topic, industry, or persona.",
+  "fixtures": "slide-library",
+  "steps": [
+    {
+      "id": "step-001",
+      "url": "/slides",
+      "narration": "The Slide Library gives you a searchable view of every slide across your ingested templates. Here you can see slides organized in a grid, each with its classification badges and review status.",
+      "waitFor": "main",
+      "delayMs": 1500,
+      "emotion": "professional"
+    },
+    {
+      "id": "step-002",
+      "url": "/slides",
+      "narration": "Notice the classification badges on each slide card. These show the industry, solution pillar, and content type that the AI identified during ingestion. The colored dots indicate review status -- green for approved, gray for unreviewed.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.3, "y": 0.35 },
+      "callout": { "text": "AI-generated classification badges", "x": 0.3, "y": 0.15 }
+    },
+    {
+      "id": "step-003",
+      "url": "/slides",
+      "narration": "Click any slide card to view its full details and metadata. Let's look at the Cloud Migration Strategy slide to see what the AI extracted.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.3, "y": 0.35 },
+      "delayMs": 500
+    },
+    {
+      "id": "step-004",
+      "url": "/slides",
+      "narration": "The slide detail view shows the full classification breakdown. You can see the industry, solution pillar, persona, funnel stage, and content type. The confidence score tells you how certain the AI is about its classification.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.5 },
+      "callout": { "text": "Classification: Industry, Persona, Funnel Stage", "x": 0.5, "y": 0.3 }
+    },
+    {
+      "id": "step-005",
+      "url": "/slides",
+      "narration": "You can update a slide's classification if the AI got it wrong. This feedback loop helps the system learn and improves future classifications.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.6, "y": 0.6 }
+    },
+    {
+      "id": "step-006",
+      "url": "/slides",
+      "narration": "Use the search bar to find slides by topic. Let's search for slides related to case studies to see how content discovery works.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.5, "y": 0.08 },
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.1 }
+    },
+    {
+      "id": "step-007",
+      "url": "/slides",
+      "narration": "The search results show slides matching your query, ranked by relevance. You can see case study slides from different templates -- each with their own industry focus and proof points.",
+      "waitFor": "main",
+      "delayMs": 1000
+    },
+    {
+      "id": "step-008",
+      "url": "/slides",
+      "narration": "Click a search result to find similar slides. This helps you discover related content across your entire template library that you might want to include in a deck.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.3, "y": 0.35 }
+    },
+    {
+      "id": "step-009",
+      "url": "/slides",
+      "narration": "Slides come from templates you've registered in the Template Library. The more templates you ingest, the richer your slide library becomes -- giving the AI more options when generating personalized decks.",
+      "waitFor": "main"
+    },
+    {
+      "id": "step-010",
+      "url": "/slides",
+      "narration": "That's the Slide Library. Browse, search, and review your slide content to ensure the AI has the best possible building blocks for deck generation.",
+      "waitFor": "main",
+      "delayMs": 1000,
+      "emotion": "calm"
+    }
+  ]
+}

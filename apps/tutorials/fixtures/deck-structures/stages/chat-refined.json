@@ -1,0 +1,43 @@
+{
+  "deckStructures": [
+    { "touchType": "touch_1", "label": "Touch 1 - Discovery", "exampleCount": 8, "confidence": 0.82, "confidenceLabel": "High", "confidenceColor": "green" },
+    { "touchType": "touch_2", "label": "Touch 2 - Solution", "exampleCount": 5, "confidence": 0.71, "confidenceLabel": "Medium", "confidenceColor": "yellow" },
+    { "touchType": "touch_3", "label": "Touch 3 - Proposal", "exampleCount": 6, "confidence": 0.78, "confidenceLabel": "High", "confidenceColor": "green" },
+    { "touchType": "touch_4", "label": "Touch 4 - Close", "exampleCount": 4, "confidence": 0.65, "confidenceLabel": "Medium", "confidenceColor": "yellow" }
+  ],
+  "deckStructureDetail": {
+    "touchType": "touch_1",
+    "structure": {
+      "sections": [
+        { "order": 1, "name": "Executive Summary", "purpose": "Key value proposition and engagement rationale -- leading with impact", "isOptional": false, "variationCount": 2, "slideIds": ["slide-003"] },
+        { "order": 2, "name": "Introduction", "purpose": "Company overview and meeting context", "isOptional": false, "variationCount": 3, "slideIds": ["slide-001", "slide-002"] },
+        { "order": 3, "name": "Capabilities Overview", "purpose": "Relevant service areas and expertise", "isOptional": false, "variationCount": 4, "slideIds": ["slide-004", "slide-005", "slide-006"] },
+        { "order": 4, "name": "Case Studies", "purpose": "Relevant past engagements demonstrating expertise", "isOptional": true, "variationCount": 5, "slideIds": ["slide-008", "slide-009"] },
+        { "order": 5, "name": "Next Steps", "purpose": "Proposed timeline and engagement model", "isOptional": false, "variationCount": 2, "slideIds": ["slide-015"] }
+      ],
+      "sequenceRationale": "Leading with the Executive Summary puts your value proposition front and center, which works well for time-constrained executives. The Introduction follows to provide context, then Capabilities Overview builds the case. Case Studies offer proof points, and Next Steps closes with a clear call to action."
+    },
+    "exampleCount": 8,
+    "confidence": 0.82,
+    "confidenceColor": "green",
+    "confidenceLabel": "High",
+    "chatMessages": [
+      {
+        "id": "chat-msg-001",
+        "role": "user",
+        "content": "Move the Executive Summary before the Introduction",
+        "createdAt": "2026-03-19T10:00:00.000Z"
+      },
+      {
+        "id": "chat-msg-002",
+        "role": "assistant",
+        "content": "Done! I've moved the Executive Summary to position 1 and shifted the Introduction to position 2. Leading with your value proposition is a strong choice for time-constrained executives -- it ensures they see the key message even if the meeting runs short.",
+        "createdAt": "2026-03-19T10:00:05.000Z"
+      }
+    ],
+    "chatContext": null,
+    "slideIdToThumbnail": {},
+    "inferredAt": "2026-03-10T14:00:00.000Z",
+    "lastChatAt": "2026-03-19T10:00:05.000Z"
+  }
+}

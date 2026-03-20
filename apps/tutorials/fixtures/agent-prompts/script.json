@@ -1,0 +1,107 @@
+{
+  "id": "agent-prompts",
+  "title": "Agent Prompts",
+  "description": "View and edit agent prompts, publish drafts, manage version history, and rollback to previous versions for safe prompt experimentation.",
+  "fixtures": "agent-prompts",
+  "steps": [
+    {
+      "id": "step-001",
+      "mockStage": "list",
+      "url": "/settings/agents",
+      "narration": "The Agent Prompts page shows all available AI agents grouped by their function. Each agent has a specific responsibility in the deck generation pipeline -- from pre-call research to compliance checking.",
+      "waitFor": "main",
+      "delayMs": 1500,
+      "emotion": "professional"
+    },
+    {
+      "id": "step-002",
+      "url": "/settings/agents",
+      "narration": "Notice how agents are organized by family. The pre-call family handles research and briefing preparation, while the deck-generation family manages slide selection and content assembly.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.35 },
+      "callout": { "text": "Agents grouped by function", "x": 0.5, "y": 0.12 }
+    },
+    {
+      "id": "step-003",
+      "mockStage": "view-published",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "Let's drill into the Pre-Call Research Agent. This agent generates company research, value hypotheses, and discovery questions for pre-call briefings. You can see its current published prompt.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.3, "y": 0.3 },
+      "delayMs": 1000
+    },
+    {
+      "id": "step-004",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "The current prompt instructs the agent to use formal, analytical language and structure output with clear sections. Let's say we want to make the tone more conversational for a new sales approach.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.45 },
+      "callout": { "text": "Current tone: formal and analytical", "x": 0.5, "y": 0.3 }
+    },
+    {
+      "id": "step-005",
+      "mockStage": "draft-created",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "Click Create Draft to start editing. This creates a working copy of the current prompt without affecting the published version. Your team can continue using the live agent while you experiment.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.85, "y": 0.12 },
+      "delayMs": 800
+    },
+    {
+      "id": "step-006",
+      "mockStage": "draft-edited",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "Now let's make a meaningful change. We've updated the tone from formal to conversational -- the agent will now speak as a trusted advisor rather than an analyst. This kind of change can significantly impact how sales teams perceive briefing quality.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.5 },
+      "callout": { "text": "New tone: warm and conversational", "x": 0.5, "y": 0.35 }
+    },
+    {
+      "id": "step-007",
+      "mockStage": "published",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "When you're satisfied with the draft, click Publish to make it live. The updated prompt is now active and will be used for all future pre-call briefings.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.85, "y": 0.12 },
+      "delayMs": 800
+    },
+    {
+      "id": "step-008",
+      "mockStage": "version-history",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "Navigate to the version history to see all published versions. Each version shows when it was published, who published it, and a summary of what changed.",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.55 }
+    },
+    {
+      "id": "step-009",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "You can see three versions here. Version 1 was the initial prompt, version 2 added industry-specific research guidelines, and version 3 is our conversational tone update. This audit trail makes prompt management transparent.",
+      "waitFor": "main",
+      "callout": { "text": "Full version history with change summaries", "x": 0.5, "y": 0.35 }
+    },
+    {
+      "id": "step-010",
+      "mockStage": "rolled-back",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "If a new prompt version doesn't perform well, you can roll back to any previous version. We've just rolled back to version 2 -- the formal tone with industry-specific guidelines. The rollback is instant and creates a new version entry for traceability.",
+      "waitFor": "main",
+      "cursorTarget": { "x": 0.8, "y": 0.5 },
+      "delayMs": 1000
+    },
+    {
+      "id": "step-011",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "Version history lets you safely experiment with prompts knowing you can always roll back. This encourages teams to iterate on agent behavior without risk.",
+      "waitFor": "main"
+    },
+    {
+      "id": "step-012",
+      "url": "/settings/agents/agent-precall-001",
+      "narration": "That's Agent Prompts. Edit prompts to fine-tune your AI agents, publish when ready, and roll back if needed. Every change is tracked and reversible.",
+      "waitFor": "main",
+      "delayMs": 1000,
+      "emotion": "calm"
+    }
+  ]
+}

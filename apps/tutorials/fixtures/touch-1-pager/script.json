@@ -1,0 +1,145 @@
+{
+  "id": "touch-1-pager",
+  "title": "Touch 1: First-Contact Pager Generation",
+  "description": "Walk through the complete Touch 1 first-contact pager workflow: from generation through the 3-gate HITL review (skeleton, lowfi, hifi), a lowfi refine demo, and the manual upload alternative.",
+  "fixtures": "touch-1-pager",
+  "touchType": "touch-1",
+  "steps": [
+    {
+      "id": "step-001",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "Start by navigating to the Touch 1 First-Contact Pager page for the Meridian Dynamics deal. This is where you create a one-page overview document tailored to your prospect.",
+      "mockStage": "idle",
+      "waitFor": "main",
+      "delayMs": 500,
+      "emotion": "cheerful"
+    },
+    {
+      "id": "step-002",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "Notice the pager generation controls at the top. This is where the AI will build a personalized one-pager using your deal context and approved templates.",
+      "mockStage": "idle",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.3 },
+      "callout": { "text": "Start pager generation here", "x": 0.5, "y": 0.25 },
+      "delayMs": 300
+    },
+    {
+      "id": "step-003",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "After clicking generate, the AI begins building your first-contact pager. The progress indicator shows the workflow is actively processing your deal data.",
+      "mockStage": "generating",
+      "waitForText": "Generation in progress",
+      "delayMs": 500,
+      "cursorTarget": { "x": 0.5, "y": 0.4 }
+    },
+    {
+      "id": "step-004",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "The skeleton gate is your first review checkpoint. The AI has extracted the core sections for your pager: Challenge, Proposed Solution, and Value Proposition. Review each section before approving.",
+      "mockStage": "skeleton",
+      "waitForText": "skeleton",
+      "delayMs": 500
+    },
+    {
+      "id": "step-005",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "Take a closer look at the outline content. Each section captures a key aspect of your prospect engagement. Make sure the framing matches your sales strategy before moving forward.",
+      "mockStage": "skeleton",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.5 },
+      "callout": { "text": "Review outline before approving", "x": 0.6, "y": 0.4 },
+      "delayMs": 300
+    },
+    {
+      "id": "step-006",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "After approving the skeleton, the AI generates a full draft pager with expanded content for each section. This is the lowfi gate -- your second review checkpoint.",
+      "mockStage": "lowfi",
+      "waitForText": "lowfi",
+      "delayMs": 500,
+      "cursorTarget": { "x": 0.5, "y": 0.3 }
+    },
+    {
+      "id": "step-007",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "Here you can see the full draft content with headline, subheadline, and all four sections. The draft is ready for your feedback.",
+      "mockStage": "lowfi",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.5 },
+      "delayMs": 300
+    },
+    {
+      "id": "step-008",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "Let's try the refine feature. Click Request Changes to send feedback to the AI. It will regenerate the content while preserving the overall structure.",
+      "mockStage": "lowfi-refining",
+      "waitFor": "main",
+      "delayMs": 500,
+      "cursorTarget": { "x": 0.5, "y": 0.6 }
+    },
+    {
+      "id": "step-009",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "The AI has regenerated the draft based on your feedback. Notice the updated headline and stronger section content. The refine loop lets you iterate until the pager is exactly right.",
+      "mockStage": "lowfi-refined",
+      "waitFor": "main",
+      "delayMs": 500
+    },
+    {
+      "id": "step-010",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "Take a closer look at the refined content. The headline is more compelling and each section has been tightened with specific metrics and clearer calls to action.",
+      "mockStage": "lowfi-refined",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.5, "x": 0.5, "y": 0.45 },
+      "callout": { "text": "Notice the updated sections", "x": 0.55, "y": 0.35 },
+      "delayMs": 300
+    },
+    {
+      "id": "step-011",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "After approving the refined draft, the AI generates the final polished pager with brand-compliant formatting, proper fonts, and accent colors. This is the hifi gate -- your last review before delivery.",
+      "mockStage": "hifi",
+      "waitFor": "main",
+      "delayMs": 500,
+      "cursorTarget": { "x": 0.5, "y": 0.3 }
+    },
+    {
+      "id": "step-012",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "The final pager looks great with full branding applied. Every element -- from fonts to colors -- follows your company's style guide automatically.",
+      "mockStage": "hifi",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.4 },
+      "delayMs": 300
+    },
+    {
+      "id": "step-013",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "All done! Your first-contact pager has been saved to Google Drive. Click the link to open it directly or share it with your prospect.",
+      "mockStage": "completed",
+      "waitForText": "Saved to Drive",
+      "delayMs": 500,
+      "emotion": "encouraging"
+    },
+    {
+      "id": "step-014",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "There's also a manual upload option if you prefer to use your own document instead of generating one. Let's take a look at that alternative.",
+      "mockStage": "manual-upload",
+      "waitFor": "main",
+      "delayMs": 500
+    },
+    {
+      "id": "step-015",
+      "url": "/deals/deal-001/touch/1",
+      "narration": "The manual upload area lets you drag and drop or browse for your own pager document. This is useful when you have a pre-existing document that just needs to be attached to the deal.",
+      "mockStage": "manual-upload",
+      "waitFor": "main",
+      "zoomTarget": { "selector": "main", "scale": 1.4, "x": 0.5, "y": 0.5 },
+      "callout": { "text": "Upload your own document instead", "x": 0.5, "y": 0.45 },
+      "delayMs": 300
+    }
+  ]
+}

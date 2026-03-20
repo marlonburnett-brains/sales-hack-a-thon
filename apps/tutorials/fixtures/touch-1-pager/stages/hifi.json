@@ -1,0 +1,19 @@
+{
+  "interactions": [
+    {
+      "id": "int-touch1-001",
+      "dealId": "deal-001",
+      "touchType": "touch_1",
+      "status": "in_progress",
+      "inputs": "{\"companyName\":\"Meridian Dynamics\",\"industry\":\"Technology Consulting\",\"subsector\":\"Digital Transformation\"}",
+      "decision": null,
+      "generatedContent": "{\"runId\":\"mock-run-touch1\"}",
+      "outputRefs": null,
+      "driveFileId": null,
+      "hitlStage": "highfi",
+      "stageContent": "{\"pagerUrl\":\"https://docs.google.com/document/d/mock-touch1-pager/edit\",\"pagerPreview\":{\"headline\":\"Transform Your Sales Velocity with Intelligent Automation\",\"formattedSections\":[{\"title\":\"The Challenge\",\"body\":\"Meridian Dynamics faces a growing bottleneck: assembling first-contact pagers takes 5-7 business days per opportunity.\"},{\"title\":\"Our Solution\",\"body\":\"AtlusDeck transforms your proposal workflow with AI that understands your brand, your prospects, and your industry positioning.\"},{\"title\":\"Measurable Impact\",\"body\":\"95% reduction in first-contact turnaround. 20% lift in engagement. 4x proposal capacity.\"},{\"title\":\"Get Started Today\",\"body\":\"See the difference in 30 minutes with a personalized demo.\"}],\"brandCompliant\":true,\"formatting\":{\"headerFont\":\"Brand Sans\",\"bodyFont\":\"Inter\",\"accentColor\":\"#2563EB\"}},\"complianceResult\":{\"status\":\"passed\",\"issues\":[]}}",
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "updatedAt": "2026-03-15T10:05:00.000Z"
+    }
+  ]
+}
