@@ -46,6 +46,7 @@ function makeTutorial(
     slug: "getting-started",
     title: "Getting Started",
     description: "Learn the basics",
+    category: "getting_started",
     durationSec: 180,
     thumbnailUrl: null,
     watched: false,
