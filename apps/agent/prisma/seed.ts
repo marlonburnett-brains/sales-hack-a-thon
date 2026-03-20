@@ -163,6 +163,10 @@ async function main() {
     __dirname,
     "../../tutorials/output/tutorials-manifest.json",
   );
+  const thumbnailManifestPath = path.resolve(
+    __dirname,
+    "../../tutorials/output/tutorial-thumbnails-manifest.json",
+  );
 
   if (!fs.existsSync(manifestPath)) {
     console.warn(
@@ -175,7 +179,25 @@ async function main() {
       durationSec: number;
     }> = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
 
+    let thumbnailManifest: Array<{
+      slug: string;
+      thumbnailUrl: string;
+    }> = [];
+
+    if (!fs.existsSync(thumbnailManifestPath)) {
+      console.warn(
+        "tutorial-thumbnails-manifest.json not found -- continuing with thumbnailUrl: null.",
+      );
+    } else {
+      thumbnailManifest = JSON.parse(
+        fs.readFileSync(thumbnailManifestPath, "utf-8"),
+      );
+    }
+
     const manifestMap = new Map(manifest.map((m) => [m.slug, m]));
+    const thumbnailManifestMap = new Map(
+      thumbnailManifest.map((entry) => [entry.slug, entry]),
+    );
     let tutorialSeeded = 0;
 
     for (const entry of TUTORIAL_CATALOG) {
@@ -194,6 +216,7 @@ async function main() {
         JSON.parse(fs.readFileSync(scriptPath, "utf-8"));
 
       const manifestEntry = manifestMap.get(entry.slug);
+      const thumbnailEntry = thumbnailManifestMap.get(entry.slug);
       if (!manifestEntry) {
         console.warn(`  Manifest entry not found for ${entry.slug}, skipping`);
         continue;
@@ -206,6 +229,7 @@ async function main() {
           description: script.description,
           category: entry.category,
           gcsUrl: manifestEntry.gcsUrl,
+          thumbnailUrl: thumbnailEntry?.thumbnailUrl ?? null,
           durationSec: manifestEntry.durationSec,
           sortOrder: entry.sortOrder,
           stepCount: script.steps.length,
@@ -216,6 +240,7 @@ async function main() {
           description: script.description,
           category: entry.category,
           gcsUrl: manifestEntry.gcsUrl,
+          thumbnailUrl: thumbnailEntry?.thumbnailUrl ?? null,
           durationSec: manifestEntry.durationSec,
           sortOrder: entry.sortOrder,
           stepCount: script.steps.length,
