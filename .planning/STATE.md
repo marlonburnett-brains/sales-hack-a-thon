@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: In-App Tutorials & Feedback
 status: completed
-stopped_at: Completed 74-02-PLAN.md (FeedbackWidget component)
-last_updated: "2026-03-21T01:36:22.898Z"
+stopped_at: Completed 74-03-PLAN.md (FeedbackWidget slug page integration) — awaiting human verify checkpoint
+last_updated: "2026-03-21T01:39:16.050Z"
 last_activity: 2026-03-20 -- Completed 75-01 (Tutorials sidebar nav item with blue New badge, /tutorials/unwatched-count endpoint)
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
   percent: 82
 ---
 
@@ -67,6 +67,7 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 74-feedback-system]: 74-01: agentFetch duplicated in feedback-actions.ts for Next.js server action bundling safety
 - [Phase 74-feedback-system]: 74-02: Character counter rendered only when comment.length > 0 to reduce visual noise on empty form
 - [Phase 74-feedback-system]: 74-02: defaultTab extracted as const so form reset returns to originally-passed defaultFeedbackType
+- [Phase 74-feedback-system]: 74-03: FeedbackWidget placed after TutorialVideoPlayer with key={tutorial.id} for automatic state reset on navigation
 
 ### Key Research Findings (v1.10)
 
@@ -90,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T01:36:18.418Z
-Stopped at: Completed 74-02-PLAN.md (FeedbackWidget component)
+Last session: 2026-03-21T01:39:16.045Z
+Stopped at: Completed 74-03-PLAN.md (FeedbackWidget slug page integration) — awaiting human verify checkpoint
 Next action: Continue Phase 73 or next planned phase

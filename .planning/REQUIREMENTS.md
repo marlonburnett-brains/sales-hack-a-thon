@@ -36,7 +36,7 @@ Requirements for in-app tutorials & feedback. Each maps to roadmap phases.
 ### Feedback
 
 - [x] **FEED-01**: Reusable FeedbackWidget component with segmented control (Tutorial feedback / Feature feedback) and free-text textarea
-- [ ] **FEED-02**: FeedbackWidget attached to tutorial player page, keyed per tutorial
+- [x] **FEED-02**: FeedbackWidget attached to tutorial player page, keyed per tutorial
 - [x] **FEED-03**: AppFeedback Prisma model stores feedback with sourceType, sourceId, feedbackType, and comment
 - [x] **FEED-04**: Feedback system documented for future extension to other pages
 
@@ -85,7 +85,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRACK-03 | Phase 73 | Complete |
 | TRACK-04 | Phase 73 | Complete |
 | FEED-01 | Phase 74 | Complete |
-| FEED-02 | Phase 74 | Pending |
+| FEED-02 | Phase 74 | Complete |
 | FEED-03 | Phase 71 | Complete |
 | FEED-04 | Phase 74 | Complete |
 
