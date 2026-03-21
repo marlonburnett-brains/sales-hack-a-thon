@@ -194,15 +194,15 @@ Plans:
 **Requirements**: PLAY-01, PLAY-02, PLAY-03, TRACK-01, TRACK-02, TRACK-03, TRACK-04
 **Success Criteria** (what must be TRUE):
   1. User clicks a tutorial card and sees a native HTML5 video player loading the MP4 directly from GCS (no Vercel proxy)
-  2. When a video plays to completion (ended event), the tutorial is marked as watched and the card on the browse page shows a checkmark
+  2. When a video reaches 90% completion, the tutorial is marked as watched and the card on the browse page shows a checkmark
   3. User sees "X of 17 tutorials completed" progress indicator on the tutorials page header
   4. User who partially watches a video and returns later resumes from their last position
   5. Video player renders correctly without hydration errors (client component with SSR disabled)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 73-01: TBD
-- [ ] 73-02: TBD
+- [ ] 73-01-PLAN.md -- Agent PATCH routes for progress/watched + extend TutorialBrowseCard with lastPosition (TDD)
+- [ ] 73-02-PLAN.md -- TutorialVideoPlayer client component, server actions, and slug page wiring
 
 ### Phase 74: Feedback System
 **Goal**: Users can submit structured feedback on any tutorial through a reusable widget that is documented for future extension
@@ -250,6 +250,6 @@ Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depen
 | 62-70 | v1.9 | 24/24 | Complete | 2026-03-20 |
 | 71. Database & Video Hosting | v1.10 | Complete    | 2026-03-20 | 2026-03-20 |
 | 72. Tutorial Browsing | 3/3 | Complete    | 2026-03-20 | - |
-| 73. Video Playback & Progress | v1.10 | 0/TBD | Not started | - |
+| 73. Video Playback & Progress | v1.10 | 0/2 | Not started | - |
 | 74. Feedback System | v1.10 | 0/TBD | Not started | - |
 | 75. Sidebar Integration | v1.10 | 0/TBD | Not started | - |
