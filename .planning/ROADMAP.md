@@ -216,9 +216,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 74-01-PLAN.md -- Agent POST /feedback route and submitFeedbackAction server action
-- [ ] 74-02-PLAN.md -- FeedbackWidget client component (TDD: test scaffold + implementation)
-- [ ] 74-03-PLAN.md -- Slug page integration with key={tutorialId} and human verification
+- [x] 74-01-PLAN.md -- Agent POST /feedback route and submitFeedbackAction server action
+- [x] 74-02-PLAN.md -- FeedbackWidget client component (TDD: test scaffold + implementation)
+- [x] 74-03-PLAN.md -- Slug page integration with key={tutorialId} and human verification
 
 ### Phase 75: Sidebar Integration
 **Goal**: Tutorials are discoverable from the global navigation with a badge signaling unwatched content
