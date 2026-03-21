@@ -1,0 +1,252 @@
+-- Seed tutorial data into production.
+-- The seed script (prisma/seed.ts) reads from local filesystem paths that are
+-- unavailable in production, so this migration embeds the same data directly.
+-- All values sourced from:
+--   apps/tutorials/output/tutorials-manifest.json
+--   apps/tutorials/output/tutorial-thumbnails-manifest.json
+--   apps/tutorials/fixtures/*/script.json
+--
+-- Uses INSERT ... ON CONFLICT DO NOTHING to be idempotent (safe to re-apply
+-- or run against a db that already has some tutorials).
+
+INSERT INTO "Tutorial" ("id", "slug", "title", "description", "category", "gcsUrl", "thumbnailUrl", "durationSec", "sortOrder", "stepCount", "createdAt", "updatedAt")
+VALUES
+  (
+    gen_random_uuid()::text,
+    'getting-started',
+    'Getting Started with AtlusDeck',
+    'Learn how to sign in, navigate the dashboard, explore your deals pipeline, view deal details, and configure your settings.',
+    'getting_started',
+    'https://storage.googleapis.com/atlusdeck-tutorials/getting-started.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/getting-started.jpg',
+    100,
+    1,
+    8,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'deals',
+    'Creating & Managing Deals',
+    'Learn how to create new deals, view deal details, update status, switch between grid and table views, and filter your deal pipeline.',
+    'deal_workflows',
+    'https://storage.googleapis.com/atlusdeck-tutorials/deals.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/deals.jpg',
+    132,
+    2,
+    12,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'deal-overview',
+    'Deal Overview',
+    'Explore the deal overview page to review metrics, activity timeline, status management, and navigate between deal sections.',
+    'deal_workflows',
+    'https://storage.googleapis.com/atlusdeck-tutorials/deal-overview.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/deal-overview.jpg',
+    96,
+    3,
+    8,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'deal-chat',
+    'Deal Chat',
+    'Use the persistent deal assistant to ask context-aware questions, explore AI responses grounded in deal data, and see how conversations evolve across multiple exchanges.',
+    'deal_workflows',
+    'https://storage.googleapis.com/atlusdeck-tutorials/deal-chat.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/deal-chat.jpg',
+    155,
+    4,
+    12,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'briefing',
+    'Pre-Call Briefing',
+    'Explore meeting preparation briefings including company research, value hypotheses, and discovery questions, then review your briefing history.',
+    'deal_workflows',
+    'https://storage.googleapis.com/atlusdeck-tutorials/briefing.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/briefing.jpg',
+    158,
+    5,
+    12,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'touch-1-pager',
+    'Touch 1: First-Contact Pager Generation',
+    'Walk through the complete Touch 1 first-contact pager workflow: from generation through the 3-gate HITL review, a lowfi regeneration demo, and final delivery actions.',
+    'touch_points',
+    'https://storage.googleapis.com/atlusdeck-tutorials/touch-1-pager.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/touch-1-pager.jpg',
+    166,
+    6,
+    15,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'touch-2-intro-deck',
+    'Touch 2: Intro Deck Generation',
+    'Walk through the complete Touch 2 intro deck workflow: strategy resolution, slide selection, and the full 3-gate HITL review with a skeleton refine demo.',
+    'touch_points',
+    'https://storage.googleapis.com/atlusdeck-tutorials/touch-2-intro-deck.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/touch-2-intro-deck.jpg',
+    135,
+    7,
+    13,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'touch-3-capability-deck',
+    'Touch 3: Capability Deck Generation',
+    'Walk through the complete Touch 3 capability deck workflow: capability area selection, structure-driven assembly, and the full 3-gate HITL review with a lowfi refine demo.',
+    'touch_points',
+    'https://storage.googleapis.com/atlusdeck-tutorials/touch-3-capability-deck.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/touch-3-capability-deck.jpg',
+    143,
+    8,
+    13,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'touch-4-hitl',
+    'Touch 4: Transcript-to-Proposal Pipeline',
+    'Walk through the complete Touch 4 transcript-to-proposal pipeline: paste a meeting transcript, watch AtlusDeck extract fields, review drafts of all 3 artifacts (proposal deck, talk track, FAQ), request changes, and receive finalized Google Drive links.',
+    'touch_points',
+    'https://storage.googleapis.com/atlusdeck-tutorials/touch-4-hitl.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/touch-4-hitl.jpg',
+    198,
+    9,
+    16,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'template-library',
+    'Template Library',
+    'Learn how to register Google Slides templates, classify them by touch type, trigger ingestion, and monitor AI-powered content analysis.',
+    'content_management',
+    'https://storage.googleapis.com/atlusdeck-tutorials/template-library.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/template-library.jpg',
+    136,
+    10,
+    12,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'slide-library',
+    'Slide Library',
+    'Browse slides from ingested templates, filter by review status, explore classification metadata, and discover similar content across your library.',
+    'content_management',
+    'https://storage.googleapis.com/atlusdeck-tutorials/slide-library.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/slide-library.jpg',
+    147,
+    11,
+    10,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'deck-structures',
+    'Deck Structures',
+    'View AI-inferred deck structures for each touch type, understand confidence scores, and refine section order through chat-based interaction.',
+    'content_management',
+    'https://storage.googleapis.com/atlusdeck-tutorials/deck-structures.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/deck-structures.jpg',
+    150,
+    12,
+    12,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'atlus-integration',
+    'AtlusAI Integration',
+    'Connect your AtlusAI account, browse external content, search for documents, and ingest assets into your template library.',
+    'content_management',
+    'https://storage.googleapis.com/atlusdeck-tutorials/atlus-integration.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/atlus-integration.jpg',
+    127,
+    13,
+    12,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'asset-review',
+    'Asset Review & Approval',
+    'Review artifacts from all 4 touches in one place. Run brand compliance checks, fix flagged issues, reject and regenerate artifacts, and give final approval -- the capstone quality control workflow.',
+    'review',
+    'https://storage.googleapis.com/atlusdeck-tutorials/asset-review.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/asset-review.jpg',
+    214,
+    14,
+    17,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'action-center',
+    'Using the Action Center',
+    'Learn how to identify and resolve integration issues in the Action Center, including expired OAuth tokens, template sharing, and Drive folder access.',
+    'review',
+    'https://storage.googleapis.com/atlusdeck-tutorials/action-center.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/action-center.jpg',
+    82,
+    15,
+    8,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'agent-prompts',
+    'Agent Prompts',
+    'View and edit agent prompts, publish drafts, manage version history, and rollback to previous versions for safe prompt experimentation.',
+    'settings_admin',
+    'https://storage.googleapis.com/atlusdeck-tutorials/agent-prompts.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/agent-prompts.jpg',
+    158,
+    16,
+    12,
+    NOW(),
+    NOW()
+  ),
+  (
+    gen_random_uuid()::text,
+    'google-drive-settings',
+    'Configuring Google Drive Settings',
+    'Learn how to connect your Google Drive folder so AtlusDeck can store generated decks automatically.',
+    'settings_admin',
+    'https://storage.googleapis.com/atlusdeck-tutorials/google-drive-settings.mp4',
+    'https://storage.googleapis.com/atlusdeck-tutorials/thumbnails/google-drive-settings.jpg',
+    63,
+    17,
+    6,
+    NOW(),
+    NOW()
+  )
+ON CONFLICT ("slug") DO NOTHING;
