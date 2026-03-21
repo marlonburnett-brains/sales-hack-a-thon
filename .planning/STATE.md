@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: In-App Tutorials & Feedback
 status: completed
-stopped_at: Completed 73-01-PLAN.md
-last_updated: "2026-03-21T00:34:21.859Z"
+stopped_at: Completed 73-02-PLAN.md
+last_updated: "2026-03-20T21:41:30Z"
 last_activity: 2026-03-20 -- Completed 71-02 (GCS upload & database seeding)
 progress:
   total_phases: 5
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 
 ## Current Position
 
-Phase: 71 (1 of 5) - Database & Video Hosting -- COMPLETE
-Plan: 02 complete (2 of 2 total)
-Status: Phase 71 complete
-Last activity: 2026-03-20 -- Completed 71-02 (GCS upload & database seeding)
+Phase: 73 - Video Playback & Progress Tracking (in progress)
+Plan: 02 complete (2 of 2 planned so far)
+Status: 73-02 complete
+Last activity: 2026-03-20 -- Completed 73-02 (TutorialVideoPlayer, progress server actions, slug page)
 
 Progress: [██████████] 100%
 
@@ -59,6 +59,10 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 72-03]: Slug page calls listTutorialsAction() to validate slug; notFound() for unknowns
 - [Phase 73-01]: viewsMap replaces watchedSet in GET /tutorials: single Map carries both watched and lastPosition
 - [Phase 73-01]: PATCH routes use tutorialId_userId compound unique key for idempotent progress upserts
+- [Phase 73-02]: dynamicImport alias avoids collision with Next.js export const dynamic in same page file
+- [Phase 73-02]: TutorialVideoPlayer props use initialLastPosition (matching pre-written test fixture)
+- [Phase 73-02]: hasMarkedWatched ref gate prevents duplicate markWatched calls at 90% currentTime/duration threshold
+- [Phase 73-02]: gcsUrl added as required field to TutorialBrowseCard (additive, non-breaking change)
 
 ### Key Research Findings (v1.10)
 
@@ -82,6 +86,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21T00:34:21.856Z
-Stopped at: Completed 73-01-PLAN.md
-Next action: `/gsd:execute-phase 72` (Tutorial Browsing)
+Last session: 2026-03-20T21:41:30Z
+Stopped at: Completed 73-02-PLAN.md
+Next action: Continue Phase 73 or next planned phase

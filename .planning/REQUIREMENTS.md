@@ -23,7 +23,7 @@ Requirements for in-app tutorials & feedback. Each maps to roadmap phases.
 ### Video Playback
 
 - [x] **PLAY-01**: User can play tutorial MP4 videos via native HTML5 video player (direct GCS URL, no proxy)
-- [ ] **PLAY-02**: Video player renders as client component with SSR disabled to avoid hydration issues
+- [x] **PLAY-02**: Video player renders as client component with SSR disabled to avoid hydration issues
 - [x] **PLAY-03**: User's playback position is saved and restored when returning to a partially-watched video
 
 ### Progress Tracking
@@ -78,7 +78,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BROWSE-03 | Phase 72 | Complete |
 | BROWSE-04 | Phase 72 | Complete |
 | PLAY-01 | Phase 73 | Complete |
-| PLAY-02 | Phase 73 | Pending |
+| PLAY-02 | Phase 73 | Complete |
 | PLAY-03 | Phase 73 | Complete |
 | TRACK-01 | Phase 73 | Complete |
 | TRACK-02 | Phase 73 | Complete |
