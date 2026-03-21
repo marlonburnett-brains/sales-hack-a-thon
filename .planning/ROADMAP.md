@@ -228,10 +228,10 @@ Plans:
   1. Sidebar shows a "Tutorials" nav item that navigates to /tutorials
   2. A "New" dot badge appears on the Tutorials nav item when the user has unwatched tutorials
   3. The badge disappears once the user has watched all tutorials (or follows the existing Action Required badge pattern)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 75-01: TBD
+- [ ] 75-01-PLAN.md -- Agent unwatched-count endpoint, web API route, sidebar nav item with blue "New" badge
 
 ## Progress
 
@@ -254,4 +254,4 @@ Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depen
 | 72. Tutorial Browsing | 3/3 | Complete    | 2026-03-20 | - |
 | 73. Video Playback & Progress | 2/2 | Complete    | 2026-03-21 | - |
 | 74. Feedback System | v1.10 | 0/3 | Not started | - |
-| 75. Sidebar Integration | v1.10 | 0/TBD | Not started | - |
+| 75. Sidebar Integration | v1.10 | 0/1 | Not started | - |
