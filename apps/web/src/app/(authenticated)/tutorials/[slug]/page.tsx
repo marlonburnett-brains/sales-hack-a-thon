@@ -1,24 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import dynamicImport from "next/dynamic";
 import { listTutorialsAction } from "@/lib/actions/tutorial-actions";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
+import { TutorialVideoPlayerDynamic } from "@/components/tutorials/tutorial-video-player-dynamic";
 
 export const dynamic = "force-dynamic";
-
-const TutorialVideoPlayer = dynamicImport(
-  () =>
-    import("@/components/tutorials/tutorial-video-player").then(
-      (m) => m.TutorialVideoPlayer,
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="aspect-video w-full animate-pulse rounded-lg bg-slate-200" />
-    ),
-  },
-);
 
 interface TutorialSlugPageProps {
   params: Promise<{ slug: string }>;
@@ -62,7 +49,7 @@ export default async function TutorialSlugPage({ params }: TutorialSlugPageProps
         Back to Tutorials
       </Link>
 
-      <TutorialVideoPlayer
+      <TutorialVideoPlayerDynamic
         tutorialId={tutorial.id}
         slug={tutorial.slug}
         gcsUrl={tutorial.gcsUrl}
