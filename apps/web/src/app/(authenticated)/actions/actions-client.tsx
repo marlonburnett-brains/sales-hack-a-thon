@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import {
   AlertTriangle,
   Share2,
@@ -62,7 +62,7 @@ interface ActionsClientProps {
   initialActions: ActionRequiredItem[];
 }
 
-export function ActionsClient({ initialActions }: ActionsClientProps) {
+export function ActionsClient({ initialActions }: ActionsClientProps): React.JSX.Element {
   const [actions, setActions] = useState(initialActions);
   const [isPending, startTransition] = useTransition();
   const [silencingId, setSilencingId] = useState<string | null>(null);
