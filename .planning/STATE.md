@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: In-App Tutorials & Feedback
 status: completed
-stopped_at: Phase 73 context gathered
-last_updated: "2026-03-20T23:55:34.293Z"
+stopped_at: Completed 73-01-PLAN.md
+last_updated: "2026-03-21T00:34:21.859Z"
 last_activity: 2026-03-20 -- Completed 71-02 (GCS upload & database seeding)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 6
   percent: 100
 ---
 
@@ -57,6 +57,8 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 72-02]: Promise.all for concurrent Tutorial+TutorialView fetch; views scoped to userId
 - [Phase 72-03]: tutorials-browse-view.tsx lives in components/ not app/ for test relative import resolution
 - [Phase 72-03]: Slug page calls listTutorialsAction() to validate slug; notFound() for unknowns
+- [Phase 73-01]: viewsMap replaces watchedSet in GET /tutorials: single Map carries both watched and lastPosition
+- [Phase 73-01]: PATCH routes use tutorialId_userId compound unique key for idempotent progress upserts
 
 ### Key Research Findings (v1.10)
 
@@ -80,6 +82,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T23:55:34.289Z
-Stopped at: Phase 73 context gathered
+Last session: 2026-03-21T00:34:21.856Z
+Stopped at: Completed 73-01-PLAN.md
 Next action: `/gsd:execute-phase 72` (Tutorial Browsing)

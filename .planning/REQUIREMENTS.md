@@ -22,16 +22,16 @@ Requirements for in-app tutorials & feedback. Each maps to roadmap phases.
 
 ### Video Playback
 
-- [ ] **PLAY-01**: User can play tutorial MP4 videos via native HTML5 video player (direct GCS URL, no proxy)
+- [x] **PLAY-01**: User can play tutorial MP4 videos via native HTML5 video player (direct GCS URL, no proxy)
 - [ ] **PLAY-02**: Video player renders as client component with SSR disabled to avoid hydration issues
-- [ ] **PLAY-03**: User's playback position is saved and restored when returning to a partially-watched video
+- [x] **PLAY-03**: User's playback position is saved and restored when returning to a partially-watched video
 
 ### Progress Tracking
 
-- [ ] **TRACK-01**: User's watched/unwatched state persists per tutorial in database (marked on video ended event)
-- [ ] **TRACK-02**: Watched tutorials display visual checkmark indicator on browse cards
-- [ ] **TRACK-03**: Overall progress bar shows "X of 17 tutorials completed" on page header
-- [ ] **TRACK-04**: Playback position saved periodically for resume-from-timestamp functionality
+- [x] **TRACK-01**: User's watched/unwatched state persists per tutorial in database (marked on video ended event)
+- [x] **TRACK-02**: Watched tutorials display visual checkmark indicator on browse cards
+- [x] **TRACK-03**: Overall progress bar shows "X of 17 tutorials completed" on page header
+- [x] **TRACK-04**: Playback position saved periodically for resume-from-timestamp functionality
 
 ### Feedback
 
@@ -77,13 +77,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BROWSE-02 | Phase 72 | Complete |
 | BROWSE-03 | Phase 72 | Complete |
 | BROWSE-04 | Phase 72 | Complete |
-| PLAY-01 | Phase 73 | Pending |
+| PLAY-01 | Phase 73 | Complete |
 | PLAY-02 | Phase 73 | Pending |
-| PLAY-03 | Phase 73 | Pending |
-| TRACK-01 | Phase 73 | Pending |
-| TRACK-02 | Phase 73 | Pending |
-| TRACK-03 | Phase 73 | Pending |
-| TRACK-04 | Phase 73 | Pending |
+| PLAY-03 | Phase 73 | Complete |
+| TRACK-01 | Phase 73 | Complete |
+| TRACK-02 | Phase 73 | Complete |
+| TRACK-03 | Phase 73 | Complete |
+| TRACK-04 | Phase 73 | Complete |
 | FEED-01 | Phase 74 | Pending |
 | FEED-02 | Phase 74 | Pending |
 | FEED-03 | Phase 71 | Complete |
