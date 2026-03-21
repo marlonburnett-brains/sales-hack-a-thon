@@ -1558,6 +1558,7 @@ export interface TutorialBrowseCard {
   category: string;
   durationSec: number;
   thumbnailUrl: string | null;
+  gcsUrl: string;
   watched: boolean;
   lastPosition: number; // seconds, default 0 when no TutorialView row exists
 }

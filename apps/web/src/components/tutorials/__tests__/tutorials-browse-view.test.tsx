@@ -49,7 +49,9 @@ function makeTutorial(
     category: "getting_started",
     durationSec: 180,
     thumbnailUrl: null,
+    gcsUrl: "https://storage.googleapis.com/bucket/getting-started.mp4",
     watched: false,
+    lastPosition: 0,
     ...overrides,
   };
 }

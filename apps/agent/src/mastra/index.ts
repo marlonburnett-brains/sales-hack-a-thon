@@ -4231,6 +4231,7 @@ When you suggest changes, output the COMPLETE updated prompt between delimiters 
               category: t.category,
               durationSec: t.durationSec,
               thumbnailUrl: t.thumbnailUrl ?? null,
+              gcsUrl: t.gcsUrl,
               watched: viewsMap.get(t.id)?.watched ?? false,
               lastPosition: viewsMap.get(t.id)?.lastPosition ?? 0,
             }));
