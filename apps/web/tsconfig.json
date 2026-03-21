@@ -14,7 +14,8 @@
     ],
     "allowJs": true,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "declaration": false
   },
   "include": [
     "**/*.ts",
