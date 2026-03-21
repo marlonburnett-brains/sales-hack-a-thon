@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import dynamicImport from "next/dynamic";
 import { listTutorialsAction } from "@/lib/actions/tutorial-actions";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,12 @@ export default async function TutorialSlugPage({ params }: TutorialSlugPageProps
         nextTutorial={
           nextTutorial ? { slug: nextTutorial.slug, title: nextTutorial.title } : null
         }
+      />
+
+      <FeedbackWidget
+        key={tutorial.id}
+        sourceType="tutorial"
+        sourceId={tutorial.id}
       />
     </div>
   );
