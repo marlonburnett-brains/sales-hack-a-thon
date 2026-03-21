@@ -4198,9 +4198,9 @@ When you suggest changes, output the COMPLETE updated prompt between delimiters 
             prisma.tutorialView.findMany({ where: { userId } }),
           ]);
 
-          // Build a watched lookup keyed by tutorialId
-          const watchedSet = new Set(
-            views.filter((v) => v.watched).map((v) => v.tutorialId),
+          // Build a views lookup keyed by tutorialId (includes lastPosition)
+          const viewsMap = new Map(
+            views.map((v) => [v.tutorialId, { watched: v.watched, lastPosition: v.lastPosition }]),
           );
 
           // Group tutorials by category key
@@ -4216,7 +4216,7 @@ When you suggest changes, output the COMPLETE updated prompt between delimiters 
             const catTutorials = byCategory.get(meta.key) ?? [];
             const tutorialCount = catTutorials.length;
             const watchedCount = catTutorials.filter((t) =>
-              watchedSet.has(t.id),
+              viewsMap.get(t.id)?.watched ?? false,
             ).length;
             const completionPercent =
               tutorialCount === 0
@@ -4231,7 +4231,8 @@ When you suggest changes, output the COMPLETE updated prompt between delimiters 
               category: t.category,
               durationSec: t.durationSec,
               thumbnailUrl: t.thumbnailUrl ?? null,
-              watched: watchedSet.has(t.id),
+              watched: viewsMap.get(t.id)?.watched ?? false,
+              lastPosition: viewsMap.get(t.id)?.lastPosition ?? 0,
             }));
 
             return {
@@ -4247,7 +4248,7 @@ When you suggest changes, output the COMPLETE updated prompt between delimiters 
           // Overall stats
           const totalCount = tutorials.length;
           const completedCount = tutorials.filter((t) =>
-            watchedSet.has(t.id),
+            viewsMap.get(t.id)?.watched ?? false,
           ).length;
           const overallPercent =
             totalCount === 0
@@ -4262,6 +4263,53 @@ When you suggest changes, output the COMPLETE updated prompt between delimiters 
             },
             categories,
           });
+        },
+      }),
+
+      // ────────────────────────────────────────────────────────────
+      // Phase 73: Tutorial Progress Tracking
+      // ────────────────────────────────────────────────────────────
+
+      registerApiRoute("/tutorials/:id/progress", {
+        method: "PATCH",
+        handler: async (c) => {
+          const userId = await getVerifiedUserId(c, env.SUPABASE_URL);
+          if (!userId) return c.json({ error: "Unauthorized" }, 401);
+
+          const tutorialId = c.req.param("id");
+          const body = await c.req.json();
+          const parsed = z.object({ lastPosition: z.number() }).parse(body);
+          const { lastPosition } = parsed;
+
+          await prisma.tutorialView.upsert({
+            where: { tutorialId_userId: { tutorialId, userId } },
+            update: { lastPosition },
+            create: { tutorialId, userId, lastPosition },
+          });
+
+          return c.json({ ok: true });
+        },
+      }),
+
+      registerApiRoute("/tutorials/:id/watched", {
+        method: "PATCH",
+        handler: async (c) => {
+          const userId = await getVerifiedUserId(c, env.SUPABASE_URL);
+          if (!userId) return c.json({ error: "Unauthorized" }, 401);
+
+          const tutorialId = c.req.param("id");
+          const body = await c.req.json();
+          const parsed = z.object({ lastPosition: z.number() }).parse(body);
+          const { lastPosition } = parsed;
+          const watchedAt = new Date();
+
+          await prisma.tutorialView.upsert({
+            where: { tutorialId_userId: { tutorialId, userId } },
+            update: { watched: true, watchedAt, lastPosition },
+            create: { tutorialId, userId, watched: true, watchedAt, lastPosition },
+          });
+
+          return c.json({ ok: true });
         },
       }),
     ],
