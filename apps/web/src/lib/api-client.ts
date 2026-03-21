@@ -1201,6 +1201,12 @@ export async function fetchActionCount(userId?: string): Promise<number> {
   return result.count;
 }
 
+export async function fetchTutorialUnwatchedCount(userId?: string): Promise<number> {
+  const qs = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+  const result = await fetchJSON<{ count: number }>(`/tutorials/unwatched-count${qs}`);
+  return result.count;
+}
+
 export async function resolveAction(id: string): Promise<ActionRequiredItem> {
   return fetchJSON<ActionRequiredItem>(`/actions/${id}/resolve`, {
     method: "PATCH",

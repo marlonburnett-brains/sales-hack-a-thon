@@ -4313,6 +4313,52 @@ When you suggest changes, output the COMPLETE updated prompt between delimiters 
           return c.json({ ok: true });
         },
       }),
+      // GET /tutorials/unwatched-count -- Badge count: total minus watched by user
+      registerApiRoute("/tutorials/unwatched-count", {
+        method: "GET",
+        handler: async (c) => {
+          const userId = c.req.query("userId");
+          const totalTutorials = await prisma.tutorial.count();
+          const watchedCount = userId
+            ? await prisma.tutorialView.count({ where: { userId, watched: true } })
+            : 0;
+          const count = totalTutorials - watchedCount;
+          return c.json({ count });
+        },
+      }),
+      registerApiRoute("/feedback", {
+        method: "POST",
+        handler: async (c) => {
+          const userId = await getVerifiedUserId(c, env.SUPABASE_URL);
+          if (!userId) return c.json({ error: "Unauthorized" }, 401);
+
+          const body = await c.req.json();
+          let parsed: {
+            sourceType: string;
+            sourceId: string;
+            feedbackType: "tutorial_feedback" | "feature_feedback";
+            comment: string;
+          };
+          try {
+            parsed = z
+              .object({
+                sourceType: z.string(),
+                sourceId: z.string(),
+                feedbackType: z.enum(["tutorial_feedback", "feature_feedback"]),
+                comment: z.string().min(1).max(500),
+              })
+              .parse(body);
+          } catch {
+            return c.json({ error: "Invalid payload" }, 400);
+          }
+
+          await prisma.appFeedback.create({
+            data: { ...parsed, userId },
+          });
+
+          return c.json({ ok: true }, 201);
+        },
+      }),
     ],
   },
 });
