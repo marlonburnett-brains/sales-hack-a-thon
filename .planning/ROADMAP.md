@@ -254,4 +254,4 @@ Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depen
 | 72. Tutorial Browsing | 3/3 | Complete    | 2026-03-20 | - |
 | 73. Video Playback & Progress | 2/2 | Complete    | 2026-03-21 | - |
 | 74. Feedback System | 1/3 | In Progress|  | - |
-| 75. Sidebar Integration | 1/1 | Complete   | 2026-03-21 | - |
+| 75. Sidebar Integration | 1/1 | Complete    | 2026-03-21 | - |
