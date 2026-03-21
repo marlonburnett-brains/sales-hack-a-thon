@@ -13,6 +13,10 @@
   "pnpm": {
     "patchedDependencies": {
       "mastra": "patches/mastra.patch"
+    },
+    "overrides": {
+      "@types/react": "^19.0.0",
+      "@types/react-dom": "^19.0.0"
     }
   },
   "dependencies": {
