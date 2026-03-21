@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Brain,
   Briefcase,
+  GraduationCap,
   Layers,
   LayoutTemplate,
   Menu,
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/slides", label: "Slide Library", icon: Layers },
   { href: "/discovery", label: "AtlusAI", icon: Brain },
   { href: "/actions", label: "Action Required", icon: AlertTriangle },
+  { href: "/tutorials", label: "Tutorials", icon: GraduationCap },
 ];
 
 export function Sidebar({ user, children }: SidebarProps) {
@@ -38,11 +40,19 @@ export function Sidebar({ user, children }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [unwatchedCount, setUnwatchedCount] = useState(0);
 
   useEffect(() => {
     fetch("/api/actions/count")
       .then((res) => res.json())
       .then((data: { count?: number }) => setPendingCount(data.count ?? 0))
+      .catch(() => {}); // silent fail
+  }, [pathname]);
+
+  useEffect(() => {
+    fetch("/api/tutorials/unwatched-count")
+      .then((res) => res.json())
+      .then((data: { count?: number }) => setUnwatchedCount(data.count ?? 0))
       .catch(() => {}); // silent fail
   }, [pathname]);
 
@@ -107,6 +117,16 @@ export function Sidebar({ user, children }: SidebarProps) {
                 pendingCount > 0 && (
                   <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
                 )}
+              {/* Tutorials expanded badge — "New" blue pill */}
+              {!collapsed && label === "Tutorials" && unwatchedCount > 0 && (
+                <span className="ml-auto flex h-5 items-center justify-center rounded-full bg-blue-500 px-2 text-xs font-medium text-white">
+                  New
+                </span>
+              )}
+              {/* Tutorials collapsed badge — blue dot */}
+              {collapsed && label === "Tutorials" && unwatchedCount > 0 && (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-blue-500" />
+              )}
             </Link>
           );
         })}

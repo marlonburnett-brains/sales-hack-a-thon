@@ -252,8 +252,8 @@ describe("UI-sidebar-badge: Action Required nav with badge count", () => {
   });
 
   it("renders Action Required nav link in sidebar", () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ count: 0 }))
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ count: 0 })))
     );
     render(<Sidebar user={mockUser}>Content</Sidebar>);
 
@@ -262,9 +262,12 @@ describe("UI-sidebar-badge: Action Required nav with badge count", () => {
   });
 
   it("shows badge with pending count when actions exist", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ count: 5 }))
-    );
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (String(url).includes("/api/actions/count")) {
+        return Promise.resolve(new Response(JSON.stringify({ count: 5 })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ count: 0 })));
+    });
     render(<Sidebar user={mockUser}>Content</Sidebar>);
 
     // Wait for useEffect fetch to resolve and badge to appear
@@ -275,8 +278,8 @@ describe("UI-sidebar-badge: Action Required nav with badge count", () => {
   });
 
   it("does not show badge when count is 0", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ count: 0 }))
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ count: 0 })))
     );
     render(<Sidebar user={mockUser}>Content</Sidebar>);
 
@@ -290,9 +293,12 @@ describe("UI-sidebar-badge: Action Required nav with badge count", () => {
   });
 
   it("fetches count from /api/actions/count on mount", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ count: 3 }))
-    );
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (String(url).includes("/api/actions/count")) {
+        return Promise.resolve(new Response(JSON.stringify({ count: 3 })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ count: 0 })));
+    });
     render(<Sidebar user={mockUser}>Content</Sidebar>);
 
     // Both desktop and mobile sidebars render, use findAllByText
@@ -303,9 +309,12 @@ describe("UI-sidebar-badge: Action Required nav with badge count", () => {
 
   it("shows red dot indicator when sidebar is collapsed and count > 0", async () => {
     localStorage.setItem("sidebar-collapsed", "true");
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ count: 2 }))
-    );
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (String(url).includes("/api/actions/count")) {
+        return Promise.resolve(new Response(JSON.stringify({ count: 2 })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ count: 0 })));
+    });
     render(<Sidebar user={mockUser}>Content</Sidebar>);
 
     // Wait for fetch
@@ -328,5 +337,74 @@ describe("UI-sidebar-badge: Action Required nav with badge count", () => {
     const desktop = getDesktopSidebar();
     expect(desktop.querySelector("a[href='/actions']")).toBeTruthy();
     expect(desktop.querySelector("a[href='/deals']")).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BROWSE-01: Tutorials nav item with "New" badge for unwatched content
+// ---------------------------------------------------------------------------
+
+describe("BROWSE-01: Tutorials nav item with unwatched badge", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    state.pathname = "/deals";
+    vi.restoreAllMocks();
+  });
+
+  it("renders Tutorials nav link in sidebar", () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ count: 0 })))
+    );
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+    const desktop = getDesktopSidebar();
+    expect(desktop.querySelector("a[href='/tutorials']")).toBeTruthy();
+  });
+
+  it("shows blue 'New' pill in expanded sidebar when unwatchedCount > 0", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (String(url).includes("/api/tutorials/unwatched-count")) {
+        return Promise.resolve(new Response(JSON.stringify({ count: 3 })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ count: 0 })));
+    });
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+    const badges = await screen.findAllByText("New");
+    expect(badges.length).toBeGreaterThan(0);
+    expect(badges[0].className).toContain("bg-blue-500");
+  });
+
+  it("does not show blue pill when unwatchedCount is 0", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ count: 0 })))
+    );
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+    await new Promise((r) => setTimeout(r, 50));
+    const desktop = getDesktopSidebar();
+    expect(desktop.querySelectorAll(".bg-blue-500").length).toBe(0);
+  });
+
+  it("shows blue dot in collapsed sidebar when unwatchedCount > 0", async () => {
+    localStorage.setItem("sidebar-collapsed", "true");
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (String(url).includes("/api/tutorials/unwatched-count")) {
+        return Promise.resolve(new Response(JSON.stringify({ count: 2 })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ count: 0 })));
+    });
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+    await new Promise((r) => setTimeout(r, 50));
+    const desktop = getDesktopSidebar();
+    const blueDot = desktop.querySelector(".h-2.w-2.bg-blue-500");
+    expect(blueDot).toBeTruthy();
+  });
+
+  it("fetches /api/tutorials/unwatched-count on mount", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ count: 0 })))
+    );
+    render(<Sidebar user={mockUser}>Content</Sidebar>);
+    await new Promise((r) => setTimeout(r, 50));
+    const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
+    expect(urls).toContain("/api/tutorials/unwatched-count");
   });
 });
