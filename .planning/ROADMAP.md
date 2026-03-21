@@ -213,10 +213,12 @@ Plans:
   2. User submits feedback and it is persisted in the AppFeedback table with correct sourceType, sourceId, feedbackType, and comment
   3. Navigating between tutorials resets the feedback widget state (key={tutorialId} pattern)
   4. FeedbackWidget is documented as a reusable component with sourceType/sourceId props for future attachment to other pages
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 74-01: TBD
+- [ ] 74-01-PLAN.md -- Agent POST /feedback route and submitFeedbackAction server action
+- [ ] 74-02-PLAN.md -- FeedbackWidget client component (TDD: test scaffold + implementation)
+- [ ] 74-03-PLAN.md -- Slug page integration with key={tutorialId} and human verification
 
 ### Phase 75: Sidebar Integration
 **Goal**: Tutorials are discoverable from the global navigation with a badge signaling unwatched content
@@ -251,5 +253,5 @@ Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depen
 | 71. Database & Video Hosting | v1.10 | Complete    | 2026-03-20 | 2026-03-20 |
 | 72. Tutorial Browsing | 3/3 | Complete    | 2026-03-20 | - |
 | 73. Video Playback & Progress | 2/2 | Complete    | 2026-03-21 | - |
-| 74. Feedback System | v1.10 | 0/TBD | Not started | - |
+| 74. Feedback System | v1.10 | 0/3 | Not started | - |
 | 75. Sidebar Integration | v1.10 | 0/TBD | Not started | - |
