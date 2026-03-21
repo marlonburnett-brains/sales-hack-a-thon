@@ -154,7 +154,7 @@
 - [x] **Phase 72: Tutorial Browsing** - Category-grouped browse page with tutorial cards and completion indicators (completed 2026-03-20)
 - [x] **Phase 73: Video Playback & Progress Tracking** - HTML5 video player with watched state, resume, and progress display (completed 2026-03-21)
 - [ ] **Phase 74: Feedback System** - Reusable feedback widget with segmented control, wired to tutorial player
-- [ ] **Phase 75: Sidebar Integration** - Tutorials nav item with "New" badge for unwatched content
+- [x] **Phase 75: Sidebar Integration** - Tutorials nav item with "New" badge for unwatched content (completed 2026-03-21)
 
 ## Phase Details
 
@@ -254,4 +254,4 @@ Phases execute in numeric order: 71 -> 72 -> 73 -> 74 + 75 (74 and 75 both depen
 | 72. Tutorial Browsing | 3/3 | Complete    | 2026-03-20 | - |
 | 73. Video Playback & Progress | 2/2 | Complete    | 2026-03-21 | - |
 | 74. Feedback System | 1/3 | In Progress|  | - |
-| 75. Sidebar Integration | v1.10 | 0/1 | Not started | - |
+| 75. Sidebar Integration | 1/1 | Complete   | 2026-03-21 | - |

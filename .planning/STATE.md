@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: In-App Tutorials & Feedback
 status: completed
-stopped_at: Completed 74-01-PLAN.md (POST /feedback route + submitFeedbackAction)
-last_updated: "2026-03-21T01:32:32.649Z"
-last_activity: 2026-03-20 -- Completed 73-02 (TutorialVideoPlayer, progress server actions, slug page)
+stopped_at: Completed 75-01-PLAN.md (Tutorials sidebar nav item with blue New badge)
+last_updated: "2026-03-20T22:36:00.000Z"
+last_activity: 2026-03-20 -- Completed 75-01 (Tutorials sidebar nav item, /tutorials/unwatched-count endpoint, blue badge)
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 11
-  completed_plans: 8
-  percent: 100
+  completed_plans: 9
+  percent: 82
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 
 ## Current Position
 
-Phase: 73 - Video Playback & Progress Tracking (in progress)
-Plan: 02 complete (2 of 2 planned so far)
-Status: 73-02 complete
-Last activity: 2026-03-20 -- Completed 73-02 (TutorialVideoPlayer, progress server actions, slug page)
+Phase: 75 - Sidebar Integration (in progress)
+Plan: 01 complete (1 of 1 planned so far)
+Status: 75-01 complete
+Last activity: 2026-03-20 -- Completed 75-01 (Tutorials sidebar nav item with blue New badge, /tutorials/unwatched-count endpoint)
 
-Progress: [██████████] 100%
+Progress: [████████--] 82%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ All decisions logged in PROJECT.md Key Decisions table.
 - [Phase 73-02]: TutorialVideoPlayer props use initialLastPosition (matching pre-written test fixture)
 - [Phase 73-02]: hasMarkedWatched ref gate prevents duplicate markWatched calls at 90% currentTime/duration threshold
 - [Phase 73-02]: gcsUrl added as required field to TutorialBrowseCard (additive, non-breaking change)
+- [Phase 75-01]: Blue badge (bg-blue-500) for Tutorials New pill vs red for Action Required; total-watchedCount approach for unwatched count to avoid undercounting never-started tutorials
 - [Phase 74-feedback-system]: 74-01: agentFetch duplicated in feedback-actions.ts for Next.js server action bundling safety
 
 ### Key Research Findings (v1.10)
